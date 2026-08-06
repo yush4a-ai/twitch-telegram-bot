@@ -968,3 +968,26 @@ class Database:
         if row is None or row[0] == 0:
             return None
         return row[0], row[1], row[2], row[3], row[4]
+
+    async def get_bot_stats(self) -> dict[str, int]:
+        """Сводка по использованию бота: сколько людей и групп его подключили."""
+        private_users = await self.conn.execute("SELECT COUNT(*) FROM known_private_users")
+        groups = await self.conn.execute(
+            "SELECT COUNT(DISTINCT chat_id) FROM tracked_channels WHERE chat_id < 0"
+        )
+        tracked_channels = await self.conn.execute(
+            "SELECT COUNT(*) FROM tracked_channels"
+        )
+        unique_twitch_channels = await self.conn.execute(
+            "SELECT COUNT(DISTINCT twitch_login) FROM tracked_channels"
+        )
+        live_now = await self.conn.execute(
+            "SELECT COUNT(*) FROM tracked_channels WHERE is_live = 1"
+        )
+        return {
+            "private_users": (await private_users.fetchone())[0],
+            "groups": (await groups.fetchone())[0],
+            "tracked_channels": (await tracked_channels.fetchone())[0],
+            "unique_twitch_channels": (await unique_twitch_channels.fetchone())[0],
+            "live_now": (await live_now.fetchone())[0],
+        }
