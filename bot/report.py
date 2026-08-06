@@ -58,6 +58,11 @@ def _event_label(event: dict) -> str:
                 f'{event["join_count"]} зрителей'
             )
         return f'⚡ Вероятный рейд — <b>{event["join_count"]}</b> новых зрителей за 30 сек'
+    if event["type"] == "spike":
+        return (
+            f'🚩 Подозрительный всплеск — <b>{event["viewer_count"]}</b> зрителей '
+            f'(резкий взлёт и спад, похоже на накрутку, не учтён в статистике)'
+        )
     return f'Смена категории → <b>{html.escape(event["game"])}</b>'
 
 
@@ -112,6 +117,7 @@ def build_report_html(
     top_chatters: list[tuple[str, int]] | None = None,
     raid_events: list[tuple[float, int, str | None]] | None = None,
     collab_logins: list[str] | None = None,
+    viewer_spikes: list[tuple[float, int]] | None = None,
 ) -> str:
     try:
         start_dt = datetime.strptime(started_at_iso, "%Y-%m-%dT%H:%M:%SZ").replace(
@@ -142,6 +148,14 @@ def build_report_html(
                 "type": "raid",
                 "join_count": join_count,
                 "raider_name": raider_name,
+            }
+        )
+    for spike_ts, viewer_count in (viewer_spikes or []):
+        events.append(
+            {
+                "offset": max(0, int(spike_ts - start_ts)),
+                "type": "spike",
+                "viewer_count": viewer_count,
             }
         )
     events.sort(key=lambda e: e["offset"])
@@ -503,6 +517,7 @@ def build_report_html(
   .event-title .event-dot {{ background: var(--viewers); }}
   .event-game .event-dot {{ background: var(--chat); }}
   .event-raid .event-dot {{ background: var(--warning); }}
+  .event-spike .event-dot {{ background: #e5473a; }}
   .event-label {{ color: var(--text-2); }}
   .event-label b {{ color: var(--text-1); font-weight: 600; }}
   .event-game {{ color: var(--text-muted); }}

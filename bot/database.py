@@ -592,11 +592,18 @@ class Database:
         peak_viewers: int | None = None,
     ) -> None:
         # при старте нового стрима (is_live=True и меняется stream_id) обнуляем накопленную
-        # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе
+        # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе.
+        # peak_viewers обновляется, только если явно передан (не None) — иначе, при вызове
+        # без этого параметра на каждой итерации опроса, он бы затирался в NULL прямо перед
+        # тем, как record_viewer_sample успевает честно накопить в нём максимум за стрим.
         await self.conn.execute(
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
             "last_message_id = ?, last_title = ?, offline_since = ?, "
-            "stream_started_at = ?, peak_viewers = ?, "
+            "stream_started_at = ?, "
+            "peak_viewers = CASE "
+            "    WHEN ? IS NOT NULL THEN ? "
+            "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
+            "    ELSE peak_viewers END, "
             "stats_sent = CASE WHEN ? THEN 0 ELSE stats_sent END, "
             "viewer_sum = CASE WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) "
             "    THEN 0 ELSE viewer_sum END, "
@@ -607,7 +614,9 @@ class Database:
             "WHERE chat_id = ? AND twitch_login = ?",
             (
                 int(is_live), stream_id, message_id, title, offline_since,
-                stream_started_at, peak_viewers, int(is_live),
+                stream_started_at,
+                peak_viewers, peak_viewers, int(is_live), stream_id,
+                int(is_live),
                 int(is_live), stream_id, int(is_live), stream_id,
                 int(is_live), stream_id,
                 chat_id, twitch_login,

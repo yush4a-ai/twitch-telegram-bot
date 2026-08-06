@@ -20,7 +20,7 @@ from .twitch import ClipInfo, TwitchClient
 
 logger = logging.getLogger(__name__)
 
-MESSAGE_TEMPLATE = "{title}\n\n👁 Сейчас смотрят: {viewer_count}"
+MESSAGE_TEMPLATE = "🔴 <b>{channel_name}</b>\n{title}\n\n👁 Сейчас смотрят: {viewer_count}"
 
 # сколько ждать после ухода стрима в offline, прежде чем удалить пост
 OFFLINE_GRACE_SECONDS = 5 * 60
@@ -96,6 +96,51 @@ def _format_offset(seconds: int) -> str:
     if hours:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes:02d}:{secs:02d}"
+
+
+# во сколько раз зрителей должно резко прибыть и так же резко убыть на соседнем
+# замере, чтобы точку сочли подозрительным всплеском (накруткой), а не органическим
+# ростом — органический рост/спад аудитории за минуту почти никогда не выглядит так
+SPIKE_RATIO_THRESHOLD = 1.6
+# ниже этого числа зрителей всплеск не рассматриваем — на маленьких каналах
+# обычные колебания легко дают такое же процентное отклонение
+SPIKE_MIN_VIEWERS = 200
+
+
+def _detect_viewer_spikes(
+    samples: list[tuple[float, int, str, str]]
+) -> tuple[list[tuple[float, int, str, str]], list[tuple[float, int]]]:
+    """Находит одиночные "шипы" на графике зрителей — резкий скачок вверх, тут же
+    сменяющийся таким же резким спадом на следующем замере. Возвращает (samples без
+    точек-шипов, [(offset_ts, viewer_count), ...] отмеченных точек) — очищенные
+    samples используются для честного пересчёта пика/среднего, отмеченные точки
+    показываются в отчёте как вероятная накрутка."""
+    if len(samples) < 3:
+        return samples, []
+
+    spikes: list[tuple[float, int]] = []
+    spike_indices: set[int] = set()
+
+    for i in range(1, len(samples) - 1):
+        prev_count = samples[i - 1][1]
+        curr_count = samples[i][1]
+        next_count = samples[i + 1][1]
+
+        if curr_count < SPIKE_MIN_VIEWERS:
+            continue
+
+        rose_sharply = prev_count > 0 and curr_count / prev_count >= SPIKE_RATIO_THRESHOLD
+        fell_sharply = next_count > 0 and curr_count / next_count >= SPIKE_RATIO_THRESHOLD
+
+        if rose_sharply and fell_sharply:
+            spike_indices.add(i)
+            spikes.append((samples[i][0], curr_count))
+
+    if not spike_indices:
+        return samples, []
+
+    cleaned = [s for idx, s in enumerate(samples) if idx not in spike_indices]
+    return cleaned, spikes
 
 
 def _build_vod_chapters(samples: list[tuple[float, int, str, str]], start_ts: float) -> list[dict]:
@@ -559,15 +604,14 @@ class StreamPoller:
         new_followers_text = await self._compute_new_followers(login, followers_at_start)
         new_followers_num = int(new_followers_text) if new_followers_text is not None else None
 
-        history = await self._db.get_history_stats(chat_id, login)
-        comparison_lines = self._build_comparison(history, peak, avg_viewers)
-
         report_html = None
         unique_chatters = 0
         join_reliable = True
         vod_url = None
         top_chatters: list[tuple[str, int]] = []
         raid_events: list[tuple[float, int, str | None]] = []
+        viewer_spikes: list[tuple[float, int]] = []
+        comparison_lines: list[str] = []
         collab_logins = await self._detect_collab(login, title)
         if stream_id is not None:
             chat_activity = await self._db.get_chat_activity_samples(chat_id, login, stream_id)
@@ -582,7 +626,18 @@ class StreamPoller:
             vod_url = await self._fetch_and_save_vod(chat_id, login, stream_id, started_at)
 
             samples = await self._db.get_stream_samples(chat_id, login, stream_id)
+            samples, viewer_spikes = _detect_viewer_spikes(samples)
+            if viewer_spikes:
+                # честный пик/среднее без учёта подозрительных "шипов" — иначе одна
+                # накрученная точка искажает статистику всего стрима
+                viewer_values = [count for _ts, count, _title, _game in samples]
+                if viewer_values:
+                    peak = max(viewer_values)
+                    avg_viewers = round(sum(viewer_values) / len(viewer_values))
+
             report_format = await self._db.get_report_format(chat_id, login)
+            history = await self._db.get_history_stats(chat_id, login)
+            comparison_lines = self._build_comparison(history, peak, avg_viewers)
             if report_format != "brief":
                 report_html = build_report_html(
                     login,
@@ -601,6 +656,7 @@ class StreamPoller:
                     top_chatters=top_chatters,
                     raid_events=raid_events,
                     collab_logins=collab_logins,
+                    viewer_spikes=viewer_spikes,
                 )
 
             duration_seconds = self._duration_seconds(started_at)
@@ -643,6 +699,11 @@ class StreamPoller:
                     text += f" (+{len(raid_events) - len(named)} неопознанных всплесков)"
             else:
                 text += f"\n\n⚡ Вероятных рейдов: {len(raid_events)}"
+        if viewer_spikes:
+            text += (
+                f"\n\n🚩 Обнаружен резкий всплеск и такой же резкий спад зрителей "
+                f"({len(viewer_spikes)} момент(ов), похоже на накрутку) — не учтён в пике и среднем."
+            )
         if vod_url is not None:
             text += f"\n\n🎬 Запись: {html.escape(vod_url)}"
 
@@ -761,8 +822,14 @@ class StreamPoller:
             ]
         )
 
+    async def _channel_display_name(self, login: str) -> str:
+        display_name = await self._db.get_display_name(login)
+        return display_name or login
+
     async def _notify(self, chat_id: int, login: str, title: str, viewer_count: int) -> int | None:
+        channel_name = await self._channel_display_name(login)
         text = MESSAGE_TEMPLATE.format(
+            channel_name=html.escape(channel_name),
             title=html.escape(_strip_links(title)), viewer_count=_keycap_number(viewer_count)
         )
         keyboard = await self._build_keyboard(login)
@@ -779,7 +846,9 @@ class StreamPoller:
         """Возвращает False, если сообщение нельзя отредактировать как текст
         (например, старый пост — фото из прошлой версии бота) — в этом случае
         вызывающий код должен пересоздать пост заново."""
+        channel_name = await self._channel_display_name(login)
         text = MESSAGE_TEMPLATE.format(
+            channel_name=html.escape(channel_name),
             title=html.escape(_strip_links(title)), viewer_count=_keycap_number(viewer_count)
         )
         keyboard = await self._build_keyboard(login)
