@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import asyncio
 import html
 import json
 import logging
@@ -8,6 +9,7 @@ import time
 
 from aiogram import Bot, Router
 from aiogram.enums import ChatType
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command, CommandObject, CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -40,6 +42,11 @@ LOGIN_RE = re.compile(r"^[a-zA-Z0-9_]{4,25}$")
 # защита от злоупотребления: сколько каналов может отслеживать один чат
 MAX_CHANNELS_PER_CHAT = 50
 
+# сколько чатов максимум обходим при поиске групп пользователя и с какой
+# параллельностью — иначе один пользователь выбирает весь лимит Telegram API
+MAX_CHATS_TO_SCAN = 300
+CHAT_SCAN_CONCURRENCY = 8
+
 
 class AddChannel(StatesGroup):
     waiting_for_login = State()
@@ -62,6 +69,37 @@ def _extract_login(command: CommandObject) -> str | None:
     if not command.args:
         return None
     return _extract_login_text(command.args)
+
+
+def _is_valid_login(value: str) -> bool:
+    return bool(LOGIN_RE.match(value))
+
+
+def _parse_chat_and_login(data: str) -> tuple[int, str] | None:
+    """Разбирает callback_data вида '<префикс>:<chat_id>:<login>'.
+
+    callback_data приходит от клиента и может быть подделана (через MTProto можно
+    отправить произвольные байты, Telegram не сверяет их с кнопками сообщения),
+    поэтому формат проверяется строго, а логин — тем же регулярным выражением,
+    что и пользовательский ввод. None означает «данные мусорные, игнорируем»."""
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        return None
+    try:
+        chat_id = int(parts[1])
+    except ValueError:
+        return None
+    if not _is_valid_login(parts[2]):
+        return None
+    return chat_id, parts[2]
+
+
+def _callback_chat_id(callback: CallbackQuery) -> int | None:
+    """chat_id, в котором находится сообщение с кнопкой. None, если сообщение
+    недоступно (Telegram не отдаёт тело сообщений старше 48 часов)."""
+    if callback.message is None:
+        return None
+    return callback.message.chat.id
 
 
 def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
@@ -327,7 +365,8 @@ ABOUT_TEXT = (
 
 @router.message(CommandStart(deep_link=True))
 async def cmd_start_link(message: Message, command: CommandObject, state: FSMContext, db: Database) -> None:
-    await db.mark_known_private_user(message.chat.id)
+    if message.chat.type == ChatType.PRIVATE:
+        await db.mark_known_private_user(message.chat.id)
 
     payload = command.args or ""
     if payload.startswith("link_") and message.chat.type == ChatType.PRIVATE:
@@ -336,6 +375,23 @@ async def cmd_start_link(message: Message, command: CommandObject, state: FSMCon
         except ValueError:
             await cmd_start(message, state, db)
             return
+
+        # ссылку можно собрать вручную, зная chat_id группы (он не секрет — виден
+        # в /myid и в пересланных сообщениях), поэтому проверяем, что человек
+        # действительно состоит в этом чате. Иначе посторонний увёл бы себе все
+        # итоговые отчёты чужой группы, и владелец бы этого не заметил
+        if message.from_user is None:
+            await cmd_start(message, state, db)
+            return
+        status = await _chat_member_status(message.bot, source_chat_id, message.from_user.id)
+        if status not in MEMBER_STATUSES:
+            await message.answer(
+                "Эта ссылка привязывает отчёты чата, в котором ты не состоишь, — "
+                "поэтому я её не приму. Открой бота из нужной группы и нажми "
+                "«🔗 Привязать отчёты к личке» там."
+            )
+            return
+
         await db.set_stats_recipient(source_chat_id, message.chat.id)
         await message.answer(
             "Готово! Теперь итоговые отчёты о завершённых стримах для этого чата "
@@ -383,14 +439,24 @@ async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> N
     """В Telegram-канале нет способа узнать о боте иначе: читатели канала не могут
     писать боту сообщения, поэтому /start там никогда не сработает. Единственный
     сигнал о том, что бота добавили (или сняли) как админа — это my_chat_member."""
-    if event.chat.type != ChatType.CHANNEL:
-        return
     new_status = event.new_chat_member.status
-    if new_status == "administrator":
-        await db.register_telegram_channel(event.chat.id, event.chat.title or str(event.chat.id))
-    elif new_status in ("left", "kicked", "member"):
-        # "member" — бота понизили из админов, без прав постить он бесполезен для канала
-        await db.unregister_telegram_channel(event.chat.id)
+
+    if event.chat.type == ChatType.CHANNEL:
+        if new_status == "administrator":
+            await db.register_telegram_channel(event.chat.id, event.chat.title or str(event.chat.id))
+        elif new_status in ("left", "kicked", "member"):
+            # "member" — бота понизили из админов, без прав постить он бесполезен для канала
+            await db.unregister_telegram_channel(event.chat.id)
+        return
+
+    # из группы бота могли удалить — без уборки поллер продолжал бы каждую минуту
+    # опрашивать Twitch ради чата, куда всё равно не может писать
+    if event.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP) and new_status in ("left", "kicked"):
+        removed = await db.remove_all_channels(event.chat.id)
+        if removed:
+            logger.info(
+                "Бот удалён из чата %s — снято с отслеживания каналов: %s", event.chat.id, removed
+            )
 
 
 @router.callback_query(lambda c: c.data == "menu:home")
@@ -433,26 +499,35 @@ async def _admin_groups_for_user(callback: CallbackQuery, db: Database) -> list[
         return []
     group_ids = set(await db.all_distinct_group_chat_ids())
     channel_titles = dict(await db.all_telegram_channels())
-    candidate_ids = group_ids | channel_titles.keys()
+    candidate_ids = sorted(group_ids | channel_titles.keys())
 
-    result = []
-    for chat_id in candidate_ids:
-        try:
-            member = await callback.bot.get_chat_member(chat_id, callback.from_user.id)
-        except Exception:
-            continue  # бот мог быть удалён из чата или потерять доступ
-        if member.status not in ("administrator", "creator"):
-            continue
-        if chat_id in channel_titles:
-            title = channel_titles[chat_id]
-        else:
+    # проверка статуса — запрос к Telegram на каждый чат. Перебирать вообще все чаты
+    # бота нельзя: при тысячах групп одно нажатие кнопки выбирало бы весь лимит API
+    # и подвешивало бота для остальных, поэтому обход ограничен сверху
+    if len(candidate_ids) > MAX_CHATS_TO_SCAN:
+        logger.warning(
+            "Чатов больше предела обхода (%s из %s) — список групп может быть неполным",
+            MAX_CHATS_TO_SCAN, len(candidate_ids),
+        )
+        candidate_ids = candidate_ids[:MAX_CHATS_TO_SCAN]
+
+    semaphore = asyncio.Semaphore(CHAT_SCAN_CONCURRENCY)
+
+    async def resolve(chat_id: int) -> tuple[int, str] | None:
+        async with semaphore:
+            status = await _chat_member_status(callback.bot, chat_id, callback.from_user.id)
+            if status not in ADMIN_STATUSES:
+                return None
+            if chat_id in channel_titles:
+                return chat_id, channel_titles[chat_id]
             try:
                 chat = await callback.bot.get_chat(chat_id)
-                title = chat.title or str(chat_id)
+                return chat_id, chat.title or str(chat_id)
             except Exception:
-                title = str(chat_id)
-        result.append((chat_id, title))
-    return result
+                return chat_id, str(chat_id)
+
+    resolved = await asyncio.gather(*(resolve(cid) for cid in candidate_ids))
+    return [item for item in resolved if item is not None]
 
 
 async def _add_to_group_button(bot: Bot) -> InlineKeyboardButton:
@@ -625,12 +700,23 @@ async def process_utc_offset_input(message: Message, state: FSMContext, db: Data
 
 @router.callback_query(lambda c: c.data and c.data.startswith("qhpreset:"))
 async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
-    _, start_hour_s, end_hour_s = callback.data.split(":", 2)
-    chat_id = callback.message.chat.id
-    utc_offset = await db.get_utc_offset(chat_id) or 0
+    parts = callback.data.split(":", 2)
+    chat_id = _callback_chat_id(callback)
+    if len(parts) != 3 or chat_id is None:
+        await callback.answer()
+        return
+    try:
+        start_hour, end_hour = int(parts[1]), int(parts[2])
+    except ValueError:
+        await callback.answer()
+        return
+    if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23):
+        await callback.answer()
+        return
 
-    start_local_minute = int(start_hour_s) * 60
-    end_local_minute = int(end_hour_s) * 60
+    utc_offset = await db.get_utc_offset(chat_id) or 0
+    start_local_minute = start_hour * 60
+    end_local_minute = end_hour * 60
     start_utc = _local_minute_to_utc(start_local_minute, utc_offset)
     end_utc = _local_minute_to_utc(end_local_minute, utc_offset)
 
@@ -718,8 +804,24 @@ async def cb_quiet_hours_toggle_notify_after(callback: CallbackQuery, db: Databa
 
 @router.callback_query(lambda c: c.data and c.data.startswith("quietdigest:"))
 async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> None:
-    _, action, chat_id_s = callback.data.split(":", 2)
-    chat_id = int(chat_id_s)
+    parts = callback.data.split(":", 2)
+    if len(parts) != 3:
+        await callback.answer()
+        return
+    _, action, chat_id_s = parts
+    try:
+        chat_id = int(chat_id_s)
+    except ValueError:
+        await callback.answer()
+        return
+
+    # сводка всегда отправляется тому же чату, чьи отчёты откладывались, поэтому
+    # легитимный chat_id совпадает с чатом кнопки. Без этой сверки подделанный
+    # callback_data позволял бы вытянуть себе отчёты любого чужого чата и заодно
+    # стереть его очередь отложенных отчётов
+    if chat_id != _callback_chat_id(callback):
+        await callback.answer()
+        return
 
     entries = await db.get_and_clear_deferred_reports(chat_id)
     await db.clear_quiet_hours_digest_sent(chat_id)
@@ -799,17 +901,59 @@ async def _render_channels_list(
     return text, keyboard
 
 
+MEMBER_STATUSES = ("creator", "administrator", "member", "restricted")
+ADMIN_STATUSES = ("creator", "administrator")
+
+
+async def _chat_member_status(bot: Bot, chat_id: int, user_id: int) -> str | None:
+    """Статус пользователя в чате или None, если узнать не удалось (бота выгнали,
+    сеть отвалилась, чат недоступен). None трактуется вызывающим кодом как отказ:
+    при сомнениях безопаснее не пустить, чем пустить лишнего."""
+    try:
+        member = await bot.get_chat_member(chat_id, user_id)
+    except (TelegramForbiddenError, TelegramBadRequest) as e:
+        logger.debug("Не удалось получить статус пользователя в чате %s: %s", chat_id, e)
+        return None
+    except Exception:
+        logger.exception("Ошибка при проверке прав в чате %s", chat_id)
+        return None
+    return member.status
+
+
 async def _check_manage_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
     """True, если пользователь может управлять каналами target_chat_id из текущего
     диалога. Если диалог открыт прямо в target_chat_id — разрешено всем участникам
     (как и раньше). Если управление идёт удалённо (например, из лички) — только
     админам/владельцу target_chat_id, проверяется через Telegram API."""
-    if callback.message.chat.id == target_chat_id:
+    if _callback_chat_id(callback) == target_chat_id:
         return True
     if callback.from_user is None:
         return False
-    member = await callback.bot.get_chat_member(target_chat_id, callback.from_user.id)
-    return member.status in ("administrator", "creator")
+    status = await _chat_member_status(callback.bot, target_chat_id, callback.from_user.id)
+    return status in ADMIN_STATUSES
+
+
+async def _check_admin_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
+    """Строгая проверка для действий, уводящих данные чата вовне (переадресация
+    итогового отчёта в чью-то личку). Обычного участия в чате здесь мало."""
+    if target_chat_id > 0:
+        # личка: чат и пользователь — одно и то же лицо
+        return _callback_chat_id(callback) == target_chat_id
+    if callback.from_user is None:
+        return False
+    status = await _chat_member_status(callback.bot, target_chat_id, callback.from_user.id)
+    return status in ADMIN_STATUSES
+
+
+async def _check_read_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
+    """Просмотр списка каналов и карточек чужого чата. Достаточно быть участником,
+    но посторонний не должен видеть чужие настройки, даже зная chat_id."""
+    if _callback_chat_id(callback) == target_chat_id:
+        return True
+    if callback.from_user is None:
+        return False
+    status = await _chat_member_status(callback.bot, target_chat_id, callback.from_user.id)
+    return status in MEMBER_STATUSES
 
 
 @router.callback_query(lambda c: c.data == "menu:list")
@@ -883,10 +1027,18 @@ async def _render_channel_card(
 
 @router.callback_query(lambda c: c.data and c.data.startswith("channelcard:"))
 async def cb_channel_card(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
-    list_back = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
+    parsed = _parse_chat_and_login(callback.data)
+    current_chat_id = _callback_chat_id(callback)
+    if parsed is None or current_chat_id is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
+    if not await _check_read_permission(callback, target_chat_id):
+        await callback.answer("Нет доступа к этому чату.", show_alert=True)
+        return
+
+    list_back = _channels_list_back_callback(current_chat_id, target_chat_id)
     result = await _render_channel_card(target_chat_id, login, db, list_back_callback=list_back)
     if result is None:
         await callback.answer("Канал больше не отслеживается.", show_alert=True)
@@ -899,20 +1051,38 @@ async def cb_channel_card(callback: CallbackQuery, db: Database) -> None:
 @router.callback_query(lambda c: c.data and c.data.startswith("channellist:"))
 async def cb_channel_list_back(callback: CallbackQuery, db: Database) -> None:
     # формат: channellist:<target_chat_id>:<list_back_callback>
-    _, target_chat_id_s, list_back_callback = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parts = callback.data.split(":", 2)
+    current_chat_id = _callback_chat_id(callback)
+    if len(parts) != 3 or current_chat_id is None:
+        await callback.answer()
+        return
+    try:
+        target_chat_id = int(parts[1])
+    except ValueError:
+        await callback.answer()
+        return
+    list_back_callback = parts[2]
+
+    if not await _check_read_permission(callback, target_chat_id):
+        await callback.answer("Нет доступа к этому чату.", show_alert=True)
+        return
 
     text, keyboard = await _render_channels_list(
         target_chat_id, db, back_callback=list_back_callback,
-        allow_add=callback.message.chat.id == target_chat_id,
+        allow_add=current_chat_id == target_chat_id,
     )
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
 
 
-async def _refresh_channel_card(callback: CallbackQuery, db: Database, target_chat_id: str, login: str) -> None:
-    list_back = _channels_list_back_callback(callback.message.chat.id, int(target_chat_id))
-    result = await _render_channel_card(int(target_chat_id), login, db, list_back_callback=list_back)
+async def _refresh_channel_card(
+    callback: CallbackQuery, db: Database, target_chat_id: int, login: str
+) -> None:
+    current_chat_id = _callback_chat_id(callback)
+    if current_chat_id is None:
+        return
+    list_back = _channels_list_back_callback(current_chat_id, target_chat_id)
+    result = await _render_channel_card(target_chat_id, login, db, list_back_callback=list_back)
     if result is None:
         return
     text, keyboard = result
@@ -921,8 +1091,11 @@ async def _refresh_channel_card(callback: CallbackQuery, db: Database, target_ch
 
 @router.callback_query(lambda c: c.data and c.data.startswith("togglenotify:"))
 async def cb_toggle_notify(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
@@ -931,7 +1104,7 @@ async def cb_toggle_notify(callback: CallbackQuery, db: Database) -> None:
     currently_enabled = await db.get_notify_enabled(target_chat_id, login)
     await db.set_notify_enabled(target_chat_id, login, not currently_enabled)
 
-    await _refresh_channel_card(callback, db, target_chat_id_s, login)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Уведомления выключены" if currently_enabled else "Уведомления включены"
     )
@@ -939,16 +1112,22 @@ async def cb_toggle_notify(callback: CallbackQuery, db: Database) -> None:
 
 @router.callback_query(lambda c: c.data and c.data.startswith("togglerecipient:"))
 async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if target_chat_id > 0:
         # личка — переключать некуда, отчёт и так приходит туда же, куда живой пост
         await callback.answer("В личке переключать некуда.")
         return
 
-    if not await _check_manage_permission(callback, target_chat_id):
-        await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
+    # переключатель уводит итоговый отчёт группы в личку нажавшего, поэтому здесь
+    # мало быть участником — иначе любой из группы молча забирал бы себе её отчёты
+    # со списком чатеров и статистикой
+    if not await _check_admin_permission(callback, target_chat_id):
+        await callback.answer("Только админы этой группы могут менять получателя отчёта.", show_alert=True)
         return
 
     if callback.from_user is None or not await db.is_known_private_user(callback.from_user.id):
@@ -972,14 +1151,17 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         await db.set_post_recipient(target_chat_id, login, target_chat_id)
         answer_text = "Отчёт по этому каналу теперь идёт в группу"
 
-    await _refresh_channel_card(callback, db, target_chat_id_s, login)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(answer_text)
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("toggleformat:"))
 async def cb_toggle_format(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
@@ -989,7 +1171,7 @@ async def cb_toggle_format(callback: CallbackQuery, db: Database) -> None:
     new_format = "full" if current_format == "brief" else "brief"
     await db.set_report_format(target_chat_id, login, new_format)
 
-    await _refresh_channel_card(callback, db, target_chat_id_s, login)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Отчёт теперь краткий (только текст)" if new_format == "brief" else "Отчёт теперь развёрнутый (текст + HTML)"
     )
@@ -997,8 +1179,11 @@ async def cb_toggle_format(callback: CallbackQuery, db: Database) -> None:
 
 @router.callback_query(lambda c: c.data and c.data.startswith("toggleraid:"))
 async def cb_toggle_raid(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
@@ -1007,7 +1192,7 @@ async def cb_toggle_raid(callback: CallbackQuery, db: Database) -> None:
     currently_enabled = await db.get_raid_detection_enabled(target_chat_id, login)
     await db.set_raid_detection_enabled(target_chat_id, login, not currently_enabled)
 
-    await _refresh_channel_card(callback, db, target_chat_id_s, login)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Детектор рейдов выключен" if currently_enabled else "Детектор рейдов включён"
     )
@@ -1015,8 +1200,11 @@ async def cb_toggle_raid(callback: CallbackQuery, db: Database) -> None:
 
 @router.callback_query(lambda c: c.data and c.data.startswith("togglequiethoursexempt:"))
 async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
@@ -1025,7 +1213,7 @@ async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) ->
     currently_exempt = await db.get_quiet_hours_exempt(target_chat_id, login)
     await db.set_quiet_hours_exempt(target_chat_id, login, not currently_exempt)
 
-    await _refresh_channel_card(callback, db, target_chat_id_s, login)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Тихие часы снова действуют на этот канал" if currently_exempt
         else "Этот канал теперь исключён из тихих часов — отчёт придёт сразу"
@@ -1036,10 +1224,21 @@ async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) ->
 async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
     # "menu:add" — добавление в текущий чат; "menu:add:<target_chat_id>" — удалённое
     # добавление (например, из карточки Telegram-канала, открытой из лички)
+    current_chat_id = _callback_chat_id(callback)
+    if current_chat_id is None:
+        await callback.answer()
+        return
     parts = callback.data.split(":", 2)
-    target_chat_id = int(parts[2]) if len(parts) > 2 else callback.message.chat.id
+    if len(parts) > 2:
+        try:
+            target_chat_id = int(parts[2])
+        except ValueError:
+            await callback.answer()
+            return
+    else:
+        target_chat_id = current_chat_id
 
-    if target_chat_id != callback.message.chat.id and not await _check_manage_permission(
+    if target_chat_id != current_chat_id and not await _check_manage_permission(
         callback, target_chat_id
     ):
         await callback.answer("Только админы этой группы/канала могут добавлять каналы.", show_alert=True)
@@ -1047,7 +1246,7 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.set_state(AddChannel.waiting_for_login)
     await state.update_data(target_chat_id=target_chat_id)
-    back_callback = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
+    back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
 
     rows = []
     # импорт — альтернативный способ выполнить ровно эту задачу, поэтому предлагаем
@@ -1070,17 +1269,21 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
 
 @router.callback_query(lambda c: c.data and c.data.startswith("untrack:"))
 async def cb_untrack(callback: CallbackQuery, db: Database) -> None:
-    _, target_chat_id_s, login = callback.data.split(":", 2)
-    target_chat_id = int(target_chat_id_s)
+    parsed = _parse_chat_and_login(callback.data)
+    current_chat_id = _callback_chat_id(callback)
+    if parsed is None or current_chat_id is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
         return
 
     await db.remove_channel(target_chat_id, login)
-    back_callback = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
+    back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
     text, keyboard = await _render_channels_list(
-        target_chat_id, db, back_callback=back_callback, allow_add=callback.message.chat.id == target_chat_id
+        target_chat_id, db, back_callback=back_callback, allow_add=current_chat_id == target_chat_id
     )
     text = "Канал удалён.\n\n" + text
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -1273,11 +1476,18 @@ async def cb_menu_import_follows(
     oauth_server: OAuthCallbackServer,
 ) -> None:
     await callback.answer()
+    if callback.message is None:
+        return
     await _run_import_follows(callback.message, state, db, config, oauth_server)
 
 
 @router.callback_query(lambda c: c.data == "importfollows:add")
 async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+    current_chat_id = _callback_chat_id(callback)
+    if current_chat_id is None:
+        await callback.answer()
+        return
+
     data = await state.get_data()
     logins = data.get("import_logins") or []
     await state.clear()
@@ -1288,12 +1498,12 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
 
     added = 0
     for login in logins:
-        if await db.count_channels(callback.message.chat.id) >= MAX_CHANNELS_PER_CHAT:
+        if await db.count_channels(current_chat_id) >= MAX_CHANNELS_PER_CHAT:
             break
-        if await db.add_channel(callback.message.chat.id, login):
+        if await db.add_channel(current_chat_id, login):
             added += 1
 
-    _, keyboard = await _render_channels_list(callback.message.chat.id, db)
+    _, keyboard = await _render_channels_list(current_chat_id, db)
     await callback.message.edit_text(
         f"Готово, добавил каналов: {added}.\n\n"
         "Как только кто-то из них выйдет в эфир — пришлю уведомление.",
@@ -1304,8 +1514,12 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("addfound:"))
 async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
-    _, raw_chat_id, login = callback.data.split(":", 2)
-    target_chat_id = int(raw_chat_id)
+    parsed = _parse_chat_and_login(callback.data)
+    current_chat_id = _callback_chat_id(callback)
+    if parsed is None or current_chat_id is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы могут добавлять каналы.", show_alert=True)
         return
@@ -1489,6 +1703,21 @@ async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
     await callback.answer()
 
 
+def _safe_json_list(raw: str | None) -> list:
+    """Список кортежей из JSON в БД. Повреждённая строка не должна лишать
+    пользователя всего отчёта, поэтому при ошибке разбора — пустой список."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        logger.warning("Не удалось разобрать JSON из БД, пропускаю")
+        return []
+    if not isinstance(data, list):
+        return []
+    return [tuple(item) if isinstance(item, list) else item for item in data]
+
+
 async def _send_report(message: Message, chat_id: int, login: str, db: Database) -> None:
     record = await db.get_last_finished_stream(chat_id, login)
     if record is None:
@@ -1513,10 +1742,13 @@ async def _send_report(message: Message, chat_id: int, login: str, db: Database)
     chat_activity = await db.get_chat_activity_samples(chat_id, login, stream_id)
     chatter_nicks = await db.get_chat_unique_nicks(chat_id, login, stream_id)
     vod = await db.get_vod(chat_id, login, stream_id)
-    top_chatters = [tuple(item) for item in json.loads(top_chatters_json)] if top_chatters_json else []
-    raid_events = [tuple(item) for item in json.loads(raid_events_json)] if raid_events_json else []
+    top_chatters = _safe_json_list(top_chatters_json)
+    raid_events = _safe_json_list(raid_events_json)
 
-    report_html = build_report_html(
+    # сборка HTML синхронная и тяжёлая — в event loop она подвесила бы бота
+    # для всех остальных пользователей на время формирования отчёта
+    report_html = await asyncio.to_thread(
+        build_report_html,
         login,
         started_at or "",
         format_duration_seconds(duration_seconds),
@@ -1565,5 +1797,9 @@ async def cb_menu_report(callback: CallbackQuery, db: Database) -> None:
 @router.callback_query(lambda c: c.data and c.data.startswith("report:"))
 async def cb_report_channel(callback: CallbackQuery, db: Database) -> None:
     login = callback.data.split(":", 1)[1]
+    chat_id = _callback_chat_id(callback)
+    if chat_id is None or not _is_valid_login(login):
+        await callback.answer()
+        return
     await callback.answer("Готовлю отчёт…")
-    await _send_report(callback.message, callback.message.chat.id, login, db)
+    await _send_report(callback.message, chat_id, login, db)

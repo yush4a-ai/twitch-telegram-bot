@@ -24,6 +24,7 @@ from bot.chat_listener import ChatListener
 from bot.config import load_config
 from bot.database import Database
 from bot.handlers import register_all_handlers
+from bot.middlewares import setup_middlewares
 from bot.oauth import REDIRECT_PATH, OAuthCallbackServer
 from bot.poller import StreamPoller
 from bot.token_store import TokenStore
@@ -84,7 +85,13 @@ async def main() -> None:
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     dp = Dispatcher()
+    setup_middlewares(dp)
     register_all_handlers(dp)
+
+    if config.owner_chat_id is None:
+        logger.warning(
+            "OWNER_CHAT_ID не задан — команда /stats и алерты о банах каналов работать не будут"
+        )
 
     tracking_commands = [
         BotCommand(command="track", description="➕ Начать следить за Twitch-каналом"),
@@ -117,7 +124,11 @@ async def main() -> None:
         "Установка кнопки меню",
     )
 
-    async with aiohttp.ClientSession() as session:
+    # общий таймаут на все исходящие запросы: без него зависшее соединение
+    # держит цикл опроса до дефолтных пяти минут aiohttp
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30, connect=10)
+    ) as session:
         twitch = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
         token_store = TokenStore(db, config.twitch_client_id, config.twitch_client_secret, session)
         chat_listener = ChatListener(session)

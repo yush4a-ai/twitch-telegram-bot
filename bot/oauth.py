@@ -125,7 +125,8 @@ async def run_authorization_flow(
     callback_server, и обменивает полученный code на токен."""
     state = secrets.token_urlsafe(16)
     auth_url = build_authorize_url(client_id, callback_server.redirect_uri, state)
-    logger.info("Ссылка авторизации Twitch: %s", auth_url)
+    # ссылка содержит одноразовый state — в обычные логи её писать незачем
+    logger.debug("Ссылка авторизации Twitch сформирована для state=%s", state[:6])
     if on_url_ready is not None:
         await on_url_ready(auth_url)
 

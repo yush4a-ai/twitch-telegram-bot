@@ -1,12 +1,34 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import asyncio
 import logging
+import random
 import time
 from dataclasses import dataclass
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
+
+# суммарный таймаут запроса к Twitch: цикл опроса должен уложиться в свой интервал,
+# зависший запрос не имеет права держать весь бот
+HTTP_TIMEOUT = aiohttp.ClientTimeout(total=15)
+HTTP_MAX_RETRIES = 2
+HTTP_RETRY_BASE_DELAY = 1.0
+
+
+def _retry_delay(attempt: int, ratelimit_reset: str | None) -> float:
+    """Пауза перед повтором: слушаем подсказку Twitch, если она есть, иначе растём
+    экспоненциально. Небольшой случайный разброс разводит повторы по разным каналам,
+    чтобы они не били в API одной волной."""
+    if ratelimit_reset:
+        try:
+            wait = float(ratelimit_reset) - time.time()
+            if 0 < wait <= 30:
+                return wait + random.uniform(0, 0.5)
+        except ValueError:
+            pass
+    return HTTP_RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.5)
 
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 STREAMS_URL = "https://api.twitch.tv/helix/streams"
@@ -71,6 +93,7 @@ class TwitchClient:
                 "client_secret": self._client_secret,
                 "grant_type": "client_credentials",
             },
+            timeout=HTTP_TIMEOUT,
         ) as resp:
             resp.raise_for_status()
             data = await resp.json()
@@ -85,17 +108,51 @@ class TwitchClient:
         return {"Client-Id": self._client_id, "Authorization": f"Bearer {token}"}
 
     async def _request(self, url: str, params: list[tuple[str, str]]) -> dict:
+        """Запрос к Helix с ретраями.
+
+        Без явного таймаута зависший ответ Twitch держал бы весь цикл опроса
+        (по умолчанию aiohttp ждёт 5 минут), а разовые 429/5xx роняли бы обработку
+        всех каналов разом — поэтому здесь ограниченное число повторов с паузой."""
         headers = await self._headers()
-        async with self._session.get(url, headers=headers, params=params) as resp:
-            if resp.status == 401:
-                # токен мог быть отозван — обновим один раз и повторим
-                self._token = None
-                headers = await self._headers()
-                async with self._session.get(url, headers=headers, params=params) as retry_resp:
-                    retry_resp.raise_for_status()
-                    return await retry_resp.json()
-            resp.raise_for_status()
-            return await resp.json()
+        last_error: Exception | None = None
+
+        for attempt in range(HTTP_MAX_RETRIES + 1):
+            try:
+                async with self._session.get(
+                    url, headers=headers, params=params, timeout=HTTP_TIMEOUT
+                ) as resp:
+                    if resp.status == 401:
+                        # токен мог быть отозван — обновляем и повторяем сразу
+                        self._token = None
+                        headers = await self._headers()
+                        continue
+                    if resp.status == 429 or resp.status >= 500:
+                        last_error = aiohttp.ClientResponseError(
+                            resp.request_info, resp.history,
+                            status=resp.status, message=resp.reason or "",
+                        )
+                        if attempt < HTTP_MAX_RETRIES:
+                            delay = _retry_delay(attempt, resp.headers.get("Ratelimit-Reset"))
+                            logger.warning(
+                                "Twitch ответил %s на %s, повтор через %.1fс",
+                                resp.status, url, delay,
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                        raise last_error
+                    resp.raise_for_status()
+                    return await resp.json()
+            except (aiohttp.ClientConnectionError, asyncio.TimeoutError) as e:
+                last_error = e
+                if attempt >= HTTP_MAX_RETRIES:
+                    raise
+                delay = HTTP_RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning("Сеть недоступна при запросе к %s (%s), повтор через %.1fс", url, e, delay)
+                await asyncio.sleep(delay)
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"Не удалось выполнить запрос к {url}")
 
     async def get_live_streams(self, logins: list[str]) -> dict[str, StreamInfo]:
         """Вернёт {twitch_login: StreamInfo} только для тех каналов, что сейчас в эфире."""
@@ -165,7 +222,9 @@ class TwitchClient:
             params = [("user_id", user_id), ("first", "100")]
             if cursor:
                 params.append(("after", cursor))
-            async with self._session.get(FOLLOWED_URL, headers=headers, params=params) as resp:
+            async with self._session.get(
+                FOLLOWED_URL, headers=headers, params=params, timeout=HTTP_TIMEOUT
+            ) as resp:
                 resp.raise_for_status()
                 data = await resp.json()
             logins.extend(
@@ -242,6 +301,7 @@ class TwitchClient:
             FOLLOWERS_URL,
             headers=headers,
             params={"broadcaster_id": broadcaster_id, "first": "1"},
+            timeout=HTTP_TIMEOUT,
         ) as resp:
             resp.raise_for_status()
             data = await resp.json()

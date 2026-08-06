@@ -82,6 +82,11 @@ class ChatListener:
         self._raid_events[login] = []
         self._tasks[login] = asyncio.create_task(self._run(login))
 
+    def is_running(self, login: str) -> bool:
+        """Идёт ли сейчас сбор по этому каналу. Нужно, чтобы не забирать буфер
+        повторно, когда стрим уже завершён и слушатель остановлен."""
+        return login in self._tasks
+
     async def stop(self, login: str) -> None:
         task = self._tasks.pop(login, None)
         if task is not None:

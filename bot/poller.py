@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import html
@@ -9,7 +9,12 @@ import time
 from datetime import datetime, timezone
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 
 from .chat_listener import ChatListener
@@ -43,6 +48,14 @@ REPORT_DATA_RETENTION_SECONDS = 24 * 60 * 60
 # чтобы обычные выходные или пара пропущенных дней не считались «долгим отсутствием»
 RETURN_AFTER_BREAK_DAYS = 7
 
+# сколько максимум ждать по требованию Telegram при 429: если он просит больше,
+# ждать смысла нет — отложим до следующего круга опроса
+MAX_RETRY_AFTER_SECONDS = 30
+
+# маркер неуспешного вызова Telegram: None — валидный результат (например, у edit),
+# поэтому нужен отдельный объект-признак
+_FAILED = object()
+
 _KEYCAP_DIGITS = {
     "0": "0️⃣", "1": "1️⃣", "2": "2️⃣", "3": "3️⃣", "4": "4️⃣",
     "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣",
@@ -51,6 +64,21 @@ _KEYCAP_DIGITS = {
 
 def _keycap_number(value: int) -> str:
     return "".join(_KEYCAP_DIGITS[digit] for digit in str(value))
+
+
+def _load_json_list(raw: str | None) -> list:
+    """Разбирает список из JSON, сохранённого в БД. Пустой список вместо исключения:
+    повреждённая строка не должна лишать пользователя всего итогового отчёта."""
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        logger.warning("Не удалось разобрать сохранённый JSON, пропускаю: %.80s", raw)
+        return []
+    if not isinstance(data, list):
+        return []
+    return [tuple(item) if isinstance(item, list) else item for item in data]
 
 
 def _plural_days(days: int) -> str:
@@ -215,13 +243,41 @@ class StreamPoller:
         self._token_store = token_store
         self._chat_listener = chat_listener
         self._owner_chat_id = owner_chat_id
-        self._join_reliable_cache: dict[tuple[int, str, str], bool] = {}
-        self._top_chatters_cache: dict[tuple[int, str, str], list[tuple[str, int]]] = {}
-        self._raid_events_cache: dict[tuple[int, str, str], list[tuple[float, int, str | None]]] = {}
         self._stop_event = asyncio.Event()
+        # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
+        # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
+        self._background_tasks: set[asyncio.Task] = set()
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    async def _tg_call(self, coro_factory, description: str, *, retries: int = 1):
+        """Единая точка вызова Telegram API из поллера.
+
+        Главное — TelegramRetryAfter (429): раньше он не ловился нигде и всплывал
+        в общий обработчик цикла, обрывая опрос на середине, из-за чего часть чатов
+        в этом круге вообще не получала ни поста, ни отчёта. Возвращает _FAILED,
+        если отправить не удалось."""
+        for attempt in range(retries + 1):
+            try:
+                return await coro_factory()
+            except TelegramRetryAfter as e:
+                if attempt >= retries:
+                    logger.warning("%s: лимит Telegram, пропускаю до следующего цикла", description)
+                    return _FAILED
+                delay = min(e.retry_after, MAX_RETRY_AFTER_SECONDS)
+                logger.info("%s: лимит Telegram, жду %sс", description, delay)
+                await asyncio.sleep(delay)
+            except (TelegramForbiddenError, TelegramBadRequest) as e:
+                logger.warning("%s: %s", description, e)
+                return _FAILED
+            except TelegramNetworkError as e:
+                logger.warning("%s: сеть недоступна (%s)", description, e)
+                return _FAILED
+            except Exception:
+                logger.exception("%s: неожиданная ошибка", description)
+                return _FAILED
+        return _FAILED
 
     async def run(self) -> None:
         logger.info("Поллер запущен, интервал %s сек", self._interval)
@@ -285,10 +341,10 @@ class StreamPoller:
             f"🚨 Канал <b>{html.escape(login)}</b> больше не существует на Twitch — "
             "возможно, аккаунт забанен, приостановлен или удалён."
         )
-        try:
-            await self._bot.send_message(self._owner_chat_id, text)
-        except (TelegramForbiddenError, TelegramBadRequest) as e:
-            logger.warning("Не удалось отправить алерт о бане канала %s: %s", login, e)
+        await self._tg_call(
+            lambda: self._bot.send_message(self._owner_chat_id, text),
+            f"Алерт о бане канала {login}",
+        )
 
     async def _check_once(self) -> None:
         await self._check_streams()
@@ -349,10 +405,10 @@ class StreamPoller:
                 ]
             ]
         )
-        try:
-            await self._bot.send_message(chat_id, text, reply_markup=keyboard)
-        except (TelegramForbiddenError, TelegramBadRequest) as e:
-            logger.warning("Не удалось отправить сводку тихих часов в чат %s: %s", chat_id, e)
+        await self._tg_call(
+            lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
+            f"Сводка тихих часов в чат {chat_id}",
+        )
 
     async def _check_channel_renames(self) -> None:
         """Раз в цикл сверяет отображаемое имя (display_name) отслеживаемых каналов
@@ -381,15 +437,28 @@ class StreamPoller:
             f"«{html.escape(old_name)}» → «{html.escape(new_name)}»."
         )
         for chat_id in await self._db.chats_for_login(login):
-            try:
-                await self._bot.send_message(chat_id, text)
-            except (TelegramForbiddenError, TelegramBadRequest) as e:
-                logger.warning("Не удалось отправить алерт о переименовании канала в чат %s: %s", chat_id, e)
+            await self._tg_call(
+                lambda: self._bot.send_message(chat_id, text),
+                f"Алерт о переименовании канала в чат {chat_id}",
+            )
 
     def _on_raid_detected(self, login: str, raider_name: str, viewer_count: int) -> None:
         """Синхронный callback из ChatListener (вызывается прямо из парсинга IRC-строки) —
         оборачиваем в задачу, чтобы не блокировать чтение сокета отправкой в Telegram."""
-        asyncio.create_task(self._notify_raid(login, raider_name, viewer_count))
+        task = asyncio.create_task(self._notify_raid(login, raider_name, viewer_count))
+        # ссылку нужно держать: задачи без ссылок сборщик мусора вправе убить
+        # прямо посреди отправки, а их исключения иначе нигде не всплывают
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        task.add_done_callback(self._log_task_error)
+
+    @staticmethod
+    def _log_task_error(task: asyncio.Task) -> None:
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            logger.error("Фоновая задача завершилась ошибкой: %s", error, exc_info=error)
 
     async def _notify_raid(self, login: str, raider_name: str, viewer_count: int) -> None:
         text = (
@@ -399,10 +468,10 @@ class StreamPoller:
         for chat_id in await self._db.chats_for_login(login):
             if not await self._db.get_raid_detection_enabled(chat_id, login):
                 continue
-            try:
-                await self._bot.send_message(chat_id, text)
-            except (TelegramForbiddenError, TelegramBadRequest) as e:
-                logger.warning("Не удалось отправить уведомление о рейде в чат %s: %s", chat_id, e)
+            await self._tg_call(
+                lambda: self._bot.send_message(chat_id, text),
+                f"Уведомление о рейде в чат {chat_id}",
+            )
 
     async def _detect_collab(self, login: str, title: str | None) -> list[str]:
         """Если в финальном заголовке стрима упоминается логин или отображаемое имя
@@ -414,9 +483,9 @@ class StreamPoller:
         other_logins = [l for l in await self._db.all_distinct_logins() if l != login]
         if not other_logins:
             return []
-        candidates = {}
-        for other_login in other_logins:
-            candidates[other_login] = await self._db.get_display_name(other_login)
+        # одна выборка имён вместо запроса на каждый логин
+        display_names = await self._db.get_display_names_map()
+        candidates = {other: display_names.get(other) for other in other_logins}
         return _find_collab_mentions(title, login, candidates)
 
     async def _check_streams(self) -> None:
@@ -429,6 +498,9 @@ class StreamPoller:
         for login in logins:
             chat_ids = await self._db.chats_for_login(login)
             stream = live_streams.get(login)
+            # чаты, для которых стрим только что закончился — данные чата собираются
+            # для них разом после обхода, одним чтением буфера
+            went_offline: list[tuple[int, str]] = []
 
             for chat_id in chat_ids:
                 (
@@ -547,35 +619,51 @@ class StreamPoller:
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
                         )
-                        is_telegram_channel = await self._db.is_telegram_channel(chat_id)
-                        if (
-                            self._chat_listener is not None
-                            and last_stream_id is not None
-                            and not is_telegram_channel
-                        ):
-                            # Telegram-канал не получает итоговый отчёт, поэтому не должен
-                            # первым забирать буфер ChatListener у групп, которые его
-                            # действительно используют (get_and_clear_* очищает буфер)
-                            activity = self._chat_listener.get_and_clear_activity(login)
-                            # считаем чатеров по написавшим, а не по JOIN — Twitch глушит
-                            # join/part на крупных каналах, из-за чего счётчик показывал
-                            # единицы там, где чат был живой
-                            nicks = self._chat_listener.get_and_clear_chatters(login)
-                            self._chat_listener.get_and_clear_unique_viewers(login)
-                            join_reliable = self._chat_listener.get_and_clear_join_reliability(login)
-                            top_chatters = self._chat_listener.get_and_clear_top_chatters(login)
-                            raid_events = self._chat_listener.get_and_clear_raid_events(login)
-                            await self._chat_listener.stop(login)
+                        if last_stream_id is not None:
+                            went_offline.append((chat_id, last_stream_id))
 
-                            await self._db.add_chat_activity_samples(
-                                chat_id, login, last_stream_id, activity
-                            )
-                            await self._db.add_chat_unique_nicks(
-                                chat_id, login, last_stream_id, nicks
-                            )
-                            self._join_reliable_cache[(chat_id, login, last_stream_id)] = join_reliable
-                            self._top_chatters_cache[(chat_id, login, last_stream_id)] = top_chatters
-                            self._raid_events_cache[(chat_id, login, last_stream_id)] = raid_events
+            if stream is None:
+                await self._finish_chat_collection(login, went_offline)
+
+    async def _finish_chat_collection(
+        self, login: str, went_offline: list[tuple[int, str]]
+    ) -> None:
+        """Забирает данные чата за стрим и раскладывает их по всем чатам, которые
+        следили за каналом.
+
+        Буфер ChatListener читается ровно один раз на канал: get_and_clear_* очищает
+        его, поэтому раньше при нескольких чатах, следящих за одним стримером, данные
+        доставались только первому, а остальные получали пустой отчёт. Слушатель тоже
+        останавливается здесь и безусловно — иначе канал, отслеживаемый только из
+        Telegram-канала, навсегда оставлял бы висеть IRC-подключение."""
+        if self._chat_listener is None:
+            return
+        if not self._chat_listener.is_running(login):
+            return
+
+        activity = self._chat_listener.get_and_clear_activity(login)
+        # считаем чатеров по написавшим, а не по JOIN — Twitch глушит join/part
+        # на крупных каналах, из-за чего счётчик показывал единицы при живом чате
+        nicks = self._chat_listener.get_and_clear_chatters(login)
+        self._chat_listener.get_and_clear_unique_viewers(login)
+        join_reliable = self._chat_listener.get_and_clear_join_reliability(login)
+        top_chatters = self._chat_listener.get_and_clear_top_chatters(login)
+        raid_events = self._chat_listener.get_and_clear_raid_events(login)
+        await self._chat_listener.stop(login)
+
+        now = time.time()
+        for chat_id, last_stream_id in went_offline:
+            # в Telegram-канале итогового отчёта нет, поэтому сохранять данные незачем
+            if await self._db.is_telegram_channel(chat_id):
+                continue
+            await self._db.add_chat_activity_samples(chat_id, login, last_stream_id, activity)
+            await self._db.add_chat_unique_nicks(chat_id, login, last_stream_id, nicks)
+            await self._db.save_stream_chat_meta(
+                chat_id, login, last_stream_id, join_reliable,
+                json.dumps(top_chatters) if top_chatters else None,
+                json.dumps(raid_events) if raid_events else None,
+                now,
+            )
 
     async def _build_return_note(self, chat_id: int, login: str) -> str | None:
         """«Первый стрим за N дней», если канал долго не выходил в эфир. None, если
@@ -609,10 +697,10 @@ class StreamPoller:
         for chat_id, login, message_id, offline_since in await self._db.pending_offline_posts():
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
-            try:
-                await self._bot.delete_message(chat_id, message_id)
-            except (TelegramForbiddenError, TelegramBadRequest) as e:
-                logger.warning("Не удалось удалить сообщение %s в чате %s: %s", message_id, chat_id, e)
+            await self._tg_call(
+                lambda: self._bot.delete_message(chat_id, message_id),
+                f"Удаление поста {message_id} в чате {chat_id}",
+            )
             await self._db.clear_message(chat_id, login)
 
     async def _send_pending_stats(self) -> None:
@@ -698,10 +786,15 @@ class StreamPoller:
             chat_activity = await self._db.get_chat_activity_samples(chat_id, login, stream_id)
             chatter_nicks = await self._db.get_chat_unique_nicks(chat_id, login, stream_id)
             unique_chatters = len(chatter_nicks)
-            join_reliable = self._join_reliable_cache.pop((chat_id, login, stream_id), True)
-            top_chatters = self._top_chatters_cache.pop((chat_id, login, stream_id), [])
+            meta = await self._db.take_stream_chat_meta(chat_id, login, stream_id)
+            join_reliable = True
+            top_chatters = []
+            raw_raid_events: list[tuple[float, int, str | None]] = []
+            if meta is not None:
+                join_reliable, top_chatters_json, raid_events_json = meta
+                top_chatters = _load_json_list(top_chatters_json)
+                raw_raid_events = _load_json_list(raid_events_json)
             raid_detection_enabled = await self._db.get_raid_detection_enabled(chat_id, login)
-            raw_raid_events = self._raid_events_cache.pop((chat_id, login, stream_id), [])
             raid_events = raw_raid_events if raid_detection_enabled else []
             top_clips = await self._fetch_top_clips(login, started_at)
             vod_url = await self._fetch_and_save_vod(chat_id, login, stream_id, started_at)
@@ -720,7 +813,10 @@ class StreamPoller:
             history = await self._db.get_history_stats(chat_id, login)
             comparison_lines = self._build_comparison(history, peak, avg_viewers)
             if report_format != "brief":
-                report_html = build_report_html(
+                # сборка HTML — синхронная и тяжёлая (тысячи точек графика и ников):
+                # в event loop она подвешивала бы весь бот на время формирования
+                report_html = await asyncio.to_thread(
+                    build_report_html,
                     login,
                     started_at,
                     duration_text,
@@ -790,15 +886,18 @@ class StreamPoller:
             text += f"\n\n🎬 Запись: {html.escape(vod_url)}"
 
         recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
-        try:
-            await self._bot.send_message(recipient_chat_id, text)
-            if report_html is not None:
-                file = BufferedInputFile(
-                    report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html"
-                )
-                await self._bot.send_document(recipient_chat_id, file)
-        except (TelegramForbiddenError, TelegramBadRequest) as e:
-            logger.warning("Не удалось отправить статистику в чат %s: %s", recipient_chat_id, e)
+        sent = await self._tg_call(
+            lambda: self._bot.send_message(recipient_chat_id, text),
+            f"Итоговый отчёт в чат {recipient_chat_id}",
+        )
+        if sent is not _FAILED and report_html is not None:
+            file = BufferedInputFile(
+                report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html"
+            )
+            await self._tg_call(
+                lambda: self._bot.send_document(recipient_chat_id, file),
+                f"HTML-отчёт в чат {recipient_chat_id}",
+            )
 
     @staticmethod
     def _build_comparison(
@@ -939,12 +1038,13 @@ class StreamPoller:
     ) -> int | None:
         text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
         keyboard = await self._build_keyboard(login)
-        try:
-            message = await self._bot.send_message(chat_id, text, reply_markup=keyboard)
-            return message.message_id
-        except (TelegramForbiddenError, TelegramBadRequest) as e:
-            logger.warning("Не удалось отправить сообщение в чат %s: %s", chat_id, e)
+        message = await self._tg_call(
+            lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
+            f"Отправка поста о старте стрима в чат {chat_id}",
+        )
+        if message is _FAILED or message is None:
             return None
+        return message.message_id
 
     async def _edit(
         self,
@@ -965,6 +1065,17 @@ class StreamPoller:
             await self._bot.edit_message_text(
                 text, chat_id=chat_id, message_id=message_id, reply_markup=keyboard
             )
+            return True
+        except TelegramRetryAfter as e:
+            # лимит Telegram — пост живой, редактировать будем в следующем круге;
+            # пересоздавать его в этом случае нельзя, иначе чат завалит дублями
+            logger.info(
+                "Лимит Telegram при обновлении поста в чате %s, повтор через %sс",
+                chat_id, e.retry_after,
+            )
+            return True
+        except TelegramNetworkError as e:
+            logger.warning("Сеть недоступна при обновлении поста в чате %s: %s", chat_id, e)
             return True
         except TelegramBadRequest as e:
             if "message is not modified" in str(e):

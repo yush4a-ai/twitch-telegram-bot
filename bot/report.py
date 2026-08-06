@@ -1,8 +1,29 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import html
 import json
 from datetime import datetime, timezone
+
+
+# сколько ников максимум попадает в HTML-отчёт (счётчик «писали в чат» при этом
+# остаётся полным — обрезается только сам список)
+MAX_CHATTERS_IN_REPORT = 5000
+
+
+def _js_json(value) -> str:
+    """JSON для вставки внутрь <script>.
+
+    json.dumps не экранирует '/', поэтому строка вида '</script>' в названии стрима
+    или клипа закрывала бы тег и всё, что идёт следом, браузер разбирал бы как HTML —
+    готовая XSS-инъекция, управляемая любым отслеживаемым стримером. Экранируем
+    угловые скобки и амперсанд: внутри JSON-строк это тот же текст, но разбором
+    HTML уже не воспринимается."""
+    return (
+        json.dumps(value, ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
 
 
 def _fmt_offset(seconds: int) -> str:
@@ -132,10 +153,15 @@ def build_report_html(
         {"t": max(0, int(minute_ts - start_ts)), "v": count, "ts": minute_ts}
         for minute_ts, count in (chat_activity or [])
     ]
+    # на популярных каналах чатеров бывают десятки тысяч: без ограничения файл
+    # раздувается до сотен мегабайт, упирается в лимит Telegram (50 МБ) и надолго
+    # занимает память. Список всё равно листается и ищется по нику, поэтому режем
+    all_chatters = chatter_nicks or []
     chatter_entries = [
         {"nick": nick, "t": max(0, int(joined_at - start_ts))}
-        for nick, joined_at in (chatter_nicks or [])
+        for nick, joined_at in all_chatters[:MAX_CHATTERS_IN_REPORT]
     ]
+    chatters_truncated = max(0, len(all_chatters) - MAX_CHATTERS_IN_REPORT)
     events = _build_change_timeline(samples, start_ts)
     for raid_ts, join_count, raider_name in (raid_events or []):
         events.append(
@@ -256,8 +282,11 @@ def build_report_html(
         chatters_panel = f"""
   <section class="panel">
     <header class="panel-head">
-      <h2>Писали в чат <span class="count">{len(chatter_entries)}</span></h2>
-      <p class="panel-sub">Время — первое сообщение от начала стрима</p>
+      <h2>Писали в чат <span class="count">{unique_chatters or len(chatter_entries)}</span></h2>
+      <p class="panel-sub">Время — первое сообщение от начала стрима{
+        f" · показаны первые {len(chatter_entries)}, ещё {chatters_truncated} не поместились"
+        if chatters_truncated else ""
+      }</p>
     </header>
     <input type="search" id="nick-search" class="search" placeholder="Поиск по нику…"
            aria-label="Поиск по нику" autocomplete="off">
@@ -727,10 +756,10 @@ def build_report_html(
 </div>
 
 <script>
-const viewerPoints = {json.dumps(viewer_points)};
-const chatPoints = {json.dumps(chat_points)};
-const chatterEntries = {json.dumps(chatter_entries)};
-const contextAt = {json.dumps(context_at)};
+const viewerPoints = {_js_json(viewer_points)};
+const chatPoints = {_js_json(chat_points)};
+const chatterEntries = {_js_json(chatter_entries)};
+const contextAt = {_js_json(context_at)};
 const axisMaxT = {axis_max_t};
 const streamStartMs = {start_ts * 1000};
 

@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     PRIMARY KEY (chat_id, twitch_login)
 );
 
+-- поллер каждую минуту спрашивает «в каких чатах следят за этим логином»;
+-- без индекса это полное сканирование таблицы на каждый канал
+CREATE INDEX IF NOT EXISTS idx_tracked_channels_login
+    ON tracked_channels (twitch_login);
+
 CREATE TABLE IF NOT EXISTS twitch_user_tokens (
     twitch_login TEXT PRIMARY KEY,
     broadcaster_id TEXT NOT NULL,
@@ -91,6 +96,20 @@ CREATE TABLE IF NOT EXISTS chat_unique_nicks (
 
 CREATE INDEX IF NOT EXISTS idx_chat_unique_nicks_lookup
     ON chat_unique_nicks (chat_id, twitch_login, stream_id);
+
+-- данные чата за завершённый стрим, ждущие отправки итогового отчёта.
+-- Раньше лежали в словарях в памяти поллера: терялись при рестарте и не
+-- освобождались вовсе, если отчёт откладывался тихими часами
+CREATE TABLE IF NOT EXISTS stream_chat_meta (
+    chat_id INTEGER NOT NULL,
+    twitch_login TEXT NOT NULL,
+    stream_id TEXT NOT NULL,
+    join_reliable INTEGER,
+    top_chatters_json TEXT,
+    raid_events_json TEXT,
+    created_at REAL NOT NULL,
+    PRIMARY KEY (chat_id, twitch_login, stream_id)
+);
 
 CREATE TABLE IF NOT EXISTS stats_recipients (
     chat_id INTEGER PRIMARY KEY,
@@ -229,6 +248,21 @@ class Database:
         )
         await self.conn.commit()
         return cursor.rowcount > 0
+
+    async def remove_all_channels(self, chat_id: int) -> int:
+        """Снимает с отслеживания всё в этом чате и убирает связанные с ним настройки —
+        вызывается, когда бота удалили из группы. Возвращает число снятых каналов."""
+        cursor = await self.conn.execute(
+            "DELETE FROM tracked_channels WHERE chat_id = ?", (chat_id,)
+        )
+        removed = cursor.rowcount
+        for table in (
+            "stats_recipients", "quiet_hours", "deferred_reports",
+            "quiet_hours_digest_sent", "stream_chat_meta",
+        ):
+            await self.conn.execute(f"DELETE FROM {table} WHERE chat_id = ?", (chat_id,))
+        await self.conn.commit()
+        return removed
 
     async def list_channels(self, chat_id: int) -> list[str]:
         cursor = await self.conn.execute(
@@ -797,6 +831,49 @@ class Database:
         row = await cursor.fetchone()
         return tuple(row) if row else None
 
+    async def save_stream_chat_meta(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        stream_id: str,
+        join_reliable: bool,
+        top_chatters_json: str | None,
+        raid_events_json: str | None,
+        created_at: float,
+    ) -> None:
+        await self.conn.execute(
+            "INSERT INTO stream_chat_meta "
+            "(chat_id, twitch_login, stream_id, join_reliable, top_chatters_json, "
+            "raid_events_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(chat_id, twitch_login, stream_id) DO UPDATE SET "
+            "join_reliable = excluded.join_reliable, "
+            "top_chatters_json = excluded.top_chatters_json, "
+            "raid_events_json = excluded.raid_events_json, "
+            "created_at = excluded.created_at",
+            (
+                chat_id, twitch_login, stream_id, int(join_reliable),
+                top_chatters_json, raid_events_json, created_at,
+            ),
+        )
+        await self.conn.commit()
+
+    async def take_stream_chat_meta(
+        self, chat_id: int, twitch_login: str, stream_id: str
+    ) -> tuple[bool, str | None, str | None] | None:
+        """(join_reliable, top_chatters_json, raid_events_json) с удалением записи —
+        данные нужны ровно один раз, при формировании итогового отчёта."""
+        cursor = await self.conn.execute(
+            "DELETE FROM stream_chat_meta "
+            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "RETURNING join_reliable, top_chatters_json, raid_events_json",
+            (chat_id, twitch_login, stream_id),
+        )
+        row = await cursor.fetchone()
+        await self.conn.commit()
+        if row is None:
+            return None
+        return bool(row[0]) if row[0] is not None else True, row[1], row[2]
+
     async def purge_old_report_data(self, older_than_ts: float) -> None:
         """Удаляет сырые поминутные данные (график, ники чатеров) старше указанного времени.
         Свёрнутая сводка в stream_history не трогается — она хранится всегда."""
@@ -808,6 +885,11 @@ class Database:
         )
         await self.conn.execute(
             "DELETE FROM chat_unique_nicks WHERE joined_at < ?", (older_than_ts,)
+        )
+        # подстраховка: записи, чей отчёт так и не был отправлен (например, чат
+        # удалил бота сразу после стрима), иначе копились бы вечно
+        await self.conn.execute(
+            "DELETE FROM stream_chat_meta WHERE created_at < ?", (older_than_ts,)
         )
         await self.conn.commit()
 
@@ -935,6 +1017,12 @@ class Database:
             (user_id,),
         )
         return await cursor.fetchone() is not None
+
+    async def get_display_names_map(self) -> dict[str, str]:
+        """Все известные отображаемые имена разом — чтобы не дёргать БД по одному
+        логину в цикле при поиске упоминаний коллабов."""
+        cursor = await self.conn.execute("SELECT twitch_login, display_name FROM channel_display_names")
+        return {row[0]: row[1] for row in await cursor.fetchall()}
 
     async def get_display_name(self, twitch_login: str) -> str | None:
         cursor = await self.conn.execute(
