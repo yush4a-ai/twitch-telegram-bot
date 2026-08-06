@@ -1188,30 +1188,36 @@ async def cmd_list(message: Message, db: Database) -> None:
     await message.answer(text)
 
 
-async def _build_live_text(chat_id: int, db: Database) -> str:
+async def _build_live_text(chat_id: int, db: Database) -> tuple[str, InlineKeyboardMarkup]:
     live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
-        return "Сейчас никто из отслеживаемых каналов не в эфире."
+        return "Сейчас никто из отслеживаемых каналов не в эфире.", _back_keyboard()
 
     lines = [f"🔴 <b>Сейчас в эфире ({len(live_channels)})</b>\n"]
+    link_rows = []
     for login, title, viewer_count in live_channels:
         viewers_text = f" — 👁 {viewer_count}" if viewer_count is not None else ""
         line = f"🔴 <b>{login}</b>{viewers_text}"
         if title:
             line += f"\n{title}"
         lines.append(line)
-    return "\n\n".join(lines)
+        link_rows.append(
+            [InlineKeyboardButton(text=f"▶️ {login}", url=f"https://twitch.tv/{login}")]
+        )
+    link_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
+    return "\n\n".join(lines), InlineKeyboardMarkup(inline_keyboard=link_rows)
 
 
 @router.message(Command("live"))
 async def cmd_live(message: Message, db: Database) -> None:
-    await message.answer(await _build_live_text(message.chat.id, db))
+    text, keyboard = await _build_live_text(message.chat.id, db)
+    await message.answer(text, reply_markup=keyboard, disable_web_page_preview=True)
 
 
 @router.callback_query(lambda c: c.data == "menu:live")
 async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
-    text = await _build_live_text(callback.message.chat.id, db)
-    await callback.message.edit_text(text, reply_markup=_back_keyboard())
+    text, keyboard = await _build_live_text(callback.message.chat.id, db)
+    await callback.message.edit_text(text, reply_markup=keyboard, disable_web_page_preview=True)
     await callback.answer()
 
 
