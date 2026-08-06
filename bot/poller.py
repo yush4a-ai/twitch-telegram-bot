@@ -19,6 +19,7 @@ from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboar
 
 from .chat_listener import ChatListener
 from .database import Database
+from .logging_utils import mask_chat_id
 from .report import build_report_html
 from .token_store import TokenStore
 from .twitch import ClipInfo, TwitchClient
@@ -79,6 +80,17 @@ def _load_json_list(raw: str | None) -> list:
     if not isinstance(data, list):
         return []
     return [tuple(item) if isinstance(item, list) else item for item in data]
+
+
+def _build_return_note(last_end: float | None) -> str | None:
+    """«Первый стрим за N дней», если канал долго не выходил в эфир. None, если
+    перерыв обычный или истории по каналу ещё нет."""
+    if last_end is None:
+        return None
+    days = int((time.time() - last_end) // 86400)
+    if days < RETURN_AFTER_BREAK_DAYS:
+        return None
+    return f"👋 Первый стрим за {days} {_plural_days(days)}"
 
 
 def _plural_days(days: int) -> str:
@@ -407,7 +419,7 @@ class StreamPoller:
         )
         await self._tg_call(
             lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
-            f"Сводка тихих часов в чат {chat_id}",
+            f"Сводка тихих часов в {mask_chat_id(chat_id)}",
         )
 
     async def _check_channel_renames(self) -> None:
@@ -439,7 +451,7 @@ class StreamPoller:
         for chat_id in await self._db.chats_for_login(login):
             await self._tg_call(
                 lambda: self._bot.send_message(chat_id, text),
-                f"Алерт о переименовании канала в чат {chat_id}",
+                f"Алерт о переименовании канала в {mask_chat_id(chat_id)}",
             )
 
     def _on_raid_detected(self, login: str, raider_name: str, viewer_count: int) -> None:
@@ -470,7 +482,7 @@ class StreamPoller:
                 continue
             await self._tg_call(
                 lambda: self._bot.send_message(chat_id, text),
-                f"Уведомление о рейде в чат {chat_id}",
+                f"Уведомление о рейде в {mask_chat_id(chat_id)}",
             )
 
     async def _detect_collab(self, login: str, title: str | None) -> list[str]:
@@ -489,14 +501,18 @@ class StreamPoller:
         return _find_collab_mentions(title, login, candidates)
 
     async def _check_streams(self) -> None:
-        logins = await self._db.all_distinct_logins()
-        if not logins:
+        # три запроса на весь круг вместо нескольких на каждую пару «канал × чат»
+        chats_by_login, states = await self._db.snapshot_tracked_state()
+        if not chats_by_login:
             return
+        last_stream_ends = await self._db.snapshot_last_stream_ends()
+        telegram_channel_ids = await self._db.telegram_channel_ids()
 
+        logins = list(chats_by_login)
         live_streams = await self._twitch.get_live_streams(logins)
 
         for login in logins:
-            chat_ids = await self._db.chats_for_login(login)
+            chat_ids = chats_by_login[login]
             stream = live_streams.get(login)
             # чаты, для которых стрим только что закончился — данные чата собираются
             # для них разом после обхода, одним чтением буфера
@@ -511,7 +527,9 @@ class StreamPoller:
                     offline_since,
                     _stream_started_at,
                     _peak_viewers,
-                ) = await self._db.get_live_state(chat_id, login)
+                    notify_enabled,
+                    followers_at_start,
+                ) = states[(chat_id, login)]
 
                 if stream is not None:
                     title = stream.title or "(без названия)"
@@ -528,7 +546,6 @@ class StreamPoller:
                         and offline_since is not None
                         and time.time() - offline_since < RESTART_MERGE_GRACE_SECONDS
                     )
-                    notify_enabled = await self._db.get_notify_enabled(chat_id, login)
                     # живой пост о старте стрима всегда публикуется в исходный чат —
                     # привязка к личке (post_recipient) влияет только на финальный отчёт
 
@@ -539,7 +556,7 @@ class StreamPoller:
                     # прошлый стрим ещё не попал в историю (она пишется при завершении),
                     # поэтому пометку можно пересчитывать на каждой итерации — она
                     # остаётся стабильной до конца текущего эфира
-                    return_note = await self._build_return_note(chat_id, login)
+                    return_note = _build_return_note(last_stream_ends.get((chat_id, login)))
 
                     if not notify_enabled:
                         # уведомления выключены для этого канала в этом чате — статистика
@@ -603,7 +620,7 @@ class StreamPoller:
                         title,
                         stream.game_name or "—",
                     )
-                    await self._maybe_snapshot_followers(chat_id, login)
+                    await self._maybe_snapshot_followers(chat_id, login, followers_at_start)
                 else:
                     if was_live:
                         # не удаляем пост сразу — вдруг стрим переподключится в течение
@@ -623,10 +640,11 @@ class StreamPoller:
                             went_offline.append((chat_id, last_stream_id))
 
             if stream is None:
-                await self._finish_chat_collection(login, went_offline)
+                await self._finish_chat_collection(login, went_offline, telegram_channel_ids)
 
     async def _finish_chat_collection(
-        self, login: str, went_offline: list[tuple[int, str]]
+        self, login: str, went_offline: list[tuple[int, str]],
+        telegram_channel_ids: set[int] | None = None,
     ) -> None:
         """Забирает данные чата за стрим и раскладывает их по всем чатам, которые
         следили за каналом.
@@ -654,7 +672,11 @@ class StreamPoller:
         now = time.time()
         for chat_id, last_stream_id in went_offline:
             # в Telegram-канале итогового отчёта нет, поэтому сохранять данные незачем
-            if await self._db.is_telegram_channel(chat_id):
+            if telegram_channel_ids is not None:
+                is_tg_channel = chat_id in telegram_channel_ids
+            else:
+                is_tg_channel = await self._db.is_telegram_channel(chat_id)
+            if is_tg_channel:
                 continue
             await self._db.add_chat_activity_samples(chat_id, login, last_stream_id, activity)
             await self._db.add_chat_unique_nicks(chat_id, login, last_stream_id, nicks)
@@ -665,21 +687,12 @@ class StreamPoller:
                 now,
             )
 
-    async def _build_return_note(self, chat_id: int, login: str) -> str | None:
-        """«Первый стрим за N дней», если канал долго не выходил в эфир. None, если
-        перерыв обычный или истории по каналу ещё нет."""
-        last_end = await self._db.get_last_stream_end(chat_id, login)
-        if last_end is None:
-            return None
-        days = int((time.time() - last_end) // 86400)
-        if days < RETURN_AFTER_BREAK_DAYS:
-            return None
-        return f"👋 Первый стрим за {days} {_plural_days(days)}"
-
-    async def _maybe_snapshot_followers(self, chat_id: int, login: str) -> None:
+    async def _maybe_snapshot_followers(
+        self, chat_id: int, login: str, followers_at_start: int | None
+    ) -> None:
         if self._token_store is None:
             return
-        if await self._db.get_followers_at_start(chat_id, login) is not None:
+        if followers_at_start is not None:
             return
         token = await self._token_store.get_valid_token(login)
         if token is None:
@@ -699,7 +712,7 @@ class StreamPoller:
                 continue
             await self._tg_call(
                 lambda: self._bot.delete_message(chat_id, message_id),
-                f"Удаление поста {message_id} в чате {chat_id}",
+                f"Удаление поста {message_id} в {mask_chat_id(chat_id)}",
             )
             await self._db.clear_message(chat_id, login)
 
@@ -888,7 +901,7 @@ class StreamPoller:
         recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
         sent = await self._tg_call(
             lambda: self._bot.send_message(recipient_chat_id, text),
-            f"Итоговый отчёт в чат {recipient_chat_id}",
+            f"Итоговый отчёт в {mask_chat_id(recipient_chat_id)}",
         )
         if sent is not _FAILED and report_html is not None:
             file = BufferedInputFile(
@@ -896,7 +909,7 @@ class StreamPoller:
             )
             await self._tg_call(
                 lambda: self._bot.send_document(recipient_chat_id, file),
-                f"HTML-отчёт в чат {recipient_chat_id}",
+                f"HTML-отчёт в {mask_chat_id(recipient_chat_id)}",
             )
 
     @staticmethod
@@ -1040,7 +1053,7 @@ class StreamPoller:
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
             lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
-            f"Отправка поста о старте стрима в чат {chat_id}",
+            f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}",
         )
         if message is _FAILED or message is None:
             return None
@@ -1070,12 +1083,12 @@ class StreamPoller:
             # лимит Telegram — пост живой, редактировать будем в следующем круге;
             # пересоздавать его в этом случае нельзя, иначе чат завалит дублями
             logger.info(
-                "Лимит Telegram при обновлении поста в чате %s, повтор через %sс",
-                chat_id, e.retry_after,
+                "Лимит Telegram при обновлении поста в %s, повтор через %sс",
+                mask_chat_id(chat_id), e.retry_after,
             )
             return True
         except TelegramNetworkError as e:
-            logger.warning("Сеть недоступна при обновлении поста в чате %s: %s", chat_id, e)
+            logger.warning("Сеть недоступна при обновлении поста в %s: %s", mask_chat_id(chat_id), e)
             return True
         except TelegramBadRequest as e:
             if "message is not modified" in str(e):
@@ -1086,8 +1099,11 @@ class StreamPoller:
                 # получатель поста сменился (привязку к личке добавили/убрали посреди
                 # стрима) — старого сообщения там нет, пересоздаём на новом месте
                 return False
-            logger.warning("Не удалось отредактировать сообщение %s в чате %s: %s", message_id, chat_id, e)
+            logger.warning("Не удалось отредактировать сообщение %s в %s: %s", message_id, mask_chat_id(chat_id), e)
             return True
         except TelegramForbiddenError as e:
-            logger.warning("Не удалось отредактировать сообщение %s в чате %s: %s", message_id, chat_id, e)
+            logger.warning(
+                "Не удалось отредактировать сообщение %s в %s: %s",
+                message_id, mask_chat_id(chat_id), e,
+            )
             return True

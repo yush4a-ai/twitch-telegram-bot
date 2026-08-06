@@ -1,8 +1,35 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import asyncio
+import functools
 import time
 
 import aiosqlite
+
+
+def _serialized(func):
+    """Пропускает запись в БД строго по одной и откатывает незавершённую при ошибке.
+
+    Соединение с SQLite здесь одно на всё приложение, а поллер и обработчики команд
+    работают в общем событийном цикле. Без этой блокировки commit() одной операции
+    фиксировал бы наполовину выполненную работу другой: например, между удалением
+    каналов и очисткой настроек чата успевал вклиниться чужой commit, и при сбое
+    откатить уже было нечего. Блокировка не reentrant — вызывать один метод записи
+    из другого нельзя (сейчас таких вызовов нет)."""
+
+    @functools.wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        async with self._write_lock:
+            try:
+                return await func(self, *args, **kwargs)
+            except Exception:
+                try:
+                    await self.conn.rollback()
+                except Exception:
+                    pass
+                raise
+
+    return wrapper
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tracked_channels (
@@ -178,6 +205,7 @@ class Database:
     def __init__(self, path: str) -> None:
         self._path = path
         self._conn: aiosqlite.Connection | None = None
+        self._write_lock = asyncio.Lock()
 
     async def connect(self) -> None:
         self._conn = await aiosqlite.connect(self._path)
@@ -186,6 +214,7 @@ class Database:
         await self._conn.commit()
         await self._migrate()
 
+    @_serialized
     async def _migrate(self) -> None:
         """Добавляет колонки, появившиеся в схеме уже после первого релиза
         (CREATE TABLE IF NOT EXISTS не меняет существующие таблицы)."""
@@ -230,6 +259,7 @@ class Database:
         assert self._conn is not None, "Database.connect() ещё не вызван"
         return self._conn
 
+    @_serialized
     async def add_channel(self, chat_id: int, twitch_login: str) -> bool:
         try:
             await self.conn.execute(
@@ -241,6 +271,7 @@ class Database:
         except aiosqlite.IntegrityError:
             return False
 
+    @_serialized
     async def remove_channel(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
             "DELETE FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
@@ -249,6 +280,7 @@ class Database:
         await self.conn.commit()
         return cursor.rowcount > 0
 
+    @_serialized
     async def remove_all_channels(self, chat_id: int) -> int:
         """Снимает с отслеживания всё в этом чате и убирает связанные с ним настройки —
         вызывается, когда бота удалили из группы. Возвращает число снятых каналов."""
@@ -330,6 +362,7 @@ class Database:
             for row in rows
         ]
 
+    @_serialized
     async def set_notify_enabled(self, chat_id: int, twitch_login: str, enabled: bool) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET notify_enabled = ? WHERE chat_id = ? AND twitch_login = ?",
@@ -345,6 +378,7 @@ class Database:
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
 
+    @_serialized
     async def set_report_format(self, chat_id: int, twitch_login: str, report_format: str) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET report_format = ? WHERE chat_id = ? AND twitch_login = ?",
@@ -361,6 +395,7 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row and row[0] else "full"
 
+    @_serialized
     async def set_raid_detection_enabled(self, chat_id: int, twitch_login: str, enabled: bool) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET raid_detection_enabled = ? "
@@ -378,6 +413,7 @@ class Database:
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
 
+    @_serialized
     async def set_quiet_hours_exempt(self, chat_id: int, twitch_login: str, exempt: bool) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET quiet_hours_exempt = ? "
@@ -395,6 +431,7 @@ class Database:
         row = await cursor.fetchone()
         return bool(row[0]) if row else False
 
+    @_serialized
     async def set_post_recipient(
         self, chat_id: int, twitch_login: str, recipient_chat_id: int | None
     ) -> None:
@@ -459,6 +496,7 @@ class Database:
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
 
+    @_serialized
     async def set_existence_status(self, twitch_login: str, exists: bool) -> None:
         await self.conn.execute(
             "INSERT INTO channel_existence_status (twitch_login, exists_on_twitch) VALUES (?, ?) "
@@ -484,6 +522,7 @@ class Database:
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
+    @_serialized
     async def register_telegram_channel(self, chat_id: int, title: str) -> None:
         """Запоминает Telegram-канал (не группу), куда бот добавлен админом —
         срабатывает на my_chat_member update, поскольку в канале нет способа
@@ -495,6 +534,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def unregister_telegram_channel(self, chat_id: int) -> None:
         await self.conn.execute("DELETE FROM telegram_channels WHERE chat_id = ?", (chat_id,))
         await self.conn.commit()
@@ -510,6 +550,7 @@ class Database:
         cursor = await self.conn.execute("SELECT chat_id, title FROM telegram_channels")
         return await cursor.fetchall()
 
+    @_serialized
     async def set_quiet_hours(
         self, chat_id: int, start_minute: int, end_minute: int, utc_offset_minutes: int
     ) -> None:
@@ -526,6 +567,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def clear_quiet_hours(self, chat_id: int) -> None:
         await self.conn.execute("DELETE FROM quiet_hours WHERE chat_id = ?", (chat_id,))
         await self.conn.commit()
@@ -543,6 +585,7 @@ class Database:
             return None
         return row[0], row[1], row[2], bool(row[3])
 
+    @_serialized
     async def set_quiet_hours_notify_after(self, chat_id: int, enabled: bool) -> None:
         await self.conn.execute(
             "UPDATE quiet_hours SET notify_after_enabled = ? WHERE chat_id = ?",
@@ -554,6 +597,7 @@ class Database:
         cursor = await self.conn.execute("SELECT chat_id FROM quiet_hours")
         return [row[0] for row in await cursor.fetchall()]
 
+    @_serialized
     async def add_deferred_report(
         self, chat_id: int, source_chat_id: int, twitch_login: str, stream_id: str | None, ended_at: float
     ) -> None:
@@ -566,6 +610,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def get_and_clear_deferred_reports(
         self, chat_id: int
     ) -> list[tuple[int, str, str | None, float]]:
@@ -602,12 +647,14 @@ class Database:
         )
         return await cursor.fetchone() is not None
 
+    @_serialized
     async def mark_quiet_hours_digest_sent(self, chat_id: int) -> None:
         await self.conn.execute(
             "INSERT OR IGNORE INTO quiet_hours_digest_sent (chat_id) VALUES (?)", (chat_id,)
         )
         await self.conn.commit()
 
+    @_serialized
     async def clear_quiet_hours_digest_sent(self, chat_id: int) -> None:
         await self.conn.execute("DELETE FROM quiet_hours_digest_sent WHERE chat_id = ?", (chat_id,))
         await self.conn.commit()
@@ -622,6 +669,7 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else None
 
+    @_serialized
     async def set_utc_offset(self, chat_id: int, utc_offset_minutes: int) -> None:
         await self.conn.execute(
             "INSERT INTO user_timezones (chat_id, utc_offset_minutes) VALUES (?, ?) "
@@ -629,6 +677,46 @@ class Database:
             (chat_id, utc_offset_minutes),
         )
         await self.conn.commit()
+
+    async def snapshot_tracked_state(
+        self,
+    ) -> tuple[dict[str, list[int]], dict[tuple[int, str], tuple]]:
+        """Состояние всех отслеживаемых каналов одним запросом.
+
+        Цикл опроса раньше дёргал БД отдельно на каждую пару «канал × чат»
+        (состояние, флаг уведомлений, число фолловеров) плюс на каждый логин
+        за списком чатов — при тысячах подписок это тысячи запросов в минуту.
+        Возвращает ({login: [chat_id, ...]}, {(chat_id, login): состояние})."""
+        cursor = await self.conn.execute(
+            "SELECT chat_id, twitch_login, is_live, last_stream_id, last_message_id, "
+            "last_title, offline_since, stream_started_at, peak_viewers, "
+            "notify_enabled, followers_at_start "
+            "FROM tracked_channels ORDER BY twitch_login, chat_id"
+        )
+        chats_by_login: dict[str, list[int]] = {}
+        states: dict[tuple[int, str], tuple] = {}
+        for row in await cursor.fetchall():
+            chat_id, login = row[0], row[1]
+            chats_by_login.setdefault(login, []).append(chat_id)
+            states[(chat_id, login)] = (
+                bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
+                bool(row[9]), row[10],
+            )
+        return chats_by_login, states
+
+    async def snapshot_last_stream_ends(self) -> dict[tuple[int, str], float]:
+        """Когда в последний раз завершался стрим для каждой пары «чат + канал».
+        История меняется только при отправке отчёта, поэтому в пределах одного
+        круга опроса такой снимок эквивалентен запросам по одному."""
+        cursor = await self.conn.execute(
+            "SELECT chat_id, twitch_login, MAX(ended_at) FROM stream_history "
+            "GROUP BY chat_id, twitch_login"
+        )
+        return {(row[0], row[1]): row[2] for row in await cursor.fetchall() if row[2] is not None}
+
+    async def telegram_channel_ids(self) -> set[int]:
+        cursor = await self.conn.execute("SELECT chat_id FROM telegram_channels")
+        return {row[0] for row in await cursor.fetchall()}
 
     async def get_live_state(
         self, chat_id: int, twitch_login: str
@@ -644,6 +732,7 @@ class Database:
             return False, None, None, None, None, None, None
         return bool(row[0]), row[1], row[2], row[3], row[4], row[5], row[6]
 
+    @_serialized
     async def set_live_state(
         self,
         chat_id: int,
@@ -689,6 +778,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def record_viewer_sample(self, chat_id: int, twitch_login: str, viewer_count: int) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET "
@@ -721,6 +811,7 @@ class Database:
         )
         return await cursor.fetchall()
 
+    @_serialized
     async def mark_stats_sent(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET stats_sent = 1 WHERE chat_id = ? AND twitch_login = ?",
@@ -728,6 +819,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def clear_message(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, last_title = NULL, "
@@ -739,6 +831,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def add_stream_sample(
         self,
         chat_id: int,
@@ -769,6 +862,7 @@ class Database:
         )
         return await cursor.fetchall()
 
+    @_serialized
     async def add_chat_activity_samples(
         self, chat_id: int, twitch_login: str, stream_id: str, activity: list[tuple[float, int]]
     ) -> None:
@@ -791,6 +885,7 @@ class Database:
         )
         return await cursor.fetchall()
 
+    @_serialized
     async def add_chat_unique_nicks(
         self, chat_id: int, twitch_login: str, stream_id: str, nicks: list[tuple[str, float]]
     ) -> None:
@@ -831,6 +926,7 @@ class Database:
         row = await cursor.fetchone()
         return tuple(row) if row else None
 
+    @_serialized
     async def save_stream_chat_meta(
         self,
         chat_id: int,
@@ -857,6 +953,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def take_stream_chat_meta(
         self, chat_id: int, twitch_login: str, stream_id: str
     ) -> tuple[bool, str | None, str | None] | None:
@@ -874,6 +971,7 @@ class Database:
             return None
         return bool(row[0]) if row[0] is not None else True, row[1], row[2]
 
+    @_serialized
     async def purge_old_report_data(self, older_than_ts: float) -> None:
         """Удаляет сырые поминутные данные (график, ники чатеров) старше указанного времени.
         Свёрнутая сводка в stream_history не трогается — она хранится всегда."""
@@ -893,6 +991,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def set_followers_at_start(
         self, chat_id: int, twitch_login: str, followers_count: int
     ) -> None:
@@ -911,6 +1010,7 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else None
 
+    @_serialized
     async def save_user_token(
         self,
         twitch_login: str,
@@ -943,6 +1043,7 @@ class Database:
         row = await cursor.fetchone()
         return tuple(row) if row else None
 
+    @_serialized
     async def add_stream_history(
         self,
         chat_id: int,
@@ -979,6 +1080,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def set_stats_recipient(self, chat_id: int, stats_chat_id: int) -> None:
         await self.conn.execute(
             "INSERT INTO stats_recipients (chat_id, stats_chat_id) VALUES (?, ?) "
@@ -987,6 +1089,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def set_default_stats_recipient(self, chat_id: int, stats_chat_id: int) -> None:
         """Как set_stats_recipient, но не перезаписывает уже существующую привязку."""
         await self.conn.execute(
@@ -1004,6 +1107,7 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else None
 
+    @_serialized
     async def mark_known_private_user(self, user_id: int) -> None:
         await self.conn.execute(
             "INSERT OR IGNORE INTO known_private_users (user_id) VALUES (?)",
@@ -1032,6 +1136,7 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else None
 
+    @_serialized
     async def set_display_name(self, twitch_login: str, display_name: str) -> None:
         await self.conn.execute(
             "INSERT INTO channel_display_names (twitch_login, display_name) VALUES (?, ?) "
@@ -1040,6 +1145,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def save_vod(
         self,
         chat_id: int,

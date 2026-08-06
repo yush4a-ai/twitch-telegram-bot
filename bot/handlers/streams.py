@@ -26,6 +26,7 @@ import aiohttp
 
 from ..config import Config
 from ..database import Database
+from ..logging_utils import mask_chat_id
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
 from ..report import build_report_html, format_duration_seconds
 from ..twitch import TwitchClient
@@ -455,7 +456,7 @@ async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> N
         removed = await db.remove_all_channels(event.chat.id)
         if removed:
             logger.info(
-                "Бот удалён из чата %s — снято с отслеживания каналов: %s", event.chat.id, removed
+                "Бот удалён из %s — снято с отслеживания каналов: %s", mask_chat_id(event.chat.id), removed
             )
 
 
@@ -912,10 +913,10 @@ async def _chat_member_status(bot: Bot, chat_id: int, user_id: int) -> str | Non
     try:
         member = await bot.get_chat_member(chat_id, user_id)
     except (TelegramForbiddenError, TelegramBadRequest) as e:
-        logger.debug("Не удалось получить статус пользователя в чате %s: %s", chat_id, e)
+        logger.debug("Не удалось получить статус пользователя в %s: %s", mask_chat_id(chat_id), e)
         return None
     except Exception:
-        logger.exception("Ошибка при проверке прав в чате %s", chat_id)
+        logger.exception("Ошибка при проверке прав в %s", mask_chat_id(chat_id))
         return None
     return member.status
 
