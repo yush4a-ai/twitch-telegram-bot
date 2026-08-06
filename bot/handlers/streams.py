@@ -70,11 +70,17 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(text="📡 Мои каналы", callback_data="menu:list"),
-            InlineKeyboardButton(text="➕ Добавить", callback_data="menu:add"),
+            InlineKeyboardButton(text="➕ Добавить оповещение", callback_data="menu:add"),
         ],
-        [InlineKeyboardButton(text="📊 Отчёт по стриму", callback_data="menu:report")],
-        [InlineKeyboardButton(text="🔴 Кто стримит?", callback_data="menu:live")],
     ]
+    if chat_type == ChatType.PRIVATE:
+        # импорт — второй способ сделать то же самое, что и «Добавить оповещение»,
+        # поэтому стоит сразу под ним, а не в блоке настроек
+        rows.append(
+            [InlineKeyboardButton(text="📥 Импорт подписок с Twitch", callback_data="menu:import_follows")]
+        )
+    rows.append([InlineKeyboardButton(text="📊 Отчёт по стриму", callback_data="menu:report")])
+    rows.append([InlineKeyboardButton(text="🔴 Кто стримит?", callback_data="menu:live")])
     if chat_type != ChatType.PRIVATE:
         # в личке привязывать некуда — привязка личного чата имеет смысл только для групп/каналов
         rows.append(
@@ -82,9 +88,6 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
         )
     else:
         # а в личке, наоборот, можно управлять настройками своих групп удалённо
-        rows.append(
-            [InlineKeyboardButton(text="📥 Импорт подписок с Twitch", callback_data="menu:import_follows")]
-        )
         rows.append(
             [InlineKeyboardButton(text="💬 Мои сообщества", callback_data="menu:manage_group")]
         )
