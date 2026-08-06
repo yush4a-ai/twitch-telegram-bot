@@ -164,6 +164,9 @@ async def main() -> None:
         finally:
             poller.stop()
             await poller_task
+            # фоновые задачи и веб-сокеты чата гасим внутри блока сессии:
+            # снаружи она уже закрыта, и их завершение сыпало бы ошибками
+            await poller.shutdown()
             await oauth_server.stop()
             await db.close()
             await bot.session.close()

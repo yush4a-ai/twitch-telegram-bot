@@ -124,6 +124,17 @@ CREATE TABLE IF NOT EXISTS chat_unique_nicks (
 CREATE INDEX IF NOT EXISTS idx_chat_unique_nicks_lookup
     ON chat_unique_nicks (chat_id, twitch_login, stream_id);
 
+-- ники чатеров привязаны к стриму, а не к чату: за одним стримером могут следить
+-- несколько чатов, и раньше один и тот же список писался для каждого из них —
+-- на крупном канале это сотни тысяч лишних строк за один эфир
+CREATE TABLE IF NOT EXISTS stream_chatters (
+    twitch_login TEXT NOT NULL,
+    stream_id TEXT NOT NULL,
+    nick TEXT NOT NULL,
+    first_seen_at REAL NOT NULL,
+    PRIMARY KEY (twitch_login, stream_id, nick)
+);
+
 -- данные чата за завершённый стрим, ждущие отправки итогового отчёта.
 -- Раньше лежали в словарях в памяти поллера: терялись при рестарте и не
 -- освобождались вовсе, если отчёт откладывался тихими часами
@@ -231,6 +242,7 @@ class Database:
                 "collab_json": "TEXT",
             },
         )
+        await self._dedupe_stream_history()
         await self._add_missing_columns(
             "tracked_channels",
             {
@@ -242,6 +254,34 @@ class Database:
             },
         )
         await self.conn.commit()
+
+    async def _dedupe_stream_history(self) -> None:
+        """Убирает задвоенные записи об одном и том же стриме и запрещает их впредь.
+
+        Отчёт отправлялся, а отметка «отправлено» ставилась следующей строкой: если
+        процесс умирал между ними (а Railway перезапускает бота на каждом деплое),
+        после старта отчёт уходил повторно и в историю падала вторая запись. Дубликаты
+        тихо искажали «% от среднего» и «новый рекорд», поэтому старые чистим, а
+        уникальный индекс не даёт появиться новым."""
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master "
+            "WHERE type = 'index' AND name = 'idx_stream_history_unique'"
+        )
+        if (await cursor.fetchone())[0]:
+            return
+
+        # из каждой группы дублей оставляем самую раннюю запись — она соответствует
+        # первой, настоящей отправке отчёта
+        await self.conn.execute(
+            "DELETE FROM stream_history WHERE rowid NOT IN ("
+            "  SELECT MIN(rowid) FROM stream_history"
+            "  GROUP BY chat_id, twitch_login, stream_id"
+            ")"
+        )
+        await self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_stream_history_unique "
+            "ON stream_history (chat_id, twitch_login, stream_id)"
+        )
 
     async def _add_missing_columns(self, table: str, columns: dict[str, str]) -> None:
         cursor = await self.conn.execute(f"PRAGMA table_info({table})")
@@ -799,16 +839,28 @@ class Database:
         )
         return await cursor.fetchall()
 
-    async def pending_stats(self) -> list[tuple[int, str, float, str, str, int, int, int, str, int | None]]:
+    async def pending_stats(
+        self, limit: int | None = None
+    ) -> list[tuple[int, str, float, str, str, int, int, int, str, int | None]]:
         """(chat_id, twitch_login, offline_since, title, started_at, peak_viewers,
-        viewer_sum, viewer_samples, last_stream_id, followers_at_start) для неотправленной статистики."""
-        cursor = await self.conn.execute(
+        viewer_sum, viewer_samples, last_stream_id, followers_at_start) для неотправленной
+        статистики. limit ограничивает порцию за один круг опроса: каждый отчёт — это
+        запросы к Twitch за клипами и записью плюс сборка HTML, и без ограничения
+        десяток одновременно закончившихся стримов занимал бы цикл на минуты, а живые
+        посты в это время не обновлялись бы. Самые старые идут первыми."""
+        sql = (
             "SELECT chat_id, twitch_login, offline_since, last_title, stream_started_at, "
             "peak_viewers, viewer_sum, viewer_samples, last_stream_id, followers_at_start "
             "FROM tracked_channels "
             "WHERE is_live = 0 AND offline_since IS NOT NULL AND stats_sent = 0 "
-            "AND stream_started_at IS NOT NULL"
+            "AND stream_started_at IS NOT NULL "
+            "ORDER BY offline_since ASC"
         )
+        params: tuple = ()
+        if limit is not None:
+            sql += " LIMIT ?"
+            params = (limit,)
+        cursor = await self.conn.execute(sql, params)
         return await cursor.fetchall()
 
     @_serialized
@@ -898,9 +950,35 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
+    async def save_stream_chatters(
+        self, twitch_login: str, stream_id: str, nicks: list[tuple[str, float]]
+    ) -> None:
+        """Ники чатеров сохраняются один раз на стрим, независимо от того, сколько
+        чатов за ним следят. INSERT OR IGNORE делает повтор безопасным."""
+        if not nicks:
+            return
+        await self.conn.executemany(
+            "INSERT OR IGNORE INTO stream_chatters "
+            "(twitch_login, stream_id, nick, first_seen_at) VALUES (?, ?, ?, ?)",
+            [(twitch_login, stream_id, nick, ts) for nick, ts in nicks],
+        )
+        await self.conn.commit()
+
     async def get_chat_unique_nicks(
         self, chat_id: int, twitch_login: str, stream_id: str
     ) -> list[tuple[str, float]]:
+        """Ники чатеров за стрим. Сначала смотрим в общее хранилище, привязанное
+        к стриму; старая таблица с копией на каждый чат остаётся запасным путём для
+        эфиров, которые шли в момент обновления бота (данные живут сутки и истекут)."""
+        cursor = await self.conn.execute(
+            "SELECT nick, first_seen_at FROM stream_chatters "
+            "WHERE twitch_login = ? AND stream_id = ? ORDER BY first_seen_at ASC",
+            (twitch_login, stream_id),
+        )
+        rows = await cursor.fetchall()
+        if rows:
+            return rows
         cursor = await self.conn.execute(
             "SELECT nick, joined_at FROM chat_unique_nicks "
             "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? ORDER BY joined_at ASC",
@@ -958,17 +1036,26 @@ class Database:
         self, chat_id: int, twitch_login: str, stream_id: str
     ) -> tuple[bool, str | None, str | None] | None:
         """(join_reliable, top_chatters_json, raid_events_json) с удалением записи —
-        данные нужны ровно один раз, при формировании итогового отчёта."""
+        данные нужны ровно один раз, при формировании итогового отчёта.
+
+        Чтение и удаление идут двумя запросами, а не через DELETE ... RETURNING:
+        RETURNING появился только в SQLite 3.35, и на образе с более старой версией
+        бот падал бы на первом же отчёте. Атомарность даёт блокировка записи."""
         cursor = await self.conn.execute(
-            "DELETE FROM stream_chat_meta "
-            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
-            "RETURNING join_reliable, top_chatters_json, raid_events_json",
+            "SELECT join_reliable, top_chatters_json, raid_events_json "
+            "FROM stream_chat_meta WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
             (chat_id, twitch_login, stream_id),
         )
         row = await cursor.fetchone()
-        await self.conn.commit()
         if row is None:
+            await self.conn.commit()
             return None
+        await self.conn.execute(
+            "DELETE FROM stream_chat_meta "
+            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
+            (chat_id, twitch_login, stream_id),
+        )
+        await self.conn.commit()
         return bool(row[0]) if row[0] is not None else True, row[1], row[2]
 
     @_serialized
@@ -983,6 +1070,9 @@ class Database:
         )
         await self.conn.execute(
             "DELETE FROM chat_unique_nicks WHERE joined_at < ?", (older_than_ts,)
+        )
+        await self.conn.execute(
+            "DELETE FROM stream_chatters WHERE first_seen_at < ?", (older_than_ts,)
         )
         # подстраховка: записи, чей отчёт так и не был отправлен (например, чат
         # удалил бота сразу после стрима), иначе копились бы вечно
@@ -1069,7 +1159,10 @@ class Database:
             "peak_viewers, avg_viewers, new_followers, started_at, title, "
             "new_followers_text, unique_chatters, join_reliable, "
             "top_chatters_json, raid_events_json, collab_json) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            # повторная отправка того же отчёта (например, после перезапуска бота
+            # между отправкой и отметкой «отправлено») не должна задваивать историю
+            "ON CONFLICT(chat_id, twitch_login, stream_id) DO NOTHING",
             (
                 chat_id, twitch_login, stream_id, ended_at, duration_seconds,
                 peak_viewers, avg_viewers, new_followers, started_at, title,

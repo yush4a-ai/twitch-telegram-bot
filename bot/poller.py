@@ -49,6 +49,11 @@ REPORT_DATA_RETENTION_SECONDS = 24 * 60 * 60
 # чтобы обычные выходные или пара пропущенных дней не считались «долгим отсутствием»
 RETURN_AFTER_BREAK_DAYS = 7
 
+# сколько итоговых отчётов формируем за один круг опроса: каждый тянет запросы
+# к Twitch и сборку HTML, и без ограничения пачка завершившихся стримов занимала бы
+# цикл на минуты — живые посты в это время не обновлялись бы
+MAX_REPORTS_PER_CYCLE = 5
+
 # сколько максимум ждать по требованию Telegram при 429: если он просит больше,
 # ждать смысла нет — отложим до следующего круга опроса
 MAX_RETRY_AFTER_SECONDS = 30
@@ -262,6 +267,17 @@ class StreamPoller:
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    async def shutdown(self) -> None:
+        """Гасит всё, что поллер запустил в фоне, до закрытия общей HTTP-сессии.
+
+        Без этого веб-сокеты чата и незавершённые уведомления о рейдах обрывались бы
+        уже закрытой сессией — в логах остановки появлялся мусор, а последнее
+        уведомление могло не уйти."""
+        if self._background_tasks:
+            await asyncio.gather(*list(self._background_tasks), return_exceptions=True)
+        if self._chat_listener is not None:
+            await self._chat_listener.stop_all()
 
     async def _tg_call(self, coro_factory, description: str, *, retries: int = 1):
         """Единая точка вызова Telegram API из поллера.
@@ -665,11 +681,18 @@ class StreamPoller:
         nicks = self._chat_listener.get_and_clear_chatters(login)
         self._chat_listener.get_and_clear_unique_viewers(login)
         join_reliable = self._chat_listener.get_and_clear_join_reliability(login)
+        # если упёрлись в потолок числа чатеров, счётчик занижен — помечаем
+        if self._chat_listener.chatters_overflowed(login):
+            join_reliable = False
         top_chatters = self._chat_listener.get_and_clear_top_chatters(login)
         raid_events = self._chat_listener.get_and_clear_raid_events(login)
         await self._chat_listener.stop(login)
 
         now = time.time()
+        # ники одинаковы для всех чатов, поэтому пишем их один раз на стрим:
+        # копия на каждый чат давала сотни тысяч лишних строк за эфир
+        saved_stream_ids: set[str] = set()
+
         for chat_id, last_stream_id in went_offline:
             # в Telegram-канале итогового отчёта нет, поэтому сохранять данные незачем
             if telegram_channel_ids is not None:
@@ -678,8 +701,10 @@ class StreamPoller:
                 is_tg_channel = await self._db.is_telegram_channel(chat_id)
             if is_tg_channel:
                 continue
+            if last_stream_id not in saved_stream_ids:
+                await self._db.save_stream_chatters(login, last_stream_id, nicks)
+                saved_stream_ids.add(last_stream_id)
             await self._db.add_chat_activity_samples(chat_id, login, last_stream_id, activity)
-            await self._db.add_chat_unique_nicks(chat_id, login, last_stream_id, nicks)
             await self._db.save_stream_chat_meta(
                 chat_id, login, last_stream_id, join_reliable,
                 json.dumps(top_chatters) if top_chatters else None,
@@ -729,7 +754,7 @@ class StreamPoller:
             viewer_samples,
             stream_id,
             followers_at_start,
-        ) in await self._db.pending_stats():
+        ) in await self._db.pending_stats(limit=MAX_REPORTS_PER_CYCLE):
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
             if await self._db.is_telegram_channel(chat_id):

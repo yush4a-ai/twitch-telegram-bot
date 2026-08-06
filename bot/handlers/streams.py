@@ -245,7 +245,7 @@ def _channel_card_keyboard(
             [
                 InlineKeyboardButton(
                     text=exempt_label,
-                    callback_data=f"togglequiethoursexempt:{target_chat_id}:{login}",
+                    callback_data=f"qhx:{target_chat_id}:{login}",
                 )
             ]
         )
@@ -393,6 +393,19 @@ async def cmd_start_link(message: Message, command: CommandObject, state: FSMCon
             )
             return
 
+        # то же правило, что и у кнопки в карточке канала: забрать отчёты у другого
+        # человека может только админ, иначе строгая проверка там обходилась бы здесь
+        current = await db.get_stats_recipient(source_chat_id)
+        if not await _may_change_recipient(
+            message.bot, source_chat_id, message.from_user.id, current
+        ):
+            await message.answer(
+                "Итоговые отчёты этого чата уже приходят другому участнику. "
+                "Переключить их на себя может только администратор чата — "
+                "попроси его или обратись к тому, кто их сейчас получает."
+            )
+            return
+
         await db.set_stats_recipient(source_chat_id, message.chat.id)
         await message.answer(
             "Готово! Теперь итоговые отчёты о завершённых стримах для этого чата "
@@ -478,11 +491,14 @@ async def cb_menu_link_stats(callback: CallbackQuery, db: Database) -> None:
     chat_id = callback.message.chat.id
 
     existing = await db.get_stats_recipient(chat_id)
-    status = (
-        "\n\nСейчас отчёты уже привязаны к чьей-то личке. Нажатие кнопки привяжет их заново к тебе."
-        if existing is not None
-        else ""
-    )
+    user_id = callback.from_user.id if callback.from_user else None
+    if existing is None or existing == user_id:
+        status = ""
+    else:
+        status = (
+            "\n\nСейчас отчёты приходят другому участнику. Переключить их на себя "
+            "может только администратор чата."
+        )
     await callback.message.edit_text(
         "Чтобы получать итоговые отчёты о завершённых стримах себе в личку "
         "(живые посты о начале стрима всегда остаются в этом чате), нажми кнопку ниже "
@@ -934,15 +950,20 @@ async def _check_manage_permission(callback: CallbackQuery, target_chat_id: int)
     return status in ADMIN_STATUSES
 
 
-async def _check_admin_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
-    """Строгая проверка для действий, уводящих данные чата вовне (переадресация
-    итогового отчёта в чью-то личку). Обычного участия в чате здесь мало."""
-    if target_chat_id > 0:
-        # личка: чат и пользователь — одно и то же лицо
-        return _callback_chat_id(callback) == target_chat_id
-    if callback.from_user is None:
-        return False
-    status = await _chat_member_status(callback.bot, target_chat_id, callback.from_user.id)
+async def _may_change_recipient(
+    bot: Bot, chat_id: int, user_id: int, current_recipient: int | None
+) -> bool:
+    """Можно ли этому человеку перевести итоговые отчёты чата на себя.
+
+    Правило одно на все пути (кнопка в карточке канала и ссылка «получать в личку»),
+    иначе более слабый путь обесценивает более строгий. Свободно — пока отчёты никому
+    лично не принадлежат либо принадлежат самому просящему; отобрать их у другого
+    человека может только админ чата."""
+    if chat_id > 0:
+        return True  # личка: чат и получатель — одно и то же лицо
+    if current_recipient is None or current_recipient == chat_id or current_recipient == user_id:
+        return True
+    status = await _chat_member_status(bot, chat_id, user_id)
     return status in ADMIN_STATUSES
 
 
@@ -1124,11 +1145,8 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("В личке переключать некуда.")
         return
 
-    # переключатель уводит итоговый отчёт группы в личку нажавшего, поэтому здесь
-    # мало быть участником — иначе любой из группы молча забирал бы себе её отчёты
-    # со списком чатеров и статистикой
-    if not await _check_admin_permission(callback, target_chat_id):
-        await callback.answer("Только админы этой группы могут менять получателя отчёта.", show_alert=True)
+    if not await _check_manage_permission(callback, target_chat_id):
+        await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
         return
 
     if callback.from_user is None or not await db.is_known_private_user(callback.from_user.id):
@@ -1143,6 +1161,18 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
     # на наличие явной привязки канала — иначе переключатель не сработает предсказуемо,
     # если весь чат уже привязан к личке через общую настройку
     current_effective = await db.resolve_post_recipient(target_chat_id, login)
+    # переключатель меняет получателя в обе стороны, и «отобрать у другого» —
+    # это и забрать себе, и вернуть в группу: проверяем до выбора направления
+    if not await _may_change_recipient(
+        callback.bot, target_chat_id, callback.from_user.id, current_effective
+    ):
+        await callback.answer(
+            "Отчёты по этому каналу получает другой участник — "
+            "переключить их может только администратор чата.",
+            show_alert=True,
+        )
+        return
+
     if current_effective == target_chat_id:
         # сейчас уходит в группу — явно переключаем на личку того, кто нажал
         await db.set_post_recipient(target_chat_id, login, callback.from_user.id)
@@ -1199,7 +1229,11 @@ async def cb_toggle_raid(callback: CallbackQuery, db: Database) -> None:
     )
 
 
-@router.callback_query(lambda c: c.data and c.data.startswith("togglequiethoursexempt:"))
+# старый длинный префикс оставлен, чтобы кнопки в уже отправленных сообщениях
+# продолжали работать после обновления бота
+@router.callback_query(
+    lambda c: c.data and c.data.startswith(("qhx:", "togglequiethoursexempt:"))
+)
 async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) -> None:
     parsed = _parse_chat_and_login(callback.data)
     if parsed is None:

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import logging
@@ -21,6 +21,10 @@ _PRIVMSG_RE = re.compile(r"^:([a-zA-Z0-9_]+)!\S+ PRIVMSG #")
 # @<теги через ;> :tmi.twitch.tv USERNOTICE #channel — официальное системное
 # уведомление Twitch (рейды, сабы и т.п.), теги содержат msg-id и параметры
 _USERNOTICE_RE = re.compile(r"^@(\S+) :\S+ USERNOTICE #")
+
+# потолок числа запоминаемых чатеров на канал: список ников всё равно режется
+# в отчёте, а память на крупном канале росла бы неограниченно
+MAX_TRACKED_CHATTERS = 50000
 
 # сколько новых JOIN за окно ниже считается вероятным рейдом (эвристика,
 # запасной вариант на случай, если Twitch не пришлёт официальный USERNOTICE)
@@ -58,6 +62,9 @@ class ChatListener:
         # присылает всегда и на любом канале, поэтому счёт «уникальных чатеров»
         # по написавшим надёжен даже на крупных каналах, где join/part отключены
         self._chatter_first_seen: dict[str, dict[str, float]] = defaultdict(dict)
+        # сколько чатеров не попало в список из-за потолка — нужно, чтобы отчёт
+        # честно пометил счётчик как неполный
+        self._overflow_chatters: dict[str, int] = {}
         # временные метки JOIN за скользящее окно — только для детектора рейдов
         self._recent_joins: dict[str, list[float]] = defaultdict(list)
         # (timestamp, join_count, raider_name | None) для каждого зафиксированного
@@ -78,6 +85,7 @@ class ChatListener:
         self._stale_since[login] = None
         self._message_counts[login] = {}
         self._chatter_first_seen[login] = {}
+        self._overflow_chatters[login] = 0
         self._recent_joins[login] = []
         self._raid_events[login] = []
         self._tasks[login] = asyncio.create_task(self._run(login))
@@ -89,12 +97,21 @@ class ChatListener:
 
     async def stop(self, login: str) -> None:
         task = self._tasks.pop(login, None)
+        # счётчик переполнения читается до остановки, здесь его уже можно отпустить —
+        # иначе он копился бы по одной записи на каждый когда-либо шедший канал
+        self._overflow_chatters.pop(login, None)
         if task is not None:
             task.cancel()
             try:
                 await task
             except (asyncio.CancelledError, Exception):
                 pass
+
+    async def stop_all(self) -> None:
+        """Гасит все активные слушатели — используется при остановке бота, чтобы
+        веб-сокеты закрылись до того, как будет закрыта общая HTTP-сессия."""
+        for login in list(self._tasks):
+            await self.stop(login)
 
     def get_and_clear_activity(self, login: str) -> list[tuple[float, int]]:
         """Вернёт [(minute_start_ts, message_count), ...] и очистит буфер."""
@@ -106,6 +123,11 @@ class ChatListener:
         отсортированный по времени входа, и очистит буфер."""
         nicks = self._unique_nicks.pop(login, {})
         return sorted(nicks.items(), key=lambda item: item[1])
+
+    def chatters_overflowed(self, login: str) -> bool:
+        """True, если чатеров было больше, чем удалось запомнить — тогда счётчик
+        в отчёте занижен и его нужно пометить как неполный."""
+        return self._overflow_chatters.get(login, 0) > 0
 
     def get_and_clear_chatters(self, login: str) -> list[tuple[str, float]]:
         """Вернёт список (ник, время первого сообщения) всех, кто писал в чат за сессию,
@@ -190,8 +212,16 @@ class ChatListener:
         self._check_stale(login, minute)
         if nick is not None:
             counts = self._message_counts[login]
-            counts[nick] = counts.get(nick, 0) + 1
-            self._chatter_first_seen[login].setdefault(nick, now)
+            if nick in counts:
+                counts[nick] += 1
+            elif len(counts) < MAX_TRACKED_CHATTERS:
+                counts[nick] = 1
+                self._chatter_first_seen[login][nick] = now
+            else:
+                # потолок достигнут: новых участников больше не запоминаем, только
+                # считаем, сколько их было. Иначе один многолюдный канал съедал бы
+                # десятки мегабайт, а таких каналов может идти несколько сразу
+                self._overflow_chatters[login] = self._overflow_chatters.get(login, 0) + 1
 
     def _record_join(self, login: str, nick: str) -> None:
         now = time.time()
