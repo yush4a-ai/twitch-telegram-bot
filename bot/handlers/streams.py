@@ -73,12 +73,6 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="➕ Добавить оповещение", callback_data="menu:add"),
         ],
     ]
-    if chat_type == ChatType.PRIVATE:
-        # импорт — второй способ сделать то же самое, что и «Добавить оповещение»,
-        # поэтому стоит сразу под ним, а не в блоке настроек
-        rows.append(
-            [InlineKeyboardButton(text="📥 Импорт подписок с Twitch", callback_data="menu:import_follows")]
-        )
     rows.append([InlineKeyboardButton(text="📊 Отчёт по стриму", callback_data="menu:report")])
     rows.append([InlineKeyboardButton(text="🔴 Кто стримит?", callback_data="menu:live")])
     if chat_type != ChatType.PRIVATE:
@@ -1054,11 +1048,22 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(AddChannel.waiting_for_login)
     await state.update_data(target_chat_id=target_chat_id)
     back_callback = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
+
+    rows = []
+    # импорт — альтернативный способ выполнить ровно эту задачу, поэтому предлагаем
+    # его прямо здесь. В группе он недоступен: там неясно, чьи подписки брать
+    if callback.message.chat.type == ChatType.PRIVATE:
+        rows.append(
+            [InlineKeyboardButton(
+                text="📥 Импортировать подписки с Twitch", callback_data="menu:import_follows"
+            )]
+        )
+    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
+
     await callback.message.edit_text(
-        "Напиши логин Twitch-канала (например: dobriy_yura).",
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)]]
-        ),
+        "Напиши логин Twitch-канала (например: dobriy_yura) или просто имя канала — "
+        "я поищу и предложу варианты.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
     await callback.answer()
 
@@ -1155,6 +1160,11 @@ async def _run_import_follows(
             "там я вижу, от чьего имени добавлять каналы."
         )
         return
+
+    # импорт мог быть запущен с экрана «Добавить оповещение», где бот ждёт ввода
+    # логина — снимаем это ожидание, иначе всё, что пользователь напишет за время
+    # авторизации, уйдёт в поиск канала
+    await state.clear()
 
     async def send_url(url: str) -> None:
         await message.answer(
