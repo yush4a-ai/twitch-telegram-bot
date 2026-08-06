@@ -287,6 +287,8 @@ ABOUT_TEXT = (
     "🔔 <b>Уведомление о начале стрима</b> — как только канал выходит в эфир, "
     "присылаю сообщение с его именем и названием стрима, и обновляю счётчик "
     "зрителей прямо в нём.\n\n"
+    "📺 <b>Команда /live</b> — короткий список тех из твоих каналов, кто прямо "
+    "сейчас в эфире, с числом зрителей.\n\n"
     "🚩 <b>Детектор накрутки</b> — резкий скачок зрителей с таким же резким спадом "
     "похож на накрутку ботами: такая точка не портит честные пик и среднее.\n\n"
     "⚡ <b>Детектор рейдов</b> — при рейде сразу пишу, кто привёл зрителей и сколько "
@@ -1179,9 +1181,27 @@ async def cmd_list(message: Message, db: Database) -> None:
         return
 
     text = "Отслеживаемые каналы:\n" + "\n".join(
-        f"• {'🔔' if enabled else '🔕'} {login}" for login, enabled in channels
+        f"• {'🔴' if is_live else ('🔔' if enabled else '🔕')} {login}"
+        for login, enabled, is_live in channels
     )
     await message.answer(text)
+
+
+@router.message(Command("live"))
+async def cmd_live(message: Message, db: Database) -> None:
+    live_channels = await db.list_live_channels(message.chat.id)
+    if not live_channels:
+        await message.answer("Сейчас никто из отслеживаемых каналов не в эфире.")
+        return
+
+    lines = [f"🔴 <b>Сейчас в эфире ({len(live_channels)})</b>\n"]
+    for login, title, viewer_count in live_channels:
+        viewers_text = f" — 👁 {viewer_count}" if viewer_count is not None else ""
+        line = f"🔴 <b>{login}</b>{viewers_text}"
+        if title:
+            line += f"\n{title}"
+        lines.append(line)
+    await message.answer("\n\n".join(lines))
 
 
 async def _send_report(message: Message, chat_id: int, login: str, db: Database) -> None:

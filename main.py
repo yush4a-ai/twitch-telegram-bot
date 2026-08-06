@@ -90,6 +90,7 @@ async def main() -> None:
         BotCommand(command="track", description="➕ Начать следить за Twitch-каналом"),
         BotCommand(command="untrack", description="❌ Перестать следить за каналом"),
         BotCommand(command="list", description="📡 Показать отслеживаемые каналы"),
+        BotCommand(command="live", description="🔴 Кто сейчас в эфире"),
         BotCommand(command="report", description="📊 Отчёт по последнему стриму"),
         BotCommand(command="help", description="ℹ️ Что умеет бот"),
     ]

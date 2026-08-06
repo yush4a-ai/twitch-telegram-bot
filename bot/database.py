@@ -238,15 +238,32 @@ class Database:
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
-    async def list_channels_with_notify(self, chat_id: int) -> list[tuple[str, bool]]:
-        """(twitch_login, notify_enabled) для всех каналов чата."""
+    async def list_channels_with_notify(self, chat_id: int) -> list[tuple[str, bool, bool]]:
+        """(twitch_login, notify_enabled, is_live) для всех каналов чата."""
         cursor = await self.conn.execute(
-            "SELECT twitch_login, notify_enabled FROM tracked_channels "
+            "SELECT twitch_login, notify_enabled, is_live FROM tracked_channels "
             "WHERE chat_id = ? ORDER BY twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
-        return [(row[0], bool(row[1])) for row in rows]
+        return [(row[0], bool(row[1]), bool(row[2])) for row in rows]
+
+    async def list_live_channels(self, chat_id: int) -> list[tuple[str, str, int | None]]:
+        """(twitch_login, title, viewer_count) для каналов чата, которые сейчас в эфире.
+        viewer_count — из последнего опроса, None если сэмплов ещё не было."""
+        cursor = await self.conn.execute(
+            "SELECT tc.twitch_login, tc.last_title, "
+            "(SELECT ss.viewer_count FROM stream_samples ss "
+            " WHERE ss.chat_id = tc.chat_id AND ss.twitch_login = tc.twitch_login "
+            " AND ss.stream_id = tc.last_stream_id "
+            " ORDER BY ss.sampled_at DESC LIMIT 1) AS viewer_count "
+            "FROM tracked_channels tc "
+            "WHERE tc.chat_id = ? AND tc.is_live = 1 "
+            "ORDER BY tc.twitch_login",
+            (chat_id,),
+        )
+        rows = await cursor.fetchall()
+        return [(row[0], row[1] or "", row[2]) for row in rows]
 
     async def list_channels_with_routing(
         self, chat_id: int
