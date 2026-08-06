@@ -66,6 +66,7 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="➕ Добавить", callback_data="menu:add"),
         ],
         [InlineKeyboardButton(text="📊 Отчёт по стриму", callback_data="menu:report")],
+        [InlineKeyboardButton(text="🔴 Кто стримит?", callback_data="menu:live")],
     ]
     if chat_type != ChatType.PRIVATE:
         # в личке привязывать некуда — привязка личного чата имеет смысл только для групп/каналов
@@ -1187,12 +1188,10 @@ async def cmd_list(message: Message, db: Database) -> None:
     await message.answer(text)
 
 
-@router.message(Command("live"))
-async def cmd_live(message: Message, db: Database) -> None:
-    live_channels = await db.list_live_channels(message.chat.id)
+async def _build_live_text(chat_id: int, db: Database) -> str:
+    live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
-        await message.answer("Сейчас никто из отслеживаемых каналов не в эфире.")
-        return
+        return "Сейчас никто из отслеживаемых каналов не в эфире."
 
     lines = [f"🔴 <b>Сейчас в эфире ({len(live_channels)})</b>\n"]
     for login, title, viewer_count in live_channels:
@@ -1201,7 +1200,19 @@ async def cmd_live(message: Message, db: Database) -> None:
         if title:
             line += f"\n{title}"
         lines.append(line)
-    await message.answer("\n\n".join(lines))
+    return "\n\n".join(lines)
+
+
+@router.message(Command("live"))
+async def cmd_live(message: Message, db: Database) -> None:
+    await message.answer(await _build_live_text(message.chat.id, db))
+
+
+@router.callback_query(lambda c: c.data == "menu:live")
+async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
+    text = await _build_live_text(callback.message.chat.id, db)
+    await callback.message.edit_text(text, reply_markup=_back_keyboard())
+    await callback.answer()
 
 
 async def _send_report(message: Message, chat_id: int, login: str, db: Database) -> None:
