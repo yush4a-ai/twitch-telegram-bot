@@ -25,6 +25,11 @@ MESSAGE_TEMPLATE = "🔴 <b>{channel_name}</b>\n{title}\n\n👁 Сейчас с�
 # сколько ждать после ухода стрима в offline, прежде чем удалить пост
 OFFLINE_GRACE_SECONDS = 5 * 60
 
+# если новый stream_id появляется в течение этого времени после ухода в offline,
+# считаем это тем же сеансом (быстрый рестарт стрима) — редактируем старый пост
+# вместо публикации нового и не спамим повторными уведомлениями
+RESTART_MERGE_GRACE_SECONDS = 3 * 60
+
 # сколько хранить сырые данные отчёта (график, ники чатеров) для повторного /report
 REPORT_DATA_RETENTION_SECONDS = 24 * 60 * 60
 
@@ -420,18 +425,28 @@ class StreamPoller:
                     # тот же стрим — либо шёл без перерыва, либо ещё не удалили пост
                     # за время в оффлайне (стрим быстро вернулся)
                     same_stream = last_stream_id == stream.stream_id and last_message_id is not None
+                    # быстрый рестарт — другой stream_id, но канал был в оффлайне совсем
+                    # недавно (например, стример словил бан-момент, удалил стрим и тут же
+                    # начал заново). Считаем это продолжением того же сеанса, чтобы не
+                    # заваливать чат новым постом на каждый такой рестарт
+                    quick_restart = (
+                        not same_stream
+                        and last_message_id is not None
+                        and offline_since is not None
+                        and time.time() - offline_since < RESTART_MERGE_GRACE_SECONDS
+                    )
                     notify_enabled = await self._db.get_notify_enabled(chat_id, login)
                     # живой пост о старте стрима всегда публикуется в исходный чат —
                     # привязка к личке (post_recipient) влияет только на финальный отчёт
 
-                    if not same_stream and self._chat_listener is not None:
+                    if not same_stream and not quick_restart and self._chat_listener is not None:
                         self._chat_listener.start(login)
 
                     if not notify_enabled:
                         # уведомления выключены для этого канала в этом чате — статистика
                         # всё равно собирается, но пост не публикуется и не редактируется
                         message_id = None
-                    elif same_stream:
+                    elif same_stream or quick_restart:
                         edited = await self._edit(chat_id, last_message_id, login, title, stream.viewer_count)
                         if edited:
                             message_id = last_message_id
@@ -444,22 +459,39 @@ class StreamPoller:
                                 pass
                             message_id = await self._notify(chat_id, login, title, stream.viewer_count)
                     else:
+                        if last_message_id is not None:
+                            # стрим прервался надолго, потом начался заново (новый
+                            # stream_id) — без этого старый пост о прошлом запуске
+                            # остаётся висеть навсегда, потому что is_live уже снова
+                            # стало True и он больше не подпадает под условие
+                            # pending_offline_posts()
+                            try:
+                                await self._bot.delete_message(chat_id, last_message_id)
+                            except (TelegramForbiddenError, TelegramBadRequest):
+                                pass
                         message_id = await self._notify(chat_id, login, title, stream.viewer_count)
+
+                    # при быстром рестарте держим прежний stream_id как идентификатор
+                    # сессии — иначе накопленные viewer_sum/peak_viewers/samples
+                    # обнулятся или расколются между двумя stream_id, и итоговый отчёт
+                    # не увидит часть до рестарта
+                    effective_stream_id = last_stream_id if quick_restart else stream.stream_id
+                    effective_started_at = _stream_started_at if quick_restart else stream.started_at
 
                     await self._db.set_live_state(
                         chat_id,
                         login,
                         True,
-                        stream.stream_id,
+                        effective_stream_id,
                         message_id,
                         title,
-                        stream_started_at=stream.started_at,
+                        stream_started_at=effective_started_at,
                     )
                     await self._db.record_viewer_sample(chat_id, login, stream.viewer_count)
                     await self._db.add_stream_sample(
                         chat_id,
                         login,
-                        stream.stream_id,
+                        effective_stream_id,
                         time.time(),
                         stream.viewer_count,
                         title,
