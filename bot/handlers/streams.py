@@ -87,7 +87,7 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
 
 def _channels_keyboard(
     target_chat_id: int,
-    channels: list[tuple[str, bool, int | None, str, bool, bool]],
+    channels: list[tuple[str, bool, int | None, str, bool, bool, bool]],
     chat_default_recipient: int | None,
     *,
     back_callback: str = "menu:home",
@@ -100,7 +100,7 @@ def _channels_keyboard(
     is_telegram_channel=True показывает только 🔔/🔕 — остальные иконки относятся
     к итоговому отчёту, которого в Telegram-канале не бывает."""
     rows = []
-    for login, notify_enabled, post_recipient, report_format, raid_detection_enabled, _quiet_hours_exempt in channels:
+    for login, notify_enabled, post_recipient, report_format, raid_detection_enabled, _quiet_hours_exempt, is_live in channels:
         bell = "🔔" if notify_enabled else "🔕"
         status_icons = bell
         if not is_telegram_channel:
@@ -112,10 +112,11 @@ def _channels_keyboard(
             status_icons += " 📑" if report_format != "brief" else " 📄"
             if raid_detection_enabled:
                 status_icons += " ⚡"
+        name = f"🔴 {login}" if is_live else login
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=f"{login}  {status_icons}",
+                    text=f"{name}  {status_icons}",
                     callback_data=f"channelcard:{target_chat_id}:{login}",
                 )
             ]
@@ -819,7 +820,7 @@ async def _render_channel_card(
     match = next((c for c in channels if c[0] == login), None)
     if match is None:
         return None
-    _, notify_enabled, post_recipient, report_format, raid_detection_enabled, quiet_hours_exempt = match
+    _, notify_enabled, post_recipient, report_format, raid_detection_enabled, quiet_hours_exempt, _is_live = match
 
     is_private = target_chat_id > 0
     is_telegram_channel = await db.is_telegram_channel(target_chat_id)

@@ -267,18 +267,18 @@ class Database:
 
     async def list_channels_with_routing(
         self, chat_id: int
-    ) -> list[tuple[str, bool, int | None, str, bool, bool]]:
+    ) -> list[tuple[str, bool, int | None, str, bool, bool, bool]]:
         """(twitch_login, notify_enabled, post_recipient_chat_id, report_format,
-        raid_detection_enabled, quiet_hours_exempt) для всех каналов чата."""
+        raid_detection_enabled, quiet_hours_exempt, is_live) для всех каналов чата."""
         cursor = await self.conn.execute(
             "SELECT twitch_login, notify_enabled, post_recipient_chat_id, report_format, "
-            "raid_detection_enabled, quiet_hours_exempt FROM tracked_channels "
+            "raid_detection_enabled, quiet_hours_exempt, is_live FROM tracked_channels "
             "WHERE chat_id = ? ORDER BY twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
         return [
-            (row[0], bool(row[1]), row[2], row[3] or "full", bool(row[4]), bool(row[5]))
+            (row[0], bool(row[1]), row[2], row[3] or "full", bool(row[4]), bool(row[5]), bool(row[6]))
             for row in rows
         ]
 
