@@ -80,16 +80,12 @@ def _chatters_note(unique_chatters: int | None, reliable: bool) -> str:
     if unique_chatters is None:
         return ""
     base = (
-        "Считаются заходы в чат (JOIN) — не все зрители открывают чат, "
-        "поэтому число всегда меньше реальной аудитории."
+        "Считаются те, кто написал в чат хотя бы одно сообщение — молчаливые "
+        "зрители сюда не попадают, поэтому число меньше реальной аудитории."
     )
     if reliable:
         return f'<p class="note">{base}</p>'
-    return (
-        '<p class="note note-warn">⚠ За стрим долго не было новых JOIN при живом чате — '
-        "похоже, Twitch отключил join/part-рассылку на этом канале. "
-        f"Число уникальных чатеров занижено. {base}</p>"
-    )
+    return f'<p class="note note-warn">⚠ Данные чата собраны не полностью. {base}</p>'
 
 
 def format_duration_seconds(seconds: int) -> str:
@@ -196,7 +192,7 @@ def build_report_html(
     if unique_chatters is not None:
         tiles.append(
             _stat_tile(
-                "Уникальных чатеров",
+                "Писали в чат",
                 str(unique_chatters),
                 warn=not unique_chatters_reliable,
             )
@@ -260,8 +256,8 @@ def build_report_html(
         chatters_panel = f"""
   <section class="panel">
     <header class="panel-head">
-      <h2>Уникальные чатеры <span class="count">{len(chatter_entries)}</span></h2>
-      <p class="panel-sub">Время — первый заход в чат от начала стрима</p>
+      <h2>Писали в чат <span class="count">{len(chatter_entries)}</span></h2>
+      <p class="panel-sub">Время — первое сообщение от начала стрима</p>
     </header>
     <input type="search" id="nick-search" class="search" placeholder="Поиск по нику…"
            aria-label="Поиск по нику" autocomplete="off">

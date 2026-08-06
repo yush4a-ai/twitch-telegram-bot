@@ -5,6 +5,7 @@ import logging
 import secrets
 import time
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 import aiohttp
 from aiohttp import web
@@ -15,7 +16,9 @@ AUTHORIZE_URL = "https://id.twitch.tv/oauth2/authorize"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 USERS_URL = "https://api.twitch.tv/helix/users"
 
-SCOPES = "moderator:read:followers"
+# moderator:read:followers — число фолловеров канала для итогового отчёта,
+# user:read:follows — список подписок пользователя для импорта каналов
+SCOPES = "moderator:read:followers user:read:follows"
 REDIRECT_PATH = "/twitch/callback"
 
 # сколько ждать, что пользователь пройдёт авторизацию по присланной ссылке,
@@ -97,10 +100,18 @@ class OAuthCallbackServer:
 
 
 def build_authorize_url(client_id: str, redirect_uri: str, state: str) -> str:
-    return (
-        f"{AUTHORIZE_URL}?response_type=code&client_id={client_id}"
-        f"&redirect_uri={redirect_uri}&scope={SCOPES}&state={state}"
+    # scope из нескольких разрешений разделяется пробелом — его обязательно кодировать,
+    # иначе Twitch получит обрезанную ссылку и вернёт ошибку
+    query = urlencode(
+        {
+            "response_type": "code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": SCOPES,
+            "state": state,
+        }
     )
+    return f"{AUTHORIZE_URL}?{query}"
 
 
 async def run_authorization_flow(

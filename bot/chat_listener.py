@@ -29,12 +29,13 @@ RAID_WINDOW_SECONDS = 30
 
 
 class ChatListener:
-    """Слушает публичный Twitch-чат одного канала: считает сообщения по минутным бакетам
-    и собирает уникальные ники, зашедшие в чат (через JOIN), пока не вызван stop().
+    """Слушает публичный Twitch-чат одного канала: считает сообщения по минутным бакетам,
+    собирает написавших в чат и ники, зашедшие через JOIN, пока не вызван stop().
 
     Ограничение Twitch: на крупных каналах (обычно от нескольких тысяч зрителей) Twitch
-    отключает индивидуальные JOIN/PART события в IRC ради снижения нагрузки — на таких
-    каналах подсчёт уникальных ников перестаёт быть надёжным."""
+    отключает индивидуальные JOIN/PART события в IRC ради снижения нагрузки — поэтому
+    JOIN-данные годятся только как запасная эвристика для детектора рейдов, а «уникальные
+    чатеры» считаются по тем, кто реально писал (см. get_and_clear_chatters)."""
 
     # сколько минутных интервалов подряд должны содержать сообщения без единого JOIN,
     # чтобы зафиксировать точный момент отключения join/part-рассылки
@@ -53,6 +54,10 @@ class ChatListener:
         self._stale_since: dict[str, float | None] = {}
         # ник -> число сообщений за сессию (для топ-чатеров)
         self._message_counts: dict[str, dict[str, int]] = defaultdict(dict)
+        # ник -> время первого сообщения. В отличие от JOIN, сообщения Twitch
+        # присылает всегда и на любом канале, поэтому счёт «уникальных чатеров»
+        # по написавшим надёжен даже на крупных каналах, где join/part отключены
+        self._chatter_first_seen: dict[str, dict[str, float]] = defaultdict(dict)
         # временные метки JOIN за скользящее окно — только для детектора рейдов
         self._recent_joins: dict[str, list[float]] = defaultdict(list)
         # (timestamp, join_count, raider_name | None) для каждого зафиксированного
@@ -72,6 +77,7 @@ class ChatListener:
         self._interval_has_join[login] = {}
         self._stale_since[login] = None
         self._message_counts[login] = {}
+        self._chatter_first_seen[login] = {}
         self._recent_joins[login] = []
         self._raid_events[login] = []
         self._tasks[login] = asyncio.create_task(self._run(login))
@@ -94,6 +100,13 @@ class ChatListener:
         """Вернёт список (ник, время первого JOIN) уникальных зрителей чата за сессию,
         отсортированный по времени входа, и очистит буфер."""
         nicks = self._unique_nicks.pop(login, {})
+        return sorted(nicks.items(), key=lambda item: item[1])
+
+    def get_and_clear_chatters(self, login: str) -> list[tuple[str, float]]:
+        """Вернёт список (ник, время первого сообщения) всех, кто писал в чат за сессию,
+        отсортированный по времени, и очистит буфер. Это надёжная замена подсчёту через
+        JOIN: сообщения Twitch рассылает всегда, а join/part глушит на крупных каналах."""
+        nicks = self._chatter_first_seen.pop(login, {})
         return sorted(nicks.items(), key=lambda item: item[1])
 
     def get_and_clear_top_chatters(self, login: str, limit: int = 5) -> list[tuple[str, int]]:
@@ -173,6 +186,7 @@ class ChatListener:
         if nick is not None:
             counts = self._message_counts[login]
             counts[nick] = counts.get(nick, 0) + 1
+            self._chatter_first_seen[login].setdefault(nick, now)
 
     def _record_join(self, login: str, nick: str) -> None:
         now = time.time()

@@ -20,7 +20,13 @@ from .twitch import ClipInfo, TwitchClient
 
 logger = logging.getLogger(__name__)
 
-MESSAGE_TEMPLATE = "🔴 <b>{channel_name}</b>\n{title}\n\n👁 Сейчас смотрят: {viewer_count}"
+MESSAGE_TEMPLATE = (
+    "🔴 <b>{channel_name}</b>\n{title}\n\n"
+    "🎮 {game_name}\n"
+    "👁 Сейчас смотрят: {viewer_count}"
+)
+# без категории (Twitch иногда отдаёт пустое поле) строку про игру не показываем
+MESSAGE_TEMPLATE_NO_GAME = "🔴 <b>{channel_name}</b>\n{title}\n\n👁 Сейчас смотрят: {viewer_count}"
 
 # сколько ждать после ухода стрима в offline, прежде чем удалить пост
 OFFLINE_GRACE_SECONDS = 5 * 60
@@ -33,6 +39,10 @@ RESTART_MERGE_GRACE_SECONDS = 3 * 60
 # сколько хранить сырые данные отчёта (график, ники чатеров) для повторного /report
 REPORT_DATA_RETENTION_SECONDS = 24 * 60 * 60
 
+# с какого перерыва между стримами помечаем возвращение канала в эфир — берём неделю,
+# чтобы обычные выходные или пара пропущенных дней не считались «долгим отсутствием»
+RETURN_AFTER_BREAK_DAYS = 7
+
 _KEYCAP_DIGITS = {
     "0": "0️⃣", "1": "1️⃣", "2": "2️⃣", "3": "3️⃣", "4": "4️⃣",
     "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣",
@@ -41,6 +51,17 @@ _KEYCAP_DIGITS = {
 
 def _keycap_number(value: int) -> str:
     return "".join(_KEYCAP_DIGITS[digit] for digit in str(value))
+
+
+def _plural_days(days: int) -> str:
+    if 11 <= days % 100 <= 14:
+        return "дней"
+    last = days % 10
+    if last == 1:
+        return "день"
+    if 2 <= last <= 4:
+        return "дня"
+    return "дней"
 
 
 # короткий подпись-префикс перед ссылкой вроде "tg:", "instagram:", "vk:"
@@ -442,12 +463,21 @@ class StreamPoller:
                     if not same_stream and not quick_restart and self._chat_listener is not None:
                         self._chat_listener.start(login)
 
+                    game_name = stream.game_name or None
+                    # прошлый стрим ещё не попал в историю (она пишется при завершении),
+                    # поэтому пометку можно пересчитывать на каждой итерации — она
+                    # остаётся стабильной до конца текущего эфира
+                    return_note = await self._build_return_note(chat_id, login)
+
                     if not notify_enabled:
                         # уведомления выключены для этого канала в этом чате — статистика
                         # всё равно собирается, но пост не публикуется и не редактируется
                         message_id = None
                     elif same_stream or quick_restart:
-                        edited = await self._edit(chat_id, last_message_id, login, title, stream.viewer_count)
+                        edited = await self._edit(
+                            chat_id, last_message_id, login, title, stream.viewer_count,
+                            game_name, return_note,
+                        )
                         if edited:
                             message_id = last_message_id
                         else:
@@ -457,7 +487,9 @@ class StreamPoller:
                                 await self._bot.delete_message(chat_id, last_message_id)
                             except (TelegramForbiddenError, TelegramBadRequest):
                                 pass
-                            message_id = await self._notify(chat_id, login, title, stream.viewer_count)
+                            message_id = await self._notify(
+                                chat_id, login, title, stream.viewer_count, game_name, return_note
+                            )
                     else:
                         if last_message_id is not None:
                             # стрим прервался надолго, потом начался заново (новый
@@ -469,7 +501,9 @@ class StreamPoller:
                                 await self._bot.delete_message(chat_id, last_message_id)
                             except (TelegramForbiddenError, TelegramBadRequest):
                                 pass
-                        message_id = await self._notify(chat_id, login, title, stream.viewer_count)
+                        message_id = await self._notify(
+                            chat_id, login, title, stream.viewer_count, game_name, return_note
+                        )
 
                     # при быстром рестарте держим прежний stream_id как идентификатор
                     # сессии — иначе накопленные viewer_sum/peak_viewers/samples
@@ -523,7 +557,11 @@ class StreamPoller:
                             # первым забирать буфер ChatListener у групп, которые его
                             # действительно используют (get_and_clear_* очищает буфер)
                             activity = self._chat_listener.get_and_clear_activity(login)
-                            nicks = self._chat_listener.get_and_clear_unique_viewers(login)
+                            # считаем чатеров по написавшим, а не по JOIN — Twitch глушит
+                            # join/part на крупных каналах, из-за чего счётчик показывал
+                            # единицы там, где чат был живой
+                            nicks = self._chat_listener.get_and_clear_chatters(login)
+                            self._chat_listener.get_and_clear_unique_viewers(login)
                             join_reliable = self._chat_listener.get_and_clear_join_reliability(login)
                             top_chatters = self._chat_listener.get_and_clear_top_chatters(login)
                             raid_events = self._chat_listener.get_and_clear_raid_events(login)
@@ -538,6 +576,17 @@ class StreamPoller:
                             self._join_reliable_cache[(chat_id, login, last_stream_id)] = join_reliable
                             self._top_chatters_cache[(chat_id, login, last_stream_id)] = top_chatters
                             self._raid_events_cache[(chat_id, login, last_stream_id)] = raid_events
+
+    async def _build_return_note(self, chat_id: int, login: str) -> str | None:
+        """«Первый стрим за N дней», если канал долго не выходил в эфир. None, если
+        перерыв обычный или истории по каналу ещё нет."""
+        last_end = await self._db.get_last_stream_end(chat_id, login)
+        if last_end is None:
+            return None
+        days = int((time.time() - last_end) // 86400)
+        if days < RETURN_AFTER_BREAK_DAYS:
+            return None
+        return f"👋 Первый стрим за {days} {_plural_days(days)}"
 
     async def _maybe_snapshot_followers(self, chat_id: int, login: str) -> None:
         if self._token_store is None:
@@ -681,7 +730,9 @@ class StreamPoller:
                     new_followers=new_followers_text,
                     chat_activity=chat_activity,
                     unique_chatters=unique_chatters,
-                    unique_chatters_reliable=join_reliable,
+                    # счёт идёт по написавшим — эта метрика достоверна всегда,
+                    # в отличие от прежнего подсчёта по JOIN
+                    unique_chatters_reliable=True,
                     chatter_nicks=chatter_nicks,
                     top_clips=top_clips,
                     vod_url=vod_url,
@@ -714,8 +765,7 @@ class StreamPoller:
         if new_followers_text is not None:
             text += f"\nНовых фолловеров: {new_followers_text}"
         if unique_chatters:
-            reliability_note = "" if join_reliable else " (возможно занижено)"
-            text += f"\nУникальных чатеров: {unique_chatters}{reliability_note}"
+            text += f"\nПисали в чат: {unique_chatters}"
         if comparison_lines:
             text += "\n\n" + "\n".join(comparison_lines)
         if top_chatters:
@@ -764,9 +814,9 @@ class StreamPoller:
             sign = "+" if diff_pct >= 0 else ""
             lines.append(f"Пик зрителей {sign}{diff_pct}% от среднего по прошлым {count} стримам")
         if peak > best_peak:
-            lines.append("🏆 Новый рекорд по пиковым зрителям!")
+            lines.append(f"🏆 Новый рекорд по пику: {peak} (прошлый — {best_peak})")
         if avg_viewers > best_avg:
-            lines.append("🏆 Новый рекорд по среднему числу зрителей!")
+            lines.append(f"🏆 Новый рекорд по среднему: {avg_viewers} (прошлый — {best_avg})")
         return lines
 
     @staticmethod
@@ -858,12 +908,36 @@ class StreamPoller:
         display_name = await self._db.get_display_name(login)
         return display_name or login
 
-    async def _notify(self, chat_id: int, login: str, title: str, viewer_count: int) -> int | None:
+    async def _build_live_text(
+        self,
+        login: str,
+        title: str,
+        game_name: str | None,
+        viewer_count: int,
+        return_note: str | None,
+    ) -> str:
         channel_name = await self._channel_display_name(login)
-        text = MESSAGE_TEMPLATE.format(
+        template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
+        text = template.format(
             channel_name=html.escape(channel_name),
-            title=html.escape(_strip_links(title)), viewer_count=_keycap_number(viewer_count)
+            title=html.escape(_strip_links(title)),
+            game_name=html.escape(game_name or ""),
+            viewer_count=_keycap_number(viewer_count),
         )
+        if return_note:
+            text += f"\n\n{return_note}"
+        return text
+
+    async def _notify(
+        self,
+        chat_id: int,
+        login: str,
+        title: str,
+        viewer_count: int,
+        game_name: str | None = None,
+        return_note: str | None = None,
+    ) -> int | None:
+        text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
         keyboard = await self._build_keyboard(login)
         try:
             message = await self._bot.send_message(chat_id, text, reply_markup=keyboard)
@@ -873,16 +947,19 @@ class StreamPoller:
             return None
 
     async def _edit(
-        self, chat_id: int, message_id: int, login: str, title: str, viewer_count: int
+        self,
+        chat_id: int,
+        message_id: int,
+        login: str,
+        title: str,
+        viewer_count: int,
+        game_name: str | None = None,
+        return_note: str | None = None,
     ) -> bool:
         """Возвращает False, если сообщение нельзя отредактировать как текст
         (например, старый пост — фото из прошлой версии бота) — в этом случае
         вызывающий код должен пересоздать пост заново."""
-        channel_name = await self._channel_display_name(login)
-        text = MESSAGE_TEMPLATE.format(
-            channel_name=html.escape(channel_name),
-            title=html.escape(_strip_links(title)), viewer_count=_keycap_number(viewer_count)
-        )
+        text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
         keyboard = await self._build_keyboard(login)
         try:
             await self._bot.edit_message_text(

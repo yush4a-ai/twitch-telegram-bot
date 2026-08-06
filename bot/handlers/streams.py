@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
+import html
 import json
+import logging
 import re
 import time
 
@@ -18,10 +20,15 @@ from aiogram.types import (
     Message,
 )
 
+import aiohttp
+
 from ..config import Config
 from ..database import Database
+from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
 from ..report import build_report_html, format_duration_seconds
 from ..twitch import TwitchClient
+
+logger = logging.getLogger(__name__)
 
 # сколько времени после завершения стрима ещё доступен полный отчёт через /report
 REPORT_RETENTION_SECONDS = 24 * 60 * 60
@@ -75,6 +82,9 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
         )
     else:
         # а в личке, наоборот, можно управлять настройками своих групп удалённо
+        rows.append(
+            [InlineKeyboardButton(text="📥 Импорт подписок с Twitch", callback_data="menu:import_follows")]
+        )
         rows.append(
             [InlineKeyboardButton(text="💬 Мои сообщества", callback_data="menu:manage_group")]
         )
@@ -290,7 +300,11 @@ ABOUT_TEXT = (
     "присылаю сообщение с его именем и названием стрима, и обновляю счётчик "
     "зрителей прямо в нём.\n\n"
     "📺 <b>Команда /live</b> — короткий список тех из твоих каналов, кто прямо "
-    "сейчас в эфире, с числом зрителей.\n\n"
+    "сейчас в эфире, с категорией и числом зрителей.\n\n"
+    "📥 <b>Импорт подписок</b> — команда /import_follows добавляет разом все каналы, "
+    "на которые ты подписан на Twitch, вместо того чтобы вбивать их вручную.\n\n"
+    "🔍 <b>Поиск по имени</b> — не помнишь точный логин? Напиши имя канала, "
+    "и я предложу подходящие варианты.\n\n"
     "🚩 <b>Детектор накрутки</b> — резкий скачок зрителей с таким же резким спадом "
     "похож на накрутку ботами: такая точка не портит честные пик и среднее.\n\n"
     "⚡ <b>Детектор рейдов</b> — при рейде сразу пишу, кто привёл зрителей и сколько "
@@ -1065,6 +1079,249 @@ async def cb_untrack(callback: CallbackQuery, db: Database) -> None:
     await callback.answer()
 
 
+async def _offer_search_results(
+    message: Message,
+    query: str,
+    target_chat_id: int,
+    twitch: TwitchClient,
+    back_keyboard: InlineKeyboardMarkup,
+) -> None:
+    """Ищет канал по введённому тексту и предлагает найденное кнопками. Состояние
+    ввода не сбрасываем — если ничего не подошло, можно сразу написать другое имя."""
+    if len(query) < 3:
+        await message.answer(
+            "Слишком короткий запрос — напиши хотя бы три символа "
+            "(логин канала или его имя на Twitch).",
+            reply_markup=back_keyboard,
+        )
+        return
+
+    try:
+        results = await twitch.search_channels(query)
+    except Exception:
+        logger.exception("Не удалось выполнить поиск каналов по запросу %r", query)
+        await message.answer(
+            "Не получилось выполнить поиск на Twitch. Попробуй ещё раз чуть позже "
+            "или введи точный логин канала.",
+            reply_markup=back_keyboard,
+        )
+        return
+
+    if not results:
+        await message.answer(
+            f"По запросу «{html.escape(query)}» ничего не нашлось. "
+            "Попробуй другое имя или точный логин канала.",
+            reply_markup=back_keyboard,
+        )
+        return
+
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"{'🔴 ' if r.is_live else ''}{r.display_name} ({r.login})",
+                callback_data=f"addfound:{target_chat_id}:{r.login}",
+            )
+        ]
+        for r in results
+    ]
+    rows.extend(back_keyboard.inline_keyboard)
+    await message.answer(
+        "Вот что нашлось на Twitch — выбери нужный канал:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+    )
+
+
+# сколько логинов показать в предпросмотре перед импортом, чтобы не упереться
+# в лимит длины сообщения Telegram на аккаунтах с сотнями подписок
+IMPORT_PREVIEW_LIMIT = 30
+
+
+async def _run_import_follows(
+    message: Message,
+    state: FSMContext,
+    db: Database,
+    config: Config,
+    oauth_server: OAuthCallbackServer,
+) -> None:
+    """Через одноразовую авторизацию Twitch забирает подписки пользователя и предлагает
+    добавить их пачкой. Авторизацию запрашиваем заново, а не берём сохранённый токен:
+    у токенов, выданных до появления scope user:read:follows, нужного доступа нет."""
+    if message.chat.type != ChatType.PRIVATE:
+        await message.answer(
+            "Импорт подписок работает только в личном чате с ботом — "
+            "там я вижу, от чьего имени добавлять каналы."
+        )
+        return
+
+    async def send_url(url: str) -> None:
+        await message.answer(
+            "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ — "
+            f"после этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
+        )
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            result = await run_authorization_flow(
+                config.twitch_client_id,
+                config.twitch_client_secret,
+                session,
+                oauth_server,
+                on_url_ready=send_url,
+            )
+        except OAuthFlowError as e:
+            await message.answer(f"Авторизация не удалась: {e}")
+            return
+        except Exception:
+            logger.exception("Ошибка при авторизации Twitch для импорта подписок")
+            await message.answer("Что-то пошло не так при авторизации. Попробуй ещё раз.")
+            return
+
+        await db.save_user_token(
+            result.login, result.broadcaster_id, result.access_token,
+            result.refresh_token, result.expires_at,
+        )
+
+        twitch_client = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
+        try:
+            follows = await twitch_client.get_followed_channels(
+                result.broadcaster_id, result.access_token
+            )
+        except Exception:
+            logger.exception("Не удалось получить подписки Twitch для %s", result.login)
+            await message.answer(
+                "Не получилось получить список подписок с Twitch. Попробуй ещё раз чуть позже."
+            )
+            return
+
+    tracked = set(await db.list_channels(message.chat.id))
+    new_logins = [login for login in follows if login not in tracked]
+
+    if not follows:
+        await message.answer(
+            f"У аккаунта «{result.login}» нет подписок на Twitch — импортировать нечего.",
+            reply_markup=_back_keyboard(),
+        )
+        return
+    if not new_logins:
+        await message.answer(
+            f"Все {len(follows)} подписок аккаунта «{result.login}» уже отслеживаются здесь.",
+            reply_markup=_back_keyboard(),
+        )
+        return
+
+    free_slots = MAX_CHANNELS_PER_CHAT - await db.count_channels(message.chat.id)
+    if free_slots <= 0:
+        await message.answer(
+            f"В этом чате уже максимум каналов ({MAX_CHANNELS_PER_CHAT}) — "
+            "освободи место, прежде чем импортировать.",
+            reply_markup=_back_keyboard(),
+        )
+        return
+
+    to_add = new_logins[:free_slots]
+    await state.update_data(import_logins=to_add)
+
+    preview = "\n".join(f"• {html.escape(login)}" for login in to_add[:IMPORT_PREVIEW_LIMIT])
+    if len(to_add) > IMPORT_PREVIEW_LIMIT:
+        preview += f"\n… и ещё {len(to_add) - IMPORT_PREVIEW_LIMIT}"
+
+    text = f"Нашёл {len(new_logins)} новых подписок у «{html.escape(result.login)}»:\n\n{preview}"
+    if len(to_add) < len(new_logins):
+        text += (
+            f"\n\n⚠️ Свободных мест осталось {free_slots}, поэтому добавлю только "
+            f"первые {len(to_add)}."
+        )
+    text += "\n\nДобавить их в отслеживаемые?"
+
+    await message.answer(
+        text,
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(
+                    text=f"➕ Добавить все ({len(to_add)})", callback_data="importfollows:add"
+                )],
+                [InlineKeyboardButton(text="⬅️ Отмена", callback_data="menu:home")],
+            ]
+        ),
+    )
+
+
+@router.message(Command("import_follows"))
+async def cmd_import_follows(
+    message: Message, state: FSMContext, db: Database, config: Config,
+    oauth_server: OAuthCallbackServer,
+) -> None:
+    await _run_import_follows(message, state, db, config, oauth_server)
+
+
+@router.callback_query(lambda c: c.data == "menu:import_follows")
+async def cb_menu_import_follows(
+    callback: CallbackQuery, state: FSMContext, db: Database, config: Config,
+    oauth_server: OAuthCallbackServer,
+) -> None:
+    await callback.answer()
+    await _run_import_follows(callback.message, state, db, config, oauth_server)
+
+
+@router.callback_query(lambda c: c.data == "importfollows:add")
+async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+    data = await state.get_data()
+    logins = data.get("import_logins") or []
+    await state.clear()
+
+    if not logins:
+        await callback.answer("Список подписок устарел — запусти импорт заново.", show_alert=True)
+        return
+
+    added = 0
+    for login in logins:
+        if await db.count_channels(callback.message.chat.id) >= MAX_CHANNELS_PER_CHAT:
+            break
+        if await db.add_channel(callback.message.chat.id, login):
+            added += 1
+
+    _, keyboard = await _render_channels_list(callback.message.chat.id, db)
+    await callback.message.edit_text(
+        f"Готово, добавил каналов: {added}.\n\n"
+        "Как только кто-то из них выйдет в эфир — пришлю уведомление.",
+        reply_markup=keyboard,
+    )
+    await callback.answer()
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("addfound:"))
+async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+    _, raw_chat_id, login = callback.data.split(":", 2)
+    target_chat_id = int(raw_chat_id)
+    if not await _check_manage_permission(callback, target_chat_id):
+        await callback.answer("Только админы этой группы могут добавлять каналы.", show_alert=True)
+        return
+
+    await state.clear()
+    if await db.count_channels(target_chat_id) >= MAX_CHANNELS_PER_CHAT:
+        await callback.answer(
+            f"В этом чате уже максимум каналов ({MAX_CHANNELS_PER_CHAT}).", show_alert=True
+        )
+        return
+
+    had_channels_before = await db.count_channels(target_chat_id) > 0
+    added = await db.add_channel(target_chat_id, login)
+    if added:
+        text = await _added_channel_summary(
+            callback.message, db, login, is_first_channel=not had_channels_before
+        )
+    else:
+        text = f"Канал «{login}» уже отслеживается в этом чате."
+
+    back_callback = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
+    _, keyboard = await _render_channels_list(
+        target_chat_id, db, back_callback=back_callback,
+        allow_add=callback.message.chat.id == target_chat_id,
+    )
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
 @router.message(StateFilter(AddChannel.waiting_for_login))
 async def process_login_input(
     message: Message, state: FSMContext, db: Database, twitch: TwitchClient
@@ -1078,19 +1335,12 @@ async def process_login_input(
         )]]
     )
 
-    login = _extract_login_text(message.text or "")
-    if login is None:
-        await message.answer(
-            "Не похоже на логин Twitch. Попробуй ещё раз (например: dobriy_yura).",
-            reply_markup=back_keyboard,
-        )
-        return
-
-    if not await twitch.channel_exists(login):
-        await message.answer(
-            f"Канал «{login}» не найден на Twitch. Попробуй другой логин.",
-            reply_markup=back_keyboard,
-        )
+    query = (message.text or "").strip()
+    login = _extract_login_text(query)
+    # текст не похож на логин (например, кириллица) либо такого логина нет —
+    # не отфутболиваем, а ищем канал по имени через Twitch и предлагаем варианты
+    if login is None or not await twitch.channel_exists(login):
+        await _offer_search_results(message, query, target_chat_id, twitch, back_keyboard)
         return
 
     if await db.count_channels(target_chat_id) >= MAX_CHANNELS_PER_CHAT:
@@ -1130,13 +1380,15 @@ async def process_login_input(
 # Текстовые команды остаются как альтернативный способ управления
 @router.message(Command("track"))
 async def cmd_track(message: Message, command: CommandObject, db: Database, twitch: TwitchClient) -> None:
-    login = _extract_login(command)
-    if login is None:
+    query = (command.args or "").strip()
+    if not query:
         await message.answer("Использование: /track [twitch_логин]\nНапример: /track dobriy_yura")
         return
 
-    if not await twitch.channel_exists(login):
-        await message.answer(f"Канал «{login}» не найден на Twitch.")
+    login = _extract_login(command)
+    # имя вместо логина или опечатка — предлагаем найденное вместо сухого отказа
+    if login is None or not await twitch.channel_exists(login):
+        await _offer_search_results(message, query, message.chat.id, twitch, _back_keyboard())
         return
 
     if await db.count_channels(message.chat.id) >= MAX_CHANNELS_PER_CHAT:
@@ -1189,16 +1441,18 @@ async def cmd_list(message: Message, db: Database) -> None:
     await message.answer(text)
 
 
-async def _build_live_text(chat_id: int, db: Database) -> tuple[str, InlineKeyboardMarkup]:
+async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeyboardMarkup]:
     live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
         return "Сейчас никто из отслеживаемых каналов не в эфире.", _back_keyboard()
 
     lines = [f"🔴 <b>Сейчас в эфире ({len(live_channels)})</b>\n"]
     link_rows = []
-    for login, title, viewer_count in live_channels:
+    for login, title, viewer_count, game_name in live_channels:
         viewers_text = f" — 👁 {viewer_count}" if viewer_count is not None else ""
         line = f"🔴 <b>{login}</b>{viewers_text}"
+        if game_name:
+            line += f"\n🎮 {game_name}"
         if title:
             line += f"\n{title}"
         lines.append(line)
@@ -1211,13 +1465,13 @@ async def _build_live_text(chat_id: int, db: Database) -> tuple[str, InlineKeybo
 
 @router.message(Command("live"))
 async def cmd_live(message: Message, db: Database) -> None:
-    text, keyboard = await _build_live_text(message.chat.id, db)
+    text, keyboard = await _build_live_list(message.chat.id, db)
     await message.answer(text, reply_markup=keyboard, disable_web_page_preview=True)
 
 
 @router.callback_query(lambda c: c.data == "menu:live")
 async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
-    text, keyboard = await _build_live_text(callback.message.chat.id, db)
+    text, keyboard = await _build_live_list(callback.message.chat.id, db)
     await callback.message.edit_text(text, reply_markup=keyboard, disable_web_page_preview=True)
     await callback.answer()
 

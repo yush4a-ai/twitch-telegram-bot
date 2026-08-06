@@ -14,6 +14,8 @@ USERS_URL = "https://api.twitch.tv/helix/users"
 FOLLOWERS_URL = "https://api.twitch.tv/helix/channels/followers"
 CLIPS_URL = "https://api.twitch.tv/helix/clips"
 VIDEOS_URL = "https://api.twitch.tv/helix/videos"
+SEARCH_CHANNELS_URL = "https://api.twitch.tv/helix/search/channels"
+FOLLOWED_URL = "https://api.twitch.tv/helix/channels/followed"
 
 # сколько топ-клипов показывать в отчёте
 TOP_CLIPS_COUNT = 3
@@ -30,6 +32,13 @@ class StreamInfo:
     game_name: str
     viewer_count: int
     started_at: str
+
+
+@dataclass
+class ChannelSearchResult:
+    login: str
+    display_name: str
+    is_live: bool
 
 
 @dataclass
@@ -126,6 +135,47 @@ class TwitchClient:
             data = await self._request(USERS_URL, params)
             result.update(item["login"].lower() for item in data.get("data", []))
         return result
+
+    async def search_channels(self, query: str, limit: int = 6) -> list[ChannelSearchResult]:
+        """Поиск каналов по части имени — позволяет добавить канал, не зная точного
+        логина (Twitch ищет и по отображаемому имени, в том числе на кириллице)."""
+        data = await self._request(
+            SEARCH_CHANNELS_URL, [("query", query), ("first", str(limit))]
+        )
+        return [
+            ChannelSearchResult(
+                login=item["broadcaster_login"].lower(),
+                display_name=item.get("display_name") or item["broadcaster_login"],
+                is_live=bool(item.get("is_live")),
+            )
+            for item in data.get("data", [])
+            if item.get("broadcaster_login")
+        ]
+
+    async def get_followed_channels(self, user_id: str, user_access_token: str) -> list[str]:
+        """Логины каналов, на которые подписан пользователь. Требует пользовательский
+        токен со scope user:read:follows — client-credentials здесь не подходит."""
+        headers = {
+            "Client-Id": self._client_id,
+            "Authorization": f"Bearer {user_access_token}",
+        }
+        logins: list[str] = []
+        cursor: str | None = None
+        while True:
+            params = [("user_id", user_id), ("first", "100")]
+            if cursor:
+                params.append(("after", cursor))
+            async with self._session.get(FOLLOWED_URL, headers=headers, params=params) as resp:
+                resp.raise_for_status()
+                data = await resp.json()
+            logins.extend(
+                item["broadcaster_login"].lower()
+                for item in data.get("data", [])
+                if item.get("broadcaster_login")
+            )
+            cursor = data.get("pagination", {}).get("cursor")
+            if not cursor:
+                return logins
 
     async def get_user_id(self, login: str) -> str | None:
         data = await self._request(USERS_URL, [("login", login)])

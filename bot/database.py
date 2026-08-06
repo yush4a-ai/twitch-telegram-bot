@@ -248,22 +248,36 @@ class Database:
         rows = await cursor.fetchall()
         return [(row[0], bool(row[1]), bool(row[2])) for row in rows]
 
-    async def list_live_channels(self, chat_id: int) -> list[tuple[str, str, int | None]]:
-        """(twitch_login, title, viewer_count) для каналов чата, которые сейчас в эфире.
-        viewer_count — из последнего опроса, None если сэмплов ещё не было."""
+    async def list_live_channels(self, chat_id: int) -> list[tuple[str, str, int | None, str | None]]:
+        """(twitch_login, title, viewer_count, game_name) для каналов чата, которые сейчас
+        в эфире. viewer_count/game_name — из последнего опроса, None если сэмплов ещё не было."""
         cursor = await self.conn.execute(
             "SELECT tc.twitch_login, tc.last_title, "
             "(SELECT ss.viewer_count FROM stream_samples ss "
             " WHERE ss.chat_id = tc.chat_id AND ss.twitch_login = tc.twitch_login "
             " AND ss.stream_id = tc.last_stream_id "
-            " ORDER BY ss.sampled_at DESC LIMIT 1) AS viewer_count "
+            " ORDER BY ss.sampled_at DESC LIMIT 1) AS viewer_count, "
+            "(SELECT ss.game_name FROM stream_samples ss "
+            " WHERE ss.chat_id = tc.chat_id AND ss.twitch_login = tc.twitch_login "
+            " AND ss.stream_id = tc.last_stream_id "
+            " ORDER BY ss.sampled_at DESC LIMIT 1) AS game_name "
             "FROM tracked_channels tc "
             "WHERE tc.chat_id = ? AND tc.is_live = 1 "
             "ORDER BY tc.twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
-        return [(row[0], row[1] or "", row[2]) for row in rows]
+        return [(row[0], row[1] or "", row[2], row[3] if row[3] != "—" else None) for row in rows]
+
+    async def get_last_stream_end(self, chat_id: int, twitch_login: str) -> float | None:
+        """Когда закончился прошлый стрим этого канала в этом чате (unix ts).
+        None, если история пуста — канал добавили недавно и он ещё не стримил."""
+        cursor = await self.conn.execute(
+            "SELECT MAX(ended_at) FROM stream_history WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row and row[0] is not None else None
 
     async def list_channels_with_routing(
         self, chat_id: int

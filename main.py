@@ -100,6 +100,7 @@ async def main() -> None:
             [
                 BotCommand(command="start", description="🏠 Главное меню бота"),
                 *tracking_commands,
+                BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
                 BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
                 BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
             ],
