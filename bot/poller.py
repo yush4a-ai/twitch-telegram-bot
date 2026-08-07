@@ -768,7 +768,14 @@ class StreamPoller:
             if not is_exempt and await self._is_recipient_in_quiet_hours(recipient_chat_id):
                 # получатель сейчас «спит» — не шлём отчёт сразу, а копим его в очередь,
                 # чтобы прислать одной сводкой, когда тихие часы закончатся. Каналы,
-                # отмеченные как исключение, всегда идут сразу, минуя тихие часы
+                # отмеченные как исключение, всегда идут сразу, минуя тихие часы.
+                # Итоги стрима при этом считаем и сохраняем сразу: иначе сводка потом
+                # не найдёт, что показывать, и стрим пропадёт вместе с /report
+                await self._send_stats(
+                    chat_id, login, stream_id, title, started_at,
+                    peak_viewers, viewer_sum, viewer_samples, followers_at_start,
+                    deliver=False,
+                )
                 await self._db.add_deferred_report(recipient_chat_id, chat_id, login, stream_id, now)
                 await self._db.mark_stats_sent(chat_id, login)
                 continue
@@ -804,7 +811,12 @@ class StreamPoller:
         viewer_sum: int,
         viewer_samples: int,
         followers_at_start: int | None,
+        deliver: bool = True,
     ) -> None:
+        """deliver=False — посчитать итоги стрима и записать их в историю, но ничего
+        не отправлять. Нужно для тихих часов: раньше отложенный отчёт просто помечался
+        как отправленный, минуя запись истории, и стрим пропадал бесследно — ни сводка
+        по окончании тихих часов, ни /report его потом не находили."""
         duration_text = self._format_duration(started_at)
         avg_viewers = round(viewer_sum / viewer_samples) if viewer_samples else 0
         peak = peak_viewers or 0
@@ -850,7 +862,9 @@ class StreamPoller:
             report_format = await self._db.get_report_format(chat_id, login)
             history = await self._db.get_history_stats(chat_id, login)
             comparison_lines = self._build_comparison(history, peak, avg_viewers)
-            if report_format != "brief":
+            # при отложенной отправке HTML не собираем: сводка построит его заново,
+            # когда пользователь попросит показать отчёт
+            if deliver and report_format != "brief":
                 # сборка HTML — синхронная и тяжёлая (тысячи точек графика и ников):
                 # в event loop она подвешивала бы весь бот на время формирования
                 report_html = await asyncio.to_thread(
@@ -887,6 +901,10 @@ class StreamPoller:
                 raid_events_json=json.dumps(raid_events) if raid_events else None,
                 collab_json=json.dumps(collab_logins) if collab_logins else None,
             )
+
+        if not deliver:
+            # итоги посчитаны и сохранены — отправит их сводка по окончании тихих часов
+            return
 
         collab_label = f" 🤝 (коллаб с {', '.join(html.escape(c) for c in collab_logins)})" if collab_logins else ""
         text = (

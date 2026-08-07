@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import time
+from datetime import datetime, timezone
 
 from aiogram import Bot, Router
 from aiogram.enums import ChatType
@@ -28,6 +29,7 @@ from ..config import Config
 from ..database import Database
 from ..logging_utils import mask_chat_id
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
+from ..poller import _is_within_quiet_hours
 from ..report import build_report_html, format_duration_seconds
 from ..twitch import TwitchClient
 
@@ -439,7 +441,10 @@ async def cmd_stats(message: Message, db: Database, config: Config) -> None:
         f"👥 Групп с ботом: <b>{stats['groups']}</b>\n"
         f"📡 Отслеживаемых подписок (канал+чат): <b>{stats['tracked_channels']}</b>\n"
         f"🎮 Уникальных Twitch-каналов: <b>{stats['unique_twitch_channels']}</b>\n"
-        f"🔴 Сейчас в эфире: <b>{stats['live_now']}</b>"
+        f"🔴 Сейчас в эфире: <b>{stats['live_now']}</b>\n\n"
+        f"📚 Записей в истории стримов: <b>{stats['history_rows']}</b>\n"
+        f"🌙 Чатов с тихими часами: <b>{stats['quiet_hours_chats']}</b>\n"
+        f"⏳ Отчётов ждёт окончания тихих часов: <b>{stats['deferred_reports']}</b>"
     )
 
 
@@ -650,9 +655,21 @@ async def _quiet_hours_screen_text_and_keyboard(
         notify_label = "🔔 Сводка после: вкл" if notify_after else "🔕 Сводка после: выкл"
         rows.append([InlineKeyboardButton(text=notify_label, callback_data="qh:togglenotifyafter")])
         rows.append([InlineKeyboardButton(text="❌ Выключить тихие часы", callback_data="qh:disable")])
+
+        # показываем, который час сейчас по мнению бота: если это расходится с твоими
+        # часами, значит смещение UTC задано неверно — и тихие часы срабатывают не тогда
+        now_utc = datetime.now(timezone.utc)
+        now_local = _format_minute(
+            _utc_minute_to_local(now_utc.hour * 60 + now_utc.minute, utc_offset)
+        )
+        active = _is_within_quiet_hours(start_minute, end_minute, now_utc)
         text = (
             "🌙 <b>Тихие часы</b>\n\n"
-            f"Сейчас включены: {local_start} – {local_end} (твоё локальное время)\n\n"
+            f"Сейчас включены: {local_start} – {local_end} (твоё локальное время)\n"
+            f"Сейчас у тебя <b>{now_local}</b> — тихие часы "
+            f"{'идут 🌙' if active else 'не действуют ☀️'}\n"
+            f"<i>Если это время расходится с твоими часами, смещение UTC задано неверно — "
+            f"выключи и настрой тихие часы заново.</i>\n\n"
             "В это время итоговые отчёты не приходят сразу — они копятся и присылаются "
             "одной сводкой, как только тихие часы закончатся. Живые посты о начале "
             "стрима это не затрагивает — они всегда идут в группу.\n\n"
