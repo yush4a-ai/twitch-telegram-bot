@@ -996,7 +996,7 @@ class Database:
         cursor = await self.conn.execute(
             "SELECT stream_id, ended_at, started_at, title, duration_seconds, peak_viewers, "
             "avg_viewers, new_followers, new_followers_text, unique_chatters, join_reliable, "
-            "top_chatters_json, raid_events_json "
+            "top_chatters_json, raid_events_json, collab_json "
             "FROM stream_history WHERE chat_id = ? AND twitch_login = ? "
             "ORDER BY ended_at DESC LIMIT 1",
             (chat_id, twitch_login),

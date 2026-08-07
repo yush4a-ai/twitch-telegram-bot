@@ -1770,6 +1770,56 @@ def _safe_json_list(raw: str | None) -> list:
     return [tuple(item) if isinstance(item, list) else item for item in data]
 
 
+def _build_report_summary(
+    login: str,
+    title: str | None,
+    duration_text: str,
+    peak_viewers: int,
+    avg_viewers: int,
+    new_followers_text: str | None,
+    unique_chatters: int | None,
+    top_chatters: list,
+    raid_events: list,
+    collab_logins: list,
+    vod_url: str | None,
+) -> str:
+    """Текстовая выжимка по стриму — та же, что приходит сразу после эфира.
+
+    Собирается из сохранённой истории, чтобы отчёт по кнопке «Показать» после тихих
+    часов и по /report выглядел так же, как обычный: раньше в обоих случаях приходил
+    голый HTML-файл без единой цифры в самом сообщении."""
+    collab_label = (
+        f" 🤝 (коллаб с {', '.join(html.escape(str(c)) for c in collab_logins)})"
+        if collab_logins else ""
+    )
+    text = (
+        f"📊 Стрим <b>{html.escape(login)}</b> завершён{collab_label}\n\n"
+        f"{html.escape(title or '(без названия)')}\n\n"
+        f"Длительность: {duration_text}\n"
+        f"Пик зрителей: {peak_viewers}\n"
+        f"Среднее число зрителей: {avg_viewers}"
+    )
+    if new_followers_text:
+        text += f"\nНовых фолловеров: {new_followers_text}"
+    if unique_chatters:
+        text += f"\nПисали в чат: {unique_chatters}"
+    if top_chatters:
+        lines = "\n".join(
+            f"{i}. {html.escape(str(nick))} — {count}"
+            for i, (nick, count) in enumerate(top_chatters, 1)
+        )
+        text += f"\n\n💬 Топ чатеров:\n{lines}"
+    if raid_events:
+        named = [name for _ts, _count, name in raid_events if name]
+        if named:
+            text += f"\n\n⚡ Рейды: {', '.join(html.escape(str(n)) for n in named)}"
+        else:
+            text += f"\n\n⚡ Вероятных рейдов: {len(raid_events)}"
+    if vod_url:
+        text += f"\n\n🎬 Запись: {html.escape(vod_url)}"
+    return text
+
+
 async def _send_report(message: Message, chat_id: int, login: str, db: Database) -> None:
     record = await db.get_last_finished_stream(chat_id, login)
     if record is None:
@@ -1779,7 +1829,7 @@ async def _send_report(message: Message, chat_id: int, login: str, db: Database)
     (
         stream_id, ended_at, started_at, title, duration_seconds, peak_viewers,
         avg_viewers, _new_followers, new_followers_text, unique_chatters, join_reliable,
-        top_chatters_json, raid_events_json,
+        top_chatters_json, raid_events_json, collab_json,
     ) = record
 
     age = time.time() - ended_at
@@ -1819,6 +1869,38 @@ async def _send_report(message: Message, chat_id: int, login: str, db: Database)
 
     file = BufferedInputFile(report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html")
     await message.answer_document(file, caption=f"Отчёт по последнему стриму «{login}».")
+
+
+async def _deliver_report(message: Message, chat_id: int, login: str, db: Database) -> None:
+    """Отдаёт отчёт так же, как он приходит сразу после эфира: текстовая выжимка,
+    а к ней HTML — если для канала выбран развёрнутый формат."""
+    record = await db.get_last_finished_stream(chat_id, login)
+    if record is None:
+        await message.answer(f"Пока нет ни одного завершённого стрима «{login}» в этом чате.")
+        return
+
+    (
+        stream_id, ended_at, started_at, title, duration_seconds, peak_viewers,
+        avg_viewers, _new_followers, new_followers_text, unique_chatters, _join_reliable,
+        top_chatters_json, raid_events_json, collab_json,
+    ) = record
+
+    vod = await db.get_vod(chat_id, login, stream_id)
+    await message.answer(
+        _build_report_summary(
+            login, title, format_duration_seconds(duration_seconds),
+            peak_viewers, avg_viewers, new_followers_text, unique_chatters,
+            _safe_json_list(top_chatters_json), _safe_json_list(raid_events_json),
+            _safe_json_list(collab_json), vod[0] if vod else None,
+        ),
+        disable_web_page_preview=True,
+    )
+
+    if await db.get_report_format(chat_id, login) == "brief":
+        return
+    if time.time() - ended_at > REPORT_RETENTION_SECONDS:
+        return  # график и список чатеров уже вычищены, текст выше остаётся актуальным
+    await _send_report(message, chat_id, login, db)
 
 
 @router.message(Command("report"))

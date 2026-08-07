@@ -24,6 +24,34 @@ class Config:
     oauth_host: str
     oauth_port: int
     oauth_public_base_url: str
+    # подписки, которые нужно завести при старте, — запасной путь на случай, когда
+    # до меню бота не добраться (нет Telegram под рукой). Список (chat_id, логин)
+    auto_track: tuple[tuple[int, str], ...]
+
+
+def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
+    """Разбирает AUTO_TRACK вида '-1001234567890:login, -1009876543210:other'.
+
+    Одна кривая пара не должна мешать остальным и уж тем более ронять бота на старте,
+    поэтому непонятные куски просто пропускаем — о них скажет лог при запуске."""
+    if not raw:
+        return ()
+    result: list[tuple[int, str]] = []
+    for chunk in raw.replace(";", ",").split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        chat_part, sep, login_part = chunk.rpartition(":")
+        if not sep:
+            continue
+        try:
+            chat_id = int(chat_part.strip())
+        except ValueError:
+            continue
+        login = login_part.strip().lower()
+        if login:
+            result.append((chat_id, login))
+    return tuple(result)
 
 
 def load_config() -> Config:
@@ -43,5 +71,6 @@ def load_config() -> Config:
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,
         oauth_public_base_url=public_url,
+        auto_track=_parse_auto_track(os.getenv("AUTO_TRACK")),
     )
 

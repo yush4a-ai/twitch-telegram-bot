@@ -74,11 +74,51 @@ async def _with_startup_retry(coro_factory, description: str) -> None:
             await asyncio.sleep(STARTUP_RETRY_DELAY_SECONDS)
 
 
+async def _log_known_chats(db: Database) -> None:
+    """Печатает в лог чаты, о которых бот знает, вместе с их chat_id.
+
+    Нужно, чтобы узнать id Telegram-канала, не открывая Telegram: канал бот
+    запоминает сам, когда его делают администратором, но подсмотреть id было негде."""
+    channels = await db.all_telegram_channels()
+    if channels:
+        logger.info("Подключённые Telegram-каналы (id — название):")
+        for chat_id, title in channels:
+            logger.info("    %s — %s", chat_id, title)
+    else:
+        logger.info("Telegram-каналов, где бот админ, пока нет")
+
+    group_ids = await db.all_distinct_group_chat_ids()
+    if group_ids:
+        logger.info("Группы с отслеживаемыми каналами: %s", ", ".join(str(g) for g in group_ids))
+
+
+async def _apply_auto_track(db: Database, config) -> None:
+    """Заводит подписки, перечисленные в AUTO_TRACK.
+
+    Обходной путь для ситуации, когда бот уже добавлен в канал, а указать Twitch-канал
+    через меню возможности нет. Повторный запуск безопасен: add_channel не создаёт
+    дубликатов, поэтому переменную можно спокойно оставить в настройках."""
+    if not config.auto_track:
+        return
+    for chat_id, login in config.auto_track:
+        try:
+            created = await db.add_channel(chat_id, login)
+        except Exception:
+            logger.exception("AUTO_TRACK: не удалось добавить %s в чат %s", login, chat_id)
+            continue
+        if created:
+            logger.info("AUTO_TRACK: канал %s добавлен в чат %s", login, chat_id)
+        else:
+            logger.info("AUTO_TRACK: канал %s в чате %s уже отслеживается", login, chat_id)
+
+
 async def main() -> None:
     config = load_config()
 
     db = Database(config.db_path)
     await db.connect()
+    await _log_known_chats(db)
+    await _apply_auto_track(db, config)
 
     bot = Bot(
         token=config.telegram_bot_token,
