@@ -65,6 +65,17 @@ MAX_RETRY_AFTER_SECONDS = 30
 # поэтому нужен отдельный объект-признак
 _FAILED = object()
 
+
+_KEYCAP_DIGITS = {
+    "0": "0️⃣", "1": "1️⃣", "2": "2️⃣", "3": "3️⃣", "4": "4️⃣",
+    "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣",
+}
+
+
+def _keycap_number(value: int) -> str:
+    return "".join(_KEYCAP_DIGITS[digit] for digit in str(value))
+
+
 def _load_json_list(raw: str | None) -> list:
     """Разбирает список из JSON, сохранённого в БД. Пустой список вместо исключения:
     повреждённая строка не должна лишать пользователя всего итогового отчёта."""
@@ -1103,7 +1114,7 @@ class StreamPoller:
             title=html.escape(clean_title or "(без названия)"),
             collab_line=collab_line,
             game_name=html.escape(game_name or ""),
-            viewer_count=f"{viewer_count:,}".replace(",", " "),
+            viewer_count=_keycap_number(viewer_count),
         )
         if return_note:
             text += f"\n\n{return_note}"
