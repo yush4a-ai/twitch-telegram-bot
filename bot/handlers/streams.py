@@ -29,7 +29,12 @@ from ..config import Config
 from ..database import Database
 from ..logging_utils import mask_chat_id
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
-from ..poller import StreamPoller, _is_within_quiet_hours
+from ..poller import (
+    StreamPoller,
+    _is_within_quiet_hours,
+    _split_twitch_mentions,
+    _strip_links,
+)
 from ..report import build_report_html, format_duration_seconds
 from ..twitch import TwitchClient
 
@@ -1764,21 +1769,58 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
     if not live_channels:
         return "Сейчас никто из отслеживаемых каналов не в эфире.", _back_keyboard()
 
-    lines = [f"🔴 <b>Сейчас в эфире ({len(live_channels)})</b>\n"]
+    # Самые крупные эфиры показываем первыми; каналы без первого замера — внизу.
+    live_channels.sort(
+        key=lambda channel: (
+            channel[2] is not None,
+            channel[2] if channel[2] is not None else -1,
+        ),
+        reverse=True,
+    )
+
+    lines = [f"🔴 <b>Сейчас в эфире · {len(live_channels)}</b>"]
     link_rows = []
     for login, title, viewer_count, game_name in live_channels:
-        viewers_text = f" — 👁 {viewer_count}" if viewer_count is not None else ""
-        line = f"🔴 <b>{login}</b>{viewers_text}"
+        safe_login = html.escape(login)
+        viewers_text = (
+            f"  ·  👁 {_format_viewers(viewer_count)}"
+            if viewer_count is not None
+            else ""
+        )
+        channel_lines = [f"<b>{safe_login}</b>{viewers_text}"]
         if game_name:
-            line += f"\n🎮 {game_name}"
+            channel_lines.append(f"🎮 {html.escape(game_name)}")
         if title:
-            line += f"\n{title}"
-        lines.append(line)
+            clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
+            if clean_title:
+                channel_lines.append(f"{html.escape(clean_title)}")
+            if collab_logins:
+                collab_links = " × ".join(
+                    f'<a href="https://www.twitch.tv/{html.escape(collab)}">'
+                    f"{html.escape(collab)}</a>"
+                    for collab in collab_logins
+                )
+                channel_lines.append(f"🤝 Вместе: {collab_links}")
+        lines.append("\n".join(channel_lines))
         link_rows.append(
-            [InlineKeyboardButton(text=f"▶️ {login}", url=f"https://twitch.tv/{login}")]
+            [InlineKeyboardButton(text=f"Смотреть · {login}", url=f"https://twitch.tv/{login}")]
         )
     link_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
     return "\n\n".join(lines), InlineKeyboardMarkup(inline_keyboard=link_rows)
+
+
+def _format_viewers(count: int) -> str:
+    remainder_100 = count % 100
+    remainder_10 = count % 10
+    if 11 <= remainder_100 <= 14:
+        word = "зрителей"
+    elif remainder_10 == 1:
+        word = "зритель"
+    elif 2 <= remainder_10 <= 4:
+        word = "зрителя"
+    else:
+        word = "зрителей"
+    return f"{count:,}".replace(",", " ") + f" {word}"
 
 
 @router.message(Command("live"))

@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 
 from bot.config import load_config
 from bot.database import Database
-from bot.handlers.streams import _message_can_manage_chat
+from bot.handlers.streams import _build_live_list, _format_viewers, _message_can_manage_chat
 from bot.oauth import OAuthCallbackServer
 from bot.poller import StreamPoller, _FAILED
 
@@ -194,6 +194,33 @@ class GroupPermissionTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertTrue(await _message_can_manage_chat(message))
+
+
+class LiveListTests(unittest.IsolatedAsyncioTestCase):
+    async def test_live_list_removes_mentions_and_promo_links(self) -> None:
+        db = SimpleNamespace(
+            list_live_channels=AsyncMock(
+                return_value=[
+                    ("small", "Играем @friend", 2, "Game & Fun"),
+                    ("large", "Большой эфир tg: t.me/example 🔴", 1200, "IRL"),
+                ]
+            )
+        )
+
+        text, keyboard = await _build_live_list(1, db)
+
+        self.assertNotIn("@friend", text)
+        self.assertNotIn("t.me", text)
+        self.assertIn("🤝 Вместе: <a href=\"https://www.twitch.tv/friend\">friend</a>", text)
+        self.assertIn("🎮 Game &amp; Fun", text)
+        self.assertLess(text.index("<b>large</b>"), text.index("<b>small</b>"))
+        self.assertEqual(keyboard.inline_keyboard[0][0].text, "Смотреть · large")
+
+    async def test_viewer_word_form(self) -> None:
+        self.assertEqual(_format_viewers(1), "1 зритель")
+        self.assertEqual(_format_viewers(22), "22 зрителя")
+        self.assertEqual(_format_viewers(111), "111 зрителей")
+        self.assertEqual(_format_viewers(1855), "1 855 зрителей")
 
 
 class PollerCleanupTests(unittest.IsolatedAsyncioTestCase):
