@@ -1782,7 +1782,8 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
     link_rows = []
     for login, title, viewer_count, game_name in live_channels:
         safe_login = html.escape(login)
-        channel_lines = [f"<b>{safe_login}</b>"]
+        twitch_url = f"https://twitch.tv/{login}"
+        channel_lines = [f'<b><a href="{twitch_url}">{safe_login}</a></b>']
         details = []
         if game_name:
             details.append(f"🎮 {html.escape(game_name)}")
@@ -1804,9 +1805,11 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
                     for collab in collab_logins
                 )
                 channel_lines.append(f"🤝 Вместе: {collab_links}")
-        lines.append("\n".join(channel_lines))
+        # Вертикальная линия Telegram визуально собирает информацию одного эфира
+        # в блок и заметнее отделяет каналы друг от друга, чем пустая строка.
+        lines.append(f"<blockquote>{'\n'.join(channel_lines)}</blockquote>")
         link_rows.append(
-            [InlineKeyboardButton(text=f"▶ {login}", url=f"https://twitch.tv/{login}")]
+            [InlineKeyboardButton(text=f"▶ {login}", url=twitch_url)]
         )
     link_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
     return "\n\n".join(lines), InlineKeyboardMarkup(inline_keyboard=link_rows)

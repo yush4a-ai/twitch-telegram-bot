@@ -212,10 +212,14 @@ class LiveListTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("@friend", text)
         self.assertNotIn("t.me", text)
         self.assertNotIn("🔴 Большой эфир", text)
-        self.assertIn("<b>large</b>\n🎮 IRL  ·  👁 1 200 зрителей\nБольшой эфир", text)
+        self.assertIn(
+            '<blockquote><b><a href="https://twitch.tv/large">large</a></b>\n'
+            "🎮 IRL  ·  👁 1 200 зрителей\nБольшой эфир</blockquote>",
+            text,
+        )
         self.assertIn("🤝 Вместе: <a href=\"https://www.twitch.tv/friend\">friend</a>", text)
         self.assertIn("🎮 Game &amp; Fun", text)
-        self.assertLess(text.index("<b>large</b>"), text.index("<b>small</b>"))
+        self.assertLess(text.index(">large</a>"), text.index(">small</a>"))
         self.assertEqual(keyboard.inline_keyboard[0][0].text, "▶ large")
 
     async def test_viewer_word_form(self) -> None:
