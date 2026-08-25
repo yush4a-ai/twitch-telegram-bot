@@ -50,6 +50,10 @@ LOGIN_RE = re.compile(r"^[a-zA-Z0-9_]{4,25}$")
 # защита от злоупотребления: сколько каналов может отслеживать один чат
 MAX_CHANNELS_PER_CHAT = 50
 
+# Анимированный Twitch-логотип из публичного Telegram custom-emoji набора. Внутри
+# HTML-тега остаётся 🎮 — его покажут клиенты без поддержки custom emoji.
+TWITCH_CUSTOM_EMOJI_ID = "4999434394599948988"
+
 # сколько чатов максимум обходим при поиске групп пользователя и с какой
 # параллельностью — иначе один пользователь выбирает весь лимит Telegram API
 MAX_CHATS_TO_SCAN = 300
@@ -1764,7 +1768,9 @@ async def cmd_list(message: Message, db: Database) -> None:
     await message.answer(text)
 
 
-async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeyboardMarkup]:
+async def _build_live_list(
+    chat_id: int, db: Database, *, custom_emoji: bool = False
+) -> tuple[str, InlineKeyboardMarkup]:
     live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
         return "Сейчас никто из отслеживаемых каналов не в эфире.", _back_keyboard()
@@ -1778,7 +1784,12 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
         reverse=True,
     )
 
-    lines = [f"🔴 <b>В эфире — {len(live_channels)}</b>"]
+    live_icon = (
+        f'<tg-emoji emoji-id="{TWITCH_CUSTOM_EMOJI_ID}">🎮</tg-emoji>'
+        if custom_emoji
+        else "🔴"
+    )
+    lines = [f"{live_icon} <b>В эфире — {len(live_channels)}</b>"]
     link_rows = []
     for login, title, viewer_count, game_name in live_channels:
         safe_login = html.escape(login)
@@ -1809,7 +1820,11 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
         # в блок и заметнее отделяет каналы друг от друга, чем пустая строка.
         lines.append(f"<blockquote>{'\n'.join(channel_lines)}</blockquote>")
         link_rows.append(
-            [InlineKeyboardButton(text=f"▶ {login}", url=twitch_url)]
+            [InlineKeyboardButton(
+                text=f"▶ {login}",
+                url=twitch_url,
+                icon_custom_emoji_id=TWITCH_CUSTOM_EMOJI_ID if custom_emoji else None,
+            )]
         )
     link_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
     return "\n\n".join(lines), InlineKeyboardMarkup(inline_keyboard=link_rows)
@@ -1831,14 +1846,30 @@ def _format_viewers(count: int) -> str:
 
 @router.message(Command("live"))
 async def cmd_live(message: Message, db: Database) -> None:
-    text, keyboard = await _build_live_list(message.chat.id, db)
-    await message.answer(text, reply_markup=keyboard, disable_web_page_preview=True)
+    text, keyboard = await _build_live_list(message.chat.id, db, custom_emoji=True)
+    try:
+        await message.answer(text, reply_markup=keyboard, disable_web_page_preview=True)
+    except TelegramBadRequest:
+        logger.info("Расширенный /live отклонён, повторяю с обычными emoji")
+        text, keyboard = await _build_live_list(message.chat.id, db)
+        await message.answer(text, reply_markup=keyboard, disable_web_page_preview=True)
 
 
 @router.callback_query(lambda c: c.data == "menu:live")
 async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
-    text, keyboard = await _build_live_list(callback.message.chat.id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard, disable_web_page_preview=True)
+    text, keyboard = await _build_live_list(
+        callback.message.chat.id, db, custom_emoji=True
+    )
+    try:
+        await callback.message.edit_text(
+            text, reply_markup=keyboard, disable_web_page_preview=True
+        )
+    except TelegramBadRequest:
+        logger.info("Расширенное меню live отклонено, повторяю с обычными emoji")
+        text, keyboard = await _build_live_list(callback.message.chat.id, db)
+        await callback.message.edit_text(
+            text, reply_markup=keyboard, disable_web_page_preview=True
+        )
     await callback.answer()
 
 

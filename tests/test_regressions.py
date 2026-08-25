@@ -10,7 +10,12 @@ from cryptography.fernet import Fernet
 
 from bot.config import load_config
 from bot.database import Database
-from bot.handlers.streams import _build_live_list, _format_viewers, _message_can_manage_chat
+from bot.handlers.streams import (
+    TWITCH_CUSTOM_EMOJI_ID,
+    _build_live_list,
+    _format_viewers,
+    _message_can_manage_chat,
+)
 from bot.oauth import OAuthCallbackServer
 from bot.poller import StreamPoller, _FAILED
 
@@ -227,6 +232,23 @@ class LiveListTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_format_viewers(22), "22 зрителя")
         self.assertEqual(_format_viewers(111), "111 зрителей")
         self.assertEqual(_format_viewers(1855), "1 855 зрителей")
+
+    async def test_live_list_can_use_twitch_custom_emoji_with_text_fallback(self) -> None:
+        db = SimpleNamespace(
+            list_live_channels=AsyncMock(
+                return_value=[("channel", "Стрим", 10, "IRL")]
+            )
+        )
+
+        text, keyboard = await _build_live_list(1, db, custom_emoji=True)
+
+        self.assertIn(
+            f'<tg-emoji emoji-id="{TWITCH_CUSTOM_EMOJI_ID}">🎮</tg-emoji>', text
+        )
+        self.assertEqual(
+            keyboard.inline_keyboard[0][0].icon_custom_emoji_id,
+            TWITCH_CUSTOM_EMOJI_ID,
+        )
 
 
 class PollerCleanupTests(unittest.IsolatedAsyncioTestCase):
