@@ -133,6 +133,16 @@ def _strip_links(title: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
+def _strip_telegram_mentions(title: str) -> str:
+    """Убирает ``@`` перед Twitch-логинами в заголовке стрима.
+
+    Иначе Telegram автоматически превращает такие фрагменты в ссылки на
+    одноимённые Telegram-аккаунты, которые могут принадлежать другим людям.
+    ``@`` внутри адресов электронной почты не затрагивается.
+    """
+    return re.sub(r"(?<!\w)@(?=[A-Za-z0-9_])", "", title)
+
+
 def _find_collab_mentions(title: str | None, self_login: str, candidates: dict[str, str | None]) -> list[str]:
     """Ищет в заголовке стрима упоминание других отслеживаемых каналов — по логину
     или отображаемому имени (регистронезависимо, с границей слова) — и возвращает их
@@ -1073,9 +1083,10 @@ class StreamPoller:
     ) -> str:
         channel_name = await self._channel_display_name(login)
         template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
+        safe_title = _strip_telegram_mentions(_strip_links(title))
         text = template.format(
             channel_name=html.escape(channel_name),
-            title=html.escape(_strip_links(title)),
+            title=html.escape(safe_title),
             game_name=html.escape(game_name or ""),
             viewer_count=_keycap_number(viewer_count),
         )
