@@ -307,7 +307,14 @@ class StreamPoller:
         if self._chat_listener is not None:
             await self._chat_listener.stop_all()
 
-    async def _tg_call(self, coro_factory, description: str, *, retries: int = 1):
+    async def _tg_call(
+        self,
+        coro_factory,
+        description: str,
+        *,
+        retries: int = 1,
+        permanent_failure_is_success: bool = False,
+    ):
         """Единая точка вызова Telegram API из поллера.
 
         Главное — TelegramRetryAfter (429): раньше он не ловился нигде и всплывал
@@ -326,7 +333,9 @@ class StreamPoller:
                 await asyncio.sleep(delay)
             except (TelegramForbiddenError, TelegramBadRequest) as e:
                 logger.warning("%s: %s", description, e)
-                return _FAILED
+                # Для удаления «нет такого сообщения» и «бот больше не участник»
+                # означают, что локальную ссылку на пост всё равно можно забыть.
+                return None if permanent_failure_is_success else _FAILED
             except TelegramNetworkError as e:
                 logger.warning("%s: сеть недоступна (%s)", description, e)
                 return _FAILED
@@ -436,16 +445,16 @@ class StreamPoller:
                 # пользователь отключил сводку — просто отбрасываем накопленные записи
                 await self._db.get_and_clear_deferred_reports(chat_id)
                 continue
-            await self._send_quiet_hours_digest(chat_id)
-            await self._db.mark_quiet_hours_digest_sent(chat_id)
+            if await self._send_quiet_hours_digest(chat_id):
+                await self._db.mark_quiet_hours_digest_sent(chat_id)
 
-    async def _send_quiet_hours_digest(self, chat_id: int) -> None:
+    async def _send_quiet_hours_digest(self, chat_id: int) -> bool:
         """Отложенные записи намеренно НЕ удаляются здесь — они остаются в БД до тех
         пор, пока пользователь не нажмёт «Показать»/«Не нужно» под сводкой (переживает
         рестарт бота между отправкой сводки и ответом на неё)."""
         entries = await self._db.peek_deferred_reports(chat_id)
         if not entries:
-            return
+            return False
         logins = sorted({login for _source_chat_id, login, _stream_id, _ended_at in entries})
         lines = "\n".join(f"• {html.escape(login)}" for login in logins)
         text = (
@@ -461,10 +470,11 @@ class StreamPoller:
                 ]
             ]
         )
-        await self._tg_call(
+        sent = await self._tg_call(
             lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
             f"Сводка тихих часов в {mask_chat_id(chat_id)}",
         )
+        return sent is not _FAILED
 
     async def _check_channel_renames(self) -> None:
         """Раз в цикл сверяет отображаемое имя (display_name) отслеживаемых каналов
@@ -763,11 +773,15 @@ class StreamPoller:
         for chat_id, login, message_id, offline_since in await self._db.pending_offline_posts():
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
-            await self._tg_call(
+            deleted = await self._tg_call(
                 lambda: self._bot.delete_message(chat_id, message_id),
                 f"Удаление поста {message_id} в {mask_chat_id(chat_id)}",
+                permanent_failure_is_success=True,
             )
-            await self._db.clear_message(chat_id, login)
+            # При временной ошибке сети/лимите Telegram сохраняем message_id, чтобы
+            # повторить удаление в следующем цикле, а не оставить пост навсегда.
+            if deleted is not _FAILED:
+                await self._db.clear_message(chat_id, login)
 
     async def _send_pending_stats(self) -> None:
         now = time.time()
@@ -808,7 +822,7 @@ class StreamPoller:
                 await self._db.mark_stats_sent(chat_id, login)
                 continue
 
-            await self._send_stats(
+            delivered = await self._send_stats(
                 chat_id,
                 login,
                 stream_id,
@@ -819,7 +833,8 @@ class StreamPoller:
                 viewer_samples,
                 followers_at_start,
             )
-            await self._db.mark_stats_sent(chat_id, login)
+            if delivered:
+                await self._db.mark_stats_sent(chat_id, login)
 
     async def _is_recipient_in_quiet_hours(self, chat_id: int) -> bool:
         quiet_hours = await self._db.get_quiet_hours(chat_id)
@@ -840,7 +855,7 @@ class StreamPoller:
         viewer_samples: int,
         followers_at_start: int | None,
         deliver: bool = True,
-    ) -> None:
+    ) -> bool:
         """deliver=False — посчитать итоги стрима и записать их в историю, но ничего
         не отправлять. Нужно для тихих часов: раньше отложенный отчёт просто помечался
         как отправленный, минуя запись истории, и стрим пропадал бесследно — ни сводка
@@ -932,7 +947,7 @@ class StreamPoller:
 
         if not deliver:
             # итоги посчитаны и сохранены — отправит их сводка по окончании тихих часов
-            return
+            return True
 
         collab_label = f" 🤝 (коллаб с {', '.join(html.escape(c) for c in collab_logins)})" if collab_logins else ""
         text = (
@@ -982,6 +997,7 @@ class StreamPoller:
                 lambda: self._bot.send_document(recipient_chat_id, file),
                 f"HTML-отчёт в {mask_chat_id(recipient_chat_id)}",
             )
+        return sent is not _FAILED
 
     @staticmethod
     def _build_comparison(

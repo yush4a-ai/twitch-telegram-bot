@@ -66,9 +66,24 @@ class OAuthCallbackServer:
         if self._runner is not None:
             await self._runner.cleanup()
 
+    def register_state(self, state: str) -> None:
+        """Регистрирует OAuth state до того, как ссылка станет видна пользователю."""
+        if state in self._pending:
+            raise OAuthFlowError("Повторный OAuth state")
+        self._pending[state] = asyncio.get_running_loop().create_future()
+
+    def discard_state(self, state: str) -> None:
+        future = self._pending.pop(state, None)
+        if future is not None and not future.done():
+            future.cancel()
+
     async def wait_for_code(self, state: str, timeout: int = AUTH_TIMEOUT_SECONDS) -> str:
-        future: asyncio.Future[str] = asyncio.get_event_loop().create_future()
-        self._pending[state] = future
+        future = self._pending.get(state)
+        if future is None:
+            # Сохраняем совместимость для прямых вызовов метода, но основной flow
+            # регистрирует state заранее, до отправки ссылки в Telegram.
+            self.register_state(state)
+            future = self._pending[state]
         try:
             return await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError as e:
@@ -127,10 +142,15 @@ async def run_authorization_flow(
     auth_url = build_authorize_url(client_id, callback_server.redirect_uri, state)
     # ссылка содержит одноразовый state — в обычные логи её писать незачем
     logger.debug("Ссылка авторизации Twitch сформирована для state=%s", state[:6])
-    if on_url_ready is not None:
-        await on_url_ready(auth_url)
-
-    code = await callback_server.wait_for_code(state)
+    callback_server.register_state(state)
+    try:
+        if on_url_ready is not None:
+            await on_url_ready(auth_url)
+        code = await callback_server.wait_for_code(state)
+    finally:
+        # wait_for_code удаляет запись само; этот вызов нужен, если отправка ссылки
+        # упала раньше ожидания, чтобы не держать Future до завершения процесса.
+        callback_server.discard_state(state)
     return await _exchange_code(client_id, client_secret, code, callback_server.redirect_uri, session)
 
 

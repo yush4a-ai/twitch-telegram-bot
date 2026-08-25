@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS stream_samples (
 
 CREATE INDEX IF NOT EXISTS idx_stream_samples_lookup
     ON stream_samples (chat_id, twitch_login, stream_id, sampled_at);
+CREATE INDEX IF NOT EXISTS idx_stream_samples_retention
+    ON stream_samples (sampled_at);
 
 CREATE TABLE IF NOT EXISTS stream_history (
     chat_id INTEGER NOT NULL,
@@ -112,6 +114,8 @@ CREATE TABLE IF NOT EXISTS chat_activity_samples (
 
 CREATE INDEX IF NOT EXISTS idx_chat_activity_lookup
     ON chat_activity_samples (chat_id, twitch_login, stream_id);
+CREATE INDEX IF NOT EXISTS idx_chat_activity_retention
+    ON chat_activity_samples (minute_ts);
 
 CREATE TABLE IF NOT EXISTS chat_unique_nicks (
     chat_id INTEGER NOT NULL,
@@ -123,6 +127,8 @@ CREATE TABLE IF NOT EXISTS chat_unique_nicks (
 
 CREATE INDEX IF NOT EXISTS idx_chat_unique_nicks_lookup
     ON chat_unique_nicks (chat_id, twitch_login, stream_id);
+CREATE INDEX IF NOT EXISTS idx_chat_unique_nicks_retention
+    ON chat_unique_nicks (joined_at);
 
 -- ники чатеров привязаны к стриму, а не к чату: за одним стримером могут следить
 -- несколько чатов, и раньше один и тот же список писался для каждого из них —
@@ -134,6 +140,8 @@ CREATE TABLE IF NOT EXISTS stream_chatters (
     first_seen_at REAL NOT NULL,
     PRIMARY KEY (twitch_login, stream_id, nick)
 );
+CREATE INDEX IF NOT EXISTS idx_stream_chatters_retention
+    ON stream_chatters (first_seen_at);
 
 -- данные чата за завершённый стрим, ждущие отправки итогового отчёта.
 -- Раньше лежали в словарях в памяти поллера: терялись при рестарте и не
@@ -148,6 +156,8 @@ CREATE TABLE IF NOT EXISTS stream_chat_meta (
     created_at REAL NOT NULL,
     PRIMARY KEY (chat_id, twitch_login, stream_id)
 );
+CREATE INDEX IF NOT EXISTS idx_stream_chat_meta_retention
+    ON stream_chat_meta (created_at);
 
 CREATE TABLE IF NOT EXISTS stats_recipients (
     chat_id INTEGER PRIMARY KEY,
@@ -309,6 +319,9 @@ class Database:
             await self.conn.commit()
             return True
         except aiosqlite.IntegrityError:
+            # Ограничение уникальности отменяет только сам INSERT, но оставляет
+            # транзакцию открытой. Явно закрываем её до следующей операции.
+            await self.conn.rollback()
             return False
 
     @_serialized
@@ -988,11 +1001,14 @@ class Database:
 
     async def get_last_finished_stream(
         self, chat_id: int, twitch_login: str
-    ) -> tuple[str, float, str | None, str | None, int, int, int, int | None, str | None, int | None, int | None, str | None, str | None] | None:
+    ) -> tuple[
+        str, float, str | None, str | None, int, int, int, int | None,
+        str | None, int | None, int | None, str | None, str | None, str | None,
+    ] | None:
         """Последний завершённый стрим этого канала в этом чате.
         (stream_id, ended_at, started_at, title, duration_seconds, peak_viewers, avg_viewers,
         new_followers, new_followers_text, unique_chatters, join_reliable,
-        top_chatters_json, raid_events_json) или None."""
+        top_chatters_json, raid_events_json, collab_json) или None."""
         cursor = await self.conn.execute(
             "SELECT stream_id, ended_at, started_at, title, duration_seconds, peak_viewers, "
             "avg_viewers, new_followers, new_followers_text, unique_chatters, join_reliable, "

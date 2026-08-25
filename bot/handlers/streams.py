@@ -1865,6 +1865,7 @@ async def _send_report(message: Message, chat_id: int, login: str, db: Database)
         vod_url=vod[0] if vod else None,
         top_chatters=top_chatters,
         raid_events=raid_events,
+        collab_logins=_safe_json_list(collab_json),
     )
 
     file = BufferedInputFile(report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html")

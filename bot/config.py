@@ -13,6 +13,17 @@ def _require(name: str) -> str:
     return value
 
 
+def _positive_int(name: str, default: str) -> int:
+    raw = os.getenv(name, default)
+    try:
+        value = int(raw)
+    except ValueError as e:
+        raise RuntimeError(f"Переменная {name} должна быть целым числом") from e
+    if value <= 0:
+        raise RuntimeError(f"Переменная {name} должна быть больше нуля")
+    return value
+
+
 @dataclass(frozen=True)
 class Config:
     telegram_bot_token: str
@@ -56,7 +67,7 @@ def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
 
 def load_config() -> Config:
     owner_chat_id_raw = os.getenv("OWNER_CHAT_ID")
-    oauth_port = int(os.getenv("PORT", "8765"))
+    oauth_port = _positive_int("PORT", "8765")
     # PUBLIC_URL — публичный адрес, на который Twitch должен слать редирект после
     # авторизации (например, https://<project>.up.railway.app). Без него (локальная
     # разработка) используем localhost — тогда работает только на этом же компьютере.
@@ -65,7 +76,7 @@ def load_config() -> Config:
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
         twitch_client_id=_require("TWITCH_CLIENT_ID"),
         twitch_client_secret=_require("TWITCH_CLIENT_SECRET"),
-        poll_interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", "60")),
+        poll_interval_seconds=_positive_int("POLL_INTERVAL_SECONDS", "60"),
         db_path=os.getenv("DB_PATH", "bot.db"),
         owner_chat_id=int(owner_chat_id_raw) if owner_chat_id_raw else None,
         oauth_host="0.0.0.0",
@@ -73,4 +84,3 @@ def load_config() -> Config:
         oauth_public_base_url=public_url,
         auto_track=_parse_auto_track(os.getenv("AUTO_TRACK")),
     )
-
