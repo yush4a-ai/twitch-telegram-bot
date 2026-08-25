@@ -35,6 +35,7 @@ class Config:
     oauth_host: str
     oauth_port: int
     oauth_public_base_url: str
+    token_encryption_key: str | None
     # подписки, которые нужно завести при старте, — запасной путь на случай, когда
     # до меню бота не добраться (нет Telegram под рукой). Список (chat_id, логин)
     auto_track: tuple[tuple[int, str], ...]
@@ -82,5 +83,6 @@ def load_config() -> Config:
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,
         oauth_public_base_url=public_url,
+        token_encryption_key=os.getenv("TOKEN_ENCRYPTION_KEY") or None,
         auto_track=_parse_auto_track(os.getenv("AUTO_TRACK")),
     )

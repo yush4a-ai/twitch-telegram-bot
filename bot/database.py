@@ -5,6 +5,10 @@ import functools
 import time
 
 import aiosqlite
+from cryptography.fernet import Fernet, InvalidToken
+
+
+_ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
 
 
 def _serialized(func):
@@ -223,10 +227,14 @@ CREATE TABLE IF NOT EXISTS user_timezones (
 
 
 class Database:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, token_encryption_key: str | None = None) -> None:
         self._path = path
         self._conn: aiosqlite.Connection | None = None
         self._write_lock = asyncio.Lock()
+        try:
+            self._token_cipher = Fernet(token_encryption_key) if token_encryption_key else None
+        except (ValueError, TypeError) as e:
+            raise RuntimeError("TOKEN_ENCRYPTION_KEY не является корректным Fernet-ключом") from e
 
     async def connect(self) -> None:
         self._conn = await aiosqlite.connect(self._path)
@@ -263,7 +271,54 @@ class Database:
                 "quiet_hours_exempt": "INTEGER NOT NULL DEFAULT 0",
             },
         )
+        await self._migrate_user_tokens_encryption()
         await self.conn.commit()
+
+    def _encrypt_token(self, value: str) -> str:
+        if self._token_cipher is None or value.startswith(_ENCRYPTED_TOKEN_PREFIX):
+            return value
+        encrypted = self._token_cipher.encrypt(value.encode("utf-8")).decode("ascii")
+        return _ENCRYPTED_TOKEN_PREFIX + encrypted
+
+    def _decrypt_token(self, value: str) -> str:
+        if not value.startswith(_ENCRYPTED_TOKEN_PREFIX):
+            return value
+        if self._token_cipher is None:
+            raise RuntimeError(
+                "В базе есть зашифрованные Twitch-токены, но TOKEN_ENCRYPTION_KEY не задан"
+            )
+        payload = value[len(_ENCRYPTED_TOKEN_PREFIX):]
+        try:
+            return self._token_cipher.decrypt(payload.encode("ascii")).decode("utf-8")
+        except (InvalidToken, UnicodeError, ValueError) as e:
+            raise RuntimeError(
+                "Не удалось расшифровать Twitch-токены: проверь TOKEN_ENCRYPTION_KEY"
+            ) from e
+
+    async def _migrate_user_tokens_encryption(self) -> None:
+        cursor = await self.conn.execute(
+            "SELECT twitch_login, access_token, refresh_token FROM twitch_user_tokens"
+        )
+        rows = await cursor.fetchall()
+        if self._token_cipher is None:
+            if any(
+                access.startswith(_ENCRYPTED_TOKEN_PREFIX)
+                or refresh.startswith(_ENCRYPTED_TOKEN_PREFIX)
+                for _login, access, refresh in rows
+            ):
+                raise RuntimeError(
+                    "В базе есть зашифрованные Twitch-токены, но TOKEN_ENCRYPTION_KEY не задан"
+                )
+            return
+        for login, access_token, refresh_token in rows:
+            encrypted_access = self._encrypt_token(access_token)
+            encrypted_refresh = self._encrypt_token(refresh_token)
+            if encrypted_access != access_token or encrypted_refresh != refresh_token:
+                await self.conn.execute(
+                    "UPDATE twitch_user_tokens SET access_token = ?, refresh_token = ? "
+                    "WHERE twitch_login = ?",
+                    (encrypted_access, encrypted_refresh, login),
+                )
 
     async def _dedupe_stream_history(self) -> None:
         """Убирает задвоенные записи об одном и том же стриме и запрещает их впредь.
@@ -1133,7 +1188,13 @@ class Database:
             "access_token = excluded.access_token, "
             "refresh_token = excluded.refresh_token, "
             "expires_at = excluded.expires_at",
-            (twitch_login, broadcaster_id, access_token, refresh_token, expires_at),
+            (
+                twitch_login,
+                broadcaster_id,
+                self._encrypt_token(access_token),
+                self._encrypt_token(refresh_token),
+                expires_at,
+            ),
         )
         await self.conn.commit()
 
@@ -1147,7 +1208,15 @@ class Database:
             (twitch_login,),
         )
         row = await cursor.fetchone()
-        return tuple(row) if row else None
+        if row is None:
+            return None
+        broadcaster_id, access_token, refresh_token, expires_at = row
+        return (
+            broadcaster_id,
+            self._decrypt_token(access_token),
+            self._decrypt_token(refresh_token),
+            expires_at,
+        )
 
     @_serialized
     async def add_stream_history(

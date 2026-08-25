@@ -29,7 +29,7 @@ from ..config import Config
 from ..database import Database
 from ..logging_utils import mask_chat_id
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
-from ..poller import _is_within_quiet_hours
+from ..poller import StreamPoller, _is_within_quiet_hours
 from ..report import build_report_html, format_duration_seconds
 from ..twitch import TwitchClient
 
@@ -445,6 +445,32 @@ async def cmd_stats(message: Message, db: Database, config: Config) -> None:
         f"📚 Записей в истории стримов: <b>{stats['history_rows']}</b>\n"
         f"🌙 Чатов с тихими часами: <b>{stats['quiet_hours_chats']}</b>\n"
         f"⏳ Отчётов ждёт окончания тихих часов: <b>{stats['deferred_reports']}</b>"
+    )
+
+
+@router.message(Command("health"))
+async def cmd_health(message: Message, config: Config, poller: StreamPoller) -> None:
+    if config.owner_chat_id is None or message.chat.id != config.owner_chat_id:
+        return
+
+    snapshot = poller.health_snapshot()
+    now = time.time()
+    last_success = snapshot["last_successful_cycle_at"]
+    if isinstance(last_success, (int, float)):
+        success_age = f"{max(0, int(now - last_success))} сек. назад"
+    else:
+        success_age = "ещё не завершался"
+    duration = snapshot["last_cycle_duration_seconds"]
+    duration_text = f"{duration:.2f} сек." if isinstance(duration, (int, float)) else "—"
+    error = snapshot["last_cycle_error"] or "нет"
+
+    await message.answer(
+        "🩺 <b>Состояние бота</b>\n\n"
+        f"Последний успешный цикл: <b>{success_age}</b>\n"
+        f"Длительность цикла: <b>{duration_text}</b>\n"
+        f"Активных слушателей Twitch-чата: <b>{snapshot['active_chat_listeners']}</b>\n"
+        f"Фоновых задач: <b>{snapshot['background_tasks']}</b>\n"
+        f"Последняя ошибка цикла: <code>{html.escape(str(error))}</code>"
     )
 
 
@@ -956,14 +982,36 @@ async def _chat_member_status(bot: Bot, chat_id: int, user_id: int) -> str | Non
 
 async def _check_manage_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
     """True, если пользователь может управлять каналами target_chat_id из текущего
-    диалога. Если диалог открыт прямо в target_chat_id — разрешено всем участникам
-    (как и раньше). Если управление идёт удалённо (например, из лички) — только
-    админам/владельцу target_chat_id, проверяется через Telegram API."""
-    if _callback_chat_id(callback) == target_chat_id:
-        return True
+    диалога. Личным чатом управляет его владелец; группой или каналом — только
+    администратор/владелец, независимо от того, где открыто меню."""
+    current_chat_id = _callback_chat_id(callback)
+    if target_chat_id > 0:
+        return (
+            current_chat_id == target_chat_id
+            and callback.from_user is not None
+            and callback.from_user.id == target_chat_id
+        )
     if callback.from_user is None:
         return False
     status = await _chat_member_status(callback.bot, target_chat_id, callback.from_user.id)
+    return status in ADMIN_STATUSES
+
+
+async def _message_can_manage_chat(message: Message) -> bool:
+    """Проверка прав для текстовых /track и /untrack.
+
+    Сообщение от имени самой группы означает анонимного администратора. В обычном
+    сообщении статус автора сверяется через Telegram API.
+    """
+    if message.chat.type == ChatType.PRIVATE:
+        return message.from_user is not None and message.from_user.id == message.chat.id
+    if message.chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+        return False
+    if message.sender_chat is not None and message.sender_chat.id == message.chat.id:
+        return True
+    if message.from_user is None:
+        return False
+    status = await _chat_member_status(message.bot, message.chat.id, message.from_user.id)
     return status in ADMIN_STATUSES
 
 
@@ -1290,9 +1338,7 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
     else:
         target_chat_id = current_chat_id
 
-    if target_chat_id != current_chat_id and not await _check_manage_permission(
-        callback, target_chat_id
-    ):
+    if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Только админы этой группы/канала могут добавлять каналы.", show_alert=True)
         return
 
@@ -1659,6 +1705,9 @@ async def process_login_input(
 # Текстовые команды остаются как альтернативный способ управления
 @router.message(Command("track"))
 async def cmd_track(message: Message, command: CommandObject, db: Database, twitch: TwitchClient) -> None:
+    if not await _message_can_manage_chat(message):
+        await message.answer("Только администраторы могут добавлять оповещения в этой группе.")
+        return
     query = (command.args or "").strip()
     if not query:
         await message.answer("Использование: /track [twitch_логин]\nНапример: /track dobriy_yura")
@@ -1694,6 +1743,9 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
 
 @router.message(Command("untrack"))
 async def cmd_untrack(message: Message, command: CommandObject, db: Database) -> None:
+    if not await _message_can_manage_chat(message):
+        await message.answer("Только администраторы могут удалять оповещения в этой группе.")
+        return
     login = _extract_login(command)
     if login is None:
         await message.answer("Использование: /untrack [twitch_логин]")

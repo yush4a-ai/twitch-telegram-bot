@@ -115,7 +115,7 @@ async def _apply_auto_track(db: Database, config) -> None:
 async def main() -> None:
     config = load_config()
 
-    db = Database(config.db_path)
+    db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
     await db.connect()
     await _log_known_chats(db)
     await _apply_auto_track(db, config)
@@ -194,6 +194,7 @@ async def main() -> None:
             chat_listener=chat_listener,
             owner_chat_id=config.owner_chat_id,
         )
+        dp["poller"] = poller
         poller_task = asyncio.create_task(poller.run())
 
         try:

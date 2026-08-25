@@ -41,6 +41,10 @@ copy .env.example .env
      Networking → Generate Domain), например `https://myproject.up.railway.app`
    - `DB_PATH` — путь к файлу БД **внутри примонтированного Volume**, например
      `/data/bot.db` (см. следующий пункт)
+   - `TOKEN_ENCRYPTION_KEY` — Fernet-ключ для шифрования Twitch-токенов в SQLite.
+     Сгенерировать один раз:
+     `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+     Сохраните резервную копию ключа: без него зашифрованные токены восстановить нельзя.
 3. Подключите Volume (Settings → Volumes → New Volume), примонтируйте его,
    например, на `/data`. Без этого база SQLite будет пересоздаваться с нуля
    при каждом деплое — вся история стримов, настройки каналов и токены
@@ -56,6 +60,7 @@ copy .env.example .env
 
 - `/start` — главное меню
 - `/help` — что умеет бот
+- `/health` — состояние цикла опроса и фоновых задач (только для `OWNER_CHAT_ID`)
 - `/track <канал>`, `/untrack <канал>`, `/list` — управление отслеживаемыми каналами
 - `/report` — отчёт по последнему стриму
 - `/auth_twitch` — подключить свой Twitch-аккаунт (нужно для счётчика новых фолловеров)

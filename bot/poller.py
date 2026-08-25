@@ -289,12 +289,29 @@ class StreamPoller:
         self._chat_listener = chat_listener
         self._owner_chat_id = owner_chat_id
         self._stop_event = asyncio.Event()
+        self._last_cycle_started_at: float | None = None
+        self._last_successful_cycle_at: float | None = None
+        self._last_cycle_duration_seconds: float | None = None
+        self._last_cycle_error: str | None = None
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    def health_snapshot(self) -> dict[str, object]:
+        return {
+            "last_cycle_started_at": self._last_cycle_started_at,
+            "last_successful_cycle_at": self._last_successful_cycle_at,
+            "last_cycle_duration_seconds": self._last_cycle_duration_seconds,
+            "last_cycle_error": self._last_cycle_error,
+            "active_chat_listeners": (
+                self._chat_listener.active_count if self._chat_listener is not None else 0
+            ),
+            "background_tasks": len(self._background_tasks),
+            "stopping": self._stop_event.is_set(),
+        }
 
     async def shutdown(self) -> None:
         """Гасит всё, что поллер запустил в фоне, до закрытия общей HTTP-сессии.
@@ -350,10 +367,18 @@ class StreamPoller:
             self._chat_listener.set_raid_callback(self._on_raid_detected)
         await self._resume_chat_listeners()
         while not self._stop_event.is_set():
+            started_at = time.time()
+            self._last_cycle_started_at = started_at
             try:
                 await self._check_once()
-            except Exception:
+            except Exception as e:
+                self._last_cycle_error = f"{type(e).__name__}: {e}"
                 logger.exception("Ошибка в цикле опроса Twitch")
+            else:
+                self._last_successful_cycle_at = time.time()
+                self._last_cycle_error = None
+            finally:
+                self._last_cycle_duration_seconds = time.time() - started_at
 
             try:
                 await asyncio.wait_for(self._stop_event.wait(), timeout=self._interval)

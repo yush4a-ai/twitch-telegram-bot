@@ -6,8 +6,11 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from cryptography.fernet import Fernet
+
 from bot.config import load_config
 from bot.database import Database
+from bot.handlers.streams import _message_can_manage_chat
 from bot.oauth import OAuthCallbackServer
 from bot.poller import StreamPoller, _FAILED
 
@@ -37,6 +40,51 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(db.conn.in_transaction)
             finally:
                 await db.close()
+
+    async def test_user_tokens_are_encrypted_at_rest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            key = Fernet.generate_key().decode("ascii")
+            db = Database(os.path.join(directory, "test.db"), token_encryption_key=key)
+            await db.connect()
+            try:
+                await db.save_user_token("channel", "42", "access-secret", "refresh-secret", 1.0)
+                cursor = await db.conn.execute(
+                    "SELECT access_token, refresh_token FROM twitch_user_tokens "
+                    "WHERE twitch_login = ?",
+                    ("channel",),
+                )
+                stored_access, stored_refresh = await cursor.fetchone()
+                self.assertTrue(stored_access.startswith("fernet:v1:"))
+                self.assertTrue(stored_refresh.startswith("fernet:v1:"))
+                self.assertNotIn("access-secret", stored_access)
+                self.assertEqual(
+                    await db.get_user_token("channel"),
+                    ("42", "access-secret", "refresh-secret", 1.0),
+                )
+            finally:
+                await db.close()
+
+    async def test_existing_plaintext_tokens_are_migrated(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            plaintext_db = Database(path)
+            await plaintext_db.connect()
+            await plaintext_db.save_user_token("channel", "42", "access", "refresh", 1.0)
+            await plaintext_db.close()
+
+            encrypted_db = Database(path, token_encryption_key=Fernet.generate_key().decode("ascii"))
+            await encrypted_db.connect()
+            try:
+                cursor = await encrypted_db.conn.execute(
+                    "SELECT access_token FROM twitch_user_tokens WHERE twitch_login = 'channel'"
+                )
+                self.assertTrue((await cursor.fetchone())[0].startswith("fernet:v1:"))
+                self.assertEqual(
+                    await encrypted_db.get_user_token("channel"),
+                    ("42", "access", "refresh", 1.0),
+                )
+            finally:
+                await encrypted_db.close()
 
     async def test_retention_cleanup_columns_have_indexes(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -73,6 +121,34 @@ class OAuthTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response.status, 200)
         self.assertEqual(await server.wait_for_code("state", timeout=1), "oauth-code")
+
+
+class GroupPermissionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_regular_group_member_cannot_manage_channels(self) -> None:
+        bot = SimpleNamespace(
+            get_chat_member=AsyncMock(return_value=SimpleNamespace(status="member"))
+        )
+        message = SimpleNamespace(
+            chat=SimpleNamespace(id=-100, type="supergroup"),
+            from_user=SimpleNamespace(id=10),
+            sender_chat=None,
+            bot=bot,
+        )
+
+        self.assertFalse(await _message_can_manage_chat(message))
+
+    async def test_group_administrator_can_manage_channels(self) -> None:
+        bot = SimpleNamespace(
+            get_chat_member=AsyncMock(return_value=SimpleNamespace(status="administrator"))
+        )
+        message = SimpleNamespace(
+            chat=SimpleNamespace(id=-100, type="supergroup"),
+            from_user=SimpleNamespace(id=10),
+            sender_chat=None,
+            bot=bot,
+        )
+
+        self.assertTrue(await _message_can_manage_chat(message))
 
 
 class PollerCleanupTests(unittest.IsolatedAsyncioTestCase):

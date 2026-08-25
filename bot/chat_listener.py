@@ -95,6 +95,10 @@ class ChatListener:
         повторно, когда стрим уже завершён и слушатель остановлен."""
         return login in self._tasks
 
+    @property
+    def active_count(self) -> int:
+        return len(self._tasks)
+
     async def stop(self, login: str) -> None:
         task = self._tasks.pop(login, None)
         # счётчик переполнения читается до остановки, здесь его уже можно отпустить —
