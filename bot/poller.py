@@ -1121,7 +1121,12 @@ class StreamPoller:
         text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
-            lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
+            lambda: self._bot.send_message(
+                chat_id,
+                text,
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
+            ),
             f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}",
         )
         if message is _FAILED or message is None:
@@ -1145,7 +1150,11 @@ class StreamPoller:
         keyboard = await self._build_keyboard(login)
         try:
             await self._bot.edit_message_text(
-                text, chat_id=chat_id, message_id=message_id, reply_markup=keyboard
+                text,
+                chat_id=chat_id,
+                message_id=message_id,
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
             )
             return True
         except TelegramRetryAfter as e:
