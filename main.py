@@ -21,6 +21,7 @@ from aiogram.types import (
 )
 
 from bot.chat_listener import ChatListener
+from bot.follow_listener import FollowEventListener
 from bot.config import load_config
 from bot.database import Database
 from bot.handlers import register_all_handlers
@@ -117,6 +118,9 @@ async def main() -> None:
 
     db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
     await db.connect()
+    # Между остановкой старого процесса и запуском нового EventSub не слушается:
+    # текущий эфир уже нельзя считать полностью покрытым событиями.
+    await db.invalidate_live_follow_counts_after_restart()
     await _log_known_chats(db)
     await _apply_auto_track(db, config)
 
@@ -172,6 +176,9 @@ async def main() -> None:
         twitch = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
         token_store = TokenStore(db, config.twitch_client_id, config.twitch_client_secret, session)
         chat_listener = ChatListener(session)
+        follow_listener = FollowEventListener(
+            db, token_store, config.twitch_client_id, session
+        )
 
         oauth_server = OAuthCallbackServer(
             redirect_uri=f"{config.oauth_public_base_url}{REDIRECT_PATH}",
@@ -185,6 +192,9 @@ async def main() -> None:
         dp["config"] = config
         dp["oauth_server"] = oauth_server
 
+        follow_listener_task = asyncio.create_task(follow_listener.run())
+        await follow_listener.wait_initial_ready()
+
         poller = StreamPoller(
             bot,
             db,
@@ -192,6 +202,7 @@ async def main() -> None:
             config.poll_interval_seconds,
             token_store=token_store,
             chat_listener=chat_listener,
+            follow_listener=follow_listener,
             owner_chat_id=config.owner_chat_id,
         )
         dp["poller"] = poller
@@ -208,6 +219,8 @@ async def main() -> None:
             # фоновые задачи и веб-сокеты чата гасим внутри блока сессии:
             # снаружи она уже закрыта, и их завершение сыпало бы ошибками
             await poller.shutdown()
+            await follow_listener.stop()
+            await follow_listener_task
             await oauth_server.stop()
             await db.close()
             await bot.session.close()

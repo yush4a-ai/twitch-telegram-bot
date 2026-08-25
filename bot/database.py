@@ -71,6 +71,27 @@ CREATE TABLE IF NOT EXISTS twitch_user_tokens (
     expires_at REAL NOT NULL
 );
 
+-- Точный счётчик подписок за стрим. EventSub доставляет события как минимум один
+-- раз, поэтому message_id хранится отдельно и защищает счётчик от дублей.
+CREATE TABLE IF NOT EXISTS follow_event_counts (
+    chat_id INTEGER NOT NULL,
+    twitch_login TEXT NOT NULL,
+    stream_id TEXT NOT NULL,
+    event_count INTEGER NOT NULL DEFAULT 0,
+    reliable INTEGER NOT NULL DEFAULT 1,
+    created_at REAL NOT NULL,
+    PRIMARY KEY (chat_id, twitch_login, stream_id)
+);
+CREATE INDEX IF NOT EXISTS idx_follow_event_counts_retention
+    ON follow_event_counts (created_at);
+
+CREATE TABLE IF NOT EXISTS follow_event_ids (
+    message_id TEXT PRIMARY KEY,
+    received_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_follow_event_ids_retention
+    ON follow_event_ids (received_at);
+
 CREATE TABLE IF NOT EXISTS stream_samples (
     chat_id INTEGER NOT NULL,
     twitch_login TEXT NOT NULL,
@@ -1150,6 +1171,18 @@ class Database:
         await self.conn.execute(
             "DELETE FROM stream_chat_meta WHERE created_at < ?", (older_than_ts,)
         )
+        await self.conn.execute(
+            "DELETE FROM follow_event_counts WHERE created_at < ? AND NOT EXISTS ("
+            "SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = follow_event_counts.chat_id "
+            "AND tc.twitch_login = follow_event_counts.twitch_login "
+            "AND tc.last_stream_id = follow_event_counts.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0))",
+            (older_than_ts,),
+        )
+        await self.conn.execute(
+            "DELETE FROM follow_event_ids WHERE received_at < ?", (older_than_ts,)
+        )
         await self.conn.commit()
 
     @_serialized
@@ -1170,6 +1203,89 @@ class Database:
         )
         row = await cursor.fetchone()
         return row[0] if row else None
+
+    @_serialized
+    async def start_follow_event_count(
+        self, chat_id: int, twitch_login: str, stream_id: str, reliable: bool
+    ) -> None:
+        """Заводит точный EventSub-счётчик для нового стрима.
+
+        INSERT OR IGNORE важен при рестарте процесса: уже накопленный счётчик не
+        обнуляется, а недостоверный интервал не становится снова достоверным.
+        """
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO follow_event_counts "
+            "(chat_id, twitch_login, stream_id, event_count, reliable, created_at) "
+            "VALUES (?, ?, ?, 0, ?, ?)",
+            (chat_id, twitch_login, stream_id, int(reliable), time.time()),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def record_follow_event(self, twitch_login: str, message_id: str) -> bool:
+        """Учитывает EventSub follow во всех активных карточках канала ровно один раз."""
+        cursor = await self.conn.execute(
+            "INSERT OR IGNORE INTO follow_event_ids (message_id, received_at) VALUES (?, ?)",
+            (message_id, time.time()),
+        )
+        if cursor.rowcount == 0:
+            await self.conn.rollback()
+            return False
+        await self.conn.execute(
+            "UPDATE follow_event_counts SET event_count = event_count + 1 "
+            "WHERE twitch_login = ? AND EXISTS ("
+            "SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = follow_event_counts.chat_id "
+            "AND tc.twitch_login = follow_event_counts.twitch_login "
+            "AND tc.last_stream_id = follow_event_counts.stream_id "
+            "AND tc.is_live = 1)",
+            (twitch_login,),
+        )
+        await self.conn.commit()
+        return True
+
+    @_serialized
+    async def mark_live_follow_counts_unreliable(self, twitch_login: str) -> None:
+        """Помечает текущие эфиры неточными, если EventSub-соединение прервалось."""
+        await self.conn.execute(
+            "UPDATE follow_event_counts SET reliable = 0 "
+            "WHERE twitch_login = ? AND EXISTS ("
+            "SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = follow_event_counts.chat_id "
+            "AND tc.twitch_login = follow_event_counts.twitch_login "
+            "AND tc.last_stream_id = follow_event_counts.stream_id "
+            "AND tc.is_live = 1)",
+            (twitch_login,),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def invalidate_live_follow_counts_after_restart(self) -> None:
+        """После рестарта неизвестно, сколько EventSub-событий пришло во время простоя."""
+        await self.conn.execute(
+            "UPDATE follow_event_counts SET reliable = 0 WHERE EXISTS ("
+            "SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = follow_event_counts.chat_id "
+            "AND tc.twitch_login = follow_event_counts.twitch_login "
+            "AND tc.last_stream_id = follow_event_counts.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0))"
+        )
+        await self.conn.commit()
+
+    async def get_follow_event_count(
+        self, chat_id: int, twitch_login: str, stream_id: str
+    ) -> tuple[int, bool] | None:
+        cursor = await self.conn.execute(
+            "SELECT event_count, reliable FROM follow_event_counts "
+            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
+            (chat_id, twitch_login, stream_id),
+        )
+        row = await cursor.fetchone()
+        return (row[0], bool(row[1])) if row else None
+
+    async def all_token_logins(self) -> list[str]:
+        cursor = await self.conn.execute("SELECT twitch_login FROM twitch_user_tokens")
+        return [row[0] for row in await cursor.fetchall()]
 
     @_serialized
     async def save_user_token(

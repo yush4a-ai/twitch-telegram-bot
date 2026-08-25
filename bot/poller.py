@@ -22,6 +22,7 @@ from .database import Database
 from .logging_utils import mask_chat_id
 from .report import build_report_html
 from .token_store import TokenStore
+from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, TwitchClient
 
 logger = logging.getLogger(__name__)
@@ -279,6 +280,7 @@ class StreamPoller:
         interval_seconds: int,
         token_store: TokenStore | None = None,
         chat_listener: ChatListener | None = None,
+        follow_listener: FollowEventListener | None = None,
         owner_chat_id: int | None = None,
     ) -> None:
         self._bot = bot
@@ -287,6 +289,7 @@ class StreamPoller:
         self._interval = interval_seconds
         self._token_store = token_store
         self._chat_listener = chat_listener
+        self._follow_listener = follow_listener
         self._owner_chat_id = owner_chat_id
         self._stop_event = asyncio.Event()
         self._last_cycle_started_at: float | None = None
@@ -689,6 +692,18 @@ class StreamPoller:
                         title,
                         stream_started_at=effective_started_at,
                     )
+                    if (
+                        self._follow_listener is not None
+                        and self._follow_listener.is_configured(login)
+                    ):
+                        await self._db.start_follow_event_count(
+                            chat_id,
+                            login,
+                            effective_stream_id,
+                            self._follow_listener.covers_stream_start(
+                                login, effective_started_at
+                            ),
+                        )
                     await self._db.record_viewer_sample(chat_id, login, stream.viewer_count)
                     await self._db.add_stream_sample(
                         chat_id,
@@ -888,7 +903,9 @@ class StreamPoller:
         duration_text = self._format_duration(started_at)
         avg_viewers = round(viewer_sum / viewer_samples) if viewer_samples else 0
         peak = peak_viewers or 0
-        new_followers_text = await self._compute_new_followers(login, followers_at_start)
+        new_followers_text = await self._compute_new_followers(
+            chat_id, login, stream_id, followers_at_start
+        )
         new_followers_num = int(new_followers_text) if new_followers_text is not None else None
 
         report_html = None
@@ -1051,7 +1068,22 @@ class StreamPoller:
             return 0
         return int((datetime.now(timezone.utc) - start).total_seconds())
 
-    async def _compute_new_followers(self, login: str, followers_at_start: int | None) -> str | None:
+    async def _compute_new_followers(
+        self,
+        chat_id: int,
+        login: str,
+        stream_id: str | None,
+        followers_at_start: int | None,
+    ) -> str | None:
+        if stream_id is not None:
+            event_count = await self._db.get_follow_event_count(chat_id, login, stream_id)
+            if event_count is not None:
+                # Если во время эфира EventSub хотя бы раз прерывался, не выдаём
+                # старую разницу общего числа за точное число новых подписок.
+                return f"+{event_count[0]}" if event_count[1] else None
+
+        # Запасной путь для старых записей, созданных до внедрения EventSub.
+        # Это изменение общего числа, а не число самих follow-событий.
         if self._token_store is None or followers_at_start is None:
             return None
         token = await self._token_store.get_valid_token(login)

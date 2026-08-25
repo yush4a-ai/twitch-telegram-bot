@@ -104,7 +104,52 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                         "idx_chat_unique_nicks_retention",
                         "idx_stream_chatters_retention",
                         "idx_stream_chat_meta_retention",
+                        "idx_follow_event_counts_retention",
+                        "idx_follow_event_ids_retention",
                     },
+                )
+            finally:
+                await db.close()
+
+    async def test_follow_events_are_counted_once_for_each_live_chat(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "channel")
+                await db.add_channel(2, "channel")
+                for chat_id in (1, 2):
+                    await db.set_live_state(
+                        chat_id, "channel", True, "stream-1", stream_started_at="2026-01-01T00:00:00Z"
+                    )
+                    await db.start_follow_event_count(chat_id, "channel", "stream-1", True)
+
+                self.assertTrue(await db.record_follow_event("channel", "event-1"))
+                self.assertFalse(await db.record_follow_event("channel", "event-1"))
+                self.assertEqual(
+                    await db.get_follow_event_count(1, "channel", "stream-1"), (1, True)
+                )
+                self.assertEqual(
+                    await db.get_follow_event_count(2, "channel", "stream-1"), (1, True)
+                )
+            finally:
+                await db.close()
+
+    async def test_follow_counter_never_becomes_reliable_again_after_gap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "channel")
+                await db.set_live_state(
+                    1, "channel", True, "stream-1", stream_started_at="2026-01-01T00:00:00Z"
+                )
+                await db.start_follow_event_count(1, "channel", "stream-1", True)
+                await db.mark_live_follow_counts_unreliable("channel")
+                await db.start_follow_event_count(1, "channel", "stream-1", True)
+
+                self.assertEqual(
+                    await db.get_follow_event_count(1, "channel", "stream-1"), (0, False)
                 )
             finally:
                 await db.close()
