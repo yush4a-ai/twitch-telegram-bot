@@ -27,12 +27,15 @@ from .twitch import ClipInfo, TwitchClient
 logger = logging.getLogger(__name__)
 
 MESSAGE_TEMPLATE = (
-    "🔴 <b>{channel_name}</b>\n{title}\n\n"
+    "🔴 <b>{channel_name}</b>\n\n<b>{title}</b>{collab_line}\n\n"
     "🎮 {game_name}\n"
     "👁 Сейчас смотрят: {viewer_count}"
 )
 # без категории (Twitch иногда отдаёт пустое поле) строку про игру не показываем
-MESSAGE_TEMPLATE_NO_GAME = "🔴 <b>{channel_name}</b>\n{title}\n\n👁 Сейчас смотрят: {viewer_count}"
+MESSAGE_TEMPLATE_NO_GAME = (
+    "🔴 <b>{channel_name}</b>\n\n<b>{title}</b>{collab_line}\n\n"
+    "👁 Сейчас смотрят: {viewer_count}"
+)
 
 # сколько ждать после ухода стрима в offline, прежде чем удалить пост
 OFFLINE_GRACE_SECONDS = 5 * 60
@@ -61,16 +64,6 @@ MAX_RETRY_AFTER_SECONDS = 30
 # маркер неуспешного вызова Telegram: None — валидный результат (например, у edit),
 # поэтому нужен отдельный объект-признак
 _FAILED = object()
-
-_KEYCAP_DIGITS = {
-    "0": "0️⃣", "1": "1️⃣", "2": "2️⃣", "3": "3️⃣", "4": "4️⃣",
-    "5": "5️⃣", "6": "6️⃣", "7": "7️⃣", "8": "8️⃣", "9": "9️⃣",
-}
-
-
-def _keycap_number(value: int) -> str:
-    return "".join(_KEYCAP_DIGITS[digit] for digit in str(value))
-
 
 def _load_json_list(raw: str | None) -> list:
     """Разбирает список из JSON, сохранённого в БД. Пустой список вместо исключения:
@@ -133,14 +126,28 @@ def _strip_links(title: str) -> str:
     return re.sub(r"\s{2,}", " ", cleaned).strip()
 
 
-def _strip_telegram_mentions(title: str) -> str:
-    """Убирает ``@`` перед Twitch-логинами в заголовке стрима.
+_TWITCH_MENTION_RE = re.compile(r"(?<!\w)@([A-Za-z0-9_]{1,25})(?!\w)")
 
-    Иначе Telegram автоматически превращает такие фрагменты в ссылки на
-    одноимённые Telegram-аккаунты, которые могут принадлежать другим людям.
-    ``@`` внутри адресов электронной почты не затрагивается.
+
+def _split_twitch_mentions(title: str) -> tuple[str, list[str]]:
+    """Выносит ``@login`` из заголовка в список Twitch-коллабораторов.
+
+    Адреса электронной почты не совпадают с шаблоном. Повторяющиеся логины
+    возвращаются один раз с сохранением исходного порядка.
     """
-    return re.sub(r"(?<!\w)@(?=[A-Za-z0-9_])", "", title)
+    mentions: list[str] = []
+    seen: set[str] = set()
+    for match in _TWITCH_MENTION_RE.finditer(title):
+        mention = match.group(1)
+        normalized = mention.casefold()
+        if normalized not in seen:
+            seen.add(normalized)
+            mentions.append(mention)
+
+    clean_title = _TWITCH_MENTION_RE.sub(" ", title)
+    clean_title = re.sub(r"\s+([,.;:!?])", r"\1", clean_title)
+    clean_title = re.sub(r"\s{2,}", " ", clean_title).strip()
+    return clean_title, mentions
 
 
 def _find_collab_mentions(title: str | None, self_login: str, candidates: dict[str, str | None]) -> list[str]:
@@ -1083,12 +1090,20 @@ class StreamPoller:
     ) -> str:
         channel_name = await self._channel_display_name(login)
         template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
-        safe_title = _strip_telegram_mentions(_strip_links(title))
+        clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
+        collab_line = ""
+        if collab_logins:
+            collab_links = " × ".join(
+                f'<a href="https://www.twitch.tv/{collab}">{html.escape(collab)}</a>'
+                for collab in collab_logins
+            )
+            collab_line = f"\n🤝 Вместе с: {collab_links}"
         text = template.format(
             channel_name=html.escape(channel_name),
-            title=html.escape(safe_title),
+            title=html.escape(clean_title or "(без названия)"),
+            collab_line=collab_line,
             game_name=html.escape(game_name or ""),
-            viewer_count=_keycap_number(viewer_count),
+            viewer_count=f"{viewer_count:,}".replace(",", " "),
         )
         if return_note:
             text += f"\n\n{return_note}"
