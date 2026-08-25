@@ -1778,20 +1778,23 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
         reverse=True,
     )
 
-    lines = [f"🔴 <b>Сейчас в эфире · {len(live_channels)}</b>"]
+    lines = [f"🔴 <b>В эфире — {len(live_channels)}</b>"]
     link_rows = []
     for login, title, viewer_count, game_name in live_channels:
         safe_login = html.escape(login)
-        viewers_text = (
-            f"  ·  👁 {_format_viewers(viewer_count)}"
-            if viewer_count is not None
-            else ""
-        )
-        channel_lines = [f"<b>{safe_login}</b>{viewers_text}"]
+        channel_lines = [f"<b>{safe_login}</b>"]
+        details = []
         if game_name:
-            channel_lines.append(f"🎮 {html.escape(game_name)}")
+            details.append(f"🎮 {html.escape(game_name)}")
+        if viewer_count is not None:
+            details.append(f"👁 {_format_viewers(viewer_count)}")
+        if details:
+            channel_lines.append("  ·  ".join(details))
         if title:
             clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
+            # Красные кружки в Twitch-заголовках служат разделителями, но в списке
+            # выглядят как начало ещё одного эфира и ломают визуальную иерархию.
+            clean_title = re.sub(r"\s*🔴\s*", " ", clean_title).strip()
             if clean_title:
                 channel_lines.append(f"{html.escape(clean_title)}")
             if collab_logins:
@@ -1803,7 +1806,7 @@ async def _build_live_list(chat_id: int, db: Database) -> tuple[str, InlineKeybo
                 channel_lines.append(f"🤝 Вместе: {collab_links}")
         lines.append("\n".join(channel_lines))
         link_rows.append(
-            [InlineKeyboardButton(text=f"Смотреть · {login}", url=f"https://twitch.tv/{login}")]
+            [InlineKeyboardButton(text=f"▶ {login}", url=f"https://twitch.tv/{login}")]
         )
     link_rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
     return "\n\n".join(lines), InlineKeyboardMarkup(inline_keyboard=link_rows)

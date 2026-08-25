@@ -202,7 +202,7 @@ class LiveListTests(unittest.IsolatedAsyncioTestCase):
             list_live_channels=AsyncMock(
                 return_value=[
                     ("small", "Играем @friend", 2, "Game & Fun"),
-                    ("large", "Большой эфир tg: t.me/example 🔴", 1200, "IRL"),
+                    ("large", "🔴 Большой эфир tg: t.me/example 🔴", 1200, "IRL"),
                 ]
             )
         )
@@ -211,10 +211,12 @@ class LiveListTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn("@friend", text)
         self.assertNotIn("t.me", text)
+        self.assertNotIn("🔴 Большой эфир", text)
+        self.assertIn("<b>large</b>\n🎮 IRL  ·  👁 1 200 зрителей\nБольшой эфир", text)
         self.assertIn("🤝 Вместе: <a href=\"https://www.twitch.tv/friend\">friend</a>", text)
         self.assertIn("🎮 Game &amp; Fun", text)
         self.assertLess(text.index("<b>large</b>"), text.index("<b>small</b>"))
-        self.assertEqual(keyboard.inline_keyboard[0][0].text, "Смотреть · large")
+        self.assertEqual(keyboard.inline_keyboard[0][0].text, "▶ large")
 
     async def test_viewer_word_form(self) -> None:
         self.assertEqual(_format_viewers(1), "1 зритель")
