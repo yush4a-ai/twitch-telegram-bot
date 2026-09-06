@@ -573,14 +573,17 @@ class StreamPoller:
                 f"Уведомление о рейде в {mask_chat_id(chat_id)}",
             )
 
-    async def _detect_collab(self, login: str, title: str | None) -> list[str]:
+    async def _detect_collab(self, chat_id: int, login: str, title: str | None) -> list[str]:
         """Если в финальном заголовке стрима упоминается логин или отображаемое имя
-        другого отслеживаемого канала — считаем стрим коллабом с ним. display_name
-        берём из кэша, который уже поддерживает _check_channel_renames, чтобы не
-        делать лишний запрос к Twitch API."""
+        другого канала, отслеживаемого этим же чатом — считаем стрим коллабом с ним.
+        Кандидаты берём только среди каналов chat_id, а не глобально по всем чатам
+        бота — иначе один чат мог бы увидеть в своём отчёте канал, который отслеживает
+        только другой, никак не связанный с ним чат. display_name берём из кэша,
+        который уже поддерживает _check_channel_renames, чтобы не делать лишний
+        запрос к Twitch API."""
         if not title:
             return []
-        other_logins = [l for l in await self._db.all_distinct_logins() if l != login]
+        other_logins = [l for l in await self._db.list_channels(chat_id) if l != login]
         if not other_logins:
             return []
         # одна выборка имён вместо запроса на каждый логин
@@ -720,7 +723,14 @@ class StreamPoller:
                         title,
                         stream.game_name or "—",
                     )
-                    await self._maybe_snapshot_followers(chat_id, login, followers_at_start)
+                    # set_live_state уже обнулила followers_at_start в БД, если это не
+                    # quick_restart (сменился stream_id) — локальная переменная в этом
+                    # случае устарела и не должна выдаваться за «снимок уже сделан»,
+                    # иначе _maybe_snapshot_followers молча пропустит новый снимок
+                    effective_followers_at_start = followers_at_start if quick_restart else None
+                    await self._maybe_snapshot_followers(
+                        chat_id, login, effective_followers_at_start
+                    )
                 else:
                     if was_live:
                         # не удаляем пост сразу — вдруг стрим переподключится в течение
@@ -922,7 +932,7 @@ class StreamPoller:
         raid_events: list[tuple[float, int, str | None]] = []
         viewer_spikes: list[tuple[float, int]] = []
         comparison_lines: list[str] = []
-        collab_logins = await self._detect_collab(login, title)
+        collab_logins = await self._detect_collab(chat_id, login, title)
         if stream_id is not None:
             chat_activity = await self._db.get_chat_activity_samples(chat_id, login, stream_id)
             chatter_nicks = await self._db.get_chat_unique_nicks(chat_id, login, stream_id)
@@ -938,7 +948,6 @@ class StreamPoller:
             raid_detection_enabled = await self._db.get_raid_detection_enabled(chat_id, login)
             raid_events = raw_raid_events if raid_detection_enabled else []
             top_clips = await self._fetch_top_clips(login, started_at)
-            vod_url = await self._fetch_and_save_vod(chat_id, login, stream_id, started_at)
 
             samples = await self._db.get_stream_samples(chat_id, login, stream_id)
             samples, viewer_spikes = _detect_viewer_spikes(samples)
@@ -949,6 +958,13 @@ class StreamPoller:
                 if viewer_values:
                     peak = max(viewer_values)
                     avg_viewers = round(sum(viewer_values) / len(viewer_values))
+
+            # уже отфильтрованные от накрутки samples передаём дальше, а не даём
+            # _fetch_and_save_vod заново читать сырые данные — иначе таймкод «Пик
+            # зрителей» в VOD мог бы указывать ровно на выброшенный из отчёта всплеск
+            vod_url = await self._fetch_and_save_vod(
+                chat_id, login, stream_id, started_at, samples
+            )
 
             report_format = await self._db.get_report_format(chat_id, login)
             history = await self._db.get_history_stats(chat_id, login)
@@ -1105,11 +1121,21 @@ class StreamPoller:
         return f"+{diff}" if diff >= 0 else str(diff)
 
     async def _fetch_and_save_vod(
-        self, chat_id: int, login: str, stream_id: str, started_at: str
+        self,
+        chat_id: int,
+        login: str,
+        stream_id: str,
+        started_at: str,
+        samples: list[tuple[float, int, str, str]],
     ) -> str | None:
         """Ищет VOD только что завершённого стрима и сохраняет его вместе с таймкодами
         ключевых моментов (смена игры, пик зрителей) — если у канала запись стрима
-        не включена, Twitch просто не отдаст видео с этим stream_id, тогда None."""
+        не включена, Twitch просто не отдаст видео с этим stream_id, тогда None.
+
+        samples должны быть уже очищены от подозрительных всплесков (см.
+        _detect_viewer_spikes в вызывающем коде) — иначе таймкод «Пик зрителей»
+        может указать на тот же выброс, который текстовый отчёт отмечает как
+        вероятную накрутку и исключает из статистики."""
         try:
             broadcaster_id = await self._twitch.get_user_id(login)
             if broadcaster_id is None:
@@ -1123,7 +1149,6 @@ class StreamPoller:
 
         try:
             start = datetime.strptime(started_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-            samples = await self._db.get_stream_samples(chat_id, login, stream_id)
             chapters = _build_vod_chapters(samples, start.timestamp())
         except ValueError:
             chapters = []
