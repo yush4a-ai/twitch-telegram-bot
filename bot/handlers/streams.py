@@ -162,10 +162,8 @@ def _channels_keyboard(
         status_icons = bell
         if not is_telegram_channel:
             if show_recipient_toggle:
-                effective = (
-                    post_recipient if post_recipient is not None else (chat_default_recipient or target_chat_id)
-                )
-                status_icons += " 👥" if effective == target_chat_id else " 📩"
+                effective = post_recipient or chat_default_recipient
+                status_icons += " 📩" if effective is not None and effective > 0 else " ⚠️"
             status_icons += " 📑" if report_format != "brief" else " 📄"
             if raid_detection_enabled:
                 status_icons += " ⚡"
@@ -221,10 +219,8 @@ def _channel_card_keyboard(
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
     if show_recipient_toggle:
-        effective = (
-            post_recipient if post_recipient is not None else (chat_default_recipient or target_chat_id)
-        )
-        recipient_label = "👥 Группа" if effective == target_chat_id else "📩 Личка"
+        effective = post_recipient or chat_default_recipient
+        recipient_label = "📩 Личка" if effective is not None and effective > 0 else "⚠️ Не подключена"
         rows.append(
             [
                 InlineKeyboardButton(
@@ -294,20 +290,18 @@ async def _added_channel_summary(message: Message, db: Database, login: str, is_
     """Явно проговаривает, что произойдёт с только что добавленным каналом при
     настройках по умолчанию — чтобы не приходилось гадать, придёт ли вообще что-то.
     При самом первом канале в чате также объясняет разницу между живым постом
-    (всегда в этот чат) и итоговым отчётом (можно перенаправить в личку)."""
+    (всегда в этот чат) и итоговым отчётом (только в личку)."""
     if is_first_channel:
         return (
             f"Готово, слежу за каналом «{login}».\n\n"
             "🔴 Как только стрим начнётся — здесь появится живой пост со счётчиком "
             "зрителей. Он всегда остаётся в этом чате.\n"
-            "📊 После окончания стрима сюда же придёт развёрнутый итоговый отчёт "
-            "(текст + HTML с графиком). Получателя отчёта и его формат можно "
-            "поменять в настройках канала."
+            "📊 После окончания стрима отчёт придёт только в привязанную личку. "
+            "В общий чат итоговая статистика не публикуется."
         )
     return (
         f"Готово, слежу за каналом «{login}».\n\n"
-        "🔴 Живой пост — в этот чат. 📊 Итоговый отчёт — тоже сюда, развёрнутый "
-        "(текст + HTML). Поменять можно в настройках канала."
+        "🔴 Живой пост — в этот чат. 📊 Итоговый отчёт — только в привязанную личку."
     )
 
 
@@ -353,7 +347,7 @@ ABOUT_TEXT = (
     "Покажу рейды и коллабы, отфильтрую подозрительные скачки зрителей. "
     "Сообщу, если канал сменил имя или пропал с Twitch.\n\n"
     "🌙 <b>Работаю по твоим правилам</b>\n"
-    "Отчёты можно получать в группе или личке. Тихие часы соберут ночные "
+    "Итоговые отчёты приходят только в личку. Тихие часы соберут ночные "
     "стримы в одну утреннюю сводку.\n\n"
     "<b>Быстрые команды</b>\n"
     "📺 /live  кто сейчас в эфире\n"
@@ -1068,7 +1062,9 @@ async def _render_channel_card(
     # только если у фактического получателя тихие часы вообще включены
     recipient_chat_id = await db.resolve_post_recipient(target_chat_id, login)
     show_quiet_hours_toggle = (
-        not is_telegram_channel and await db.get_quiet_hours(recipient_chat_id) is not None
+        not is_telegram_channel
+        and recipient_chat_id is not None
+        and await db.get_quiet_hours(recipient_chat_id) is not None
     )
 
     if is_telegram_channel:
@@ -1085,7 +1081,7 @@ async def _render_channel_card(
             "🔔/🔕 — присылать ли живой пост, когда канал выходит в эфир",
         ]
         if not is_private:
-            lines.append("👥/📩 — куда слать итоговый отчёт после стрима: в группу или тебе в личку")
+            lines.append("📩 — итоговый отчёт отправляется только в привязанную личку")
         lines.append("📑/📄 — формат итогового отчёта: развёрнутый (текст + HTML с графиком) или краткий (только текст)")
         lines.append("⚡ — детектор рейдов: слать ли уведомление, когда канал начинают рейдить")
         if show_quiet_hours_toggle:
@@ -1218,12 +1214,9 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         )
         return
 
-    # смотрим, куда пост реально уходит СЕЙЧАС (с учётом дефолтов чата), а не только
-    # на наличие явной привязки канала — иначе переключатель не сработает предсказуемо,
-    # если весь чат уже привязан к личке через общую настройку
+    # Итоговые отчёты разрешены только в личку. Кнопка может назначить или сменить
+    # личного получателя, но больше не умеет возвращать отчёты в общий чат.
     current_effective = await db.resolve_post_recipient(target_chat_id, login)
-    # переключатель меняет получателя в обе стороны, и «отобрать у другого» —
-    # это и забрать себе, и вернуть в группу: проверяем до выбора направления
     if not await _may_change_recipient(
         callback.bot, target_chat_id, callback.from_user.id, current_effective
     ):
@@ -1234,14 +1227,8 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         )
         return
 
-    if current_effective == target_chat_id:
-        # сейчас уходит в группу — явно переключаем на личку того, кто нажал
-        await db.set_post_recipient(target_chat_id, login, callback.from_user.id)
-        answer_text = "Отчёт по этому каналу теперь идёт тебе в личку"
-    else:
-        # сейчас уходит в чью-то личку (по умолчанию или явно) — явно закрепляем за группой
-        await db.set_post_recipient(target_chat_id, login, target_chat_id)
-        answer_text = "Отчёт по этому каналу теперь идёт в группу"
+    await db.set_post_recipient(target_chat_id, login, callback.from_user.id)
+    answer_text = "Отчёт по этому каналу теперь идёт тебе в личку"
 
     await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(answer_text)
@@ -1938,7 +1925,14 @@ def _build_report_summary(
     return text
 
 
-async def _send_report(message: Message, chat_id: int, login: str, db: Database) -> None:
+async def _send_report(
+    message: Message,
+    chat_id: int,
+    login: str,
+    db: Database,
+    *,
+    recipient_chat_id: int | None = None,
+) -> None:
     record = await db.get_last_finished_stream(chat_id, login)
     if record is None:
         await message.answer(f"Пока нет ни одного завершённого стрима «{login}» в этом чате.")
@@ -1987,7 +1981,17 @@ async def _send_report(message: Message, chat_id: int, login: str, db: Database)
     )
 
     file = BufferedInputFile(report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html")
-    await message.answer_document(file, caption=f"Отчёт по последнему стриму «{login}».")
+    recipient_chat_id = recipient_chat_id or message.chat.id
+    if recipient_chat_id <= 0:
+        logger.warning(
+            "Ручной отчёт %s заблокирован: получатель %s не является личным чатом",
+            login,
+            mask_chat_id(recipient_chat_id),
+        )
+        return
+    await message.bot.send_document(
+        recipient_chat_id, file, caption=f"Отчёт по последнему стриму «{login}»."
+    )
 
 
 async def _deliver_report(message: Message, chat_id: int, login: str, db: Database) -> None:
@@ -2028,7 +2032,18 @@ async def cmd_report(message: Message, command: CommandObject, db: Database) -> 
     if login is None:
         await message.answer("Использование: /report [twitch_логин]\nНапример: /report dobriy_yura")
         return
-    await _send_report(message, message.chat.id, login, db)
+    recipient_chat_id = message.chat.id
+    if recipient_chat_id <= 0:
+        if message.from_user is None or not await db.is_known_private_user(message.from_user.id):
+            await message.answer(
+                "Итоговые отчёты отправляются только в личку. Сначала открой бота "
+                "лично и нажми /start."
+            )
+            return
+        recipient_chat_id = message.from_user.id
+    await _send_report(
+        message, message.chat.id, login, db, recipient_chat_id=recipient_chat_id
+    )
 
 
 @router.callback_query(lambda c: c.data == "menu:report")
@@ -2054,5 +2069,15 @@ async def cb_report_channel(callback: CallbackQuery, db: Database) -> None:
     if chat_id is None or not _is_valid_login(login):
         await callback.answer()
         return
+    recipient_chat_id = chat_id
+    if recipient_chat_id <= 0:
+        if callback.from_user is None or not await db.is_known_private_user(callback.from_user.id):
+            await callback.answer(
+                "Сначала открой бота в личке и нажми /start.", show_alert=True
+            )
+            return
+        recipient_chat_id = callback.from_user.id
     await callback.answer("Готовлю отчёт…")
-    await _send_report(callback.message, chat_id, login, db)
+    await _send_report(
+        callback.message, chat_id, login, db, recipient_chat_id=recipient_chat_id
+    )

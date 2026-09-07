@@ -228,6 +228,60 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+    async def test_group_can_never_be_report_recipient(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                group_id = -100123
+                await db.add_channel(group_id, "channel")
+
+                self.assertIsNone(await db.resolve_post_recipient(group_id, "channel"))
+
+                await db.set_post_recipient(group_id, "channel", group_id)
+                await db.set_stats_recipient(group_id, group_id)
+                self.assertIsNone(await db.resolve_post_recipient(group_id, "channel"))
+
+                await db.set_post_recipient(group_id, "channel", 42)
+                self.assertEqual(await db.resolve_post_recipient(group_id, "channel"), 42)
+            finally:
+                await db.close()
+
+    async def test_telegram_channel_keeps_its_final_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+
+                self.assertEqual(
+                    await db.resolve_post_recipient(channel_id, "channel"), channel_id
+                )
+            finally:
+                await db.close()
+
+    async def test_migration_removes_old_group_report_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await db.add_channel(-100123, "channel")
+            await db.set_post_recipient(-100123, "channel", -100123)
+            await db.set_stats_recipient(-100123, -100123)
+            await db.add_deferred_report(-100123, -100123, "channel", "stream", 1.0)
+            await db.close()
+
+            migrated = Database(path)
+            await migrated.connect()
+            try:
+                self.assertIsNone(await migrated.get_post_recipient(-100123, "channel"))
+                self.assertIsNone(await migrated.get_stats_recipient(-100123))
+                self.assertFalse(await migrated.has_deferred_reports(-100123))
+            finally:
+                await migrated.close()
+
 
 class OAuthTests(unittest.IsolatedAsyncioTestCase):
     async def test_registered_state_accepts_callback_before_wait_starts(self) -> None:
@@ -394,6 +448,26 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
 
 
 class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
+    async def test_group_without_private_recipient_never_delivers_report(self) -> None:
+        db = SimpleNamespace(
+            pending_stats=AsyncMock(
+                return_value=[
+                    (-100, "channel", 0.0, "title", "2026-01-01T00:00:00Z", 10, 20, 2, "stream", None)
+                ]
+            ),
+            is_telegram_channel=AsyncMock(return_value=False),
+            resolve_post_recipient=AsyncMock(return_value=None),
+            get_quiet_hours_exempt=AsyncMock(return_value=False),
+            mark_stats_sent=AsyncMock(),
+        )
+        poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
+        poller._send_stats = AsyncMock(return_value=True)
+
+        await poller._send_pending_stats()
+
+        self.assertFalse(poller._send_stats.await_args.kwargs["deliver"])
+        db.mark_stats_sent.assert_awaited_once_with(-100, "channel")
+
     async def test_failed_quiet_hours_digest_is_reported_as_not_sent(self) -> None:
         db = SimpleNamespace(
             peek_deferred_reports=AsyncMock(return_value=[(1, "channel", "stream", 0.0)])

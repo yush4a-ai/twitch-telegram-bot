@@ -295,6 +295,27 @@ class Database:
             },
         )
         await self._migrate_user_tokens_encryption()
+        # До этого релиза интерфейс позволял выбрать группу получателем итогов.
+        # Удаляем только маршруты доставки и отложенные групповые отправки; сама
+        # история стримов остаётся нетронутой и доступна через /report в личке.
+        await self.conn.execute(
+            "UPDATE tracked_channels SET post_recipient_chat_id = NULL "
+            "WHERE post_recipient_chat_id < 0 AND NOT EXISTS ("
+            "SELECT 1 FROM telegram_channels c WHERE c.chat_id = tracked_channels.chat_id)"
+        )
+        await self.conn.execute(
+            "DELETE FROM stats_recipients WHERE stats_chat_id < 0 AND NOT EXISTS ("
+            "SELECT 1 FROM telegram_channels c WHERE c.chat_id = stats_recipients.chat_id)"
+        )
+        await self.conn.execute(
+            "DELETE FROM deferred_reports WHERE chat_id < 0 AND NOT EXISTS ("
+            "SELECT 1 FROM telegram_channels c WHERE c.chat_id = deferred_reports.chat_id)"
+        )
+        await self.conn.execute(
+            "DELETE FROM quiet_hours_digest_sent WHERE chat_id < 0 AND NOT EXISTS ("
+            "SELECT 1 FROM telegram_channels c "
+            "WHERE c.chat_id = quiet_hours_digest_sent.chat_id)"
+        )
         await self.conn.commit()
 
     def _encrypt_token(self, value: str) -> str:
@@ -567,7 +588,8 @@ class Database:
         self, chat_id: int, twitch_login: str, recipient_chat_id: int | None
     ) -> None:
         """recipient_chat_id=None сбрасывает явную привязку — канал возвращается
-        к общей привязке чата (stats_recipients) или к самому чату."""
+        к общей личной привязке чата (stats_recipients). Отрицательные получатели
+        сохраняться могут только из старого клиента, но доставкой игнорируются."""
         await self.conn.execute(
             "UPDATE tracked_channels SET post_recipient_chat_id = ? "
             "WHERE chat_id = ? AND twitch_login = ?",
@@ -585,13 +607,22 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row and row[0] is not None else None
 
-    async def resolve_post_recipient(self, chat_id: int, twitch_login: str) -> int:
-        """Итоговый получатель постов для канала: явная привязка канала →
-        привязка всего чата → сам чат."""
+    async def resolve_post_recipient(self, chat_id: int, twitch_login: str) -> int | None:
+        """Получатель итогового отчёта — только личный Telegram-чат.
+
+        Положительный chat_id означает личку. Обычная группа никогда не становится
+        получателем, но зарегистрированный Telegram-канал сохраняет отдельное
+        поведение: там итоговый отчёт заменяет живой пост после эфира.
+        """
         per_channel = await self.get_post_recipient(chat_id, twitch_login)
-        if per_channel is not None:
+        if per_channel is not None and per_channel > 0:
             return per_channel
-        return await self.get_stats_recipient(chat_id) or chat_id
+        default_recipient = await self.get_stats_recipient(chat_id)
+        if default_recipient is not None and default_recipient > 0:
+            return default_recipient
+        if await self.is_telegram_channel(chat_id):
+            return chat_id
+        return chat_id if chat_id > 0 else None
 
     async def count_channels(self, chat_id: int) -> int:
         cursor = await self.conn.execute(

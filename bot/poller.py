@@ -857,7 +857,11 @@ class StreamPoller:
                 continue
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
             is_exempt = await self._db.get_quiet_hours_exempt(chat_id, login)
-            if not is_exempt and await self._is_recipient_in_quiet_hours(recipient_chat_id):
+            if (
+                recipient_chat_id is not None
+                and not is_exempt
+                and await self._is_recipient_in_quiet_hours(recipient_chat_id)
+            ):
                 # получатель сейчас «спит» — не шлём отчёт сразу, а копим его в очередь,
                 # чтобы прислать одной сводкой, когда тихие часы закончатся. Каналы,
                 # отмеченные как исключение, всегда идут сразу, минуя тихие часы.
@@ -882,6 +886,7 @@ class StreamPoller:
                 viewer_sum,
                 viewer_samples,
                 followers_at_start,
+                deliver=recipient_chat_id is not None,
             )
             if delivered:
                 await self._db.mark_stats_sent(chat_id, login)
@@ -1043,6 +1048,16 @@ class StreamPoller:
             text += f"\n\n🎬 Запись: {html.escape(vod_url)}"
 
         recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
+        if recipient_chat_id is None:
+            logger.info(
+                "Итоговый отчёт %s не отправлен: для группы %s не привязана личка",
+                login,
+                mask_chat_id(chat_id),
+            )
+            # История и HTML уже рассчитаны выше; отсутствие личного получателя —
+            # штатное состояние, поэтому отчёт считаем обработанным и не ретраим
+            # каждую минуту в общий чат.
+            return True
         sent = await self._tg_call(
             lambda: self._bot.send_message(recipient_chat_id, text),
             f"Итоговый отчёт в {mask_chat_id(recipient_chat_id)}",
