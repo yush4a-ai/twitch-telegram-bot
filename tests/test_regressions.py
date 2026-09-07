@@ -214,6 +214,20 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+    async def test_stale_report_history_is_not_used_for_return_note(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "channel")
+                await db.add_stream_history(
+                    1, "channel", "old-stream", 100.0, 60, 10, 5, None
+                )
+
+                self.assertEqual(await db.snapshot_last_stream_ends(), {})
+            finally:
+                await db.close()
+
 
 class OAuthTests(unittest.IsolatedAsyncioTestCase):
     async def test_registered_state_accepts_callback_before_wait_starts(self) -> None:

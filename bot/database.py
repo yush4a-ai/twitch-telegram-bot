@@ -838,17 +838,14 @@ class Database:
     async def snapshot_last_stream_ends(self) -> dict[tuple[int, str], float]:
         """Когда бот в последний раз видел завершение стрима.
 
-        Наблюдаемое время завершения хранится независимо от итогового отчёта. Поэтому
-        сбой доставки отчёта или старое поведение Telegram-каналов не превращает
-        следующий эфир в ложный «первый стрим за N дней».
+        Не подмешиваем ``stream_history``: у существующих Telegram-каналов она
+        неполная, потому что старый код намеренно не создавал для них отчёты.
+        Лучше один раз не показать метку после миграции, чем снова заявить о
+        многодневном перерыве на основании заведомо устаревшей истории.
         """
         cursor = await self.conn.execute(
-            "SELECT chat_id, twitch_login, MAX(ended_at) FROM ("
-            "  SELECT chat_id, twitch_login, ended_at FROM stream_history "
-            "  UNION ALL "
-            "  SELECT chat_id, twitch_login, last_stream_ended_at AS ended_at "
-            "  FROM tracked_channels WHERE last_stream_ended_at IS NOT NULL"
-            ") GROUP BY chat_id, twitch_login"
+            "SELECT chat_id, twitch_login, last_stream_ended_at "
+            "FROM tracked_channels WHERE last_stream_ended_at IS NOT NULL"
         )
         return {(row[0], row[1]): row[2] for row in await cursor.fetchall() if row[2] is not None}
 
