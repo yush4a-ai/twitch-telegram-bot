@@ -159,6 +159,61 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+    async def test_live_post_is_not_cleanup_candidate_before_stats_are_handled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "channel")
+                await db.set_live_state(
+                    1,
+                    "channel",
+                    False,
+                    "stream-1",
+                    message_id=10,
+                    title="Stream",
+                    offline_since=1.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                )
+
+                self.assertEqual(await db.pending_offline_posts(), [])
+
+                await db.mark_stats_sent(1, "channel")
+                self.assertEqual(
+                    await db.pending_offline_posts(),
+                    [(1, "channel", 10, 1.0)],
+                )
+            finally:
+                await db.close()
+
+    async def test_last_stream_end_does_not_depend_on_report_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "channel")
+                await db.set_live_state(
+                    1,
+                    "channel",
+                    False,
+                    "stream-1",
+                    offline_since=1234.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                )
+
+                self.assertEqual(
+                    await db.snapshot_last_stream_ends(),
+                    {(1, "channel"): 1234.0},
+                )
+
+                await db.clear_message(1, "channel")
+                self.assertEqual(
+                    await db.snapshot_last_stream_ends(),
+                    {(1, "channel"): 1234.0},
+                )
+            finally:
+                await db.close()
+
 
 class OAuthTests(unittest.IsolatedAsyncioTestCase):
     async def test_registered_state_accepts_callback_before_wait_starts(self) -> None:
@@ -275,6 +330,53 @@ class PollerCleanupTests(unittest.IsolatedAsyncioTestCase):
         await poller._cleanup_offline_posts()
 
         db.clear_message.assert_awaited_once_with(1, "channel")
+
+
+class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
+    async def test_channel_stream_generates_and_marks_final_report(self) -> None:
+        db = SimpleNamespace(
+            pending_stats=AsyncMock(
+                return_value=[
+                    (
+                        1, "channel", 0.0, "Stream", "2026-01-01T00:00:00Z",
+                        10, 20, 2, "stream-1", None,
+                    )
+                ]
+            ),
+            resolve_post_recipient=AsyncMock(return_value=1),
+            get_quiet_hours_exempt=AsyncMock(return_value=False),
+            get_quiet_hours=AsyncMock(return_value=None),
+            mark_stats_sent=AsyncMock(),
+        )
+        poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
+        poller._send_stats = AsyncMock(return_value=True)
+
+        await poller._send_pending_stats()
+
+        poller._send_stats.assert_awaited_once()
+        db.mark_stats_sent.assert_awaited_once_with(1, "channel")
+
+    async def test_failed_channel_report_stays_pending(self) -> None:
+        db = SimpleNamespace(
+            pending_stats=AsyncMock(
+                return_value=[
+                    (
+                        1, "channel", 0.0, "Stream", "2026-01-01T00:00:00Z",
+                        10, 20, 2, "stream-1", None,
+                    )
+                ]
+            ),
+            resolve_post_recipient=AsyncMock(return_value=1),
+            get_quiet_hours_exempt=AsyncMock(return_value=False),
+            get_quiet_hours=AsyncMock(return_value=None),
+            mark_stats_sent=AsyncMock(),
+        )
+        poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
+        poller._send_stats = AsyncMock(return_value=False)
+
+        await poller._send_pending_stats()
+
+        db.mark_stats_sent.assert_not_awaited()
 
 
 class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):

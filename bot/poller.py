@@ -855,12 +855,6 @@ class StreamPoller:
         ) in await self._db.pending_stats(limit=MAX_REPORTS_PER_CYCLE):
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
-            if await self._db.is_telegram_channel(chat_id):
-                # в Telegram-канале нет чата и получателя итогового отчёта — только
-                # живой пост о старте стрима, который уже отправлен и отредактирован
-                await self._db.mark_stats_sent(chat_id, login)
-                continue
-
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
             is_exempt = await self._db.get_quiet_hours_exempt(chat_id, login)
             if not is_exempt and await self._is_recipient_in_quiet_hours(recipient_chat_id):

@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     last_title TEXT,
     offline_since REAL,
     stream_started_at TEXT,
+    last_stream_ended_at REAL,
     peak_viewers INTEGER,
     viewer_sum INTEGER NOT NULL DEFAULT 0,
     viewer_samples INTEGER NOT NULL DEFAULT 0,
@@ -290,6 +291,7 @@ class Database:
                 "report_format": "TEXT NOT NULL DEFAULT 'full'",
                 "raid_detection_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "quiet_hours_exempt": "INTEGER NOT NULL DEFAULT 0",
+                "last_stream_ended_at": "REAL",
             },
         )
         await self._migrate_user_tokens_encryption()
@@ -834,12 +836,19 @@ class Database:
         return chats_by_login, states
 
     async def snapshot_last_stream_ends(self) -> dict[tuple[int, str], float]:
-        """Когда в последний раз завершался стрим для каждой пары «чат + канал».
-        История меняется только при отправке отчёта, поэтому в пределах одного
-        круга опроса такой снимок эквивалентен запросам по одному."""
+        """Когда бот в последний раз видел завершение стрима.
+
+        Наблюдаемое время завершения хранится независимо от итогового отчёта. Поэтому
+        сбой доставки отчёта или старое поведение Telegram-каналов не превращает
+        следующий эфир в ложный «первый стрим за N дней».
+        """
         cursor = await self.conn.execute(
-            "SELECT chat_id, twitch_login, MAX(ended_at) FROM stream_history "
-            "GROUP BY chat_id, twitch_login"
+            "SELECT chat_id, twitch_login, MAX(ended_at) FROM ("
+            "  SELECT chat_id, twitch_login, ended_at FROM stream_history "
+            "  UNION ALL "
+            "  SELECT chat_id, twitch_login, last_stream_ended_at AS ended_at "
+            "  FROM tracked_channels WHERE last_stream_ended_at IS NOT NULL"
+            ") GROUP BY chat_id, twitch_login"
         )
         return {(row[0], row[1]): row[2] for row in await cursor.fetchall() if row[2] is not None}
 
@@ -883,6 +892,9 @@ class Database:
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
             "last_message_id = ?, last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
+            "last_stream_ended_at = CASE "
+            "    WHEN ? = 0 AND ? IS NOT NULL THEN ? "
+            "    ELSE last_stream_ended_at END, "
             "peak_viewers = CASE "
             "    WHEN ? IS NOT NULL THEN ? "
             "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
@@ -898,6 +910,7 @@ class Database:
             (
                 int(is_live), stream_id, message_id, title, offline_since,
                 stream_started_at,
+                int(is_live), offline_since, offline_since,
                 peak_viewers, peak_viewers, int(is_live), stream_id,
                 int(is_live),
                 int(is_live), stream_id, int(is_live), stream_id,
@@ -920,11 +933,17 @@ class Database:
         await self.conn.commit()
 
     async def pending_offline_posts(self) -> list[tuple[int, str, int, float]]:
-        """(chat_id, twitch_login, message_id, offline_since) для постов, ждущих возможного удаления."""
+        """Посты завершённых стримов, чей итоговый отчёт уже обработан.
+
+        Пока ``stats_sent = 0``, live-пост сохраняется: при временной ошибке Telegram
+        поллер повторит отчёт в следующем цикле и пользователь не останется одновременно
+        без исходного уведомления и без статистики.
+        """
         cursor = await self.conn.execute(
             "SELECT chat_id, twitch_login, last_message_id, offline_since "
             "FROM tracked_channels "
-            "WHERE is_live = 0 AND offline_since IS NOT NULL AND last_message_id IS NOT NULL"
+            "WHERE is_live = 0 AND offline_since IS NOT NULL "
+            "AND last_message_id IS NOT NULL AND stats_sent = 1"
         )
         return await cursor.fetchall()
 
