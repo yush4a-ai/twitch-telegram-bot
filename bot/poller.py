@@ -1000,13 +1000,13 @@ class StreamPoller:
         if login in cache:
             count = cache[login]
         else:
-            token = await self._token_store.get_valid_token(login)
-            if token is None:
-                cache[login] = None
-                return
-            broadcaster_id, access_token = token
             try:
-                count = await self._twitch.get_followers_count(broadcaster_id, access_token)
+                count = await self._token_store.execute_with_token(
+                    login,
+                    lambda broadcaster_id, access_token: self._twitch.get_followers_count(
+                        broadcaster_id, access_token
+                    ),
+                )
             except Exception:
                 cache[login] = None
                 logger.exception("Не удалось получить число фолловеров для %s", login)
@@ -1535,12 +1535,13 @@ class StreamPoller:
         # Это изменение общего числа, а не число самих follow-событий.
         if self._token_store is None or followers_at_start is None:
             return None
-        token = await self._token_store.get_valid_token(login)
-        if token is None:
-            return None
-        broadcaster_id, access_token = token
         try:
-            current_count = await self._twitch.get_followers_count(broadcaster_id, access_token)
+            current_count = await self._token_store.execute_with_token(
+                login,
+                lambda broadcaster_id, access_token: self._twitch.get_followers_count(
+                    broadcaster_id, access_token
+                ),
+            )
         except Exception:
             logger.exception("Не удалось получить итоговое число фолловеров для %s", login)
             return None

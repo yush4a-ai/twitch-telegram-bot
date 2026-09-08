@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 import aiohttp
 
 from .database import Database
+from .oauth import OAuthTokenTerminalError
 from .token_store import TokenStore
+from .twitch import TwitchAuthError, user_token_request
 
 
 logger = logging.getLogger(__name__)
@@ -109,15 +111,20 @@ class FollowEventListener:
         backoff = 1
         while not self._stop_event.is_set():
             try:
-                token_data = await self._token_store.get_valid_token(login)
-                if token_data is None:
-                    self._first_attempt.add(login)
-                    return
-                broadcaster_id, access_token = token_data
-                await self._connection(login, broadcaster_id, access_token)
+                await self._token_store.execute_with_token(
+                    login,
+                    lambda broadcaster_id, access_token: self._connection(
+                        login, broadcaster_id, access_token
+                    ),
+                )
                 backoff = 1
             except asyncio.CancelledError:
                 raise
+            except (TwitchAuthError, OAuthTokenTerminalError):
+                logger.warning(
+                    "EventSub follow требует повторной авторизации: %s", login
+                )
+                return
             except Exception:
                 logger.exception("EventSub follow: соединение для %s оборвалось", login)
             finally:
@@ -180,6 +187,10 @@ class FollowEventListener:
                         logger.info("EventSub follow переподключён без разрыва: %s", login)
                     elif kind == "revocation":
                         status = payload.get("payload", {}).get("subscription", {}).get("status")
+                        if status in {"authorization_revoked", "user_removed"}:
+                            raise TwitchAuthError(
+                                f"Twitch EventSub authorization больше не действует: {login}"
+                            )
                         raise RuntimeError(f"Twitch отозвал EventSub-подписку: {status}")
                 elif message.type in {
                     aiohttp.WSMsgType.CLOSED,
@@ -202,19 +213,16 @@ class FollowEventListener:
             },
             "transport": {"method": "websocket", "session_id": session_id},
         }
-        headers = {
-            "Client-Id": self._client_id,
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-        async with self._session.post(
-            EVENTSUB_SUBSCRIPTIONS_URL, json=body, headers=headers
-        ) as response:
-            if response.status != 202:
-                detail = (await response.text())[:500]
-                raise RuntimeError(
-                    f"Create EventSub subscription: HTTP {response.status}: {detail}"
-                )
+        await user_token_request(
+            self._session,
+            self._client_id,
+            "POST",
+            EVENTSUB_SUBSCRIPTIONS_URL,
+            access_token,
+            json_body=body,
+            expected_status=202,
+            parse_json=False,
+        )
 
     async def _handle_notification(self, login: str, payload: dict) -> None:
         subscription = payload.get("payload", {}).get("subscription", {})

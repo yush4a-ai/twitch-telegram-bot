@@ -15,6 +15,44 @@ logger = logging.getLogger(__name__)
 HTTP_TIMEOUT = aiohttp.ClientTimeout(total=15)
 HTTP_MAX_RETRIES = 2
 HTTP_RETRY_BASE_DELAY = 1.0
+USER_HTTP_TIMEOUT = aiohttp.ClientTimeout(total=10, connect=3)
+USER_HTTP_MAX_RETRIES = 1
+USER_HTTP_MAX_RETRY_DELAY = 2.0
+MAX_FOLLOWED_PAGES = 1000
+
+
+class TwitchUserTokenError(RuntimeError):
+    """Базовая безопасная ошибка Helix-запроса с user access token."""
+
+
+class TwitchAuthError(TwitchUserTokenError):
+    """Операция не может продолжиться без повторной авторизации пользователя."""
+
+
+class TwitchUnauthorizedError(TwitchAuthError):
+    """Access token отвергнут; caller может выполнить один controlled refresh."""
+
+
+class TwitchRateLimitError(TwitchUserTokenError):
+    def __init__(self, retry_after: float | None = None) -> None:
+        super().__init__("Twitch временно ограничил частоту user-token запросов")
+        self.retry_after = retry_after
+
+
+class TwitchTemporaryError(TwitchUserTokenError):
+    """Временный 5xx/network/timeout или некорректный ответ upstream."""
+
+
+class TwitchUserResponseError(TwitchUserTokenError):
+    """Endpoint-specific 4xx, который нельзя автоматически считать revocation."""
+
+    def __init__(self, status: int) -> None:
+        super().__init__(f"Twitch user-token endpoint вернул HTTP {status}")
+        self.status = status
+
+
+class TwitchPaginationError(TwitchUserTokenError):
+    """Некорректная пагинация, которую нельзя молча принять за полный результат."""
 
 
 def _retry_delay(attempt: int, ratelimit_reset: str | None) -> float:
@@ -29,6 +67,125 @@ def _retry_delay(attempt: int, ratelimit_reset: str | None) -> float:
         except ValueError:
             pass
     return HTTP_RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.5)
+
+
+def _user_retry_delay(attempt: int, headers) -> float:
+    retry_after = headers.get("Retry-After") if headers is not None else None
+    if retry_after:
+        try:
+            return max(float(retry_after), 0.0)
+        except (TypeError, ValueError):
+            pass
+    ratelimit_reset = headers.get("Ratelimit-Reset") if headers is not None else None
+    if ratelimit_reset:
+        try:
+            return max(float(ratelimit_reset) - time.time(), 0.0)
+        except (TypeError, ValueError):
+            pass
+    return HTTP_RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.25)
+
+
+async def user_token_request(
+    session: aiohttp.ClientSession,
+    client_id: str,
+    method: str,
+    url: str,
+    access_token: str,
+    *,
+    params=None,
+    json_body=None,
+    expected_status: int = 200,
+    parse_json: bool = True,
+) -> dict:
+    """Один общий bounded request path для Twitch user access token.
+
+    401 намеренно не refresh-ится здесь: coordination и refresh-token rotation
+    принадлежат TokenStore. В логах есть только endpoint/status, но никогда token,
+    Authorization header или response body.
+    """
+    headers = {
+        "Client-Id": client_id,
+        "Authorization": f"Bearer {access_token}",
+    }
+    request = getattr(session, method.lower())
+    for attempt in range(USER_HTTP_MAX_RETRIES + 1):
+        try:
+            async with request(
+                url,
+                headers=headers,
+                params=params,
+                json=json_body,
+                timeout=USER_HTTP_TIMEOUT,
+            ) as response:
+                status = response.status
+                if status == 401:
+                    raise TwitchUnauthorizedError(
+                        f"Twitch user-token endpoint отверг access token: {url}"
+                    )
+                if status == 429:
+                    delay = _user_retry_delay(attempt, response.headers)
+                    if (
+                        attempt < USER_HTTP_MAX_RETRIES
+                        and delay <= USER_HTTP_MAX_RETRY_DELAY
+                    ):
+                        logger.warning(
+                            "Twitch user-token endpoint вернул 429: %s; повтор через %.1fс",
+                            url,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    raise TwitchRateLimitError(delay)
+                if status >= 500:
+                    if attempt < USER_HTTP_MAX_RETRIES:
+                        delay = min(
+                            HTTP_RETRY_BASE_DELAY * (2 ** attempt),
+                            USER_HTTP_MAX_RETRY_DELAY,
+                        )
+                        logger.warning(
+                            "Twitch user-token endpoint вернул %s: %s; повтор через %.1fс",
+                            status,
+                            url,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    raise TwitchTemporaryError(
+                        f"Twitch user-token endpoint временно недоступен: HTTP {status}"
+                    )
+                if status != expected_status:
+                    raise TwitchUserResponseError(status)
+                if not parse_json:
+                    return {}
+                try:
+                    data = await response.json()
+                except (aiohttp.ClientError, TypeError, ValueError) as e:
+                    raise TwitchTemporaryError(
+                        "Twitch user-token endpoint вернул некорректный JSON"
+                    ) from e
+                if not isinstance(data, dict):
+                    raise TwitchTemporaryError(
+                        "Twitch user-token endpoint вернул некорректный payload"
+                    )
+                return data
+        except TwitchUserTokenError:
+            raise
+        except (aiohttp.ClientConnectionError, asyncio.TimeoutError) as e:
+            if attempt >= USER_HTTP_MAX_RETRIES:
+                raise TwitchTemporaryError(
+                    f"Twitch user-token endpoint временно недоступен: {url}"
+                ) from e
+            delay = min(
+                HTTP_RETRY_BASE_DELAY * (2 ** attempt), USER_HTTP_MAX_RETRY_DELAY
+            )
+            logger.warning(
+                "Сеть недоступна для Twitch user-token endpoint %s; повтор через %.1fс",
+                url,
+                delay,
+            )
+            await asyncio.sleep(delay)
+
+    raise TwitchTemporaryError(f"Twitch user-token request не завершён: {url}")
 
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 STREAMS_URL = "https://api.twitch.tv/helix/streams"
@@ -212,29 +369,49 @@ class TwitchClient:
     async def get_followed_channels(self, user_id: str, user_access_token: str) -> list[str]:
         """Логины каналов, на которые подписан пользователь. Требует пользовательский
         токен со scope user:read:follows — client-credentials здесь не подходит."""
-        headers = {
-            "Client-Id": self._client_id,
-            "Authorization": f"Bearer {user_access_token}",
-        }
         logins: list[str] = []
+        seen_logins: set[str] = set()
+        seen_cursors: set[str] = set()
         cursor: str | None = None
-        while True:
+        for _page in range(MAX_FOLLOWED_PAGES):
             params = [("user_id", user_id), ("first", "100")]
             if cursor:
                 params.append(("after", cursor))
-            async with self._session.get(
-                FOLLOWED_URL, headers=headers, params=params, timeout=HTTP_TIMEOUT
-            ) as resp:
-                resp.raise_for_status()
-                data = await resp.json()
-            logins.extend(
-                item["broadcaster_login"].lower()
-                for item in data.get("data", [])
-                if item.get("broadcaster_login")
+            data = await user_token_request(
+                self._session,
+                self._client_id,
+                "GET",
+                FOLLOWED_URL,
+                user_access_token,
+                params=params,
             )
-            cursor = data.get("pagination", {}).get("cursor")
-            if not cursor:
+            items = data.get("data", [])
+            pagination = data.get("pagination", {})
+            if not isinstance(items, list) or not isinstance(pagination, dict):
+                raise TwitchTemporaryError(
+                    "Twitch followed endpoint вернул некорректную страницу"
+                )
+            for item in items:
+                if not isinstance(item, dict):
+                    raise TwitchTemporaryError(
+                        "Twitch followed endpoint вернул некорректный channel item"
+                    )
+                login = item.get("broadcaster_login")
+                if login:
+                    normalized = login.lower()
+                    if normalized not in seen_logins:
+                        seen_logins.add(normalized)
+                        logins.append(normalized)
+            next_cursor = pagination.get("cursor")
+            if not next_cursor:
                 return logins
+            if not isinstance(next_cursor, str) or next_cursor in seen_cursors:
+                raise TwitchPaginationError(
+                    "Twitch вернул повторный или некорректный pagination cursor"
+                )
+            seen_cursors.add(next_cursor)
+            cursor = next_cursor
+        raise TwitchPaginationError("Twitch pagination превысила безопасный лимит страниц")
 
     async def get_user_id(self, login: str) -> str | None:
         data = await self._request(USERS_URL, [("login", login)])
@@ -296,13 +473,17 @@ class TwitchClient:
 
     async def get_followers_count(self, broadcaster_id: str, user_access_token: str) -> int:
         """Требует user access token с правом moderator:read:followers (self-moderation тоже подходит)."""
-        headers = {"Client-Id": self._client_id, "Authorization": f"Bearer {user_access_token}"}
-        async with self._session.get(
+        data = await user_token_request(
+            self._session,
+            self._client_id,
+            "GET",
             FOLLOWERS_URL,
-            headers=headers,
+            user_access_token,
             params={"broadcaster_id": broadcaster_id, "first": "1"},
-            timeout=HTTP_TIMEOUT,
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-        return data.get("total", 0)
+        )
+        total = data.get("total")
+        if not isinstance(total, int) or total < 0:
+            raise TwitchTemporaryError(
+                "Twitch followers endpoint вернул некорректный total"
+            )
+        return total

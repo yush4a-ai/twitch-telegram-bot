@@ -50,10 +50,19 @@ from bot.handlers.streams import (
     _deliver_report,
     _format_viewers,
     _message_can_manage_chat,
+    _run_import_follows,
     cb_quiet_digest_response,
     cmd_report,
 )
-from bot.oauth import OAuthCallbackServer, OAuthFlowError
+from bot.oauth import (
+    OAuthCallbackServer,
+    OAuthFlowError,
+    OAuthTokenRevokedError,
+    OAuthTokenTemporaryError,
+    UserTokenResult,
+    _exchange_code,
+    refresh_user_token,
+)
 from bot.poller import (
     OFFLINE_GRACE_SECONDS,
     RESTART_MERGE_GRACE_SECONDS,
@@ -62,7 +71,16 @@ from bot.poller import (
 )
 from bot.report_delivery import validate_report_destination
 from bot.token_store import TokenStore
-from bot.twitch import StreamInfo, TwitchClient
+from bot.twitch import (
+    StreamInfo,
+    TwitchAuthError,
+    TwitchClient,
+    TwitchPaginationError,
+    TwitchRateLimitError,
+    TwitchTemporaryError,
+    TwitchUnauthorizedError,
+    TwitchUserResponseError,
+)
 from main import _reconcile_telegram_channels
 
 
@@ -82,6 +100,24 @@ def _stream(stream_id: str, viewers: int = 25) -> StreamInfo:
         viewer_count=viewers,
         started_at="2026-01-01T00:00:00Z",
     )
+
+
+class _FakeHTTPResponse:
+    def __init__(self, status: int, payload=None, headers=None) -> None:
+        self.status = status
+        self._payload = payload if payload is not None else {}
+        self.headers = headers or {}
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args) -> None:
+        return None
+
+    async def json(self):
+        if isinstance(self._payload, BaseException):
+            raise self._payload
+        return self._payload
 
 
 class ConfigTests(unittest.TestCase):
@@ -3124,6 +3160,616 @@ class TelegramChannelRegistryRemovalTests(unittest.IsolatedAsyncioTestCase):
                 await db.close()
 
 
+class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.db = Database(":memory:")
+        await self.db.connect()
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+
+    @staticmethod
+    def _session(*, get=None, post=None):
+        return SimpleNamespace(
+            get=Mock(side_effect=get or []),
+            post=Mock(side_effect=post or []),
+        )
+
+    async def _store(self, access="old-access", refresh="old-refresh", expires=None):
+        await self.db.save_user_token(
+            "channel",
+            "broadcaster",
+            access,
+            refresh,
+            time.time() + 3600 if expires is None else expires,
+        )
+        return TokenStore(self.db, "client", "secret", SimpleNamespace())
+
+    async def test_user_follower_endpoint_success(self) -> None:
+        session = self._session(get=[_FakeHTTPResponse(200, {"total": 42})])
+        client = TwitchClient("client", "secret", session)
+
+        self.assertEqual(await client.get_followers_count("broadcaster", "access"), 42)
+        self.assertEqual(session.get.call_count, 1)
+
+    async def test_user_endpoint_429_is_temporary_and_long_wait_is_deferred(self) -> None:
+        session = self._session(
+            get=[_FakeHTTPResponse(429, headers={"Retry-After": "30"})]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with patch("bot.twitch.asyncio.sleep", new=AsyncMock()) as sleep:
+            with self.assertRaises(TwitchRateLimitError):
+                await client.get_followers_count("broadcaster", "access")
+
+        sleep.assert_not_awaited()
+        self.assertEqual(session.get.call_count, 1)
+
+    async def test_user_endpoint_500_retries_once_then_succeeds(self) -> None:
+        session = self._session(
+            get=[
+                _FakeHTTPResponse(500),
+                _FakeHTTPResponse(200, {"total": 9}),
+            ]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with patch("bot.twitch.asyncio.sleep", new=AsyncMock()) as sleep:
+            self.assertEqual(
+                await client.get_followers_count("broadcaster", "access"), 9
+            )
+
+        sleep.assert_awaited_once()
+        self.assertEqual(session.get.call_count, 2)
+
+    async def test_user_endpoint_timeout_is_temporary_and_bounded(self) -> None:
+        session = self._session(
+            get=[asyncio.TimeoutError(), asyncio.TimeoutError()]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with patch("bot.twitch.asyncio.sleep", new=AsyncMock()) as sleep:
+            with self.assertRaises(TwitchTemporaryError):
+                await client.get_followers_count("broadcaster", "access")
+
+        sleep.assert_awaited_once()
+        self.assertEqual(session.get.call_count, 2)
+
+    async def test_user_endpoint_403_is_not_misclassified_as_unauthorized(self) -> None:
+        session = self._session(get=[_FakeHTTPResponse(403)])
+        client = TwitchClient("client", "secret", session)
+
+        with self.assertRaises(TwitchUserResponseError) as caught:
+            await client.get_followers_count("broadcaster", "access")
+
+        self.assertEqual(caught.exception.status, 403)
+
+    async def test_401_forces_one_refresh_then_retries_with_new_access(self) -> None:
+        store = await self._store()
+        session = self._session(
+            get=[
+                _FakeHTTPResponse(401),
+                _FakeHTTPResponse(200, {"total": 17}),
+            ]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(return_value=("new-access", "new-refresh", time.time() + 3600)),
+        ) as refresh:
+            result = await store.execute_with_token(
+                "channel",
+                lambda broadcaster_id, access_token: client.get_followers_count(
+                    broadcaster_id, access_token
+                ),
+            )
+
+        self.assertEqual(result, 17)
+        refresh.assert_awaited_once()
+        self.assertEqual(
+            await self.db.get_user_token("channel"),
+            ("broadcaster", "new-access", "new-refresh", refresh.return_value[2]),
+        )
+        authorizations = [
+            call.kwargs["headers"]["Authorization"] for call in session.get.call_args_list
+        ]
+        self.assertEqual(authorizations, ["Bearer old-access", "Bearer new-access"])
+
+    async def test_second_401_after_refresh_is_terminal_without_loop(self) -> None:
+        store = await self._store()
+        session = self._session(get=[_FakeHTTPResponse(401), _FakeHTTPResponse(401)])
+        client = TwitchClient("client", "secret", session)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(return_value=("new-access", "new-refresh", time.time() + 3600)),
+        ) as refresh:
+            with self.assertRaises(TwitchAuthError):
+                await store.execute_with_token(
+                    "channel",
+                    lambda broadcaster_id, access_token: client.get_followers_count(
+                        broadcaster_id, access_token
+                    ),
+                )
+
+        refresh.assert_awaited_once()
+        self.assertEqual(session.get.call_count, 2)
+        operation = AsyncMock(return_value=1)
+        with self.assertRaises(TwitchAuthError):
+            await store.execute_with_token("channel", operation)
+        operation.assert_not_awaited()
+        refresh.assert_awaited_once()
+
+    async def test_concurrent_401_operations_share_one_refresh(self) -> None:
+        store = await self._store()
+        both_rejected = asyncio.Event()
+        old_calls = 0
+
+        async def operation(_broadcaster_id, access_token):
+            nonlocal old_calls
+            if access_token == "old-access":
+                old_calls += 1
+                if old_calls == 2:
+                    both_rejected.set()
+                await both_rejected.wait()
+                raise TwitchUnauthorizedError("401")
+            return access_token
+
+        async def rotate(*_args):
+            await asyncio.sleep(0)
+            return "new-access", "new-refresh", time.time() + 3600
+
+        with patch(
+            "bot.token_store.refresh_user_token", new=AsyncMock(side_effect=rotate)
+        ) as refresh:
+            first, second = await asyncio.gather(
+                store.execute_with_token("channel", operation),
+                store.execute_with_token("channel", operation),
+            )
+
+        self.assertEqual((first, second), ("new-access", "new-access"))
+        refresh.assert_awaited_once()
+
+    async def test_rotated_refresh_token_is_used_by_next_refresh(self) -> None:
+        store = await self._store(expires=0.0)
+        refresh_results = [
+            ("access-one", "refresh-one", 0.0),
+            ("access-two", "refresh-two", time.time() + 3600),
+        ]
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(side_effect=refresh_results),
+        ) as refresh:
+            await store.get_valid_token("channel")
+            await store.get_valid_token("channel")
+
+        self.assertEqual(refresh.await_count, 2)
+        self.assertEqual(refresh.await_args_list[0].args[2], "old-refresh")
+        self.assertEqual(refresh.await_args_list[1].args[2], "refresh-one")
+
+    async def test_temporary_refresh_failure_preserves_stored_token(self) -> None:
+        store = await self._store(expires=0.0)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(side_effect=OAuthTokenTemporaryError("temporary")),
+        ):
+            with self.assertRaises(OAuthTokenTemporaryError):
+                await store.get_valid_token("channel")
+
+        self.assertEqual(
+            await self.db.get_user_token("channel"),
+            ("broadcaster", "old-access", "old-refresh", 0.0),
+        )
+
+    async def test_invalid_grant_is_terminal_until_token_record_changes(self) -> None:
+        store = await self._store(expires=0.0)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(side_effect=OAuthTokenRevokedError("invalid_grant")),
+        ) as refresh:
+            with self.assertRaises(OAuthTokenRevokedError):
+                await store.get_valid_token("channel")
+            self.assertIsNone(await store.get_valid_token("channel"))
+
+        refresh.assert_awaited_once()
+        await self.db.save_user_token(
+            "channel", "broadcaster", "reauth-access", "reauth-refresh", time.time() + 3600
+        )
+        self.assertEqual(
+            await store.get_valid_token("channel"),
+            ("broadcaster", "reauth-access"),
+        )
+
+    async def test_refresh_invalid_grant_is_classified_without_secret_in_error(self) -> None:
+        session = self._session(
+            post=[_FakeHTTPResponse(400, {"error": "invalid_grant"})]
+        )
+
+        with self.assertRaises(OAuthTokenRevokedError) as caught:
+            await refresh_user_token("client", "secret", "refresh-secret", session)
+
+        self.assertNotIn("refresh-secret", str(caught.exception))
+
+    async def test_malformed_refresh_response_is_temporary(self) -> None:
+        session = self._session(
+            post=[_FakeHTTPResponse(200, {"access_token": "access", "expires_in": 3600})]
+        )
+
+        with self.assertRaises(OAuthTokenTemporaryError):
+            await refresh_user_token("client", "secret", "refresh", session)
+
+    async def test_new_user_token_validation_retries_temporary_5xx(self) -> None:
+        session = self._session(
+            post=[
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "access_token": "new-access",
+                        "refresh_token": "new-refresh",
+                        "expires_in": 3600,
+                    },
+                )
+            ],
+            get=[
+                _FakeHTTPResponse(500),
+                _FakeHTTPResponse(
+                    200, {"data": [{"login": "Channel", "id": "42"}]}
+                ),
+            ],
+        )
+
+        with patch("bot.twitch.asyncio.sleep", new=AsyncMock()) as sleep:
+            result = await _exchange_code(
+                "client", "secret", "code", "https://example.test/callback", session
+            )
+
+        self.assertEqual((result.login, result.broadcaster_id), ("channel", "42"))
+        sleep.assert_awaited_once()
+
+    async def test_new_user_token_validation_401_is_safe_auth_error(self) -> None:
+        session = self._session(
+            post=[
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "access_token": "new-access-secret",
+                        "refresh_token": "new-refresh-secret",
+                        "expires_in": 3600,
+                    },
+                )
+            ],
+            get=[_FakeHTTPResponse(401)],
+        )
+
+        with self.assertRaises(OAuthFlowError) as caught:
+            await _exchange_code(
+                "client", "client-secret", "code-secret",
+                "https://example.test/callback", session,
+            )
+
+        error = str(caught.exception)
+        self.assertNotIn("new-access-secret", error)
+        self.assertNotIn("new-refresh-secret", error)
+        self.assertNotIn("client-secret", error)
+        self.assertNotIn("code-secret", error)
+
+    async def test_refresh_500_retries_once_then_persists_rotated_pair(self) -> None:
+        session = self._session(
+            post=[
+                _FakeHTTPResponse(500),
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "access_token": "new-access",
+                        "refresh_token": "new-refresh",
+                        "expires_in": 3600,
+                    },
+                ),
+            ]
+        )
+
+        with patch("bot.oauth.asyncio.sleep", new=AsyncMock()) as sleep:
+            access, refresh, expires_at = await refresh_user_token(
+                "client", "secret", "old-refresh", session
+            )
+
+        self.assertEqual((access, refresh), ("new-access", "new-refresh"))
+        self.assertGreater(expires_at, time.time())
+        sleep.assert_awaited_once()
+        self.assertEqual(session.post.call_count, 2)
+
+    async def test_refresh_429_with_long_wait_is_temporary_without_sleep(self) -> None:
+        session = self._session(
+            post=[_FakeHTTPResponse(429, headers={"Retry-After": "30"})]
+        )
+
+        with patch("bot.oauth.asyncio.sleep", new=AsyncMock()) as sleep:
+            with self.assertRaises(OAuthTokenTemporaryError):
+                await refresh_user_token("client", "secret", "refresh", session)
+
+        sleep.assert_not_awaited()
+        self.assertEqual(session.post.call_count, 1)
+
+    async def test_refresh_timeout_is_temporary_and_bounded(self) -> None:
+        session = self._session(
+            post=[asyncio.TimeoutError(), asyncio.TimeoutError()]
+        )
+
+        with patch("bot.oauth.asyncio.sleep", new=AsyncMock()) as sleep:
+            with self.assertRaises(OAuthTokenTemporaryError):
+                await refresh_user_token("client", "secret", "refresh", session)
+
+        sleep.assert_awaited_once()
+        self.assertEqual(session.post.call_count, 2)
+
+    async def test_rotated_token_is_not_returned_when_database_save_fails(self) -> None:
+        store = await self._store(expires=0.0)
+
+        with (
+            patch(
+                "bot.token_store.refresh_user_token",
+                new=AsyncMock(
+                    return_value=("new-access", "new-refresh", time.time() + 3600)
+                ),
+            ) as refresh,
+            patch.object(
+                self.db,
+                "save_user_token",
+                new=AsyncMock(side_effect=OSError("database unavailable")),
+            ),
+        ):
+            with self.assertRaisesRegex(OSError, "database unavailable"):
+                await store.get_valid_token("channel")
+
+        self.assertEqual(
+            await self.db.get_user_token("channel"),
+            ("broadcaster", "old-access", "old-refresh", 0.0),
+        )
+        self.assertEqual(
+            await store.get_valid_token("channel"),
+            ("broadcaster", "new-access"),
+        )
+        refresh.assert_awaited_once()
+        persisted = await self.db.get_user_token("channel")
+        self.assertEqual(persisted[1:3], ("new-access", "new-refresh"))
+
+    async def test_follower_snapshot_failure_is_not_zero_and_retries_next_cycle(self) -> None:
+        db = SimpleNamespace(set_followers_at_start=AsyncMock())
+        token_store = SimpleNamespace(
+            execute_with_token=AsyncMock(
+                side_effect=[TwitchRateLimitError(30), 25]
+            )
+        )
+        poller = StreamPoller(
+            SimpleNamespace(), db, SimpleNamespace(), 60, token_store=token_store
+        )
+        first_cycle: dict[str, int | None] = {}
+
+        await poller._maybe_snapshot_followers(1, "channel", None, first_cycle)
+        await poller._maybe_snapshot_followers(2, "channel", None, first_cycle)
+
+        db.set_followers_at_start.assert_not_awaited()
+        self.assertEqual(token_store.execute_with_token.await_count, 1)
+
+        await poller._maybe_snapshot_followers(1, "channel", None, {})
+
+        db.set_followers_at_start.assert_awaited_once_with(1, "channel", 25)
+        self.assertEqual(token_store.execute_with_token.await_count, 2)
+
+    async def test_followed_pagination_429_midway_never_returns_partial_result(self) -> None:
+        session = self._session(
+            get=[
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [{"broadcaster_login": "one"}],
+                        "pagination": {"cursor": "next"},
+                    },
+                ),
+                _FakeHTTPResponse(429, headers={"Retry-After": "30"}),
+            ]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with self.assertRaises(TwitchRateLimitError):
+            await client.get_followed_channels("user", "access")
+
+        self.assertEqual(session.get.call_count, 2)
+
+    async def test_followed_pagination_401_refreshes_once_and_restarts_safely(self) -> None:
+        store = await self._store()
+        session = self._session(
+            get=[
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [{"broadcaster_login": "one"}],
+                        "pagination": {"cursor": "next"},
+                    },
+                ),
+                _FakeHTTPResponse(401),
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [{"broadcaster_login": "one"}],
+                        "pagination": {"cursor": "next"},
+                    },
+                ),
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [{"broadcaster_login": "two"}],
+                        "pagination": {},
+                    },
+                ),
+            ]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(return_value=("new-access", "new-refresh", time.time() + 3600)),
+        ) as refresh:
+            follows = await store.execute_with_token(
+                "channel",
+                lambda broadcaster_id, access_token: client.get_followed_channels(
+                    broadcaster_id, access_token
+                ),
+            )
+
+        self.assertEqual(follows, ["one", "two"])
+        refresh.assert_awaited_once()
+        authorizations = [
+            call.kwargs["headers"]["Authorization"] for call in session.get.call_args_list
+        ]
+        self.assertEqual(
+            authorizations,
+            [
+                "Bearer old-access",
+                "Bearer old-access",
+                "Bearer new-access",
+                "Bearer new-access",
+            ],
+        )
+
+    async def test_repeated_pagination_cursor_is_bounded_error(self) -> None:
+        page = {
+            "data": [{"broadcaster_login": "one"}],
+            "pagination": {"cursor": "same"},
+        }
+        session = self._session(
+            get=[_FakeHTTPResponse(200, page), _FakeHTTPResponse(200, page)]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with self.assertRaises(TwitchPaginationError):
+            await client.get_followed_channels("user", "access")
+
+        self.assertEqual(session.get.call_count, 2)
+
+    async def test_followed_pagination_deduplicates_channels(self) -> None:
+        session = self._session(
+            get=[
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [{"broadcaster_login": "One"}],
+                        "pagination": {"cursor": "next"},
+                    },
+                ),
+                _FakeHTTPResponse(
+                    200,
+                    {
+                        "data": [
+                            {"broadcaster_login": "one"},
+                            {"broadcaster_login": "two"},
+                        ],
+                        "pagination": {},
+                    },
+                ),
+            ]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        self.assertEqual(
+            await client.get_followed_channels("user", "access"),
+            ["one", "two"],
+        )
+
+    async def test_malformed_followed_page_is_not_false_complete(self) -> None:
+        session = self._session(
+            get=[_FakeHTTPResponse(200, {"data": "not-a-list", "pagination": {}})]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with self.assertRaises(TwitchTemporaryError):
+            await client.get_followed_channels("user", "access")
+
+    async def test_eventsub_subscription_401_uses_coordinated_refresh(self) -> None:
+        store = await self._store()
+        session = self._session(
+            post=[_FakeHTTPResponse(401), _FakeHTTPResponse(202)]
+        )
+        listener = FollowEventListener(self.db, store, "client", session)
+
+        with patch(
+            "bot.token_store.refresh_user_token",
+            new=AsyncMock(return_value=("new-access", "new-refresh", time.time() + 3600)),
+        ) as refresh:
+            await store.execute_with_token(
+                "channel",
+                lambda broadcaster_id, access_token: listener._subscribe(
+                    "session", broadcaster_id, access_token
+                ),
+            )
+
+        refresh.assert_awaited_once()
+        self.assertEqual(session.post.call_count, 2)
+
+    async def test_import_temporary_error_does_not_publish_partial_selection(self) -> None:
+        message = SimpleNamespace(
+            chat=SimpleNamespace(type="private", id=123),
+            answer=AsyncMock(),
+        )
+        state = SimpleNamespace(clear=AsyncMock(), update_data=AsyncMock())
+        config = SimpleNamespace(
+            twitch_client_id="client",
+            twitch_client_secret="secret",
+        )
+        result = UserTokenResult(
+            login="channel",
+            broadcaster_id="broadcaster",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=time.time() + 3600,
+        )
+
+        with (
+            patch(
+                "bot.handlers.streams.run_authorization_flow",
+                new=AsyncMock(return_value=result),
+            ),
+            patch(
+                "bot.handlers.streams.TwitchClient.get_followed_channels",
+                new=AsyncMock(side_effect=TwitchRateLimitError(30)),
+            ),
+        ):
+            await _run_import_follows(
+                message,
+                state,
+                self.db,
+                config,
+                SimpleNamespace(),
+            )
+
+        state.update_data.assert_not_awaited()
+        self.assertIn("Ничего не импортировано", message.answer.await_args.args[0])
+
+    async def test_user_token_logs_never_contain_secrets(self) -> None:
+        session = self._session(
+            get=[_FakeHTTPResponse(500), _FakeHTTPResponse(500)]
+        )
+        client = TwitchClient("client", "secret", session)
+
+        with (
+            patch("bot.twitch.asyncio.sleep", new=AsyncMock()),
+            self.assertLogs("bot.twitch", level="WARNING") as captured,
+        ):
+            with self.assertRaises(TwitchTemporaryError):
+                await client.get_followers_count(
+                    "broadcaster-secret", "access-secret"
+                )
+
+        logs = "\n".join(captured.output)
+        self.assertNotIn("access-secret", logs)
+        self.assertNotIn("refresh-secret", logs)
+        self.assertNotIn("Authorization", logs)
+
+
 class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
     async def test_twitch_stage_failure_does_not_starve_independent_cycle_work(self) -> None:
         db = SimpleNamespace(
@@ -3266,10 +3912,12 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_follower_snapshot_is_fetched_once_per_login_for_multiple_chats(self) -> None:
         db = SimpleNamespace(set_followers_at_start=AsyncMock())
-        token_store = SimpleNamespace(
-            get_valid_token=AsyncMock(return_value=("broadcaster", "access"))
-        )
         twitch = SimpleNamespace(get_followers_count=AsyncMock(return_value=42))
+
+        async def execute(_login, operation):
+            return await operation("broadcaster", "access")
+
+        token_store = SimpleNamespace(execute_with_token=AsyncMock(side_effect=execute))
         poller = StreamPoller(
             SimpleNamespace(), db, twitch, 60, token_store=token_store
         )
@@ -3278,7 +3926,8 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
         await poller._maybe_snapshot_followers(1, "channel", None, cache)
         await poller._maybe_snapshot_followers(2, "channel", None, cache)
 
-        token_store.get_valid_token.assert_awaited_once_with("channel")
+        token_store.execute_with_token.assert_awaited_once()
+        self.assertEqual(token_store.execute_with_token.await_args.args[0], "channel")
         twitch.get_followers_count.assert_awaited_once_with("broadcaster", "access")
         self.assertEqual(db.set_followers_at_start.await_count, 2)
 

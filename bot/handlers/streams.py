@@ -28,7 +28,14 @@ import aiohttp
 from ..config import Config
 from ..database import Database
 from ..logging_utils import mask_chat_id
-from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
+from ..oauth import (
+    TOKEN_HTTP_TIMEOUT,
+    OAuthCallbackServer,
+    OAuthFlowError,
+    OAuthTokenTerminalError,
+    OAuthTokenTemporaryError,
+    run_authorization_flow,
+)
 from ..poller import (
     StreamPoller,
     _is_within_quiet_hours,
@@ -37,7 +44,8 @@ from ..poller import (
 )
 from ..report import build_report_html, format_duration_seconds
 from ..report_delivery import validate_report_destination
-from ..twitch import TwitchClient
+from ..token_store import TokenStore
+from ..twitch import TwitchAuthError, TwitchClient, TwitchUserTokenError
 
 logger = logging.getLogger(__name__)
 
@@ -1526,7 +1534,7 @@ async def _run_import_follows(
             f"после этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
         )
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=TOKEN_HTTP_TIMEOUT) as session:
         try:
             result = await run_authorization_flow(
                 config.twitch_client_id,
@@ -1549,10 +1557,31 @@ async def _run_import_follows(
         )
 
         twitch_client = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
+        token_store = TokenStore(
+            db, config.twitch_client_id, config.twitch_client_secret, session
+        )
         try:
-            follows = await twitch_client.get_followed_channels(
-                result.broadcaster_id, result.access_token
+            follows = await token_store.execute_with_token(
+                result.login,
+                lambda broadcaster_id, access_token: twitch_client.get_followed_channels(
+                    broadcaster_id, access_token
+                ),
             )
+        except (TwitchAuthError, OAuthTokenTerminalError):
+            logger.warning(
+                "Twitch import требует повторной авторизации для %s", result.login
+            )
+            await message.answer(
+                "Twitch отклонил авторизацию. Запусти импорт ещё раз и заново разреши доступ."
+            )
+            return
+        except (TwitchUserTokenError, OAuthTokenTemporaryError):
+            logger.exception("Временная ошибка Twitch import для %s", result.login)
+            await message.answer(
+                "Twitch временно не отдал полный список подписок. Ничего не импортировано — "
+                "попробуй ещё раз чуть позже."
+            )
+            return
         except Exception:
             logger.exception("Не удалось получить подписки Twitch для %s", result.login)
             await message.answer(
