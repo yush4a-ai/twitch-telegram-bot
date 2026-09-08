@@ -230,7 +230,12 @@ class ChatListener:
     def _record_join(self, login: str, nick: str) -> None:
         now = time.time()
         minute = int(now // 60 * 60)
-        self._unique_nicks[login].setdefault(nick, now)
+        # JOIN-ники не используются как точный счётчик (Twitch отключает JOIN/PART
+        # на крупных каналах), но нужны для совместимости старого отчёта. Держим тот
+        # же потолок, что и для чатеров, иначе 12-часовой крупный эфир раздувает RAM.
+        unique_nicks = self._unique_nicks[login]
+        if nick in unique_nicks or len(unique_nicks) < MAX_TRACKED_CHATTERS:
+            unique_nicks.setdefault(nick, now)
         self._interval_has_join[login][minute] = True
         self._check_raid(login, now)
 

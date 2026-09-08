@@ -60,8 +60,10 @@ RETURN_AFTER_BREAK_DAYS = 7
 # цикл на минуты — живые посты в это время не обновлялись бы
 MAX_REPORTS_PER_CYCLE = 5
 
-# сколько максимум ждать по требованию Telegram при 429: если он просит больше,
-# ждать смысла нет — отложим до следующего круга опроса
+# Суммарно не даём Telegram RetryAfter удерживать один poll-цикл дольше этого
+# бюджета. После исчерпания работа откладывается до следующего круга, поэтому один
+# flood-limited чат не тормозит обновления всех остальных.
+TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS = 2.0
 MAX_RETRY_AFTER_SECONDS = 30
 
 # маркер неуспешного вызова Telegram: None — валидный результат (например, у edit),
@@ -298,6 +300,7 @@ class StreamPoller:
         self._last_successful_cycle_at: float | None = None
         self._last_cycle_duration_seconds: float | None = None
         self._last_cycle_error: str | None = None
+        self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -324,8 +327,13 @@ class StreamPoller:
         Без этого веб-сокеты чата и незавершённые уведомления о рейдах обрывались бы
         уже закрытой сессией — в логах остановки появлялся мусор, а последнее
         уведомление могло не уйти."""
-        if self._background_tasks:
-            await asyncio.gather(*list(self._background_tasks), return_exceptions=True)
+        if self._chat_listener is not None:
+            self._chat_listener.set_raid_callback(None)
+        tasks = list(self._background_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         if self._chat_listener is not None:
             await self._chat_listener.stop_all()
 
@@ -351,6 +359,14 @@ class StreamPoller:
                     logger.warning("%s: лимит Telegram, пропускаю до следующего цикла", description)
                     return _FAILED
                 delay = min(e.retry_after, MAX_RETRY_AFTER_SECONDS)
+                if delay > self._telegram_retry_sleep_budget:
+                    logger.info(
+                        "%s: лимит Telegram (%sс), откладываю до следующего цикла",
+                        description,
+                        e.retry_after,
+                    )
+                    return _FAILED
+                self._telegram_retry_sleep_budget -= delay
                 logger.info("%s: лимит Telegram, жду %sс", description, delay)
                 await asyncio.sleep(delay)
             except (TelegramForbiddenError, TelegramBadRequest) as e:
@@ -373,6 +389,7 @@ class StreamPoller:
         await self._resume_chat_listeners()
         while not self._stop_event.is_set():
             started_at = time.time()
+            self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
             self._last_cycle_started_at = started_at
             try:
                 await self._check_once()
@@ -442,17 +459,41 @@ class StreamPoller:
         )
 
     async def _check_once(self) -> None:
-        # Если процесс остановился сразу после успешной финализации, но до очистки
-        # tracked state, сначала завершаем идемпотентную локальную уборку. Иначе редкий
-        # повтор Twitch stream_id мог бы унаследовать счётчики старой сессии.
-        await self._db.recover_finished_sessions()
-        await self._check_streams()
-        await self._send_pending_stats()
-        await self._cleanup_offline_posts()
-        await self._check_channel_bans()
-        await self._check_channel_renames()
-        await self._check_quiet_hours_end()
-        await self._db.purge_old_report_data(time.time() - REPORT_DATA_RETENTION_SECONDS)
+        # Стадии независимы по внешним сервисам: outage Twitch не должен блокировать
+        # доставку уже сохранённого Telegram outbox, удаление постов и retention.
+        # Ошибки собираем и поднимаем после всех шагов, чтобы health всё равно показал
+        # деградацию цикла, но полезная работа остальных стадий не пропала.
+        failures: list[tuple[str, Exception]] = []
+        steps = (
+            # Если процесс остановился сразу после успешной финализации, но до очистки
+            # tracked state, сначала завершаем идемпотентную локальную уборку.
+            ("recovery завершённых сессий", self._db.recover_finished_sessions),
+            ("опрос Twitch-стримов", self._check_streams),
+            ("доставка итоговых отчётов", self._send_pending_stats),
+            ("удаление offline-постов", self._cleanup_offline_posts),
+            ("проверка банов", self._check_channel_bans),
+            ("проверка переименований", self._check_channel_renames),
+            ("завершение тихих часов", self._check_quiet_hours_end),
+            (
+                "retention cleanup",
+                lambda: self._db.purge_old_report_data(
+                    time.time() - REPORT_DATA_RETENTION_SECONDS
+                ),
+            ),
+        )
+        for name, operation in steps:
+            try:
+                await operation()
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                failures.append((name, e))
+                logger.exception("Ошибка стадии poll-цикла: %s", name)
+        if failures:
+            summary = "; ".join(
+                f"{name}: {type(error).__name__}" for name, error in failures
+            )
+            raise RuntimeError(f"Сбой стадий poll-цикла: {summary}") from failures[0][1]
 
     async def _check_quiet_hours_end(self) -> None:
         """Раз в цикл проверяет каждый чат с настроенными тихими часами: если сейчас
@@ -664,6 +705,7 @@ class StreamPoller:
         logins = list(chats_by_login)
         live_streams = await self._twitch.get_live_streams(logins)
         now = time.time()
+        follower_snapshot_cache: dict[str, int | None] = {}
 
         for login in logins:
             chat_ids = chats_by_login[login]
@@ -879,7 +921,10 @@ class StreamPoller:
                         followers_at_start if continuing_session else None
                     )
                     await self._maybe_snapshot_followers(
-                        chat_id, login, effective_followers_at_start
+                        chat_id,
+                        login,
+                        effective_followers_at_start,
+                        follower_snapshot_cache,
                     )
                 else:
                     if was_live:
@@ -941,20 +986,33 @@ class StreamPoller:
             )
 
     async def _maybe_snapshot_followers(
-        self, chat_id: int, login: str, followers_at_start: int | None
+        self,
+        chat_id: int,
+        login: str,
+        followers_at_start: int | None,
+        snapshot_cache: dict[str, int | None] | None = None,
     ) -> None:
         if self._token_store is None:
             return
         if followers_at_start is not None:
             return
-        token = await self._token_store.get_valid_token(login)
-        if token is None:
-            return
-        broadcaster_id, access_token = token
-        try:
-            count = await self._twitch.get_followers_count(broadcaster_id, access_token)
-        except Exception:
-            logger.exception("Не удалось получить число фолловеров для %s", login)
+        cache = snapshot_cache if snapshot_cache is not None else {}
+        if login in cache:
+            count = cache[login]
+        else:
+            token = await self._token_store.get_valid_token(login)
+            if token is None:
+                cache[login] = None
+                return
+            broadcaster_id, access_token = token
+            try:
+                count = await self._twitch.get_followers_count(broadcaster_id, access_token)
+            except Exception:
+                cache[login] = None
+                logger.exception("Не удалось получить число фолловеров для %s", login)
+                return
+            cache[login] = count
+        if count is None:
             return
         await self._db.set_followers_at_start(chat_id, login, count)
 
@@ -1372,6 +1430,7 @@ class StreamPoller:
                 permanent_failure_is_success=True,
             )
             if sent is _FAILED:
+                await self._db.defer_report_delivery_retry(delivery, time.time())
                 return False
             if sent is None:
                 await self._db.mark_report_delivery_terminal(
@@ -1416,6 +1475,7 @@ class StreamPoller:
             permanent_failure_is_success=True,
         )
         if sent is _FAILED:
+            await self._db.defer_report_delivery_retry(delivery, time.time())
             return False
         if sent is None:
             await self._db.mark_report_delivery_terminal(

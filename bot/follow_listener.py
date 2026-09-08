@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 EVENTSUB_WS_URL = "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30"
 EVENTSUB_SUBSCRIPTIONS_URL = "https://api.twitch.tv/helix/eventsub/subscriptions"
+EVENTSUB_KEEPALIVE_GRACE_SECONDS = 10
 
 
 class FollowEventListener:
@@ -139,6 +140,10 @@ class FollowEventListener:
             if welcome.get("metadata", {}).get("message_type") != "session_welcome":
                 raise RuntimeError("Twitch не прислал session_welcome")
             session_id = welcome["payload"]["session"]["id"]
+            receive_timeout = (
+                float(welcome["payload"]["session"].get("keepalive_timeout_seconds", 30))
+                + EVENTSUB_KEEPALIVE_GRACE_SECONDS
+            )
             await self._subscribe(session_id, broadcaster_id, access_token)
             self._ready[login] = True
             self._ready_since[login] = time.time()
@@ -146,7 +151,10 @@ class FollowEventListener:
             logger.info("EventSub follow подключён: %s", login)
 
             while not self._stop_event.is_set():
-                message = await ws.receive()
+                # Twitch шлёт keepalive не как WebSocket ping, а как JSON-сообщение.
+                # Поэтому один heartbeat aiohttp не замечает логически зависшую
+                # EventSub-сессию: ставим deadline по значению из session_welcome.
+                message = await asyncio.wait_for(ws.receive(), timeout=receive_timeout)
                 if message.type == aiohttp.WSMsgType.TEXT:
                     payload = message.json()
                     kind = payload.get("metadata", {}).get("message_type")
@@ -159,6 +167,14 @@ class FollowEventListener:
                         if new_welcome.get("metadata", {}).get("message_type") != "session_welcome":
                             await new_ws.close()
                             raise RuntimeError("Twitch не подтвердил EventSub reconnect")
+                        receive_timeout = (
+                            float(
+                                new_welcome["payload"]["session"].get(
+                                    "keepalive_timeout_seconds", 30
+                                )
+                            )
+                            + EVENTSUB_KEEPALIVE_GRACE_SECONDS
+                        )
                         await ws.close()
                         ws = new_ws
                         logger.info("EventSub follow переподключён без разрыва: %s", login)

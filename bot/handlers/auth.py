@@ -12,6 +12,7 @@ from ..database import Database
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
 
 logger = logging.getLogger(__name__)
+OAUTH_HTTP_TIMEOUT = aiohttp.ClientTimeout(total=30, connect=10)
 
 router = Router(name="auth")
 
@@ -25,7 +26,7 @@ async def _run_auth_flow(
             f"бот сможет считать число новых фолловеров (ссылка активна 5 минут):\n{url}"
         )
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=OAUTH_HTTP_TIMEOUT) as session:
         try:
             result = await run_authorization_flow(
                 config.twitch_client_id,

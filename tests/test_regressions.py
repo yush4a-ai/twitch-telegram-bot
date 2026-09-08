@@ -37,9 +37,13 @@ from aiogram.exceptions import (
     TelegramNetworkError,
     TelegramRetryAfter,
 )
+from aiogram.utils.token import TokenValidationError
 
-from bot.config import load_config
+import main as main_module
+from bot.chat_listener import ChatListener
+from bot.config import ConfigError, load_config
 from bot.database import Database
+from bot.follow_listener import FollowEventListener
 from bot.handlers.streams import (
     TWITCH_CUSTOM_EMOJI_ID,
     _build_live_list,
@@ -49,7 +53,7 @@ from bot.handlers.streams import (
     cb_quiet_digest_response,
     cmd_report,
 )
-from bot.oauth import OAuthCallbackServer
+from bot.oauth import OAuthCallbackServer, OAuthFlowError
 from bot.poller import (
     OFFLINE_GRACE_SECONDS,
     RESTART_MERGE_GRACE_SECONDS,
@@ -58,7 +62,7 @@ from bot.poller import (
 )
 from bot.report_delivery import validate_report_destination
 from bot.token_store import TokenStore
-from bot.twitch import StreamInfo
+from bot.twitch import StreamInfo, TwitchClient
 from main import _reconcile_telegram_channels
 
 
@@ -84,6 +88,11 @@ class ConfigTests(unittest.TestCase):
     def test_poll_interval_must_be_positive(self) -> None:
         with patch.dict(os.environ, {**REQUIRED_ENV, "POLL_INTERVAL_SECONDS": "0"}, clear=True):
             with self.assertRaisesRegex(RuntimeError, "POLL_INTERVAL_SECONDS.*больше нуля"):
+                load_config()
+
+    def test_invalid_owner_chat_id_is_permanent_config_error(self) -> None:
+        with patch.dict(os.environ, {**REQUIRED_ENV, "OWNER_CHAT_ID": "not-an-id"}, clear=True):
+            with self.assertRaisesRegex(ConfigError, "OWNER_CHAT_ID.*целым числом"):
                 load_config()
 
 
@@ -2774,7 +2783,9 @@ class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
         with patch("bot.poller.time.time", return_value=1100.0):
             await poller._check_streams()
 
-        poller._maybe_snapshot_followers.assert_awaited_once_with(1, "channel", 500)
+        args = poller._maybe_snapshot_followers.await_args.args
+        self.assertEqual(args[:3], (1, "channel", 500))
+        self.assertEqual(args[3], {})
         self.assertEqual(await self.db.get_followers_at_start(1, "channel"), 500)
 
     async def test_follow_reliability_stays_false_through_restart_reconnect(self) -> None:
@@ -3067,7 +3078,7 @@ class TestIsolationTests(unittest.TestCase):
             "follow_listener_task = asyncio.create_task(follow_listener.run())",
             "await follow_listener.wait_initial_ready()",
             "poller_task = asyncio.create_task(poller.run())",
-            "await dp.start_polling(bot)",
+            "dp.start_polling(bot, close_bot_session=False)",
         )
         positions = [main_source.index(fragment) for fragment in ordered_main_fragments]
         self.assertEqual(positions, sorted(positions))
@@ -3077,7 +3088,7 @@ class TestIsolationTests(unittest.TestCase):
         )
 
 
-class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
+class TelegramChannelRegistryRemovalTests(unittest.IsolatedAsyncioTestCase):
     async def test_startup_reconciliation_removes_stale_channel_and_tracking(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))
@@ -3112,6 +3123,444 @@ class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+
+class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
+    async def test_twitch_stage_failure_does_not_starve_independent_cycle_work(self) -> None:
+        db = SimpleNamespace(
+            recover_finished_sessions=AsyncMock(),
+            purge_old_report_data=AsyncMock(),
+        )
+        poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
+        poller._check_streams = AsyncMock(side_effect=RuntimeError("Twitch down"))
+        poller._send_pending_stats = AsyncMock()
+        poller._cleanup_offline_posts = AsyncMock()
+        poller._check_channel_bans = AsyncMock()
+        poller._check_channel_renames = AsyncMock()
+        poller._check_quiet_hours_end = AsyncMock()
+
+        with self.assertRaisesRegex(RuntimeError, "опрос Twitch-стримов"):
+            await poller._check_once()
+
+        poller._send_pending_stats.assert_awaited_once()
+        poller._cleanup_offline_posts.assert_awaited_once()
+        poller._check_quiet_hours_end.assert_awaited_once()
+        db.purge_old_report_data.assert_awaited_once()
+
+    async def test_hot_pending_queries_use_partial_indexes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                queries = {
+                    "idx_tracked_channels_pending_posts": (
+                        "SELECT chat_id FROM tracked_channels WHERE is_live = 0 "
+                        "AND offline_since IS NOT NULL AND last_message_id IS NOT NULL"
+                    ),
+                    "idx_tracked_channels_pending_stats": (
+                        "SELECT chat_id FROM tracked_channels WHERE is_live = 0 "
+                        "AND offline_since IS NOT NULL AND stats_sent = 0 "
+                        "AND stream_started_at IS NOT NULL ORDER BY offline_since ASC"
+                    ),
+                    "idx_report_deliveries_pending": (
+                        "SELECT source_chat_id FROM report_deliveries "
+                        "WHERE terminal_failed = 0 AND (text_sent = 0 OR "
+                        "(report_format = 'full' AND html_sent = 0)) "
+                        "ORDER BY updated_at ASC LIMIT 5"
+                    ),
+                }
+                for expected_index, query in queries.items():
+                    cursor = await db.conn.execute(f"EXPLAIN QUERY PLAN {query}")
+                    plan = " ".join(str(row) for row in await cursor.fetchall())
+                    self.assertIn(expected_index, plan)
+            finally:
+                await db.close()
+
+    async def test_cancelled_write_is_rolled_back_before_next_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            entered_commit = asyncio.Event()
+            never = asyncio.Event()
+
+            async def blocked_commit() -> None:
+                entered_commit.set()
+                await never.wait()
+
+            try:
+                with patch.object(db.conn, "commit", new=blocked_commit):
+                    task = asyncio.create_task(db.add_channel(1, "cancelled"))
+                    await asyncio.wait_for(entered_commit.wait(), timeout=1)
+                    task.cancel()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await task
+
+                # Если cancellation не сделал rollback, этот commit зафиксировал бы
+                # INSERT отменённой операции вместе со своей записью.
+                await db.add_channel(1, "survivor")
+                self.assertEqual(await db.list_channels(1), ["survivor"])
+            finally:
+                await db.close()
+
+    async def test_connect_failure_closes_partially_opened_sqlite_connection(self) -> None:
+        connection = SimpleNamespace(
+            execute=AsyncMock(side_effect=OSError("read-only volume")),
+            close=AsyncMock(),
+        )
+        db = Database("ignored.db")
+        with patch("bot.database.aiosqlite.connect", new=AsyncMock(return_value=connection)):
+            with self.assertRaisesRegex(OSError, "read-only"):
+                await db.connect()
+        connection.close.assert_awaited_once()
+        self.assertIsNone(db._conn)
+
+    async def test_pending_delivery_retry_rotates_queue_instead_of_starving_newer_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                first_batch = []
+                for index in range(6):
+                    first_batch.append(
+                        await db.create_report_delivery(
+                            1,
+                            f"channel{index}",
+                            f"stream{index}",
+                            1,
+                            "brief",
+                            "text",
+                            None,
+                            float(index + 1),
+                        )
+                    )
+                selected = await db.pending_report_deliveries(5)
+                self.assertEqual([row.twitch_login for row in selected], [f"channel{i}" for i in range(5)])
+                for offset, delivery in enumerate(selected):
+                    await db.defer_report_delivery_retry(delivery, 100.0 + offset)
+
+                next_row = await db.pending_report_deliveries(1)
+                self.assertEqual(next_row[0].twitch_login, "channel5")
+            finally:
+                await db.close()
+
+    async def test_long_retry_after_is_deferred_without_blocking_poll_cycle(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                delivery = await db.create_report_delivery(
+                    1, "channel", "stream", 1, "brief", "text", None, 1.0
+                )
+                retry_error = TelegramRetryAfter(
+                    SimpleNamespace(), "retry later", retry_after=30
+                )
+                bot = SimpleNamespace(send_message=AsyncMock(side_effect=retry_error))
+                poller = StreamPoller(bot, db, SimpleNamespace(), 60)
+                with patch("bot.poller.asyncio.sleep", new=AsyncMock()) as sleep:
+                    self.assertFalse(await poller._deliver_persisted_report(delivery))
+                sleep.assert_not_awaited()
+                bot.send_message.assert_awaited_once()
+                updated = await db.get_report_delivery_for_stream(1, "channel", "stream")
+                self.assertGreater(updated.updated_at, 1.0)
+            finally:
+                await db.close()
+
+    async def test_follower_snapshot_is_fetched_once_per_login_for_multiple_chats(self) -> None:
+        db = SimpleNamespace(set_followers_at_start=AsyncMock())
+        token_store = SimpleNamespace(
+            get_valid_token=AsyncMock(return_value=("broadcaster", "access"))
+        )
+        twitch = SimpleNamespace(get_followers_count=AsyncMock(return_value=42))
+        poller = StreamPoller(
+            SimpleNamespace(), db, twitch, 60, token_store=token_store
+        )
+        cache: dict[str, int | None] = {}
+
+        await poller._maybe_snapshot_followers(1, "channel", None, cache)
+        await poller._maybe_snapshot_followers(2, "channel", None, cache)
+
+        token_store.get_valid_token.assert_awaited_once_with("channel")
+        twitch.get_followers_count.assert_awaited_once_with("broadcaster", "access")
+        self.assertEqual(db.set_followers_at_start.await_count, 2)
+
+    async def test_poller_shutdown_cancels_raid_tasks(self) -> None:
+        started = asyncio.Event()
+
+        async def background() -> None:
+            started.set()
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(background())
+        await started.wait()
+        chat_listener = SimpleNamespace(
+            set_raid_callback=Mock(),
+            stop_all=AsyncMock(),
+        )
+        poller = StreamPoller(
+            SimpleNamespace(), SimpleNamespace(), SimpleNamespace(), 60,
+            chat_listener=chat_listener,
+        )
+        poller._background_tasks.add(task)
+
+        await asyncio.wait_for(poller.shutdown(), timeout=1)
+
+        self.assertTrue(task.cancelled())
+        chat_listener.set_raid_callback.assert_called_once_with(None)
+        chat_listener.stop_all.assert_awaited_once()
+
+    async def test_eventsub_missing_keepalive_forces_reconnect(self) -> None:
+        welcome = {
+            "metadata": {"message_type": "session_welcome"},
+            "payload": {
+                "session": {
+                    "id": "session",
+                    "keepalive_timeout_seconds": 1,
+                }
+            },
+        }
+        ws = SimpleNamespace(
+            receive_json=AsyncMock(return_value=welcome),
+            receive=AsyncMock(side_effect=asyncio.TimeoutError()),
+            close=AsyncMock(),
+        )
+        session = SimpleNamespace(ws_connect=AsyncMock(return_value=ws))
+        listener = FollowEventListener(
+            SimpleNamespace(), SimpleNamespace(), "client", session
+        )
+        listener._subscribe = AsyncMock()
+        timeouts: list[float] = []
+
+        async def observed_wait_for(awaitable, timeout):
+            timeouts.append(timeout)
+            return await awaitable
+
+        with patch("bot.follow_listener.asyncio.wait_for", new=observed_wait_for):
+            with self.assertRaises(asyncio.TimeoutError):
+                await listener._connection("channel", "broadcaster", "access")
+
+        self.assertEqual(timeouts, [10, 11.0])
+        ws.close.assert_awaited_once()
+
+    async def test_oauth_pending_states_are_bounded_and_cleared_on_stop(self) -> None:
+        server = OAuthCallbackServer("https://example.test/callback", "127.0.0.1", 0)
+        with patch("bot.oauth.MAX_PENDING_AUTHORIZATIONS", 2):
+            server.register_state("one")
+            server.register_state("two")
+            with self.assertRaisesRegex(OAuthFlowError, "Слишком много"):
+                server.register_state("three")
+        await server.stop()
+        self.assertEqual(server._pending, {})
+
+    async def test_twelve_hour_chat_stream_keeps_join_nicks_bounded(self) -> None:
+        listener = ChatListener(SimpleNamespace())
+        now = [1_700_000_000.0]
+        with (
+            patch("bot.chat_listener.MAX_TRACKED_CHATTERS", 100),
+            patch("bot.chat_listener.time.time", side_effect=lambda: now[0]),
+        ):
+            for minute in range(12 * 60):
+                now[0] = 1_700_000_000.0 + minute * 60
+                listener._record_message("channel", "speaker")
+                listener._record_join("channel", f"viewer{minute}")
+
+        self.assertEqual(len(listener._buckets["channel"]), 12 * 60)
+        self.assertEqual(listener._message_counts["channel"]["speaker"], 12 * 60)
+        self.assertEqual(len(listener._unique_nicks["channel"]), 100)
+
+    async def test_twelve_hour_poller_session_keeps_exact_aggregate_state(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            await db.set_notify_enabled(1, "channel", False)
+            twitch = SimpleNamespace(
+                get_live_streams=AsyncMock(
+                    return_value={"channel": _stream("twelve-hour", viewers=25)}
+                )
+            )
+            poller = StreamPoller(SimpleNamespace(), db, twitch, 60)
+            now = [1_700_000_000.0]
+            with patch("bot.poller.time.time", side_effect=lambda: now[0]):
+                for minute in range(12 * 60):
+                    now[0] = 1_700_000_000.0 + minute * 60
+                    await poller._check_streams()
+
+            cursor = await db.conn.execute(
+                "SELECT viewer_sum, viewer_samples, peak_viewers "
+                "FROM tracked_channels WHERE chat_id = 1 AND twitch_login = 'channel'"
+            )
+            self.assertEqual(await cursor.fetchone(), (18_000, 720, 25))
+            cursor = await db.conn.execute("SELECT COUNT(*) FROM stream_samples")
+            self.assertEqual((await cursor.fetchone())[0], 720)
+            self.assertEqual(twitch.get_live_streams.await_count, 720)
+        finally:
+            await db.close()
+
+    async def test_one_hundred_logins_use_one_twitch_streams_batch(self) -> None:
+        client = TwitchClient("client", "secret", SimpleNamespace())
+        client._request = AsyncMock(return_value={"data": []})
+        logins = [f"channel{i}" for i in range(100)]
+
+        self.assertEqual(await client.get_live_streams(logins), {})
+
+        client._request.assert_awaited_once()
+        self.assertEqual(len(client._request.await_args.args[1]), 100)
+
+
+class StartupHardeningTests(unittest.TestCase):
+    def test_permanent_configuration_error_does_not_restart_forever(self) -> None:
+        with (
+            patch.object(
+                main_module,
+                "main",
+                new=AsyncMock(side_effect=ConfigError("bad env")),
+            ),
+            patch.object(main_module.time, "sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(SystemExit, "2"):
+                main_module.run_forever()
+        sleep.assert_not_called()
+
+    def test_invalid_telegram_token_does_not_restart_forever(self) -> None:
+        with (
+            patch.object(
+                main_module,
+                "main",
+                new=AsyncMock(side_effect=TokenValidationError("bad token")),
+            ),
+            patch.object(main_module.time, "sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(SystemExit, "2"):
+                main_module.run_forever()
+        sleep.assert_not_called()
+
+
+class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
+    async def test_startup_failure_before_runtime_block_closes_db_and_bot(self) -> None:
+        config = SimpleNamespace(
+            db_path=":memory:",
+            token_encryption_key=None,
+            telegram_bot_token="unit-test-token-never-used",
+            twitch_client_id="client",
+            twitch_client_secret="secret",
+            poll_interval_seconds=60,
+            owner_chat_id=None,
+            oauth_public_base_url="https://example.test",
+            oauth_host="127.0.0.1",
+            oauth_port=0,
+            auto_track=(),
+        )
+        db = SimpleNamespace(
+            connect=AsyncMock(),
+            invalidate_live_follow_counts_after_restart=AsyncMock(),
+            invalidate_live_chat_stats_after_restart=AsyncMock(),
+            all_telegram_channels=AsyncMock(return_value=[]),
+            all_distinct_group_chat_ids=AsyncMock(return_value=[]),
+            close=AsyncMock(),
+        )
+        bot = SimpleNamespace(session=SimpleNamespace(close=AsyncMock()))
+
+        async def execute(factory, _description):
+            return await factory()
+
+        with (
+            patch.object(main_module, "load_config", return_value=config),
+            patch.object(main_module, "Database", return_value=db),
+            patch.object(main_module, "Bot", return_value=bot),
+            patch.object(main_module, "_with_startup_retry", side_effect=execute),
+            patch.object(
+                main_module,
+                "_reconcile_telegram_channels",
+                new=AsyncMock(side_effect=RuntimeError("startup failed")),
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "startup failed"):
+                await main_module.main()
+
+        db.close.assert_awaited_once()
+        bot.session.close.assert_awaited_once()
+
+    async def test_poller_crash_is_supervised_and_cleanup_failures_are_isolated(self) -> None:
+        config = SimpleNamespace(
+            db_path=":memory:", token_encryption_key=None,
+            telegram_bot_token="unit-test-token-never-used",
+            twitch_client_id="client", twitch_client_secret="secret",
+            poll_interval_seconds=60, owner_chat_id=None,
+            oauth_public_base_url="https://example.test",
+            oauth_host="127.0.0.1", oauth_port=0, auto_track=(),
+        )
+        db = SimpleNamespace(
+            connect=AsyncMock(),
+            invalidate_live_follow_counts_after_restart=AsyncMock(),
+            invalidate_live_chat_stats_after_restart=AsyncMock(),
+            all_telegram_channels=AsyncMock(return_value=[]),
+            all_distinct_group_chat_ids=AsyncMock(return_value=[]),
+            close=AsyncMock(),
+        )
+        bot = SimpleNamespace(
+            set_my_commands=AsyncMock(),
+            set_chat_menu_button=AsyncMock(),
+            delete_webhook=AsyncMock(),
+            session=SimpleNamespace(close=AsyncMock()),
+        )
+
+        async def wait_forever(*_args, **_kwargs):
+            await asyncio.Event().wait()
+
+        class FakeDispatcher(dict):
+            def __init__(self):
+                super().__init__()
+                self.start_polling = AsyncMock(side_effect=wait_forever)
+
+        class FakeSession:
+            exited = False
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                self.exited = True
+
+        session = FakeSession()
+        follow_listener = SimpleNamespace(
+            run=AsyncMock(side_effect=wait_forever),
+            wait_initial_ready=AsyncMock(),
+            stop=AsyncMock(),
+        )
+        poller = SimpleNamespace(
+            run=AsyncMock(side_effect=RuntimeError("poller crash")),
+            stop=Mock(),
+            shutdown=AsyncMock(side_effect=RuntimeError("cleanup failed")),
+        )
+        oauth_server = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
+
+        with (
+            patch.object(main_module, "load_config", return_value=config),
+            patch.object(main_module, "Database", return_value=db),
+            patch.object(main_module, "Bot", return_value=bot),
+            patch.object(main_module, "Dispatcher", side_effect=FakeDispatcher),
+            patch.object(main_module, "setup_middlewares"),
+            patch.object(main_module, "register_all_handlers"),
+            patch.object(main_module.aiohttp, "ClientSession", return_value=session),
+            patch.object(main_module, "TwitchClient", return_value=SimpleNamespace()),
+            patch.object(main_module, "TokenStore", return_value=SimpleNamespace()),
+            patch.object(main_module, "ChatListener", return_value=SimpleNamespace()),
+            patch.object(main_module, "FollowEventListener", return_value=follow_listener),
+            patch.object(main_module, "StreamPoller", return_value=poller),
+            patch.object(main_module, "OAuthCallbackServer", return_value=oauth_server),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "poller crash"):
+                await main_module.main()
+
+        poller.stop.assert_called_once()
+        poller.shutdown.assert_awaited_once()
+        follow_listener.stop.assert_awaited_once()
+        oauth_server.stop.assert_awaited_once()
+        db.close.assert_awaited_once()
+        bot.session.close.assert_awaited_once()
+        self.assertTrue(session.exited)
+
+
+class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
     async def test_startup_reconciliation_keeps_valid_admin_channel(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))

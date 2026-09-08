@@ -6,10 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+class ConfigError(RuntimeError):
+    """Постоянная ошибка конфигурации: повтор запуска без изменения env не поможет."""
+
+
 def _require(name: str) -> str:
     value = os.getenv(name)
     if not value:
-        raise RuntimeError(f"Не задана переменная окружения {name} (проверь .env)")
+        raise ConfigError(f"Не задана переменная окружения {name} (проверь .env)")
     return value
 
 
@@ -18,10 +22,20 @@ def _positive_int(name: str, default: str) -> int:
     try:
         value = int(raw)
     except ValueError as e:
-        raise RuntimeError(f"Переменная {name} должна быть целым числом") from e
+        raise ConfigError(f"Переменная {name} должна быть целым числом") from e
     if value <= 0:
-        raise RuntimeError(f"Переменная {name} должна быть больше нуля")
+        raise ConfigError(f"Переменная {name} должна быть больше нуля")
     return value
+
+
+def _optional_int(name: str) -> int | None:
+    raw = os.getenv(name)
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError as e:
+        raise ConfigError(f"Переменная {name} должна быть целым числом") from e
 
 
 @dataclass(frozen=True)
@@ -67,7 +81,6 @@ def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
 
 
 def load_config() -> Config:
-    owner_chat_id_raw = os.getenv("OWNER_CHAT_ID")
     oauth_port = _positive_int("PORT", "8765")
     # PUBLIC_URL — публичный адрес, на который Twitch должен слать редирект после
     # авторизации (например, https://<project>.up.railway.app). Без него (локальная
@@ -79,7 +92,7 @@ def load_config() -> Config:
         twitch_client_secret=_require("TWITCH_CLIENT_SECRET"),
         poll_interval_seconds=_positive_int("POLL_INTERVAL_SECONDS", "60"),
         db_path=os.getenv("DB_PATH", "bot.db"),
-        owner_chat_id=int(owner_chat_id_raw) if owner_chat_id_raw else None,
+        owner_chat_id=_optional_int("OWNER_CHAT_ID"),
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,
         oauth_public_base_url=public_url,

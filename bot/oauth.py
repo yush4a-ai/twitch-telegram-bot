@@ -24,6 +24,7 @@ REDIRECT_PATH = "/twitch/callback"
 # сколько ждать, что пользователь пройдёт авторизацию по присланной ссылке,
 # прежде чем считать попытку истёкшей
 AUTH_TIMEOUT_SECONDS = 300
+MAX_PENDING_AUTHORIZATIONS = 100
 
 
 @dataclass
@@ -63,13 +64,18 @@ class OAuthCallbackServer:
         logger.info("OAuth callback-сервер слушает на %s:%s", self._host, self._port)
 
     async def stop(self) -> None:
+        for state in list(self._pending):
+            self.discard_state(state)
         if self._runner is not None:
             await self._runner.cleanup()
+            self._runner = None
 
     def register_state(self, state: str) -> None:
         """Регистрирует OAuth state до того, как ссылка станет видна пользователю."""
         if state in self._pending:
             raise OAuthFlowError("Повторный OAuth state")
+        if len(self._pending) >= MAX_PENDING_AUTHORIZATIONS:
+            raise OAuthFlowError("Слишком много одновременных попыток авторизации")
         self._pending[state] = asyncio.get_running_loop().create_future()
 
     def discard_state(self, state: str) -> None:

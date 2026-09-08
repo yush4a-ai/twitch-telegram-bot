@@ -12,6 +12,10 @@ from cryptography.fernet import Fernet, InvalidToken
 _ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
 
 
+class DatabaseConfigurationError(RuntimeError):
+    """Постоянная ошибка ключа/формата БД, которую restart сам не исправит."""
+
+
 @dataclass(frozen=True)
 class ReportDelivery:
     source_chat_id: int
@@ -88,7 +92,7 @@ def _serialized(func):
         async with self._write_lock:
             try:
                 return await func(self, *args, **kwargs)
-            except Exception:
+            except BaseException:
                 try:
                     await self.conn.rollback()
                 except Exception:
@@ -126,6 +130,13 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
 -- без индекса это полное сканирование таблицы на каждый канал
 CREATE INDEX IF NOT EXISTS idx_tracked_channels_login
     ON tracked_channels (twitch_login);
+CREATE INDEX IF NOT EXISTS idx_tracked_channels_pending_posts
+    ON tracked_channels (offline_since)
+    WHERE is_live = 0 AND offline_since IS NOT NULL AND last_message_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_tracked_channels_pending_stats
+    ON tracked_channels (offline_since)
+    WHERE is_live = 0 AND offline_since IS NOT NULL AND stats_sent = 0
+      AND stream_started_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS twitch_user_tokens (
     twitch_login TEXT PRIMARY KEY,
@@ -216,6 +227,10 @@ CREATE INDEX IF NOT EXISTS idx_report_deliveries_cleanup
     ON report_deliveries (updated_at)
     WHERE terminal_failed = 1
        OR (text_sent = 1 AND (report_format = 'brief' OR html_sent = 1));
+CREATE INDEX IF NOT EXISTS idx_report_deliveries_pending
+    ON report_deliveries (updated_at)
+    WHERE terminal_failed = 0
+      AND (text_sent = 0 OR (report_format = 'full' AND html_sent = 0));
 
 CREATE TABLE IF NOT EXISTS chat_activity_samples (
     chat_id INTEGER NOT NULL,
@@ -343,14 +358,26 @@ class Database:
         try:
             self._token_cipher = Fernet(token_encryption_key) if token_encryption_key else None
         except (ValueError, TypeError) as e:
-            raise RuntimeError("TOKEN_ENCRYPTION_KEY не является корректным Fernet-ключом") from e
+            raise DatabaseConfigurationError(
+                "TOKEN_ENCRYPTION_KEY не является корректным Fernet-ключом"
+            ) from e
 
     async def connect(self) -> None:
         self._conn = await aiosqlite.connect(self._path)
-        await self._conn.execute("PRAGMA journal_mode=WAL;")
-        await self._conn.executescript(SCHEMA)
-        await self._conn.commit()
-        await self._migrate()
+        try:
+            # Явный busy_timeout делает поведение одинаковым при кратком overlap двух
+            # Railway-процессов во время redeploy, а не зависит от default библиотеки.
+            await self._conn.execute("PRAGMA busy_timeout=5000;")
+            await self._conn.execute("PRAGMA journal_mode=WAL;")
+            await self._conn.executescript(SCHEMA)
+            await self._conn.commit()
+            await self._migrate()
+        except BaseException:
+            try:
+                await self._conn.close()
+            finally:
+                self._conn = None
+            raise
 
     @_serialized
     async def _migrate(self) -> None:
@@ -428,14 +455,14 @@ class Database:
         if not value.startswith(_ENCRYPTED_TOKEN_PREFIX):
             return value
         if self._token_cipher is None:
-            raise RuntimeError(
+            raise DatabaseConfigurationError(
                 "В базе есть зашифрованные Twitch-токены, но TOKEN_ENCRYPTION_KEY не задан"
             )
         payload = value[len(_ENCRYPTED_TOKEN_PREFIX):]
         try:
             return self._token_cipher.decrypt(payload.encode("ascii")).decode("utf-8")
         except (InvalidToken, UnicodeError, ValueError) as e:
-            raise RuntimeError(
+            raise DatabaseConfigurationError(
                 "Не удалось расшифровать Twitch-токены: проверь TOKEN_ENCRYPTION_KEY"
             ) from e
 
@@ -450,7 +477,7 @@ class Database:
                 or refresh.startswith(_ENCRYPTED_TOKEN_PREFIX)
                 for _login, access, refresh in rows
             ):
-                raise RuntimeError(
+                raise DatabaseConfigurationError(
                     "В базе есть зашифрованные Twitch-токены, но TOKEN_ENCRYPTION_KEY не задан"
                 )
             return
@@ -501,7 +528,10 @@ class Database:
 
     async def close(self) -> None:
         if self._conn is not None:
-            await self._conn.close()
+            try:
+                await self._conn.close()
+            finally:
+                self._conn = None
 
     @property
     def conn(self) -> aiosqlite.Connection:
@@ -1303,7 +1333,7 @@ class Database:
             "terminal_failed, terminal_reason, created_at, updated_at "
             "FROM report_deliveries WHERE terminal_failed = 0 AND ("
             "text_sent = 0 OR (report_format = 'full' AND html_sent = 0)) "
-            "ORDER BY created_at ASC"
+            "ORDER BY updated_at ASC"
         )
         params: tuple = ()
         if limit is not None:
@@ -1311,6 +1341,29 @@ class Database:
             params = (limit,)
         cursor = await self.conn.execute(sql, params)
         return [_report_delivery_from_row(tuple(row)) for row in await cursor.fetchall()]
+
+    @_serialized
+    async def defer_report_delivery_retry(
+        self, delivery: ReportDelivery, updated_at: float
+    ) -> None:
+        """Сдвигает временно недоступную delivery в конец retry-очереди.
+
+        Без этого пять старейших адресатов с постоянной сетевой ошибкой навсегда
+        перекрывали все более новые отчёты из-за LIMIT в poller.
+        """
+        await self.conn.execute(
+            "UPDATE report_deliveries SET updated_at = ? "
+            "WHERE source_chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "AND recipient_chat_id = ? AND terminal_failed = 0",
+            (
+                updated_at,
+                delivery.source_chat_id,
+                delivery.twitch_login,
+                delivery.stream_id,
+                delivery.recipient_chat_id,
+            ),
+        )
+        await self.conn.commit()
 
     @_serialized
     async def mark_report_text_sent(

@@ -19,11 +19,12 @@ from aiogram.types import (
     BotCommandScopeAllPrivateChats,
     MenuButtonCommands,
 )
+from aiogram.utils.token import TokenValidationError
 
 from bot.chat_listener import ChatListener
 from bot.follow_listener import FollowEventListener
-from bot.config import load_config
-from bot.database import Database
+from bot.config import ConfigError, load_config
+from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
 from bot.middlewares import setup_middlewares
@@ -33,7 +34,6 @@ from bot.token_store import TokenStore
 from bot.twitch import TwitchClient
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
 
 # консоль Windows по умолчанию использует не-UTF-8 кодировку (обычно cp1251),
 # из-за чего кириллица в логах превращается в кракозябры — принудительно
@@ -43,16 +43,29 @@ if isinstance(sys.stdout, io.TextIOWrapper):
 
 _log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-_console_handler = logging.StreamHandler()
-_console_handler.setFormatter(_log_formatter)
+def _build_logging_handlers(log_dir: str) -> list[logging.Handler]:
+    """Всегда оставляет консольный лог, даже если filesystem Railway read-only."""
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(_log_formatter)
+    handlers: list[logging.Handler] = [console_handler]
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+        # ротация: новый файл после 5 МБ, храним 5 старых архивов
+        file_handler = logging.handlers.RotatingFileHandler(
+            os.path.join(log_dir, "bot.log"),
+            maxBytes=5 * 1024 * 1024,
+            backupCount=5,
+            encoding="utf-8",
+        )
+    except OSError as e:
+        print(f"Файловый лог недоступен, продолжаю только с консолью: {e}", file=sys.stderr)
+    else:
+        file_handler.setFormatter(_log_formatter)
+        handlers.append(file_handler)
+    return handlers
 
-# ротация: новый файл после 5 МБ, храним 5 старых архивов
-_file_handler = logging.handlers.RotatingFileHandler(
-    os.path.join(LOG_DIR, "bot.log"), maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8"
-)
-_file_handler.setFormatter(_log_formatter)
 
-logging.basicConfig(level=logging.INFO, handlers=[_console_handler, _file_handler])
+logging.basicConfig(level=logging.INFO, handlers=_build_logging_handlers(LOG_DIR))
 logger = logging.getLogger(__name__)
 
 # при старте сразу после включения компьютера сеть (VPN-туннель) иногда ещё не готова —
@@ -74,6 +87,26 @@ async def _with_startup_retry(coro_factory, description: str) -> None:
                 description, attempt, STARTUP_NETWORK_RETRIES, STARTUP_RETRY_DELAY_SECONDS, e,
             )
             await asyncio.sleep(STARTUP_RETRY_DELAY_SECONDS)
+
+
+async def _safe_cleanup(description: str, awaitable) -> None:
+    """Не даёт сбою одного cleanup-шагa пропустить все последующие ресурсы."""
+    try:
+        await awaitable
+    except asyncio.CancelledError:
+        logger.warning("Cleanup отменён: %s", description)
+    except Exception:
+        logger.exception("Ошибка cleanup: %s", description)
+
+
+async def _cancel_task(task: asyncio.Task | None, description: str) -> None:
+    if task is None:
+        return
+    if not task.done():
+        task.cancel()
+    result = (await asyncio.gather(task, return_exceptions=True))[0]
+    if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+        logger.error("Задача %s завершилась ошибкой при cleanup: %s", description, result)
 
 
 async def _log_known_chats(db: Database) -> None:
@@ -156,120 +189,144 @@ async def main() -> None:
     config = load_config()
 
     db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
-    await db.connect()
-    # Между остановкой старого процесса и запуском нового EventSub не слушается:
-    # текущий эфир уже нельзя считать полностью покрытым событиями.
-    await db.invalidate_live_follow_counts_after_restart()
-    # ChatListener держит активность, чатеров, топ и рейды в RAM. После restart
-    # текущая logical session продолжается, но её chat stats уже неполны.
-    await db.invalidate_live_chat_stats_after_restart()
-    await _log_known_chats(db)
-    await _apply_auto_track(db, config)
+    bot: Bot | None = None
+    try:
+        await db.connect()
+        # Между остановкой старого процесса и запуском нового EventSub не слушается:
+        # текущий эфир уже нельзя считать полностью покрытым событиями.
+        await db.invalidate_live_follow_counts_after_restart()
+        # ChatListener держит активность, чатеров, топ и рейды в RAM. После restart
+        # текущая logical session продолжается, но её chat stats уже неполны.
+        await db.invalidate_live_chat_stats_after_restart()
+        await _log_known_chats(db)
+        await _apply_auto_track(db, config)
 
-    bot = Bot(
-        token=config.telegram_bot_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-    )
-    await _with_startup_retry(
-        lambda: _reconcile_telegram_channels(bot, db),
-        "Проверка Telegram-каналов",
-    )
-    dp = Dispatcher()
-    setup_middlewares(dp)
-    register_all_handlers(dp)
-
-    if config.owner_chat_id is None:
-        logger.warning(
-            "OWNER_CHAT_ID не задан — команда /stats и алерты о банах каналов работать не будут"
+        bot = Bot(
+            token=config.telegram_bot_token,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
-
-    tracking_commands = [
-        BotCommand(command="track", description="➕ Начать следить за Twitch-каналом"),
-        BotCommand(command="untrack", description="❌ Перестать следить за каналом"),
-        BotCommand(command="list", description="📡 Показать отслеживаемые каналы"),
-        BotCommand(command="live", description="🔴 Кто сейчас в эфире"),
-        BotCommand(command="report", description="📊 Отчёт по последнему стриму"),
-        BotCommand(command="help", description="ℹ️ Что умеет бот"),
-    ]
-
-    await _with_startup_retry(
-        lambda: bot.set_my_commands(
-            [
-                BotCommand(command="start", description="🏠 Главное меню бота"),
-                *tracking_commands,
-                BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
-                BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
-                BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
-            ],
-            scope=BotCommandScopeAllPrivateChats(),
-        ),
-        "Регистрация команд (личка)",
-    )
-    await _with_startup_retry(
-        lambda: bot.set_my_commands(tracking_commands, scope=BotCommandScopeAllGroupChats()),
-        "Регистрация команд (группы)",
-    )
-    await _with_startup_retry(
-        lambda: bot.set_chat_menu_button(menu_button=MenuButtonCommands()),
-        "Установка кнопки меню",
-    )
-
-    # общий таймаут на все исходящие запросы: без него зависшее соединение
-    # держит цикл опроса до дефолтных пяти минут aiohttp
-    async with aiohttp.ClientSession(
-        timeout=aiohttp.ClientTimeout(total=30, connect=10)
-    ) as session:
-        twitch = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
-        token_store = TokenStore(db, config.twitch_client_id, config.twitch_client_secret, session)
-        chat_listener = ChatListener(session)
-        follow_listener = FollowEventListener(
-            db, token_store, config.twitch_client_id, session
+        await _with_startup_retry(
+            lambda: _reconcile_telegram_channels(bot, db),
+            "Проверка Telegram-каналов",
         )
+        dp = Dispatcher()
+        setup_middlewares(dp)
+        register_all_handlers(dp)
 
-        oauth_server = OAuthCallbackServer(
-            redirect_uri=f"{config.oauth_public_base_url}{REDIRECT_PATH}",
-            host=config.oauth_host,
-            port=config.oauth_port,
-        )
-        await oauth_server.start()
-
-        dp["db"] = db
-        dp["twitch"] = twitch
-        dp["config"] = config
-        dp["oauth_server"] = oauth_server
-
-        follow_listener_task = asyncio.create_task(follow_listener.run())
-        await follow_listener.wait_initial_ready()
-
-        poller = StreamPoller(
-            bot,
-            db,
-            twitch,
-            config.poll_interval_seconds,
-            token_store=token_store,
-            chat_listener=chat_listener,
-            follow_listener=follow_listener,
-            owner_chat_id=config.owner_chat_id,
-        )
-        dp["poller"] = poller
-        poller_task = asyncio.create_task(poller.run())
-
-        try:
-            await _with_startup_retry(
-                lambda: bot.delete_webhook(drop_pending_updates=True), "Удаление webhook"
+        if config.owner_chat_id is None:
+            logger.warning(
+                "OWNER_CHAT_ID не задан — команда /stats и алерты о банах каналов работать не будут"
             )
-            await dp.start_polling(bot)
-        finally:
-            poller.stop()
-            await poller_task
-            # фоновые задачи и веб-сокеты чата гасим внутри блока сессии:
-            # снаружи она уже закрыта, и их завершение сыпало бы ошибками
-            await poller.shutdown()
-            await follow_listener.stop()
-            await follow_listener_task
-            await oauth_server.stop()
-            await db.close()
-            await bot.session.close()
+
+        tracking_commands = [
+            BotCommand(command="track", description="➕ Начать следить за Twitch-каналом"),
+            BotCommand(command="untrack", description="❌ Перестать следить за каналом"),
+            BotCommand(command="list", description="📡 Показать отслеживаемые каналы"),
+            BotCommand(command="live", description="🔴 Кто сейчас в эфире"),
+            BotCommand(command="report", description="📊 Отчёт по последнему стриму"),
+            BotCommand(command="help", description="ℹ️ Что умеет бот"),
+        ]
+
+        await _with_startup_retry(
+            lambda: bot.set_my_commands(
+                [
+                    BotCommand(command="start", description="🏠 Главное меню бота"),
+                    *tracking_commands,
+                    BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
+                    BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
+                    BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
+                ],
+                scope=BotCommandScopeAllPrivateChats(),
+            ),
+            "Регистрация команд (личка)",
+        )
+        await _with_startup_retry(
+            lambda: bot.set_my_commands(tracking_commands, scope=BotCommandScopeAllGroupChats()),
+            "Регистрация команд (группы)",
+        )
+        await _with_startup_retry(
+            lambda: bot.set_chat_menu_button(menu_button=MenuButtonCommands()),
+            "Установка кнопки меню",
+        )
+
+        # общий таймаут на все исходящие запросы: без него зависшее соединение
+        # держит цикл опроса до дефолтных пяти минут aiohttp
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30, connect=10)
+        ) as session:
+            twitch = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)
+            token_store = TokenStore(
+                db, config.twitch_client_id, config.twitch_client_secret, session
+            )
+            chat_listener = ChatListener(session)
+            follow_listener = FollowEventListener(
+                db, token_store, config.twitch_client_id, session
+            )
+            oauth_server = OAuthCallbackServer(
+                redirect_uri=f"{config.oauth_public_base_url}{REDIRECT_PATH}",
+                host=config.oauth_host,
+                port=config.oauth_port,
+            )
+            follow_listener_task: asyncio.Task | None = None
+            poller: StreamPoller | None = None
+            poller_task: asyncio.Task | None = None
+            polling_task: asyncio.Task | None = None
+            try:
+                await oauth_server.start()
+
+                dp["db"] = db
+                dp["twitch"] = twitch
+                dp["config"] = config
+                dp["oauth_server"] = oauth_server
+
+                follow_listener_task = asyncio.create_task(follow_listener.run())
+                await follow_listener.wait_initial_ready()
+
+                poller = StreamPoller(
+                    bot,
+                    db,
+                    twitch,
+                    config.poll_interval_seconds,
+                    token_store=token_store,
+                    chat_listener=chat_listener,
+                    follow_listener=follow_listener,
+                    owner_chat_id=config.owner_chat_id,
+                )
+                dp["poller"] = poller
+                poller_task = asyncio.create_task(poller.run())
+
+                await _with_startup_retry(
+                    lambda: bot.delete_webhook(drop_pending_updates=True), "Удаление webhook"
+                )
+                polling_task = asyncio.create_task(
+                    dp.start_polling(bot, close_bot_session=False)
+                )
+                done, _pending = await asyncio.wait(
+                    {polling_task, poller_task, follow_listener_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                for task, name in (
+                    (poller_task, "StreamPoller"),
+                    (follow_listener_task, "FollowEventListener"),
+                ):
+                    if task in done:
+                        await task
+                        raise RuntimeError(f"{name} неожиданно завершился")
+                await polling_task
+            finally:
+                if poller is not None:
+                    poller.stop()
+                await _cancel_task(polling_task, "Telegram polling")
+                await _cancel_task(poller_task, "StreamPoller")
+                if poller is not None:
+                    await _safe_cleanup("StreamPoller", poller.shutdown())
+                await _safe_cleanup("FollowEventListener", follow_listener.stop())
+                await _cancel_task(follow_listener_task, "FollowEventListener")
+                await _safe_cleanup("OAuth callback server", oauth_server.stop())
+    finally:
+        if bot is not None:
+            await _safe_cleanup("Telegram session", bot.session.close())
+        await _safe_cleanup("SQLite", db.close())
 
 
 # если процесс упадёт по неожиданной причине (не Ctrl+C), не завершаемся молча —
@@ -285,6 +342,11 @@ def run_forever() -> None:
         except (KeyboardInterrupt, SystemExit):
             logger.info("Остановлено.")
             return
+        except (ConfigError, DatabaseConfigurationError, TokenValidationError):
+            logger.exception(
+                "Постоянная ошибка конфигурации; автоматический restart не поможет"
+            )
+            raise SystemExit(2)
         except Exception:
             logger.exception(
                 "Бот упал с необработанной ошибкой, перезапуск через %sс", RESTART_DELAY_SECONDS
