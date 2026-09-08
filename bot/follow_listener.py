@@ -38,8 +38,12 @@ class FollowEventListener:
         self._tasks: dict[str, asyncio.Task] = {}
         self._ready: dict[str, bool] = {}
         self._ready_since: dict[str, float] = {}
+        self._last_message_at: dict[str, float] = {}
         self._first_attempt: set[str] = set()
         self._stop_event = asyncio.Event()
+        self._running = False
+        self._last_error: str | None = None
+        self._last_error_at: float | None = None
 
     def is_ready(self, twitch_login: str) -> bool:
         return self._ready.get(twitch_login.lower(), False)
@@ -74,6 +78,7 @@ class FollowEventListener:
             await asyncio.wait_for(_wait(), timeout)
 
     async def run(self) -> None:
+        self._running = True
         try:
             while not self._stop_event.is_set():
                 await self._sync_channels()
@@ -82,7 +87,39 @@ class FollowEventListener:
                 except asyncio.TimeoutError:
                     pass
         finally:
-            await self.stop()
+            try:
+                await self.stop()
+            finally:
+                self._running = False
+
+    def health_snapshot(self, now: float | None = None) -> dict[str, object]:
+        """Aggregate EventSub state без логинов, токенов и per-channel строк."""
+        snapshot_at = time.time() if now is None else now
+        ready_logins = {login for login, ready in self._ready.items() if ready}
+        ready_message_times = [
+            self._last_message_at[login]
+            for login in ready_logins
+            if login in self._last_message_at
+        ]
+        return {
+            "running": self._running,
+            "stopping": self._stop_event.is_set(),
+            "configured_logins": len(self._tasks),
+            "ready_logins": len(ready_logins),
+            "stalest_message_age_seconds": (
+                max(0.0, snapshot_at - min(ready_message_times))
+                if ready_message_times
+                else None
+            ),
+            # Только класс исключения: текст внешней ошибки теоретически может
+            # содержать URL или credential и не должен попадать в Telegram.
+            "last_error": self._last_error,
+            "last_error_age_seconds": (
+                max(0.0, snapshot_at - self._last_error_at)
+                if self._last_error_at is not None
+                else None
+            ),
+        }
 
     async def _sync_channels(self) -> None:
         for raw_login in await self._db.all_token_logins():
@@ -120,12 +157,16 @@ class FollowEventListener:
                 backoff = 1
             except asyncio.CancelledError:
                 raise
-            except (TwitchAuthError, OAuthTokenTerminalError):
+            except (TwitchAuthError, OAuthTokenTerminalError) as e:
+                self._last_error = type(e).__name__
+                self._last_error_at = time.time()
                 logger.warning(
                     "EventSub follow требует повторной авторизации: %s", login
                 )
                 return
-            except Exception:
+            except Exception as e:
+                self._last_error = type(e).__name__
+                self._last_error_at = time.time()
                 logger.exception("EventSub follow: соединение для %s оборвалось", login)
             finally:
                 self._first_attempt.add(login)
@@ -153,7 +194,9 @@ class FollowEventListener:
             )
             await self._subscribe(session_id, broadcaster_id, access_token)
             self._ready[login] = True
-            self._ready_since[login] = time.time()
+            connected_at = time.time()
+            self._ready_since[login] = connected_at
+            self._last_message_at[login] = connected_at
             self._first_attempt.add(login)
             logger.info("EventSub follow подключён: %s", login)
 
@@ -164,6 +207,7 @@ class FollowEventListener:
                 message = await asyncio.wait_for(ws.receive(), timeout=receive_timeout)
                 if message.type == aiohttp.WSMsgType.TEXT:
                     payload = message.json()
+                    self._last_message_at[login] = time.time()
                     kind = payload.get("metadata", {}).get("message_type")
                     if kind == "notification":
                         await self._handle_notification(login, payload)
@@ -184,6 +228,7 @@ class FollowEventListener:
                         )
                         await ws.close()
                         ws = new_ws
+                        self._last_message_at[login] = time.time()
                         logger.info("EventSub follow переподключён без разрыва: %s", login)
                     elif kind == "revocation":
                         status = payload.get("payload", {}).get("subscription", {}).get("status")

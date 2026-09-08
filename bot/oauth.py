@@ -115,6 +115,13 @@ class OAuthCallbackServer:
             await self._runner.cleanup()
             self._runner = None
 
+    def health_snapshot(self) -> dict[str, int | bool]:
+        """Безопасный aggregate snapshot; OAuth state values не раскрываются."""
+        return {
+            "runner_started": self._runner is not None,
+            "pending_states": len(self._pending),
+        }
+
     def register_state(self, state: str) -> None:
         """Регистрирует OAuth state до того, как ссылка станет видна пользователю."""
         if state in self._pending:

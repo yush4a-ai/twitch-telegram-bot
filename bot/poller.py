@@ -296,10 +296,13 @@ class StreamPoller:
         self._follow_listener = follow_listener
         self._owner_chat_id = owner_chat_id
         self._stop_event = asyncio.Event()
+        self._created_at = time.time()
+        self._running = False
         self._last_cycle_started_at: float | None = None
         self._last_successful_cycle_at: float | None = None
         self._last_cycle_duration_seconds: float | None = None
         self._last_cycle_error: str | None = None
+        self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
@@ -308,10 +311,17 @@ class StreamPoller:
     def stop(self) -> None:
         self._stop_event.set()
 
-    def health_snapshot(self) -> dict[str, object]:
+    def health_snapshot(self, now: float | None = None) -> dict[str, object]:
+        snapshot_at = time.time() if now is None else now
         return {
+            "running": self._running,
             "last_cycle_started_at": self._last_cycle_started_at,
             "last_successful_cycle_at": self._last_successful_cycle_at,
+            "last_successful_cycle_age_seconds": (
+                max(0.0, snapshot_at - self._last_successful_cycle_at)
+                if self._last_successful_cycle_at is not None
+                else None
+            ),
             "last_cycle_duration_seconds": self._last_cycle_duration_seconds,
             "last_cycle_error": self._last_cycle_error,
             "active_chat_listeners": (
@@ -319,6 +329,8 @@ class StreamPoller:
             ),
             "background_tasks": len(self._background_tasks),
             "stopping": self._stop_event.is_set(),
+            "uptime_seconds": max(0.0, snapshot_at - self._created_at),
+            "stale_after_seconds": self._interval * 3,
         }
 
     async def shutdown(self) -> None:
@@ -387,25 +399,40 @@ class StreamPoller:
         if self._chat_listener is not None:
             self._chat_listener.set_raid_callback(self._on_raid_detected)
         await self._resume_chat_listeners()
-        while not self._stop_event.is_set():
-            started_at = time.time()
-            self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
-            self._last_cycle_started_at = started_at
-            try:
-                await self._check_once()
-            except Exception as e:
-                self._last_cycle_error = f"{type(e).__name__}: {e}"
-                logger.exception("Ошибка в цикле опроса Twitch")
-            else:
-                self._last_successful_cycle_at = time.time()
-                self._last_cycle_error = None
-            finally:
-                self._last_cycle_duration_seconds = time.time() - started_at
+        self._running = True
+        try:
+            while not self._stop_event.is_set():
+                started_at = time.time()
+                self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
+                self._last_cycle_started_at = started_at
+                try:
+                    await self._check_once()
+                except Exception as e:
+                    error_signature = f"{type(e).__name__}: {e}"
+                    # Одинаковый outage не должен печатать traceback каждый poll.
+                    # Повторно логируем только изменившуюся проблему; health при этом
+                    # продолжает показывать деградацию на каждом запросе владельца.
+                    if error_signature != self._last_logged_cycle_error:
+                        logger.exception("Ошибка в цикле опроса Twitch")
+                    self._last_logged_cycle_error = error_signature
+                    # В health отдаём только класс исключения: произвольный текст
+                    # внешней ошибки теоретически может содержать credential/URL.
+                    self._last_cycle_error = type(e).__name__
+                else:
+                    if self._last_logged_cycle_error is not None:
+                        logger.info("Цикл опроса Twitch восстановился")
+                    self._last_logged_cycle_error = None
+                    self._last_successful_cycle_at = time.time()
+                    self._last_cycle_error = None
+                finally:
+                    self._last_cycle_duration_seconds = time.time() - started_at
 
-            try:
-                await asyncio.wait_for(self._stop_event.wait(), timeout=self._interval)
-            except asyncio.TimeoutError:
-                pass
+                try:
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=self._interval)
+                except asyncio.TimeoutError:
+                    pass
+        finally:
+            self._running = False
 
     async def _resume_chat_listeners(self) -> None:
         """Сбор чат-активности и уникальных ников — это in-memory состояние, которое
@@ -488,7 +515,6 @@ class StreamPoller:
                 raise
             except Exception as e:
                 failures.append((name, e))
-                logger.exception("Ошибка стадии poll-цикла: %s", name)
         if failures:
             summary = "; ".join(
                 f"{name}: {type(error).__name__}" for name, error in failures

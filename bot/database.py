@@ -2,6 +2,8 @@
 
 import asyncio
 import functools
+import logging
+import os
 import time
 from dataclasses import dataclass
 
@@ -10,6 +12,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 
 _ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
+logger = logging.getLogger(__name__)
 
 
 class DatabaseConfigurationError(RuntimeError):
@@ -236,6 +239,10 @@ CREATE INDEX IF NOT EXISTS idx_report_deliveries_pending
     ON report_deliveries (updated_at)
     WHERE terminal_failed = 0
       AND (text_sent = 0 OR (report_format = 'full' AND html_sent = 0));
+CREATE INDEX IF NOT EXISTS idx_report_deliveries_pending_created
+    ON report_deliveries (created_at)
+    WHERE terminal_failed = 0
+      AND (text_sent = 0 OR (report_format = 'full' AND html_sent = 0));
 
 CREATE TABLE IF NOT EXISTS chat_activity_samples (
     chat_id INTEGER NOT NULL,
@@ -343,6 +350,8 @@ CREATE TABLE IF NOT EXISTS deferred_reports (
     ended_at REAL NOT NULL,
     PRIMARY KEY (chat_id, source_chat_id, twitch_login, stream_id)
 );
+CREATE INDEX IF NOT EXISTS idx_deferred_reports_health
+    ON deferred_reports (ended_at);
 
 CREATE TABLE IF NOT EXISTS quiet_hours_digest_sent (
     chat_id INTEGER PRIMARY KEY
@@ -427,6 +436,12 @@ class Database:
         )
         await self._migrate_user_tokens_encryption()
         await self._migrate_deferred_reports_key()
+        # Старые БД проходят пересоздание deferred_reports внутри миграции, поэтому
+        # индекс health-агрегата гарантируем уже после возможной замены таблицы.
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_deferred_reports_health "
+            "ON deferred_reports (ended_at)"
+        )
         # До этого релиза интерфейс позволял выбрать группу получателем итогов.
         # Удаляем только маршруты доставки и отложенные групповые отправки; сама
         # история стримов остаётся нетронутой и доступна через /report в личке.
@@ -1442,6 +1457,11 @@ class Database:
             ),
         )
         await self.conn.commit()
+        logger.warning(
+            "Automatic report delivery стала terminal: login=%s, reason=%s",
+            delivery.twitch_login,
+            reason,
+        )
 
     async def _migrate_deferred_reports_key(self) -> None:
         """Разрешает хранить несколько завершённых стримов одного канала в очереди."""
@@ -2257,3 +2277,88 @@ class Database:
             "quiet_hours_chats": (await quiet_chats.fetchone())[0],
             "history_rows": (await history_rows.fetchone())[0],
         }
+
+    async def health_snapshot(self, now: float | None = None) -> dict[str, int | float | None]:
+        """Дешёвая read-only диагностика очередей и SQLite storage.
+
+        Здесь намеренно нет integrity check, checkpoint или обхода history/raw
+        таблиц. Outbox и deferred агрегируются по покрывающим индексам, токены лишь
+        считаются без чтения и расшифровки значений.
+        """
+        snapshot_at = time.time() if now is None else now
+        pending_cursor = await self.conn.execute(
+            "SELECT COUNT(*), MIN(created_at) FROM report_deliveries "
+            "WHERE terminal_failed = 0 AND (text_sent = 0 OR "
+            "(report_format = 'full' AND html_sent = 0))"
+        )
+        pending_count, oldest_pending_at = await pending_cursor.fetchone()
+
+        deferred_cursor = await self.conn.execute(
+            "SELECT COUNT(*), MIN(ended_at) FROM deferred_reports"
+        )
+        deferred_count, oldest_deferred_at = await deferred_cursor.fetchone()
+
+        token_cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM twitch_user_tokens"
+        )
+        stored_user_tokens = (await token_cursor.fetchone())[0]
+
+        pragma_values: dict[str, int | None] = {}
+        for pragma in ("page_count", "freelist_count", "page_size"):
+            try:
+                cursor = await self.conn.execute(f"PRAGMA {pragma}")
+                row = await cursor.fetchone()
+                pragma_values[pragma] = int(row[0]) if row is not None else None
+            except Exception:
+                pragma_values[pragma] = None
+
+        # PRAGMA database_list сообщает реальный путь и для относительной DB path,
+        # при этом :memory:/URI memory возвращают пустую строку. Сам путь наружу не
+        # отдаём, чтобы /health не раскрывал структуру filesystem.
+        database_path = ""
+        try:
+            cursor = await self.conn.execute("PRAGMA database_list")
+            for _sequence, name, path in await cursor.fetchall():
+                if name == "main":
+                    database_path = path or ""
+                    break
+        except Exception:
+            pass
+
+        db_file_bytes = self._safe_file_size(database_path, missing=0)
+        wal_file_bytes = self._safe_file_size(
+            f"{database_path}-wal" if database_path else "",
+            missing=0,
+        )
+        return {
+            "pending_deliveries": int(pending_count),
+            "oldest_pending_age_seconds": (
+                max(0.0, snapshot_at - float(oldest_pending_at))
+                if oldest_pending_at is not None
+                else None
+            ),
+            "deferred_reports": int(deferred_count),
+            "oldest_deferred_age_seconds": (
+                max(0.0, snapshot_at - float(oldest_deferred_at))
+                if oldest_deferred_at is not None
+                else None
+            ),
+            "stored_user_tokens": int(stored_user_tokens),
+            "db_file_bytes": db_file_bytes,
+            "wal_file_bytes": wal_file_bytes,
+            "page_count": pragma_values["page_count"],
+            "freelist_count": pragma_values["freelist_count"],
+            "page_size": pragma_values["page_size"],
+        }
+
+    @staticmethod
+    def _safe_file_size(path: str, *, missing: int) -> int | None:
+        if not path:
+            return missing
+        try:
+            return os.path.getsize(path)
+        except FileNotFoundError:
+            return missing
+        except OSError:
+            # Permission/race/mount errors не должны ломать owner health endpoint.
+            return None

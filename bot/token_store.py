@@ -39,6 +39,10 @@ class TokenStore:
             str, tuple[str, str, str, str, float]
         ] = {}
 
+    def health_snapshot(self) -> dict[str, int]:
+        """Только aggregate marker counts; token values наружу не попадают."""
+        return {"auth_blocked_logins": len(self._terminal_refresh_tokens)}
+
     def _is_terminal_token(self, twitch_login: str, refresh_token: str) -> bool:
         rejected = self._terminal_refresh_tokens.get(twitch_login)
         if rejected is None:

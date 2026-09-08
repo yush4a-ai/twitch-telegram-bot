@@ -277,6 +277,8 @@ async def main() -> None:
                 dp["twitch"] = twitch
                 dp["config"] = config
                 dp["oauth_server"] = oauth_server
+                dp["follow_listener"] = follow_listener
+                dp["token_store"] = token_store
 
                 follow_listener_task = asyncio.create_task(follow_listener.run())
                 await follow_listener.wait_initial_ready()

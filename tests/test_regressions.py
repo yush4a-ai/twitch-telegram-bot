@@ -47,11 +47,13 @@ from bot.follow_listener import FollowEventListener
 from bot.handlers.streams import (
     TWITCH_CUSTOM_EMOJI_ID,
     _build_live_list,
+    _build_health_text,
     _deliver_report,
     _format_viewers,
     _message_can_manage_chat,
     _run_import_follows,
     cb_quiet_digest_response,
+    cmd_health,
     cmd_report,
 )
 from bot.oauth import (
@@ -4463,6 +4465,434 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
         db.close.assert_awaited_once()
         bot.session.close.assert_awaited_once()
         self.assertTrue(session.exited)
+
+
+class HealthObservabilityTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def _healthy_snapshots():
+        poller = {
+            "running": True,
+            "last_cycle_started_at": 995.0,
+            "last_successful_cycle_at": 996.0,
+            "last_successful_cycle_age_seconds": 4.0,
+            "last_cycle_duration_seconds": 0.25,
+            "last_cycle_error": None,
+            "active_chat_listeners": 2,
+            "background_tasks": 0,
+            "stopping": False,
+            "uptime_seconds": 100.0,
+            "stale_after_seconds": 180,
+        }
+        eventsub = {
+            "running": True,
+            "stopping": False,
+            "configured_logins": 2,
+            "ready_logins": 2,
+            "stalest_message_age_seconds": 10.0,
+            "last_error": None,
+            "last_error_age_seconds": None,
+        }
+        oauth = {"runner_started": True, "pending_states": 0}
+        token = {"auth_blocked_logins": 0}
+        database = {
+            "pending_deliveries": 0,
+            "oldest_pending_age_seconds": None,
+            "deferred_reports": 0,
+            "oldest_deferred_age_seconds": None,
+            "stored_user_tokens": 2,
+            "db_file_bytes": 4096,
+            "wal_file_bytes": 0,
+            "page_count": 10,
+            "freelist_count": 1,
+            "page_size": 4096,
+        }
+        return poller, eventsub, oauth, token, database
+
+    async def test_health_shows_poller_last_success_and_error(self) -> None:
+        poller = StreamPoller(SimpleNamespace(), SimpleNamespace(), SimpleNamespace(), 60)
+        poller._running = True
+        poller._last_successful_cycle_at = 900.0
+        poller._last_cycle_duration_seconds = 1.25
+        poller._last_cycle_error = "RuntimeError"
+
+        snapshot = poller.health_snapshot(1000.0)
+
+        self.assertEqual(snapshot["last_successful_cycle_age_seconds"], 100.0)
+        self.assertEqual(snapshot["last_cycle_error"], "RuntimeError")
+        _poller, eventsub, oauth, token, database = self._healthy_snapshots()
+        text = _build_health_text(snapshot, eventsub, oauth, token, database)
+        self.assertIn("success 100 сек. назад", text)
+        self.assertIn("RuntimeError", text)
+        self.assertIn("DEGRADED", text)
+
+    async def test_pending_outbox_count_excludes_completed_deliveries(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.create_report_delivery(1, "one", "pending", 1, "brief", "x", None, 100.0)
+            complete = await db.create_report_delivery(
+                2, "two", "complete", 2, "brief", "x", None, 200.0
+            )
+            await db.mark_report_text_sent(complete, 201.0)
+
+            snapshot = await db.health_snapshot(1000.0)
+
+            self.assertEqual(snapshot["pending_deliveries"], 1)
+        finally:
+            await db.close()
+
+    async def test_oldest_pending_age_uses_delivery_creation_time(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            delivery = await db.create_report_delivery(
+                1, "one", "pending", 1, "brief", "x", None, 100.0
+            )
+            await db.defer_report_delivery_retry(delivery, 900.0)
+
+            snapshot = await db.health_snapshot(1000.0)
+
+            self.assertEqual(snapshot["oldest_pending_age_seconds"], 900.0)
+        finally:
+            await db.close()
+
+    async def test_deferred_count_and_oldest_age(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_deferred_report(1, 1, "one", "stream-1", 100.0)
+            await db.add_deferred_report(1, 2, "two", "stream-2", 250.0)
+
+            snapshot = await db.health_snapshot(1000.0)
+
+            self.assertEqual(snapshot["deferred_reports"], 2)
+            self.assertEqual(snapshot["oldest_deferred_age_seconds"], 900.0)
+        finally:
+            await db.close()
+
+    async def test_db_and_wal_bytes_fallback_for_memory_database(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            snapshot = await db.health_snapshot(1000.0)
+            self.assertEqual(snapshot["db_file_bytes"], 0)
+            self.assertEqual(snapshot["wal_file_bytes"], 0)
+        finally:
+            await db.close()
+
+    async def test_missing_wal_and_filesystem_error_do_not_break_health(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                def file_size(path: str) -> int:
+                    if path.endswith("-wal"):
+                        raise FileNotFoundError(path)
+                    raise OSError("mount unavailable")
+
+                with patch("bot.database.os.path.getsize", side_effect=file_size):
+                    snapshot = await db.health_snapshot(1000.0)
+                self.assertIsNone(snapshot["db_file_bytes"])
+                self.assertEqual(snapshot["wal_file_bytes"], 0)
+            finally:
+                await db.close()
+
+    async def test_health_reports_page_and_freelist_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.conn.execute("CREATE TABLE health_freelist_probe (payload BLOB)")
+                await db.conn.executemany(
+                    "INSERT INTO health_freelist_probe VALUES (?)",
+                    [(b"x" * 4096,) for _ in range(300)],
+                )
+                await db.conn.commit()
+                await db.conn.execute("DELETE FROM health_freelist_probe")
+                await db.conn.commit()
+
+                snapshot = await db.health_snapshot()
+
+                self.assertGreater(snapshot["page_count"], 0)
+                self.assertGreater(snapshot["freelist_count"], 0)
+                self.assertGreater(snapshot["page_size"], 0)
+            finally:
+                await db.close()
+
+    async def test_eventsub_health_is_aggregate_and_tracks_stalest_message(self) -> None:
+        listener = FollowEventListener(
+            SimpleNamespace(), SimpleNamespace(), "client", SimpleNamespace()
+        )
+        listener._running = True
+        listener._tasks = {"alpha": Mock(), "beta": Mock()}
+        listener._ready = {"alpha": True, "beta": False}
+        listener._last_message_at = {"alpha": 900.0, "beta": 990.0}
+        listener._last_error = "ConnectionError"
+        listener._last_error_at = 950.0
+
+        snapshot = listener.health_snapshot(1000.0)
+
+        self.assertEqual(snapshot["configured_logins"], 2)
+        self.assertEqual(snapshot["ready_logins"], 1)
+        self.assertEqual(snapshot["stalest_message_age_seconds"], 100.0)
+        self.assertEqual(snapshot["last_error_age_seconds"], 50.0)
+        self.assertNotIn("alpha", str(snapshot))
+        self.assertNotIn("beta", str(snapshot))
+
+    async def test_oauth_health_counts_states_without_exposing_them(self) -> None:
+        server = OAuthCallbackServer("https://example.test/callback", "127.0.0.1", 0)
+        server._runner = object()
+        server.register_state("state-secret-one")
+        server.register_state("state-secret-two")
+        try:
+            snapshot = server.health_snapshot()
+            self.assertEqual(snapshot, {"runner_started": True, "pending_states": 2})
+            self.assertNotIn("state-secret", str(snapshot))
+        finally:
+            server.discard_state("state-secret-one")
+            server.discard_state("state-secret-two")
+            server._runner = None
+
+    async def test_token_health_counts_blocked_logins_without_exposing_tokens(self) -> None:
+        store = TokenStore(
+            SimpleNamespace(), "client", "client-secret", SimpleNamespace()
+        )
+        store._terminal_refresh_tokens = {
+            "one": "refresh-secret-one",
+            "two": "refresh-secret-two",
+        }
+
+        snapshot = store.health_snapshot()
+
+        self.assertEqual(snapshot, {"auth_blocked_logins": 2})
+        self.assertNotIn("refresh-secret", str(snapshot))
+
+    async def test_health_is_owner_only_even_when_owner_is_missing(self) -> None:
+        message = SimpleNamespace(
+            chat=SimpleNamespace(id=7),
+            answer=AsyncMock(),
+        )
+        never = Mock(side_effect=AssertionError("health dependency must not run"))
+        poller = SimpleNamespace(health_snapshot=never)
+        listener = SimpleNamespace(health_snapshot=never)
+        oauth = SimpleNamespace(health_snapshot=never)
+        token = SimpleNamespace(health_snapshot=never)
+        db = SimpleNamespace(health_snapshot=AsyncMock(side_effect=AssertionError))
+
+        await cmd_health(
+            message,
+            SimpleNamespace(owner_chat_id=None),
+            db,
+            poller,
+            listener,
+            oauth,
+            token,
+        )
+        await cmd_health(
+            message,
+            SimpleNamespace(owner_chat_id=8),
+            db,
+            poller,
+            listener,
+            oauth,
+            token,
+        )
+
+        message.answer.assert_not_awaited()
+        never.assert_not_called()
+        db.health_snapshot.assert_not_awaited()
+
+    async def test_health_command_is_read_only(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_deferred_report(7, 7, "channel", "stream", 100.0)
+            await db.create_report_delivery(
+                7, "channel", "stream", 7, "brief", "payload", None, 100.0
+            )
+            before = db.conn.total_changes
+            poller, eventsub, oauth, token, _database = self._healthy_snapshots()
+            message = SimpleNamespace(
+                chat=SimpleNamespace(id=7),
+                answer=AsyncMock(),
+            )
+
+            await cmd_health(
+                message,
+                SimpleNamespace(owner_chat_id=7),
+                db,
+                SimpleNamespace(health_snapshot=Mock(return_value=poller)),
+                SimpleNamespace(health_snapshot=Mock(return_value=eventsub)),
+                SimpleNamespace(health_snapshot=Mock(return_value=oauth)),
+                SimpleNamespace(health_snapshot=Mock(return_value=token)),
+            )
+
+            self.assertEqual(db.conn.total_changes, before)
+            self.assertEqual(len(await db.pending_report_deliveries()), 1)
+            self.assertTrue(await db.has_deferred_reports(7))
+            message.answer.assert_awaited_once()
+        finally:
+            await db.close()
+
+    async def test_large_health_snapshot_uses_aggregate_indexes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.conn.executemany(
+                    "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
+                    [(index + 1, f"channel{index}") for index in range(100)],
+                )
+                deliveries = []
+                for index in range(1000):
+                    deliveries.append(
+                        (
+                            index + 1,
+                            f"channel{index}",
+                            f"stream{index}",
+                            index + 1,
+                            "brief",
+                            "payload",
+                            None,
+                            int(index >= 500),
+                            0,
+                            0,
+                            None,
+                            1000.0 + index,
+                            1000.0 + index,
+                        )
+                    )
+                await db.conn.executemany(
+                    "INSERT INTO report_deliveries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    deliveries,
+                )
+                await db.conn.executemany(
+                    "INSERT INTO deferred_reports VALUES (?, ?, ?, ?, ?)",
+                    [
+                        (7, index + 1, f"channel{index}", f"stream{index}", 1000.0 + index)
+                        for index in range(1000)
+                    ],
+                )
+                await db.conn.execute("CREATE TABLE health_freelist_probe (payload BLOB)")
+                await db.conn.executemany(
+                    "INSERT INTO health_freelist_probe VALUES (?)",
+                    [(b"x" * 4096,) for _ in range(300)],
+                )
+                await db.conn.commit()
+                await db.conn.execute("DELETE FROM health_freelist_probe")
+                await db.conn.commit()
+
+                statements: list[str] = []
+                await db.conn.set_trace_callback(statements.append)
+                started = time.perf_counter()
+                snapshot = await db.health_snapshot(5000.0)
+                elapsed = time.perf_counter() - started
+                await db.conn.set_trace_callback(None)
+
+                self.assertEqual(snapshot["pending_deliveries"], 500)
+                self.assertEqual(snapshot["deferred_reports"], 1000)
+                self.assertGreater(snapshot["freelist_count"], 0)
+                self.assertGreaterEqual(elapsed, 0.0)
+                self.assertFalse(any("stream_history" in sql for sql in statements))
+
+                plans = {
+                    "idx_report_deliveries_pending_created": (
+                        "SELECT COUNT(*), MIN(created_at) FROM report_deliveries "
+                        "WHERE terminal_failed = 0 AND (text_sent = 0 OR "
+                        "(report_format = 'full' AND html_sent = 0))"
+                    ),
+                    "idx_deferred_reports_health": (
+                        "SELECT COUNT(*), MIN(ended_at) FROM deferred_reports"
+                    ),
+                }
+                for expected_index, query in plans.items():
+                    cursor = await db.conn.execute(f"EXPLAIN QUERY PLAN {query}")
+                    plan = " ".join(str(row) for row in await cursor.fetchall())
+                    self.assertIn(expected_index, plan)
+            finally:
+                await db.close()
+
+    async def test_health_text_contains_no_secrets_paths_or_state_values(self) -> None:
+        poller, eventsub, oauth, token, database = self._healthy_snapshots()
+        poller["last_cycle_error"] = "RuntimeError: access-secret C:\\private\\bot.db"
+        eventsub["last_error"] = "refresh-secret"
+
+        text = _build_health_text(poller, eventsub, oauth, token, database)
+
+        self.assertNotIn("access-secret", text)
+        self.assertNotIn("refresh-secret", text)
+        self.assertNotIn("C:\\private", text)
+        self.assertNotIn("state", text.lower())
+        self.assertLess(len(text), 4096)
+
+    async def test_degraded_threshold_is_exactly_three_poll_intervals(self) -> None:
+        poller, eventsub, oauth, token, database = self._healthy_snapshots()
+        poller["stale_after_seconds"] = 180
+        database["pending_deliveries"] = 1
+        database["oldest_pending_age_seconds"] = 180.0
+        self.assertIn(
+            "Состояние: OK",
+            _build_health_text(poller, eventsub, oauth, token, database),
+        )
+
+        database["oldest_pending_age_seconds"] = 181.0
+        self.assertIn(
+            "Состояние: DEGRADED",
+            _build_health_text(poller, eventsub, oauth, token, database),
+        )
+
+    async def test_unavailable_storage_metrics_degrade_health_without_crashing(self) -> None:
+        poller, eventsub, oauth, token, database = self._healthy_snapshots()
+        database["db_file_bytes"] = None
+
+        text = _build_health_text(poller, eventsub, oauth, token, database)
+
+        self.assertIn("Состояние: DEGRADED", text)
+        self.assertIn("DB: <b>н/д</b>", text)
+
+    async def test_repeated_identical_poller_failure_logs_once(self) -> None:
+        poller = StreamPoller(SimpleNamespace(), SimpleNamespace(), SimpleNamespace(), 0.001)
+        attempts = 0
+
+        async def fail_twice() -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 2:
+                poller.stop()
+            raise RuntimeError("same outage")
+
+        poller._check_once = fail_twice
+        with self.assertLogs("bot.poller", level="ERROR") as captured:
+            await poller.run()
+
+        errors = [line for line in captured.output if "Ошибка в цикле опроса Twitch" in line]
+        self.assertEqual(attempts, 2)
+        self.assertEqual(len(errors), 1)
+
+    async def test_terminal_outbox_log_excludes_payload_and_recipient(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            delivery = await db.create_report_delivery(
+                1,
+                "channel",
+                "stream",
+                987654321,
+                "brief",
+                "access-secret payload",
+                None,
+                100.0,
+            )
+            with self.assertLogs("bot.database", level="WARNING") as captured:
+                await db.mark_report_delivery_terminal(delivery, "destination_rejected", 101.0)
+
+            logs = "\n".join(captured.output)
+            self.assertIn("terminal", logs)
+            self.assertIn("destination_rejected", logs)
+            self.assertNotIn("access-secret", logs)
+            self.assertNotIn("987654321", logs)
+        finally:
+            await db.close()
 
 
 class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):

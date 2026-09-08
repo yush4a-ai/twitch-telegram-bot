@@ -27,6 +27,7 @@ import aiohttp
 
 from ..config import Config
 from ..database import Database
+from ..follow_listener import FollowEventListener
 from ..logging_utils import mask_chat_id
 from ..oauth import (
     TOKEN_HTTP_TIMEOUT,
@@ -448,28 +449,186 @@ async def cmd_stats(message: Message, db: Database, config: Config) -> None:
 
 
 @router.message(Command("health"))
-async def cmd_health(message: Message, config: Config, poller: StreamPoller) -> None:
+async def cmd_health(
+    message: Message,
+    config: Config,
+    db: Database,
+    poller: StreamPoller,
+    follow_listener: FollowEventListener,
+    oauth_server: OAuthCallbackServer,
+    token_store: TokenStore,
+) -> None:
     if config.owner_chat_id is None or message.chat.id != config.owner_chat_id:
         return
 
-    snapshot = poller.health_snapshot()
     now = time.time()
-    last_success = snapshot["last_successful_cycle_at"]
-    if isinstance(last_success, (int, float)):
-        success_age = f"{max(0, int(now - last_success))} сек. назад"
-    else:
-        success_age = "ещё не завершался"
-    duration = snapshot["last_cycle_duration_seconds"]
-    duration_text = f"{duration:.2f} сек." if isinstance(duration, (int, float)) else "—"
-    error = snapshot["last_cycle_error"] or "нет"
+    poller_health = poller.health_snapshot(now)
+    eventsub_health = follow_listener.health_snapshot(now)
+    oauth_health = oauth_server.health_snapshot()
+    token_health = token_store.health_snapshot()
+    try:
+        database_health = await db.health_snapshot(now)
+    except Exception:
+        logger.exception("Не удалось собрать SQLite health snapshot")
+        database_health = {
+            "pending_deliveries": None,
+            "oldest_pending_age_seconds": None,
+            "deferred_reports": None,
+            "oldest_deferred_age_seconds": None,
+            "stored_user_tokens": None,
+            "db_file_bytes": None,
+            "wal_file_bytes": None,
+            "page_count": None,
+            "freelist_count": None,
+            "page_size": None,
+        }
 
     await message.answer(
-        "🩺 <b>Состояние бота</b>\n\n"
-        f"Последний успешный цикл: <b>{success_age}</b>\n"
-        f"Длительность цикла: <b>{duration_text}</b>\n"
-        f"Активных слушателей Twitch-чата: <b>{snapshot['active_chat_listeners']}</b>\n"
-        f"Фоновых задач: <b>{snapshot['background_tasks']}</b>\n"
-        f"Последняя ошибка цикла: <code>{html.escape(str(error))}</code>"
+        _build_health_text(
+            poller_health,
+            eventsub_health,
+            oauth_health,
+            token_health,
+            database_health,
+        )
+    )
+
+
+def _health_age(value: object, *, empty: str = "—") -> str:
+    if not isinstance(value, (int, float)):
+        return empty
+    seconds = max(0, int(value))
+    if seconds < 120:
+        return f"{seconds} сек."
+    if seconds < 7200:
+        return f"{seconds // 60} мин."
+    return f"{seconds // 3600} ч."
+
+
+def _health_bytes(value: object) -> str:
+    if not isinstance(value, (int, float)):
+        return "н/д"
+    size = max(0, int(value))
+    if size < 1024:
+        return f"{size} Б"
+    if size < 1024 * 1024:
+        return f"{size / 1024:.1f} КиБ"
+    return f"{size / (1024 * 1024):.1f} МиБ"
+
+
+def _health_value(value: object) -> str:
+    return str(value) if isinstance(value, int) else "н/д"
+
+
+def _health_error(value: object) -> str:
+    if value is None:
+        return "нет"
+    text = str(value)
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,79}", text):
+        return html.escape(text)
+    return "подробности в логе"
+
+
+def _build_health_text(
+    poller: dict[str, object],
+    eventsub: dict[str, object],
+    oauth: dict[str, object],
+    token: dict[str, object],
+    database: dict[str, object],
+) -> str:
+    stale_after = poller.get("stale_after_seconds")
+    success_age = poller.get("last_successful_cycle_age_seconds")
+    uptime = poller.get("uptime_seconds")
+    pending_age = database.get("oldest_pending_age_seconds")
+    poller_stale = (
+        isinstance(stale_after, (int, float))
+        and (
+            (isinstance(success_age, (int, float)) and success_age > stale_after)
+            or (
+                success_age is None
+                and isinstance(uptime, (int, float))
+                and uptime > stale_after
+            )
+        )
+    )
+    eventsub_configured = int(eventsub.get("configured_logins") or 0)
+    eventsub_ready = int(eventsub.get("ready_logins") or 0)
+    outbox_stale = (
+        isinstance(stale_after, (int, float))
+        and isinstance(pending_age, (int, float))
+        and pending_age > stale_after
+    )
+    storage_unavailable = any(
+        database.get(key) is None
+        for key in (
+            "pending_deliveries",
+            "deferred_reports",
+            "db_file_bytes",
+            "wal_file_bytes",
+            "page_count",
+            "freelist_count",
+            "page_size",
+        )
+    )
+    degraded = any(
+        (
+            not bool(poller.get("running")),
+            bool(poller.get("stopping")),
+            poller.get("last_cycle_error") is not None,
+            poller_stale,
+            not bool(eventsub.get("running")),
+            eventsub_ready < eventsub_configured,
+            not bool(oauth.get("runner_started")),
+            int(token.get("auth_blocked_logins") or 0) > 0,
+            outbox_stale,
+            storage_unavailable,
+        )
+    )
+
+    last_success_text = (
+        f"{_health_age(success_age)} назад"
+        if isinstance(success_age, (int, float))
+        else "ещё не было"
+    )
+    duration = poller.get("last_cycle_duration_seconds")
+    duration_text = (
+        f"{float(duration):.2f} сек."
+        if isinstance(duration, (int, float))
+        else "—"
+    )
+    poller_error = _health_error(poller.get("last_cycle_error"))
+    eventsub_error = _health_error(eventsub.get("last_error"))
+    poller_state = "работает" if poller.get("running") else "остановлен"
+    eventsub_state = "работает" if eventsub.get("running") else "остановлен"
+    oauth_state = "работает" if oauth.get("runner_started") else "остановлен"
+
+    return (
+        "🩺 <b>Состояние: " + ("DEGRADED" if degraded else "OK") + "</b>\n\n"
+        "<b>Runtime</b>\n"
+        f"Poller: <b>{poller_state}</b> · success {last_success_text}\n"
+        f"Цикл: <b>{duration_text}</b> · ошибка <code>{poller_error}</code>\n"
+        f"Twitch-чатов: <b>{_health_value(poller.get('active_chat_listeners'))}</b> · "
+        f"фоновых задач: <b>{_health_value(poller.get('background_tasks'))}</b>\n"
+        f"OAuth: <b>{oauth_state}</b> · ожиданий: "
+        f"<b>{_health_value(oauth.get('pending_states'))}</b>\n\n"
+        "<b>Twitch / EventSub</b>\n"
+        f"Listener: <b>{eventsub_state}</b> · готово: "
+        f"<b>{eventsub_ready}/{eventsub_configured}</b>\n"
+        f"Самое старое сообщение: <b>{_health_age(eventsub.get('stalest_message_age_seconds'))}</b> · "
+        f"ошибка <code>{eventsub_error}</code>\n\n"
+        "<b>Reports</b>\n"
+        f"Outbox: <b>{_health_value(database.get('pending_deliveries'))}</b> · "
+        f"старейший {_health_age(pending_age)}\n"
+        f"Deferred: <b>{_health_value(database.get('deferred_reports'))}</b> · "
+        f"старейший {_health_age(database.get('oldest_deferred_age_seconds'))}\n"
+        f"User tokens: <b>{_health_value(database.get('stored_user_tokens'))}</b> · "
+        f"нужна re-auth: <b>{_health_value(token.get('auth_blocked_logins'))}</b>\n\n"
+        "<b>Storage</b>\n"
+        f"DB: <b>{_health_bytes(database.get('db_file_bytes'))}</b> · "
+        f"WAL: <b>{_health_bytes(database.get('wal_file_bytes'))}</b>\n"
+        f"Страниц: <b>{_health_value(database.get('page_count'))}</b> · "
+        f"свободно: <b>{_health_value(database.get('freelist_count'))}</b> · "
+        f"размер: <b>{_health_value(database.get('page_size'))} Б</b>"
     )
 
 
