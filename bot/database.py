@@ -3,12 +3,74 @@
 import asyncio
 import functools
 import time
+from dataclasses import dataclass
 
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
 
 
 _ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
+
+
+@dataclass(frozen=True)
+class ReportDelivery:
+    source_chat_id: int
+    twitch_login: str
+    stream_id: str
+    recipient_chat_id: int
+    report_format: str
+    text_payload: str
+    html_payload: str | None
+    text_sent: bool
+    html_sent: bool
+    terminal_failed: bool
+    terminal_reason: str | None
+    created_at: float
+    updated_at: float
+
+    @property
+    def complete(self) -> bool:
+        return self.text_sent and (
+            self.report_format == "brief" or self.html_sent
+        )
+
+
+@dataclass(frozen=True)
+class StreamHistoryRecord:
+    chat_id: int
+    twitch_login: str
+    stream_id: str
+    ended_at: float
+    duration_seconds: int
+    peak_viewers: int
+    avg_viewers: int
+    new_followers: int | None
+    started_at: str | None = None
+    title: str | None = None
+    new_followers_text: str | None = None
+    unique_chatters: int | None = None
+    join_reliable: bool | None = None
+    top_chatters_json: str | None = None
+    raid_events_json: str | None = None
+    collab_json: str | None = None
+
+
+def _report_delivery_from_row(row: tuple) -> ReportDelivery:
+    return ReportDelivery(
+        source_chat_id=row[0],
+        twitch_login=row[1],
+        stream_id=row[2],
+        recipient_chat_id=row[3],
+        report_format=row[4],
+        text_payload=row[5],
+        html_payload=row[6],
+        text_sent=bool(row[7]),
+        html_sent=bool(row[8]),
+        terminal_failed=bool(row[9]),
+        terminal_reason=row[10],
+        created_at=row[11],
+        updated_at=row[12],
+    )
 
 
 def _serialized(func):
@@ -129,6 +191,30 @@ CREATE TABLE IF NOT EXISTS stream_history (
 
 CREATE INDEX IF NOT EXISTS idx_stream_history_lookup
     ON stream_history (chat_id, twitch_login, ended_at);
+
+-- Persistent outbox для автоматических итоговых отчётов. Payload хранится здесь,
+-- чтобы после рестарта повторить только недоставленную часть, не полагаясь на уже
+-- очищенное состояние активной Twitch-сессии.
+CREATE TABLE IF NOT EXISTS report_deliveries (
+    source_chat_id INTEGER NOT NULL,
+    twitch_login TEXT NOT NULL,
+    stream_id TEXT NOT NULL,
+    recipient_chat_id INTEGER NOT NULL,
+    report_format TEXT NOT NULL CHECK (report_format IN ('brief', 'full')),
+    text_payload TEXT NOT NULL,
+    html_payload TEXT,
+    text_sent INTEGER NOT NULL DEFAULT 0,
+    html_sent INTEGER NOT NULL DEFAULT 0,
+    terminal_failed INTEGER NOT NULL DEFAULT 0,
+    terminal_reason TEXT,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    PRIMARY KEY (source_chat_id, twitch_login, stream_id)
+);
+CREATE INDEX IF NOT EXISTS idx_report_deliveries_cleanup
+    ON report_deliveries (updated_at)
+    WHERE terminal_failed = 1
+       OR (text_sent = 1 AND (report_format = 'brief' OR html_sent = 1));
 
 CREATE TABLE IF NOT EXISTS chat_activity_samples (
     chat_id INTEGER NOT NULL,
@@ -1069,6 +1155,176 @@ class Database:
         )
         await self.conn.commit()
 
+    async def _insert_report_delivery(
+        self,
+        source_chat_id: int,
+        twitch_login: str,
+        stream_id: str,
+        recipient_chat_id: int,
+        report_format: str,
+        text_payload: str,
+        html_payload: str | None,
+        created_at: float,
+    ) -> ReportDelivery:
+        """Вставляет automatic delivery внутри уже открытой write-транзакции.
+
+        Recipient и payload замораживаются первой строкой для logical report. Повторная
+        попытка с изменившимся routing возвращает исходную строку, а не создаёт вторую.
+        """
+        if report_format not in {"brief", "full"}:
+            raise ValueError(f"Неизвестный формат отчёта: {report_format}")
+        if report_format == "full" and html_payload is None:
+            raise ValueError("Для full delivery требуется сохранённый HTML payload")
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO report_deliveries ("
+            "source_chat_id, twitch_login, stream_id, recipient_chat_id, "
+            "report_format, text_payload, html_payload, created_at, updated_at"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                source_chat_id,
+                twitch_login,
+                stream_id,
+                recipient_chat_id,
+                report_format,
+                text_payload,
+                html_payload,
+                created_at,
+                created_at,
+            ),
+        )
+        cursor = await self.conn.execute(
+            "SELECT source_chat_id, twitch_login, stream_id, recipient_chat_id, "
+            "report_format, text_payload, html_payload, text_sent, html_sent, "
+            "terminal_failed, terminal_reason, created_at, updated_at "
+            "FROM report_deliveries WHERE source_chat_id = ? AND twitch_login = ? "
+            "AND stream_id = ?",
+            (source_chat_id, twitch_login, stream_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise RuntimeError("Не удалось создать persistent delivery")
+        return _report_delivery_from_row(tuple(row))
+
+    @_serialized
+    async def create_report_delivery(
+        self,
+        source_chat_id: int,
+        twitch_login: str,
+        stream_id: str,
+        recipient_chat_id: int,
+        report_format: str,
+        text_payload: str,
+        html_payload: str | None,
+        created_at: float,
+    ) -> ReportDelivery:
+        """Создаёт logical automatic delivery один раз и фиксирует её recipient."""
+        delivery = await self._insert_report_delivery(
+            source_chat_id,
+            twitch_login,
+            stream_id,
+            recipient_chat_id,
+            report_format,
+            text_payload,
+            html_payload,
+            created_at,
+        )
+        await self.conn.commit()
+        return delivery
+
+    async def get_report_delivery(
+        self,
+        source_chat_id: int,
+        twitch_login: str,
+        stream_id: str,
+        recipient_chat_id: int,
+    ) -> ReportDelivery | None:
+        cursor = await self.conn.execute(
+            "SELECT source_chat_id, twitch_login, stream_id, recipient_chat_id, "
+            "report_format, text_payload, html_payload, text_sent, html_sent, "
+            "terminal_failed, terminal_reason, created_at, updated_at "
+            "FROM report_deliveries WHERE source_chat_id = ? AND twitch_login = ? "
+            "AND stream_id = ? AND recipient_chat_id = ?",
+            (source_chat_id, twitch_login, stream_id, recipient_chat_id),
+        )
+        row = await cursor.fetchone()
+        return _report_delivery_from_row(tuple(row)) if row else None
+
+    async def get_report_delivery_for_stream(
+        self, source_chat_id: int, twitch_login: str, stream_id: str
+    ) -> ReportDelivery | None:
+        """Возвращает уже выбранный automatic destination после рестарта.
+
+        Recipient намеренно берётся из outbox, а не вычисляется заново между text
+        и HTML: обе части одного отчёта должны относиться к одной доставке. Перед
+        каждым retry сохранённый адрес всё равно заново проходит safety guard.
+        """
+        cursor = await self.conn.execute(
+            "SELECT source_chat_id, twitch_login, stream_id, recipient_chat_id, "
+            "report_format, text_payload, html_payload, text_sent, html_sent, "
+            "terminal_failed, terminal_reason, created_at, updated_at "
+            "FROM report_deliveries WHERE source_chat_id = ? AND twitch_login = ? "
+            "AND stream_id = ?",
+            (source_chat_id, twitch_login, stream_id),
+        )
+        row = await cursor.fetchone()
+        return _report_delivery_from_row(tuple(row)) if row else None
+
+    @_serialized
+    async def mark_report_text_sent(
+        self, delivery: ReportDelivery, updated_at: float
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE report_deliveries SET text_sent = 1, updated_at = ? "
+            "WHERE source_chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "AND recipient_chat_id = ? AND terminal_failed = 0",
+            (
+                updated_at,
+                delivery.source_chat_id,
+                delivery.twitch_login,
+                delivery.stream_id,
+                delivery.recipient_chat_id,
+            ),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def mark_report_html_sent(
+        self, delivery: ReportDelivery, updated_at: float
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE report_deliveries SET html_sent = 1, updated_at = ? "
+            "WHERE source_chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "AND recipient_chat_id = ? AND terminal_failed = 0 AND text_sent = 1",
+            (
+                updated_at,
+                delivery.source_chat_id,
+                delivery.twitch_login,
+                delivery.stream_id,
+                delivery.recipient_chat_id,
+            ),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def mark_report_delivery_terminal(
+        self, delivery: ReportDelivery, reason: str, updated_at: float
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE report_deliveries SET terminal_failed = 1, "
+            "terminal_reason = ?, updated_at = ? "
+            "WHERE source_chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "AND recipient_chat_id = ?",
+            (
+                reason,
+                updated_at,
+                delivery.source_chat_id,
+                delivery.twitch_login,
+                delivery.stream_id,
+                delivery.recipient_chat_id,
+            ),
+        )
+        await self.conn.commit()
+
     async def _migrate_deferred_reports_key(self) -> None:
         """Разрешает хранить несколько завершённых стримов одного канала в очереди."""
         cursor = await self.conn.execute("PRAGMA table_info(deferred_reports)")
@@ -1348,6 +1604,31 @@ class Database:
         await self.conn.commit()
         return bool(row[0]) if row[0] is not None else True, row[1], row[2]
 
+    async def get_stream_chat_meta(
+        self, chat_id: int, twitch_login: str, stream_id: str
+    ) -> tuple[bool, str | None, str | None] | None:
+        """Читает meta без удаления: automatic flow удалит её после durable save."""
+        cursor = await self.conn.execute(
+            "SELECT join_reliable, top_chatters_json, raid_events_json "
+            "FROM stream_chat_meta WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
+            (chat_id, twitch_login, stream_id),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return bool(row[0]) if row[0] is not None else True, row[1], row[2]
+
+    @_serialized
+    async def delete_stream_chat_meta(
+        self, chat_id: int, twitch_login: str, stream_id: str
+    ) -> None:
+        await self.conn.execute(
+            "DELETE FROM stream_chat_meta "
+            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
+            (chat_id, twitch_login, stream_id),
+        )
+        await self.conn.commit()
+
     @_serialized
     async def purge_old_report_data(self, older_than_ts: float) -> None:
         """Удаляет сырые поминутные данные (график, ники чатеров) старше указанного времени.
@@ -1368,6 +1649,15 @@ class Database:
         # удалил бота сразу после стрима), иначе копились бы вечно
         await self.conn.execute(
             "DELETE FROM stream_chat_meta WHERE created_at < ?", (older_than_ts,)
+        )
+        # Завершённые/terminal outbox-записи нужны только для crash recovery.
+        # Pending не удаляем по возрасту: payload хранится прямо в строке и может
+        # быть безопасно повторён на следующем обычном poll.
+        await self.conn.execute(
+            "DELETE FROM report_deliveries WHERE updated_at < ? AND ("
+            "terminal_failed = 1 OR (text_sent = 1 AND ("
+            "report_format = 'brief' OR html_sent = 1)))",
+            (older_than_ts,),
         )
         await self.conn.execute(
             "DELETE FROM follow_event_counts WHERE created_at < ? AND NOT EXISTS ("
@@ -1532,6 +1822,37 @@ class Database:
             expires_at,
         )
 
+    async def _insert_stream_history(self, record: StreamHistoryRecord) -> None:
+        await self.conn.execute(
+            "INSERT INTO stream_history "
+            "(chat_id, twitch_login, stream_id, ended_at, duration_seconds, "
+            "peak_viewers, avg_viewers, new_followers, started_at, title, "
+            "new_followers_text, unique_chatters, join_reliable, "
+            "top_chatters_json, raid_events_json, collab_json) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            # повторная отправка того же отчёта (например, после перезапуска бота
+            # между отправкой и отметкой «отправлено») не должна задваивать историю
+            "ON CONFLICT(chat_id, twitch_login, stream_id) DO NOTHING",
+            (
+                record.chat_id,
+                record.twitch_login,
+                record.stream_id,
+                record.ended_at,
+                record.duration_seconds,
+                record.peak_viewers,
+                record.avg_viewers,
+                record.new_followers,
+                record.started_at,
+                record.title,
+                record.new_followers_text,
+                record.unique_chatters,
+                None if record.join_reliable is None else int(record.join_reliable),
+                record.top_chatters_json,
+                record.raid_events_json,
+                record.collab_json,
+            ),
+        )
+
     @_serialized
     async def add_stream_history(
         self,
@@ -1552,25 +1873,57 @@ class Database:
         raid_events_json: str | None = None,
         collab_json: str | None = None,
     ) -> None:
-        await self.conn.execute(
-            "INSERT INTO stream_history "
-            "(chat_id, twitch_login, stream_id, ended_at, duration_seconds, "
-            "peak_viewers, avg_viewers, new_followers, started_at, title, "
-            "new_followers_text, unique_chatters, join_reliable, "
-            "top_chatters_json, raid_events_json, collab_json) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-            # повторная отправка того же отчёта (например, после перезапуска бота
-            # между отправкой и отметкой «отправлено») не должна задваивать историю
-            "ON CONFLICT(chat_id, twitch_login, stream_id) DO NOTHING",
-            (
-                chat_id, twitch_login, stream_id, ended_at, duration_seconds,
-                peak_viewers, avg_viewers, new_followers, started_at, title,
-                new_followers_text, unique_chatters,
-                None if join_reliable is None else int(join_reliable),
-                top_chatters_json, raid_events_json, collab_json,
-            ),
+        await self._insert_stream_history(
+            StreamHistoryRecord(
+                chat_id=chat_id,
+                twitch_login=twitch_login,
+                stream_id=stream_id,
+                ended_at=ended_at,
+                duration_seconds=duration_seconds,
+                peak_viewers=peak_viewers,
+                avg_viewers=avg_viewers,
+                new_followers=new_followers,
+                started_at=started_at,
+                title=title,
+                new_followers_text=new_followers_text,
+                unique_chatters=unique_chatters,
+                join_reliable=join_reliable,
+                top_chatters_json=top_chatters_json,
+                raid_events_json=raid_events_json,
+                collab_json=collab_json,
+            )
         )
         await self.conn.commit()
+
+    @_serialized
+    async def add_stream_history_record(self, history: StreamHistoryRecord) -> None:
+        await self._insert_stream_history(history)
+        await self.conn.commit()
+
+    @_serialized
+    async def save_history_and_report_delivery(
+        self,
+        history: StreamHistoryRecord,
+        recipient_chat_id: int,
+        report_format: str,
+        text_payload: str,
+        html_payload: str | None,
+        created_at: float,
+    ) -> ReportDelivery:
+        """Атомарно фиксирует history и outbox до первой automatic отправки."""
+        await self._insert_stream_history(history)
+        delivery = await self._insert_report_delivery(
+            history.chat_id,
+            history.twitch_login,
+            history.stream_id,
+            recipient_chat_id,
+            report_format,
+            text_payload,
+            html_payload,
+            created_at,
+        )
+        await self.conn.commit()
+        return delivery
 
     @_serialized
     async def set_stats_recipient(self, chat_id: int, stats_chat_id: int) -> None:
@@ -1671,16 +2024,23 @@ class Database:
         return tuple(row) if row else None
 
     async def get_history_stats(
-        self, chat_id: int, twitch_login: str
+        self,
+        chat_id: int,
+        twitch_login: str,
+        exclude_stream_id: str | None = None,
     ) -> tuple[int, float, float, int, int] | None:
         """(count, avg_peak, avg_avg, best_peak, best_avg) по прошлым стримам
         (не включая текущий). None, если истории ещё нет."""
-        cursor = await self.conn.execute(
+        sql = (
             "SELECT COUNT(*), AVG(peak_viewers), AVG(avg_viewers), "
             "MAX(peak_viewers), MAX(avg_viewers) "
-            "FROM stream_history WHERE chat_id = ? AND twitch_login = ?",
-            (chat_id, twitch_login),
+            "FROM stream_history WHERE chat_id = ? AND twitch_login = ?"
         )
+        params: tuple[object, ...] = (chat_id, twitch_login)
+        if exclude_stream_id is not None:
+            sql += " AND stream_id != ?"
+            params += (exclude_stream_id,)
+        cursor = await self.conn.execute(sql, params)
         row = await cursor.fetchone()
         if row is None or row[0] == 0:
             return None

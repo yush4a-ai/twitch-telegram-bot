@@ -9,8 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-# Изолируем imports тестового процесса от production delivery settings даже если
-# они заданы в пользовательской оболочке. Нужные значения тесты задают явно.
+# Изолируем imports тестового процесса от production delivery settings и запрещаем
+# python-dotenv даже читать настоящий .env. Нужные значения тесты задают явно.
 for _production_env_name in (
     "TELEGRAM_BOT_TOKEN",
     "TWITCH_CLIENT_ID",
@@ -19,8 +19,23 @@ for _production_env_name in (
     "OWNER_CHAT_ID",
 ):
     os.environ.pop(_production_env_name, None)
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+os.environ.update(
+    {
+        "TELEGRAM_BOT_TOKEN": "unit-test-token-never-used",
+        "TWITCH_CLIENT_ID": "unit-test-client",
+        "TWITCH_CLIENT_SECRET": "unit-test-secret",
+        "DB_PATH": ":memory:",
+        "OWNER_CHAT_ID": "",
+    }
+)
 
 from cryptography.fernet import Fernet
+from aiogram.exceptions import (
+    TelegramForbiddenError,
+    TelegramNetworkError,
+    TelegramRetryAfter,
+)
 
 from bot.config import load_config
 from bot.database import Database
@@ -985,6 +1000,11 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNotNone(
                     await db.get_finished_stream(channel_id, "channel", "stream-1")
                 )
+                delivery = await db.get_report_delivery(
+                    channel_id, "channel", "stream-1", channel_id
+                )
+                self.assertIsNotNone(delivery)
+                self.assertTrue(delivery.complete)
                 self.assertEqual(await db.pending_stats(), [])
             finally:
                 await db.close()
@@ -999,6 +1019,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                     )
                 ]
             ),
+            get_report_delivery_for_stream=AsyncMock(return_value=None),
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
@@ -1024,6 +1045,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                     )
                 ]
             ),
+            get_report_delivery_for_stream=AsyncMock(return_value=None),
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
@@ -1126,6 +1148,11 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(bot.send_document.await_args.args[0], 42)
                 self.assertNotEqual(bot.send_message.await_args.args[0], group_id)
                 self.assertNotEqual(bot.send_document.await_args.args[0], group_id)
+                delivery = await db.get_report_delivery(
+                    group_id, "channel", "stream", 42
+                )
+                self.assertIsNotNone(delivery)
+                self.assertTrue(delivery.complete)
             finally:
                 await db.close()
 
@@ -1136,6 +1163,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
                     (-100, "channel", 0.0, "title", "2026-01-01T00:00:00Z", 10, 20, 2, "stream", None)
                 ]
             ),
+            get_report_delivery_for_stream=AsyncMock(return_value=None),
             is_telegram_channel=AsyncMock(return_value=False),
             resolve_post_recipient=AsyncMock(return_value=None),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
@@ -1235,6 +1263,871 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
                     await db.peek_deferred_reports(43),
                     [(group_id, "channel", "stream-1", 1.0)],
                 )
+            finally:
+                await db.close()
+
+
+class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def _seed_session(
+        self,
+        db: Database,
+        *,
+        source_chat_id: int = 1,
+        stream_id: str = "stream-1",
+        report_format: str = "full",
+        recipient_chat_id: int | None = None,
+        telegram_channel: bool = False,
+    ) -> None:
+        if telegram_channel:
+            await db.register_telegram_channel(source_chat_id, "News")
+        await db.add_channel(source_chat_id, "channel")
+        if recipient_chat_id is not None and recipient_chat_id != source_chat_id:
+            await db.set_post_recipient(
+                source_chat_id, "channel", recipient_chat_id
+            )
+        await db.set_report_format(source_chat_id, "channel", report_format)
+        await db.set_live_state(
+            source_chat_id,
+            "channel",
+            False,
+            stream_id,
+            title="Stream",
+            offline_since=1000.0,
+            stream_started_at="2026-01-01T00:00:00Z",
+            peak_viewers=10,
+        )
+
+    def _poller(self, db: Database) -> tuple[StreamPoller, SimpleNamespace]:
+        bot = SimpleNamespace(
+            send_message=AsyncMock(
+                return_value=SimpleNamespace(message_id=1)
+            ),
+            send_document=AsyncMock(
+                return_value=SimpleNamespace(message_id=2)
+            ),
+        )
+        twitch = SimpleNamespace(get_user_id=AsyncMock(return_value=None))
+        poller = StreamPoller(bot, db, twitch, 60)
+        poller._fetch_top_clips = AsyncMock(return_value=[])
+        poller._fetch_and_save_vod = AsyncMock(return_value=None)
+        return poller, bot
+
+    async def _run_pending(self, poller: StreamPoller) -> None:
+        with patch("bot.poller.time.time", return_value=2801.0):
+            await poller._send_pending_stats()
+
+    async def test_full_success_persists_complete_delivery(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db)
+                poller, bot = self._poller(db)
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertIsNotNone(delivery)
+                self.assertTrue(delivery.text_sent)
+                self.assertTrue(delivery.html_sent)
+                self.assertTrue(delivery.complete)
+                self.assertFalse(delivery.terminal_failed)
+                bot.send_message.assert_awaited_once()
+                bot.send_document.assert_awaited_once()
+            finally:
+                await db.close()
+
+    async def test_text_temporary_failure_keeps_both_parts_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db)
+                poller, _bot = self._poller(db)
+                poller._tg_call = AsyncMock(return_value=_FAILED)
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertFalse(delivery.text_sent)
+                self.assertFalse(delivery.html_sent)
+                self.assertFalse(delivery.terminal_failed)
+                self.assertEqual(poller._tg_call.await_count, 1)
+                self.assertNotIn("HTML", poller._tg_call.await_args.args[1])
+
+                poller._tg_call = AsyncMock(
+                    side_effect=[SimpleNamespace(), SimpleNamespace()]
+                )
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.complete)
+                self.assertEqual(poller._tg_call.await_count, 2)
+            finally:
+                await db.close()
+
+    async def test_html_temporary_failure_retries_only_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db)
+                poller, _bot = self._poller(db)
+                poller._tg_call = AsyncMock(
+                    side_effect=[SimpleNamespace(), _FAILED]
+                )
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.text_sent)
+                self.assertFalse(delivery.html_sent)
+                self.assertFalse(delivery.terminal_failed)
+                self.assertNotEqual(await db.pending_stats(), [])
+                persisted_html = delivery.html_payload
+
+                poller._tg_call = AsyncMock(return_value=SimpleNamespace())
+                poller._is_recipient_in_quiet_hours = AsyncMock(
+                    return_value=True
+                )
+                with patch(
+                    "bot.poller.build_report_html",
+                    side_effect=AssertionError("HTML must not be rebuilt"),
+                ):
+                    await self._run_pending(poller)
+
+                self.assertEqual(poller._tg_call.await_count, 1)
+                self.assertIn("HTML", poller._tg_call.await_args.args[1])
+                poller._is_recipient_in_quiet_hours.assert_not_awaited()
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.complete)
+                self.assertEqual(delivery.html_payload, persisted_html)
+            finally:
+                await db.close()
+
+    async def test_restart_after_html_failure_retries_only_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await self._seed_session(db)
+            poller, _bot = self._poller(db)
+            poller._tg_call = AsyncMock(
+                side_effect=[SimpleNamespace(), _FAILED]
+            )
+            await self._run_pending(poller)
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                retry_poller, _retry_bot = self._poller(reopened)
+                retry_poller._tg_call = AsyncMock(return_value=SimpleNamespace())
+
+                await self._run_pending(retry_poller)
+
+                self.assertEqual(retry_poller._tg_call.await_count, 1)
+                self.assertIn("HTML", retry_poller._tg_call.await_args.args[1])
+                delivery = await reopened.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.complete)
+            finally:
+                await reopened.close()
+
+    async def test_complete_delivery_after_restart_sends_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await self._seed_session(db)
+            poller, _bot = self._poller(db)
+            with patch("bot.poller.time.time", return_value=2801.0):
+                self.assertTrue(
+                    await poller._send_stats(
+                        1,
+                        "channel",
+                        "stream-1",
+                        "Stream",
+                        "2026-01-01T00:00:00Z",
+                        10,
+                        20,
+                        2,
+                        None,
+                        ended_at=1000.0,
+                    )
+                )
+            cursor = await db.conn.execute("SELECT COUNT(*) FROM stream_history")
+            self.assertEqual((await cursor.fetchone())[0], 1)
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                retry_poller, _retry_bot = self._poller(reopened)
+                retry_poller._tg_call = AsyncMock()
+
+                await self._run_pending(retry_poller)
+
+                retry_poller._tg_call.assert_not_awaited()
+                self.assertEqual(await reopened.pending_stats(), [])
+                cursor = await reopened.conn.execute(
+                    "SELECT COUNT(*) FROM stream_history"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 1)
+            finally:
+                await reopened.close()
+
+    async def test_text_pending_after_restart_retries_text_then_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await self._seed_session(db)
+            await db.add_stream_history(
+                1, "channel", "stream-1", 1000.0, 60, 10, 5, 1
+            )
+            await db.create_report_delivery(
+                1,
+                "channel",
+                "stream-1",
+                1,
+                "full",
+                "persisted text",
+                "<html>persisted</html>",
+                1000.0,
+            )
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                retry_poller, _retry_bot = self._poller(reopened)
+                retry_poller._tg_call = AsyncMock(
+                    side_effect=[SimpleNamespace(), SimpleNamespace()]
+                )
+
+                await self._run_pending(retry_poller)
+
+                self.assertEqual(retry_poller._tg_call.await_count, 2)
+                self.assertNotIn(
+                    "HTML", retry_poller._tg_call.await_args_list[0].args[1]
+                )
+                self.assertIn(
+                    "HTML", retry_poller._tg_call.await_args_list[1].args[1]
+                )
+                delivery = await reopened.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.complete)
+            finally:
+                await reopened.close()
+
+    async def test_permanent_text_failure_is_terminal_and_keeps_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db)
+                poller, _bot = self._poller(db)
+                poller._tg_call = AsyncMock(return_value=None)
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.terminal_failed)
+                self.assertEqual(
+                    delivery.terminal_reason, "text_permanent_failure"
+                )
+                self.assertIsNotNone(
+                    await db.get_finished_stream(1, "channel", "stream-1")
+                )
+                self.assertEqual(await db.pending_stats(), [])
+
+                poller._tg_call.reset_mock()
+                await self._run_pending(poller)
+                poller._tg_call.assert_not_awaited()
+            finally:
+                await db.close()
+
+    async def test_terminal_delivery_after_restart_sends_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await self._seed_session(db, report_format="brief")
+            await db.add_stream_history(
+                1, "channel", "stream-1", 1000.0, 60, 10, 5, 1
+            )
+            delivery = await db.create_report_delivery(
+                1,
+                "channel",
+                "stream-1",
+                1,
+                "brief",
+                "persisted text",
+                None,
+                1000.0,
+            )
+            await db.mark_report_delivery_terminal(
+                delivery, "text_permanent_failure", 1001.0
+            )
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                retry_poller, _retry_bot = self._poller(reopened)
+                retry_poller._tg_call = AsyncMock()
+
+                await self._run_pending(retry_poller)
+
+                retry_poller._tg_call.assert_not_awaited()
+                self.assertEqual(await reopened.pending_stats(), [])
+                cursor = await reopened.conn.execute(
+                    "SELECT COUNT(*) FROM stream_history"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 1)
+                next_delivery = await reopened.create_report_delivery(
+                    1,
+                    "channel",
+                    "stream-2",
+                    1,
+                    "brief",
+                    "next stream",
+                    None,
+                    2000.0,
+                )
+                self.assertFalse(next_delivery.terminal_failed)
+            finally:
+                await reopened.close()
+
+    async def test_permanent_html_failure_is_terminal_and_manual_still_works(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db)
+                poller, _bot = self._poller(db)
+                poller._tg_call = AsyncMock(
+                    side_effect=[SimpleNamespace(), None]
+                )
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.text_sent)
+                self.assertFalse(delivery.html_sent)
+                self.assertTrue(delivery.terminal_failed)
+                self.assertEqual(
+                    delivery.terminal_reason, "html_permanent_failure"
+                )
+
+                manual_bot = SimpleNamespace(
+                    send_message=AsyncMock(), send_document=AsyncMock()
+                )
+                message = SimpleNamespace(
+                    chat=SimpleNamespace(id=1), bot=manual_bot
+                )
+                with patch("bot.handlers.streams.time.time", return_value=1001.0):
+                    self.assertTrue(
+                        await _deliver_report(
+                            message,
+                            1,
+                            "channel",
+                            db,
+                            recipient_chat_id=1,
+                            stream_id="stream-1",
+                        )
+                    )
+                manual_bot.send_message.assert_awaited_once()
+                manual_bot.send_document.assert_awaited_once()
+                unchanged = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(unchanged.terminal_failed)
+            finally:
+                await db.close()
+
+    async def test_brief_text_success_is_complete_without_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db, report_format="brief")
+                poller, bot = self._poller(db)
+
+                await self._run_pending(poller)
+
+                delivery = await db.get_report_delivery(
+                    1, "channel", "stream-1", 1
+                )
+                self.assertTrue(delivery.complete)
+                self.assertIsNone(delivery.html_payload)
+                bot.send_message.assert_awaited_once()
+                bot.send_document.assert_not_awaited()
+            finally:
+                await db.close()
+
+    async def test_stream_ids_have_independent_delivery_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                for stream_id in ("stream-1", "stream-2"):
+                    await db.create_report_delivery(
+                        1,
+                        "channel",
+                        stream_id,
+                        1,
+                        "brief",
+                        stream_id,
+                        None,
+                        1.0,
+                    )
+                cursor = await db.conn.execute(
+                    "SELECT COUNT(*) FROM report_deliveries"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 2)
+            finally:
+                await db.close()
+
+    async def test_same_stream_in_two_source_chats_has_independent_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                for source_chat_id in (-1001, -1002):
+                    await db.create_report_delivery(
+                        source_chat_id,
+                        "channel",
+                        "stream-1",
+                        42,
+                        "brief",
+                        str(source_chat_id),
+                        None,
+                        1.0,
+                    )
+                cursor = await db.conn.execute(
+                    "SELECT COUNT(*) FROM report_deliveries"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 2)
+                cursor = await db.conn.execute(
+                    "SELECT source_chat_id, text_payload FROM report_deliveries"
+                )
+                self.assertEqual(
+                    dict(await cursor.fetchall()),
+                    {-1001: "-1001", -1002: "-1002"},
+                )
+            finally:
+                await db.close()
+
+    async def test_history_and_delivery_commit_atomically(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db, report_format="brief")
+                await db.conn.executescript(
+                    "CREATE TRIGGER fail_report_delivery "
+                    "BEFORE INSERT ON report_deliveries BEGIN "
+                    "SELECT RAISE(ABORT, 'simulated crash boundary'); END;"
+                )
+                await db.conn.commit()
+                poller, bot = self._poller(db)
+
+                with self.assertRaises(sqlite3.IntegrityError):
+                    await poller._send_stats(
+                        1, "channel", "stream-1", "Stream",
+                        "2026-01-01T00:00:00Z", 10, 20, 2, None,
+                        ended_at=1000.0,
+                    )
+
+                cursor = await db.conn.execute(
+                    "SELECT COUNT(*) FROM stream_history"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 0)
+                bot.send_message.assert_not_awaited()
+
+                await db.conn.execute("DROP TRIGGER fail_report_delivery")
+                await db.conn.commit()
+                self.assertTrue(
+                    await poller._send_stats(
+                        1, "channel", "stream-1", "Stream",
+                        "2026-01-01T00:00:00Z", 10, 20, 2, None,
+                        ended_at=1000.0,
+                    )
+                )
+                cursor = await db.conn.execute(
+                    "SELECT COUNT(*) FROM stream_history"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 1)
+                delivery = await db.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertTrue(delivery.complete)
+                self.assertNotIn("от среднего по прошлым", delivery.text_payload)
+            finally:
+                await db.close()
+
+    async def test_recipient_is_frozen_after_delivery_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                group_id = -100123
+                await self._seed_session(
+                    db,
+                    source_chat_id=group_id,
+                    report_format="brief",
+                    recipient_chat_id=41,
+                )
+                await db.add_stream_history(
+                    group_id, "channel", "stream-1", 1000.0, 60, 10, 5, 1
+                )
+                first = await db.create_report_delivery(
+                    group_id, "channel", "stream-1", 41, "brief", "first", None, 1.0
+                )
+                second = await db.create_report_delivery(
+                    group_id, "channel", "stream-1", 42, "brief", "second", None, 2.0
+                )
+                self.assertEqual(second.recipient_chat_id, first.recipient_chat_id)
+                self.assertEqual(second.text_payload, "first")
+                await db.set_post_recipient(group_id, "channel", 42)
+                poller, bot = self._poller(db)
+
+                await self._run_pending(poller)
+
+                self.assertEqual(bot.send_message.await_args.args[0], 41)
+                cursor = await db.conn.execute(
+                    "SELECT COUNT(*) FROM report_deliveries"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 1)
+            finally:
+                await db.close()
+
+    async def test_format_is_frozen_after_delivery_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await self._seed_session(db, report_format="brief")
+                await db.add_stream_history(
+                    1, "channel", "stream-1", 1000.0, 60, 10, 5, 1
+                )
+                await db.create_report_delivery(
+                    1, "channel", "stream-1", 1, "brief", "frozen", None, 1.0
+                )
+                await db.set_report_format(1, "channel", "full")
+                poller, bot = self._poller(db)
+
+                await self._run_pending(poller)
+
+                bot.send_message.assert_awaited_once()
+                bot.send_document.assert_not_awaited()
+                delivery = await db.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertEqual(delivery.report_format, "brief")
+                self.assertTrue(delivery.complete)
+            finally:
+                await db.close()
+
+    async def test_stale_channel_registration_blocks_pending_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                delivery = await db.create_report_delivery(
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "full",
+                    "text",
+                    "<html>report</html>",
+                    1.0,
+                )
+                poller, bot = self._poller(db)
+
+                async def accept_text_then_unregister(*_args, **_kwargs):
+                    await db.unregister_telegram_channel(channel_id)
+                    return SimpleNamespace()
+
+                poller._tg_call = AsyncMock(
+                    side_effect=accept_text_then_unregister
+                )
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(delivery)
+                )
+
+                poller._tg_call.assert_awaited_once()
+                bot.send_document.assert_not_awaited()
+                updated = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                self.assertTrue(updated.text_sent)
+                self.assertFalse(updated.html_sent)
+                self.assertTrue(updated.terminal_failed)
+                self.assertEqual(updated.terminal_reason, "destination_rejected")
+            finally:
+                await db.close()
+
+    async def test_retry_after_exhaustion_keeps_text_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                delivery = await db.create_report_delivery(
+                    1, "channel", "stream-1", 1, "brief", "text", None, 1.0
+                )
+                poller, bot = self._poller(db)
+                retry_error = TelegramRetryAfter(
+                    SimpleNamespace(), "retry later", retry_after=1
+                )
+                bot.send_message.side_effect = [retry_error, retry_error]
+
+                with patch("bot.poller.asyncio.sleep", new=AsyncMock()) as sleep:
+                    self.assertFalse(
+                        await poller._deliver_persisted_report(delivery)
+                    )
+
+                self.assertEqual(bot.send_message.await_count, 2)
+                sleep.assert_awaited_once_with(1)
+                updated = await db.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertFalse(updated.text_sent)
+                self.assertFalse(updated.terminal_failed)
+            finally:
+                await db.close()
+
+    async def test_network_is_temporary_and_forbidden_is_terminal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                delivery = await db.create_report_delivery(
+                    1, "channel", "stream-1", 1, "brief", "text", None, 1.0
+                )
+                poller, bot = self._poller(db)
+                bot.send_message.side_effect = TelegramNetworkError(
+                    SimpleNamespace(), "offline"
+                )
+
+                self.assertFalse(
+                    await poller._deliver_persisted_report(delivery)
+                )
+                pending = await db.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertFalse(pending.text_sent)
+                self.assertFalse(pending.terminal_failed)
+
+                bot.send_message.side_effect = TelegramForbiddenError(
+                    SimpleNamespace(), "blocked"
+                )
+                self.assertTrue(
+                    await poller._deliver_persisted_report(pending)
+                )
+                terminal = await db.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertFalse(terminal.text_sent)
+                self.assertTrue(terminal.terminal_failed)
+                self.assertEqual(
+                    terminal.terminal_reason, "text_permanent_failure"
+                )
+            finally:
+                await db.close()
+
+    async def test_existing_group_delivery_row_cannot_bypass_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                group_id = -100123
+                delivery = await db.create_report_delivery(
+                    group_id,
+                    "channel",
+                    "stream-1",
+                    group_id,
+                    "full",
+                    "text",
+                    "<html></html>",
+                    1.0,
+                )
+                poller, bot = self._poller(db)
+                poller._tg_call = AsyncMock()
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(delivery)
+                )
+
+                poller._tg_call.assert_not_awaited()
+                bot.send_message.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
+                updated = await db.get_report_delivery(
+                    group_id, "channel", "stream-1", group_id
+                )
+                self.assertTrue(updated.terminal_failed)
+                self.assertEqual(updated.terminal_reason, "destination_rejected")
+            finally:
+                await db.close()
+
+    async def test_registered_negative_recipient_is_blocked_outside_special_flow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                source_group_id = -100123
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                delivery = await db.create_report_delivery(
+                    source_group_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "brief",
+                    "text",
+                    None,
+                    1.0,
+                )
+                poller, bot = self._poller(db)
+                poller._tg_call = AsyncMock()
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(delivery)
+                )
+
+                poller._tg_call.assert_not_awaited()
+                bot.send_message.assert_not_awaited()
+                updated = await db.get_report_delivery(
+                    source_group_id, "channel", "stream-1", channel_id
+                )
+                self.assertTrue(updated.terminal_failed)
+            finally:
+                await db.close()
+
+    async def test_existing_database_migrates_delivery_schema_without_data_loss(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            legacy = Database(path)
+            await legacy.connect()
+            await legacy.add_stream_history(
+                1, "channel", "stream-1", 1.0, 60, 10, 5, 1
+            )
+            await legacy.conn.execute("DROP TABLE report_deliveries")
+            await legacy.conn.commit()
+            await legacy.close()
+
+            migrated = Database(path)
+            await migrated.connect()
+            try:
+                self.assertIsNotNone(
+                    await migrated.get_finished_stream(
+                        1, "channel", "stream-1"
+                    )
+                )
+                cursor = await migrated.conn.execute(
+                    "PRAGMA table_info(report_deliveries)"
+                )
+                table_info = await cursor.fetchall()
+                columns = {row[1] for row in table_info}
+                self.assertTrue(
+                    {
+                        "source_chat_id",
+                        "twitch_login",
+                        "stream_id",
+                        "recipient_chat_id",
+                        "report_format",
+                        "text_payload",
+                        "html_payload",
+                        "text_sent",
+                        "html_sent",
+                        "terminal_failed",
+                        "terminal_reason",
+                        "created_at",
+                        "updated_at",
+                    }.issubset(columns)
+                )
+                primary_key = [
+                    row[1] for row in sorted(table_info, key=lambda row: row[5])
+                    if row[5]
+                ]
+                self.assertEqual(
+                    primary_key,
+                    ["source_chat_id", "twitch_login", "stream_id"],
+                )
+            finally:
+                await migrated.close()
+
+            repeated = Database(path)
+            await repeated.connect()
+            await repeated.close()
+
+    async def test_cleanup_removes_complete_and_terminal_but_keeps_pending(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                complete = await db.create_report_delivery(
+                    1, "channel", "complete", 1, "full", "text", "html", 1.0
+                )
+                await db.mark_report_text_sent(complete, 2.0)
+                await db.mark_report_html_sent(complete, 3.0)
+                terminal = await db.create_report_delivery(
+                    1, "channel", "terminal", 1, "brief", "text", None, 1.0
+                )
+                await db.mark_report_delivery_terminal(
+                    terminal, "permanent", 2.0
+                )
+                await db.create_report_delivery(
+                    1, "channel", "pending", 1, "full", "text", "html", 1.0
+                )
+
+                plan_cursor = await db.conn.execute(
+                    "EXPLAIN QUERY PLAN DELETE FROM report_deliveries "
+                    "WHERE updated_at < ? AND (terminal_failed = 1 OR "
+                    "(text_sent = 1 AND (report_format = 'brief' OR html_sent = 1)))",
+                    (10.0,),
+                )
+                plan = " ".join(row[3] for row in await plan_cursor.fetchall())
+                self.assertIn("idx_report_deliveries_cleanup", plan)
+
+                await db.purge_old_report_data(10.0)
+
+                self.assertIsNone(
+                    await db.get_report_delivery(1, "channel", "complete", 1)
+                )
+                self.assertIsNone(
+                    await db.get_report_delivery(1, "channel", "terminal", 1)
+                )
+                self.assertIsNotNone(
+                    await db.get_report_delivery(1, "channel", "pending", 1)
+                )
+                cursor = await db.conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'index' "
+                    "AND name = 'idx_report_deliveries_cleanup'"
+                )
+                self.assertIsNotNone(await cursor.fetchone())
             finally:
                 await db.close()
 
@@ -1597,6 +2490,10 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
 
 
 class TestIsolationTests(unittest.TestCase):
+    def test_production_dotenv_loading_is_disabled(self) -> None:
+        self.assertEqual(os.environ.get("PYTHON_DOTENV_DISABLED"), "1")
+        self.assertEqual(os.environ.get("DB_PATH"), ":memory:")
+
     def test_test_suite_never_constructs_real_aiogram_bot(self) -> None:
         tests_root = Path(__file__).resolve().parent
         for test_path in tests_root.glob("test*.py"):

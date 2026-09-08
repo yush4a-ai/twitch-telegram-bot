@@ -18,7 +18,7 @@ from aiogram.exceptions import (
 from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 
 from .chat_listener import ChatListener
-from .database import Database
+from .database import Database, ReportDelivery, StreamHistoryRecord
 from .logging_utils import mask_chat_id
 from .report import build_report_html
 from .report_delivery import validate_report_destination
@@ -954,6 +954,25 @@ class StreamPoller:
             stream_id,
             followers_at_start,
         ) in ready[:MAX_REPORTS_PER_CYCLE]:
+            # Уже начатая automatic delivery имеет собственные recipient/payload.
+            # Возобновляем её до нового routing/quiet-hours решения, иначе успешно
+            # отправленный text + pending HTML мог бы превратиться в deferred row.
+            existing_delivery = (
+                await self._db.get_report_delivery_for_stream(
+                    chat_id, login, stream_id
+                )
+                if stream_id is not None
+                else None
+            )
+            if existing_delivery is not None:
+                delivered = await self._deliver_persisted_report(
+                    existing_delivery
+                )
+                if delivered:
+                    await self._db.mark_stats_sent(chat_id, login)
+                    await self._db.clear_finished_session(chat_id, login)
+                continue
+
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
             is_exempt = await self._db.get_quiet_hours_exempt(chat_id, login)
             if (
@@ -1044,6 +1063,13 @@ class StreamPoller:
         не отправлять. Нужно для тихих часов: раньше отложенный отчёт просто помечался
         как отправленный, минуя запись истории, и стрим пропадал бесследно — ни сводка
         по окончании тихих часов, ни /report его потом не находили."""
+        if deliver and stream_id is not None:
+            existing_delivery = await self._db.get_report_delivery_for_stream(
+                chat_id, login, stream_id
+            )
+            if existing_delivery is not None:
+                return await self._deliver_persisted_report(existing_delivery)
+
         duration_text = self._format_duration(started_at, ended_at)
         avg_viewers = round(viewer_sum / viewer_samples) if viewer_samples else 0
         peak = peak_viewers or 0
@@ -1060,12 +1086,16 @@ class StreamPoller:
         raid_events: list[tuple[float, int, str | None]] = []
         viewer_spikes: list[tuple[float, int]] = []
         comparison_lines: list[str] = []
+        history_record: StreamHistoryRecord | None = None
+        report_format = await self._db.get_report_format(chat_id, login)
         collab_logins = await self._detect_collab(chat_id, login, title)
         if stream_id is not None:
             chat_activity = await self._db.get_chat_activity_samples(chat_id, login, stream_id)
             chatter_nicks = await self._db.get_chat_unique_nicks(chat_id, login, stream_id)
             unique_chatters = len(chatter_nicks)
-            meta = await self._db.take_stream_chat_meta(chat_id, login, stream_id)
+            # Meta удаляем только после durable history/outbox commit. Иначе падение
+            # между чтением и записью безвозвратно теряло топ чатеров и рейды.
+            meta = await self._db.get_stream_chat_meta(chat_id, login, stream_id)
             join_reliable = True
             top_chatters = []
             raw_raid_events: list[tuple[float, int, str | None]] = []
@@ -1094,8 +1124,9 @@ class StreamPoller:
                 chat_id, login, stream_id, started_at, samples
             )
 
-            report_format = await self._db.get_report_format(chat_id, login)
-            history = await self._db.get_history_stats(chat_id, login)
+            history = await self._db.get_history_stats(
+                chat_id, login, exclude_stream_id=stream_id
+            )
             comparison_lines = self._build_comparison(history, peak, avg_viewers)
             # при отложенной отправке HTML не собираем: сводка построит его заново,
             # когда пользователь попросит показать отчёт
@@ -1126,10 +1157,15 @@ class StreamPoller:
                 )
 
             duration_seconds = self._duration_seconds(started_at, ended_at)
-            await self._db.add_stream_history(
-                chat_id, login, stream_id,
-                ended_at if ended_at is not None else time.time(), duration_seconds,
-                peak, avg_viewers, new_followers_num,
+            history_record = StreamHistoryRecord(
+                chat_id=chat_id,
+                twitch_login=login,
+                stream_id=stream_id,
+                ended_at=ended_at if ended_at is not None else time.time(),
+                duration_seconds=duration_seconds,
+                peak_viewers=peak,
+                avg_viewers=avg_viewers,
+                new_followers=new_followers_num,
                 started_at=started_at, title=title,
                 new_followers_text=new_followers_text,
                 unique_chatters=unique_chatters, join_reliable=join_reliable,
@@ -1140,6 +1176,17 @@ class StreamPoller:
 
         if not deliver:
             # итоги посчитаны и сохранены — отправит их сводка по окончании тихих часов
+            if history_record is not None:
+                await self._db.add_stream_history_record(history_record)
+                await self._db.delete_stream_chat_meta(chat_id, login, stream_id)
+            return True
+
+        if stream_id is None:
+            # Без устойчивого Twitch stream_id невозможно построить уникальный ключ
+            # outbox. Не отправляем payload вне persistent delivery state.
+            logger.warning(
+                "Итоговый отчёт %s не отправлен: отсутствует stream_id", login
+            )
             return True
 
         collab_label = f" 🤝 (коллаб с {', '.join(html.escape(c) for c in collab_logins)})" if collab_logins else ""
@@ -1187,45 +1234,109 @@ class StreamPoller:
             # История и HTML уже рассчитаны выше; отсутствие личного получателя —
             # штатное состояние, поэтому отчёт считаем обработанным и не ретраим
             # каждую минуту в общий чат.
+            if history_record is not None:
+                await self._db.add_stream_history_record(history_record)
+                await self._db.delete_stream_chat_meta(chat_id, login, stream_id)
             return True
-        allow_telegram_channel = (
-            recipient_chat_id == chat_id
-            and await self._db.is_telegram_channel(chat_id)
-        )
-        if not await validate_report_destination(
-            self._db,
+        if history_record is None:
+            raise RuntimeError("Automatic delivery requires persistent stream history")
+        delivery = await self._db.save_history_and_report_delivery(
+            history_record,
             recipient_chat_id,
-            source_chat_id=chat_id,
-            allow_telegram_channel=allow_telegram_channel,
-            operation=f"Итоговый текст {login}",
-        ):
-            # История уже записана выше. Недопустимый маршрут — terminal outcome,
-            # иначе повреждённый recipient вызывал бы попытку каждый poll.
-            return True
-        sent = await self._tg_call(
-            lambda: self._bot.send_message(recipient_chat_id, text),
-            f"Итоговый отчёт в {mask_chat_id(recipient_chat_id)}",
-            permanent_failure_is_success=True,
+            report_format,
+            text,
+            report_html,
+            time.time(),
         )
-        if sent is not _FAILED and sent is not None and report_html is not None:
+        await self._db.delete_stream_chat_meta(chat_id, login, stream_id)
+        return await self._deliver_persisted_report(delivery)
+
+    async def _deliver_persisted_report(self, delivery: ReportDelivery) -> bool:
+        """Доставляет только pending-части automatic report из persistent outbox.
+
+        True означает terminal outcome: COMPLETE либо постоянный отказ. False —
+        временная ошибка; строка и tracked session остаются для следующего poll.
+        """
+        if delivery.terminal_failed or delivery.complete:
+            return True
+
+        allow_telegram_channel = (
+            delivery.recipient_chat_id == delivery.source_chat_id
+            and await self._db.is_telegram_channel(delivery.source_chat_id)
+        )
+
+        if not delivery.text_sent:
             if not await validate_report_destination(
                 self._db,
-                recipient_chat_id,
-                source_chat_id=chat_id,
+                delivery.recipient_chat_id,
+                source_chat_id=delivery.source_chat_id,
                 allow_telegram_channel=allow_telegram_channel,
-                operation=f"HTML-отчёт {login}",
+                operation=f"Итоговый текст {delivery.twitch_login}",
             ):
+                await self._db.mark_report_delivery_terminal(
+                    delivery, "destination_rejected", time.time()
+                )
                 return True
-            file = BufferedInputFile(
-                report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html"
+            sent = await self._tg_call(
+                lambda: self._bot.send_message(
+                    delivery.recipient_chat_id, delivery.text_payload
+                ),
+                f"Итоговый отчёт в {mask_chat_id(delivery.recipient_chat_id)}",
+                permanent_failure_is_success=True,
             )
-            await self._tg_call(
-                lambda: self._bot.send_document(recipient_chat_id, file),
-                f"HTML-отчёт в {mask_chat_id(recipient_chat_id)}",
+            if sent is _FAILED:
+                return False
+            if sent is None:
+                await self._db.mark_report_delivery_terminal(
+                    delivery, "text_permanent_failure", time.time()
+                )
+                return True
+            # Это максимально близкая к Telegram-return локальная фиксация. Между
+            # этими двумя await всё равно остаётся неизбежное exactly-once окно.
+            await self._db.mark_report_text_sent(delivery, time.time())
+
+        if delivery.report_format == "brief":
+            return True
+
+        if delivery.html_sent:
+            return True
+        if delivery.html_payload is None:
+            await self._db.mark_report_delivery_terminal(
+                delivery, "html_payload_missing", time.time()
             )
-        # Permanent Telegram error уже залогирован: история остаётся для /report,
-        # а бесконечный retry каждую минуту ничего не исправит.
-        return sent is not _FAILED
+            return True
+
+        if not await validate_report_destination(
+            self._db,
+            delivery.recipient_chat_id,
+            source_chat_id=delivery.source_chat_id,
+            allow_telegram_channel=allow_telegram_channel,
+            operation=f"HTML-отчёт {delivery.twitch_login}",
+        ):
+            await self._db.mark_report_delivery_terminal(
+                delivery, "destination_rejected", time.time()
+            )
+            return True
+        file = BufferedInputFile(
+            delivery.html_payload.encode("utf-8"),
+            filename=(
+                f"stream_{delivery.twitch_login}_{delivery.stream_id}.html"
+            ),
+        )
+        sent = await self._tg_call(
+            lambda: self._bot.send_document(delivery.recipient_chat_id, file),
+            f"HTML-отчёт в {mask_chat_id(delivery.recipient_chat_id)}",
+            permanent_failure_is_success=True,
+        )
+        if sent is _FAILED:
+            return False
+        if sent is None:
+            await self._db.mark_report_delivery_terminal(
+                delivery, "html_permanent_failure", time.time()
+            )
+            return True
+        await self._db.mark_report_html_sent(delivery, time.time())
+        return True
 
     @staticmethod
     def _build_comparison(
