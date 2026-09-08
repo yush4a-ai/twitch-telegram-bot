@@ -38,18 +38,13 @@ MESSAGE_TEMPLATE_NO_GAME = (
     "👁 Сейчас смотрят: {viewer_count}"
 )
 
-# если новый stream_id появляется в течение этого времени после ухода в offline,
-# считаем это тем же сеансом (быстрый рестарт стрима, например переподключение OBS
-# или обрыв интернета) — редактируем старый пост вместо публикации нового, не спамим
-# повторными уведомлениями и продолжаем копить в те же счётчики viewer_sum/peak_viewers/
-# followers_at_start, чтобы итоговый отчёт и «первый стрим за N дней» видели весь
-# сеанс целиком, а не только последний фрагмент после разрыва
-RESTART_MERGE_GRACE_SECONDS = 3 * 60
+# В течение этого окна возврат Twitch в live считается продолжением одной логической
+# сессии даже при новом stream_id. Это намеренно не связано со сроком жизни live-поста.
+RESTART_MERGE_GRACE_SECONDS = 30 * 60
 
-# сколько ждать после ухода стрима в offline, прежде чем удалить пост и отправить
-# итоговый отчёт. Должно быть строго больше RESTART_MERGE_GRACE_SECONDS — иначе отчёт
-# по первому фрагменту ребута улетит до того, как определится, что это был рестарт,
-# и статистика задвоится между «преждевременным» и финальным отчётами
+# Telegram live-пост удаляем заметно раньше финализации Twitch-сессии. После удаления
+# в БД остаются stream_id, started_at и вся статистика, поэтому reconnect всё ещё можно
+# бесшумно присоединить к исходной сессии.
 OFFLINE_GRACE_SECONDS = 5 * 60
 
 # сколько хранить сырые данные отчёта (график, ники чатеров) для повторного /report
@@ -446,6 +441,10 @@ class StreamPoller:
         )
 
     async def _check_once(self) -> None:
+        # Если процесс остановился сразу после успешной финализации, но до очистки
+        # tracked state, сначала завершаем идемпотентную локальную уборку. Иначе редкий
+        # повтор Twitch stream_id мог бы унаследовать счётчики старой сессии.
+        await self._db.recover_finished_sessions()
         await self._check_streams()
         await self._send_pending_stats()
         await self._cleanup_offline_posts()
@@ -597,18 +596,13 @@ class StreamPoller:
         if not chats_by_login:
             return
         last_stream_ends = await self._db.snapshot_last_stream_ends()
-        telegram_channel_ids = await self._db.telegram_channel_ids()
-
         logins = list(chats_by_login)
         live_streams = await self._twitch.get_live_streams(logins)
+        now = time.time()
 
         for login in logins:
             chat_ids = chats_by_login[login]
             stream = live_streams.get(login)
-            # чаты, для которых стрим только что закончился — данные чата собираются
-            # для них разом после обхода, одним чтением буфера
-            went_offline: list[tuple[int, str]] = []
-
             for chat_id in chat_ids:
                 (
                     was_live,
@@ -620,27 +614,42 @@ class StreamPoller:
                     _peak_viewers,
                     notify_enabled,
                     followers_at_start,
+                    stats_sent,
                 ) = states[(chat_id, login)]
 
                 if stream is not None:
-                    title = stream.title or "(без названия)"
-                    # тот же стрим — либо шёл без перерыва, либо ещё не удалили пост
-                    # за время в оффлайне (стрим быстро вернулся)
-                    same_stream = last_stream_id == stream.stream_id and last_message_id is not None
-                    # быстрый рестарт — другой stream_id, но канал был в оффлайне совсем
-                    # недавно (например, стример словил бан-момент, удалил стрим и тут же
-                    # начал заново). Считаем это продолжением того же сеанса, чтобы не
-                    # заваливать чат новым постом на каждый такой рестарт
-                    quick_restart = (
-                        not same_stream
-                        and last_message_id is not None
+                    # Возврат произошёл уже после окна reconnect, но прежняя сессия ещё
+                    # ждёт финального отчёта в этом цикле. Не перезаписываем её новым
+                    # stream_id: _send_pending_stats() завершит старую, а следующий poll
+                    # опубликует новый эфир обычным уведомлением.
+                    if (
+                        not was_live
+                        and not stats_sent
+                        and last_stream_id is not None
                         and offline_since is not None
-                        and time.time() - offline_since < RESTART_MERGE_GRACE_SECONDS
+                        and now - offline_since >= RESTART_MERGE_GRACE_SECONDS
+                    ):
+                        continue
+
+                    title = stream.title or "(без названия)"
+                    same_stream = was_live and last_stream_id == stream.stream_id
+                    # Возврат после offline — отдельное состояние от наличия Telegram-
+                    # поста. Даже если пост уже удалён через 5 минут и Twitch выдал новый
+                    # stream_id, до финальных 30 минут продолжаем прежнюю сессию.
+                    reconnect = (
+                        not was_live
+                        and not stats_sent
+                        and last_stream_id is not None
+                        and offline_since is not None
+                        and now - offline_since < RESTART_MERGE_GRACE_SECONDS
                     )
+                    continuing_session = same_stream or reconnect
                     # живой пост о старте стрима всегда публикуется в исходный чат —
                     # привязка к личке (post_recipient) влияет только на финальный отчёт
 
-                    if not same_stream and not quick_restart and self._chat_listener is not None:
+                    if self._chat_listener is not None and (
+                        not continuing_session or not self._chat_listener.is_running(login)
+                    ):
                         self._chat_listener.start(login)
 
                     game_name = stream.game_name or None
@@ -653,7 +662,7 @@ class StreamPoller:
                         # уведомления выключены для этого канала в этом чате — статистика
                         # всё равно собирается, но пост не публикуется и не редактируется
                         message_id = None
-                    elif same_stream or quick_restart:
+                    elif continuing_session and last_message_id is not None:
                         edited = await self._edit(
                             chat_id, last_message_id, login, title, stream.viewer_count,
                             game_name, return_note,
@@ -668,8 +677,16 @@ class StreamPoller:
                             except (TelegramForbiddenError, TelegramBadRequest):
                                 pass
                             message_id = await self._notify(
-                                chat_id, login, title, stream.viewer_count, game_name, return_note
+                                chat_id, login, title, stream.viewer_count, game_name, return_note,
+                                silent=reconnect,
                             )
+                    elif reconnect:
+                        # Пост уже штатно удалён после 5 минут offline. Возвращаем карточку,
+                        # но без звука: для пользователя это не новый старт стрима.
+                        message_id = await self._notify(
+                            chat_id, login, title, stream.viewer_count, game_name, return_note,
+                            silent=True,
+                        )
                     else:
                         if last_message_id is not None:
                             # стрим прервался надолго, потом начался заново (новый
@@ -677,20 +694,34 @@ class StreamPoller:
                             # остаётся висеть навсегда, потому что is_live уже снова
                             # стало True и он больше не подпадает под условие
                             # pending_offline_posts()
-                            try:
-                                await self._bot.delete_message(chat_id, last_message_id)
-                            except (TelegramForbiddenError, TelegramBadRequest):
-                                pass
+                            deleted = await self._tg_call(
+                                lambda: self._bot.delete_message(chat_id, last_message_id),
+                                f"Удаление прошлого поста {last_message_id} "
+                                f"в {mask_chat_id(chat_id)}",
+                                permanent_failure_is_success=True,
+                            )
+                            if deleted is _FAILED:
+                                # Не затираем идентификатор недоступного старого поста:
+                                # повторим переход к новой сессии в следующем poll.
+                                continue
+                            # В редком случае Twitch повторно использовал тот же id после
+                            # уже финализированной сессии, явная очистка всё равно гарантирует
+                            # новый набор статистики.
+                            await self._db.clear_message(chat_id, login)
                         message_id = await self._notify(
                             chat_id, login, title, stream.viewer_count, game_name, return_note
                         )
 
-                    # при быстром рестарте держим прежний stream_id как идентификатор
+                    # при reconnect держим прежний stream_id как идентификатор
                     # сессии — иначе накопленные viewer_sum/peak_viewers/samples
                     # обнулятся или расколются между двумя stream_id, и итоговый отчёт
                     # не увидит часть до рестарта
-                    effective_stream_id = last_stream_id if quick_restart else stream.stream_id
-                    effective_started_at = _stream_started_at if quick_restart else stream.started_at
+                    effective_stream_id = last_stream_id if reconnect else stream.stream_id
+                    effective_started_at = (
+                        _stream_started_at or stream.started_at
+                        if reconnect
+                        else stream.started_at
+                    )
 
                     await self._db.set_live_state(
                         chat_id,
@@ -723,18 +754,18 @@ class StreamPoller:
                         title,
                         stream.game_name or "—",
                     )
-                    # set_live_state уже обнулила followers_at_start в БД, если это не
-                    # quick_restart (сменился stream_id) — локальная переменная в этом
-                    # случае устарела и не должна выдаваться за «снимок уже сделан»,
-                    # иначе _maybe_snapshot_followers молча пропустит новый снимок
-                    effective_followers_at_start = followers_at_start if quick_restart else None
+                    # Внутри одной логической сессии исходный снимок фолловеров нельзя
+                    # обновлять: иначе итог станет разницей лишь с последним poll/reconnect.
+                    effective_followers_at_start = (
+                        followers_at_start if continuing_session else None
+                    )
                     await self._maybe_snapshot_followers(
                         chat_id, login, effective_followers_at_start
                     )
                 else:
                     if was_live:
-                        # не удаляем пост сразу — вдруг стрим переподключится в течение
-                        # OFFLINE_GRACE_SECONDS; помечаем время ухода в оффлайн
+                        # Пока только отмечаем offline. Удаление поста и финализация
+                        # логической сессии выполняются независимыми таймерами.
                         await self._db.set_live_state(
                             chat_id,
                             login,
@@ -746,24 +777,16 @@ class StreamPoller:
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
                         )
-                        if last_stream_id is not None:
-                            went_offline.append((chat_id, last_stream_id))
-
-            if stream is None:
-                await self._finish_chat_collection(login, went_offline, telegram_channel_ids)
-
     async def _finish_chat_collection(
         self, login: str, went_offline: list[tuple[int, str]],
         telegram_channel_ids: set[int] | None = None,
     ) -> None:
-        """Забирает данные чата за стрим и раскладывает их по всем чатам, которые
-        следили за каналом.
+        """При окончательной финализации забирает чат и раскладывает его по подпискам.
 
         Буфер ChatListener читается ровно один раз на канал: get_and_clear_* очищает
-        его, поэтому раньше при нескольких чатах, следящих за одним стримером, данные
-        доставались только первому, а остальные получали пустой отчёт. Слушатель тоже
-        останавливается здесь и безусловно — иначе канал, отслеживаемый только из
-        Telegram-канала, навсегда оставлял бы висеть IRC-подключение."""
+        его, поэтому при нескольких чатах данные нужно сохранить за один вызов. Метод
+        вызывается только после 30-минутного окна reconnect: краткий offline больше не
+        останавливает listener и не дробит статистику чата."""
         if self._chat_listener is None:
             return
         if not self._chat_listener.is_running(login):
@@ -826,7 +849,9 @@ class StreamPoller:
 
     async def _cleanup_offline_posts(self) -> None:
         now = time.time()
-        for chat_id, login, message_id, offline_since in await self._db.pending_offline_posts():
+        for (
+            chat_id, login, message_id, offline_since, stats_sent,
+        ) in await self._db.pending_offline_posts():
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
             deleted = await self._tg_call(
@@ -837,10 +862,30 @@ class StreamPoller:
             # При временной ошибке сети/лимите Telegram сохраняем message_id, чтобы
             # повторить удаление в следующем цикле, а не оставить пост навсегда.
             if deleted is not _FAILED:
-                await self._db.clear_message(chat_id, login)
+                await self._db.clear_live_message(chat_id, login)
+                if stats_sent:
+                    await self._db.clear_finished_session(chat_id, login)
 
     async def _send_pending_stats(self) -> None:
         now = time.time()
+        pending = await self._db.pending_stats()
+        ready = [
+            row for row in pending
+            if now - row[2] >= RESTART_MERGE_GRACE_SECONDS
+        ]
+
+        # ChatListener общий для Twitch-логина. Снимаем его буфер ровно один раз и
+        # только после истечения окна reconnect, до построения любого из отчётов.
+        if ready and self._chat_listener is not None:
+            telegram_channel_ids = await self._db.telegram_channel_ids()
+            by_login: dict[str, list[tuple[int, str]]] = {}
+            for row in ready:
+                chat_id, login, *_, stream_id, _followers = row
+                if stream_id is not None:
+                    by_login.setdefault(login, []).append((chat_id, stream_id))
+            for login, sessions in by_login.items():
+                await self._finish_chat_collection(login, sessions, telegram_channel_ids)
+
         for (
             chat_id,
             login,
@@ -852,9 +897,7 @@ class StreamPoller:
             viewer_samples,
             stream_id,
             followers_at_start,
-        ) in await self._db.pending_stats(limit=MAX_REPORTS_PER_CYCLE):
-            if now - offline_since < OFFLINE_GRACE_SECONDS:
-                continue
+        ) in ready[:MAX_REPORTS_PER_CYCLE]:
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
             is_exempt = await self._db.get_quiet_hours_exempt(chat_id, login)
             if (
@@ -870,10 +913,11 @@ class StreamPoller:
                 await self._send_stats(
                     chat_id, login, stream_id, title, started_at,
                     peak_viewers, viewer_sum, viewer_samples, followers_at_start,
-                    deliver=False,
+                    deliver=False, ended_at=offline_since,
                 )
                 await self._db.add_deferred_report(recipient_chat_id, chat_id, login, stream_id, now)
                 await self._db.mark_stats_sent(chat_id, login)
+                await self._db.clear_finished_session(chat_id, login)
                 continue
 
             delivered = await self._send_stats(
@@ -887,9 +931,11 @@ class StreamPoller:
                 viewer_samples,
                 followers_at_start,
                 deliver=recipient_chat_id is not None,
+                ended_at=offline_since,
             )
             if delivered:
                 await self._db.mark_stats_sent(chat_id, login)
+                await self._db.clear_finished_session(chat_id, login)
 
     async def _is_recipient_in_quiet_hours(self, chat_id: int) -> bool:
         quiet_hours = await self._db.get_quiet_hours(chat_id)
@@ -910,12 +956,13 @@ class StreamPoller:
         viewer_samples: int,
         followers_at_start: int | None,
         deliver: bool = True,
+        ended_at: float | None = None,
     ) -> bool:
         """deliver=False — посчитать итоги стрима и записать их в историю, но ничего
         не отправлять. Нужно для тихих часов: раньше отложенный отчёт просто помечался
         как отправленный, минуя запись истории, и стрим пропадал бесследно — ни сводка
         по окончании тихих часов, ни /report его потом не находили."""
-        duration_text = self._format_duration(started_at)
+        duration_text = self._format_duration(started_at, ended_at)
         avg_viewers = round(viewer_sum / viewer_samples) if viewer_samples else 0
         peak = peak_viewers or 0
         new_followers_text = await self._compute_new_followers(
@@ -996,9 +1043,10 @@ class StreamPoller:
                     viewer_spikes=viewer_spikes,
                 )
 
-            duration_seconds = self._duration_seconds(started_at)
+            duration_seconds = self._duration_seconds(started_at, ended_at)
             await self._db.add_stream_history(
-                chat_id, login, stream_id, time.time(), duration_seconds,
+                chat_id, login, stream_id,
+                ended_at if ended_at is not None else time.time(), duration_seconds,
                 peak, avg_viewers, new_followers_num,
                 started_at=started_at, title=title,
                 new_followers_text=new_followers_text,
@@ -1092,12 +1140,17 @@ class StreamPoller:
         return lines
 
     @staticmethod
-    def _duration_seconds(started_at: str) -> int:
+    def _duration_seconds(started_at: str, ended_at: float | None = None) -> int:
         try:
             start = datetime.strptime(started_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         except ValueError:
             return 0
-        return int((datetime.now(timezone.utc) - start).total_seconds())
+        end = (
+            datetime.fromtimestamp(ended_at, timezone.utc)
+            if ended_at is not None
+            else datetime.now(timezone.utc)
+        )
+        return max(int((end - start).total_seconds()), 0)
 
     async def _compute_new_followers(
         self,
@@ -1181,12 +1234,17 @@ class StreamPoller:
             return []
 
     @staticmethod
-    def _format_duration(started_at: str) -> str:
+    def _format_duration(started_at: str, ended_at: float | None = None) -> str:
         try:
             start = datetime.strptime(started_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         except ValueError:
             return "неизвестно"
-        seconds = int((datetime.now(timezone.utc) - start).total_seconds())
+        end = (
+            datetime.fromtimestamp(ended_at, timezone.utc)
+            if ended_at is not None
+            else datetime.now(timezone.utc)
+        )
+        seconds = int((end - start).total_seconds())
         hours, remainder = divmod(max(seconds, 0), 3600)
         minutes = remainder // 60
         if hours:
@@ -1241,6 +1299,8 @@ class StreamPoller:
         viewer_count: int,
         game_name: str | None = None,
         return_note: str | None = None,
+        *,
+        silent: bool = False,
     ) -> int | None:
         text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
         keyboard = await self._build_keyboard(login)
@@ -1250,6 +1310,7 @@ class StreamPoller:
                 text,
                 reply_markup=keyboard,
                 disable_web_page_preview=True,
+                disable_notification=silent,
             ),
             f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}",
         )

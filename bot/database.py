@@ -852,7 +852,7 @@ class Database:
         cursor = await self.conn.execute(
             "SELECT chat_id, twitch_login, is_live, last_stream_id, last_message_id, "
             "last_title, offline_since, stream_started_at, peak_viewers, "
-            "notify_enabled, followers_at_start "
+            "notify_enabled, followers_at_start, stats_sent "
             "FROM tracked_channels ORDER BY twitch_login, chat_id"
         )
         chats_by_login: dict[str, list[int]] = {}
@@ -862,7 +862,7 @@ class Database:
             chats_by_login.setdefault(login, []).append(chat_id)
             states[(chat_id, login)] = (
                 bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
-                bool(row[9]), row[10],
+                bool(row[9]), row[10], bool(row[11]),
             )
         return chats_by_login, states
 
@@ -920,9 +920,6 @@ class Database:
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
             "last_message_id = ?, last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
-            "last_stream_ended_at = CASE "
-            "    WHEN ? = 0 AND ? IS NOT NULL THEN ? "
-            "    ELSE last_stream_ended_at END, "
             "peak_viewers = CASE "
             "    WHEN ? IS NOT NULL THEN ? "
             "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
@@ -938,7 +935,6 @@ class Database:
             (
                 int(is_live), stream_id, message_id, title, offline_since,
                 stream_started_at,
-                int(is_live), offline_since, offline_since,
                 peak_viewers, peak_viewers, int(is_live), stream_id,
                 int(is_live),
                 int(is_live), stream_id, int(is_live), stream_id,
@@ -960,20 +956,20 @@ class Database:
         )
         await self.conn.commit()
 
-    async def pending_offline_posts(self) -> list[tuple[int, str, int, float]]:
-        """Посты завершённых стримов, чей итоговый отчёт уже обработан.
+    async def pending_offline_posts(self) -> list[tuple[int, str, int, float, bool]]:
+        """Live-посты офлайн-каналов, ожидающие удаления.
 
-        Пока ``stats_sent = 0``, live-пост сохраняется: при временной ошибке Telegram
-        поллер повторит отчёт в следующем цикле и пользователь не останется одновременно
-        без исходного уведомления и без статистики.
+        Удаление Telegram-сообщения не зависит от готовности итогового отчёта:
+        ``stats_sent`` возвращается только для выбора между очисткой ссылки на пост
+        и окончательной очисткой уже финализированной сессии.
         """
         cursor = await self.conn.execute(
-            "SELECT chat_id, twitch_login, last_message_id, offline_since "
+            "SELECT chat_id, twitch_login, last_message_id, offline_since, stats_sent "
             "FROM tracked_channels "
             "WHERE is_live = 0 AND offline_since IS NOT NULL "
-            "AND last_message_id IS NOT NULL AND stats_sent = 1"
+            "AND last_message_id IS NOT NULL"
         )
-        return await cursor.fetchall()
+        return [(*row[:4], bool(row[4])) for row in await cursor.fetchall()]
 
     async def pending_stats(
         self, limit: int | None = None
@@ -1002,8 +998,54 @@ class Database:
     @_serialized
     async def mark_stats_sent(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
-            "UPDATE tracked_channels SET stats_sent = 1 WHERE chat_id = ? AND twitch_login = ?",
+            "UPDATE tracked_channels SET stats_sent = 1, "
+            "last_stream_ended_at = COALESCE(offline_since, last_stream_ended_at) "
+            "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def clear_live_message(self, chat_id: int, twitch_login: str) -> None:
+        """Забывает только Telegram live-пост, сохраняя логическую Twitch-сессию."""
+        await self.conn.execute(
+            "UPDATE tracked_channels SET last_message_id = NULL "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def clear_finished_session(self, chat_id: int, twitch_login: str) -> None:
+        """Очищает финализированную сессию, если её live-пост уже удалён.
+
+        Если Telegram временно не дал удалить сообщение, идентификатор и остальное
+        состояние остаются для следующей попытки очистки.
+        """
+        await self.conn.execute(
+            "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
+            "offline_since = NULL, stream_started_at = NULL, peak_viewers = NULL, "
+            "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
+            "followers_at_start = NULL "
+            "WHERE chat_id = ? AND twitch_login = ? "
+            "AND is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL",
+            (chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def recover_finished_sessions(self) -> None:
+        """Дочищает сессии после падения между mark_stats_sent и локальной очисткой.
+
+        История и deferred reports находятся в отдельных таблицах и не затрагиваются.
+        Сессии с неудалённым live-постом остаются до успешной повторной попытки.
+        """
+        await self.conn.execute(
+            "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
+            "offline_since = NULL, stream_started_at = NULL, peak_viewers = NULL, "
+            "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
+            "followers_at_start = NULL "
+            "WHERE is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL"
         )
         await self.conn.commit()
 
