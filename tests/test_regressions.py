@@ -222,6 +222,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                         "idx_chat_unique_nicks_retention",
                         "idx_stream_chatters_retention",
                         "idx_stream_chat_meta_retention",
+                        "idx_stream_history_stream_retention",
                         "idx_follow_event_counts_retention",
                         "idx_follow_event_ids_retention",
                     },
@@ -528,6 +529,261 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                     "AND twitch_login = 'channel' AND stream_id = 'stream-1'"
                 )
                 self.assertEqual((await cursor.fetchone())[0], 1)
+            finally:
+                await db.close()
+
+
+class StorageRetentionTests(unittest.IsolatedAsyncioTestCase):
+    async def _seed_raw_session(
+        self,
+        db: Database,
+        chat_id: int,
+        login: str,
+        stream_id: str,
+        timestamp: float,
+    ) -> None:
+        await db.conn.execute(
+            "INSERT INTO stream_samples VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, login, stream_id, timestamp, 10, "title", "game"),
+        )
+        await db.conn.execute(
+            "INSERT INTO chat_activity_samples VALUES (?, ?, ?, ?, ?)",
+            (chat_id, login, stream_id, timestamp, 1),
+        )
+        await db.conn.execute(
+            "INSERT INTO chat_unique_nicks VALUES (?, ?, ?, ?, ?)",
+            (chat_id, login, stream_id, "legacy-nick", timestamp),
+        )
+        await db.conn.execute(
+            "INSERT INTO stream_chatters VALUES (?, ?, ?, ?)",
+            (login, stream_id, "nick", timestamp),
+        )
+        await db.conn.commit()
+
+    async def _raw_counts(
+        self, db: Database, chat_id: int, login: str, stream_id: str
+    ) -> tuple[int, int, int, int]:
+        queries = (
+            (
+                "SELECT COUNT(*) FROM stream_samples WHERE chat_id = ? "
+                "AND twitch_login = ? AND stream_id = ?",
+                (chat_id, login, stream_id),
+            ),
+            (
+                "SELECT COUNT(*) FROM chat_activity_samples WHERE chat_id = ? "
+                "AND twitch_login = ? AND stream_id = ?",
+                (chat_id, login, stream_id),
+            ),
+            (
+                "SELECT COUNT(*) FROM chat_unique_nicks WHERE chat_id = ? "
+                "AND twitch_login = ? AND stream_id = ?",
+                (chat_id, login, stream_id),
+            ),
+            (
+                "SELECT COUNT(*) FROM stream_chatters WHERE twitch_login = ? "
+                "AND stream_id = ?",
+                (login, stream_id),
+            ),
+        )
+        counts = []
+        for sql, params in queries:
+            cursor = await db.conn.execute(sql, params)
+            counts.append((await cursor.fetchone())[0])
+        return tuple(counts)
+
+    async def test_raw_retention_preserves_active_and_reconnect_sessions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_channel(1, "active")
+                await db.set_live_state(
+                    1,
+                    "active",
+                    True,
+                    "active-stream",
+                    stream_started_at="2026-01-01T00:00:00Z",
+                )
+                await self._seed_raw_session(
+                    db, 1, "active", "active-stream", 1.0
+                )
+
+                await db.add_channel(2, "reconnect")
+                await db.set_live_state(
+                    2,
+                    "reconnect",
+                    False,
+                    "reconnect-stream",
+                    offline_since=90.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                )
+                await self._seed_raw_session(
+                    db, 2, "reconnect", "reconnect-stream", 1.0
+                )
+
+                await db.purge_old_report_data(100.0)
+
+                self.assertEqual(
+                    await self._raw_counts(db, 1, "active", "active-stream"),
+                    (1, 1, 1, 1),
+                )
+                self.assertEqual(
+                    await self._raw_counts(db, 2, "reconnect", "reconnect-stream"),
+                    (1, 1, 1, 1),
+                )
+            finally:
+                await db.close()
+
+    async def test_retention_is_measured_from_stream_end_for_complete_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.add_stream_history(
+                    1, "channel", "stream-1", 100.0, 12 * 3600, 10, 5, 1
+                )
+                await self._seed_raw_session(db, 1, "channel", "stream-1", 1.0)
+
+                await db.purge_old_report_data(100.0)
+                self.assertEqual(
+                    await self._raw_counts(db, 1, "channel", "stream-1"),
+                    (1, 1, 1, 1),
+                )
+
+                await db.purge_old_report_data(100.001)
+                self.assertEqual(
+                    await self._raw_counts(db, 1, "channel", "stream-1"),
+                    (0, 0, 0, 0),
+                )
+            finally:
+                await db.close()
+
+    async def test_stream_chatter_retention_uses_stream_history_index(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                cursor = await db.conn.execute(
+                    "EXPLAIN QUERY PLAN DELETE FROM stream_chatters AS raw "
+                    "WHERE raw.first_seen_at < ? AND NOT EXISTS ("
+                    "SELECT 1 FROM stream_history h "
+                    "WHERE h.twitch_login = raw.twitch_login "
+                    "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+                    (100.0, 100.0),
+                )
+                plan = " ".join(row[3] for row in await cursor.fetchall())
+                self.assertIn("idx_stream_chatters_retention", plan)
+                self.assertIn("idx_stream_history_stream_retention", plan)
+            finally:
+                await db.close()
+
+    async def test_cancelled_retention_rolls_back_and_can_resume_after_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            db = Database(path)
+            await db.connect()
+            await self._seed_raw_session(db, 1, "orphan", "stream-1", 1.0)
+            entered_commit = asyncio.Event()
+            never = asyncio.Event()
+
+            async def blocked_commit() -> None:
+                entered_commit.set()
+                await never.wait()
+
+            try:
+                with patch.object(db.conn, "commit", new=blocked_commit):
+                    task = asyncio.create_task(db.purge_old_report_data(10.0))
+                    await asyncio.wait_for(entered_commit.wait(), timeout=1)
+                    task.cancel()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await task
+            finally:
+                await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertEqual(
+                    await self._raw_counts(reopened, 1, "orphan", "stream-1"),
+                    (1, 1, 1, 1),
+                )
+                await reopened.purge_old_report_data(10.0)
+                self.assertEqual(
+                    await self._raw_counts(reopened, 1, "orphan", "stream-1"),
+                    (0, 0, 0, 0),
+                )
+            finally:
+                await reopened.close()
+
+    async def test_chat_removal_clears_current_state_but_preserves_archives(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            chat_id = -100123
+            try:
+                await db.register_telegram_channel(chat_id, "Channel")
+                await db.add_channel(chat_id, "channel")
+                await db.set_stats_recipient(chat_id, 42)
+                await db.set_quiet_hours(chat_id, 60, 120, 0)
+                await db.set_utc_offset(chat_id, 180)
+                await db.add_deferred_report(
+                    chat_id, chat_id, "channel", "stream-destination", 1.0
+                )
+                await db.add_deferred_report(
+                    42, chat_id, "channel", "stream-source", 2.0
+                )
+                await db.mark_quiet_hours_digest_sent(chat_id)
+                await db.mark_quiet_hours_digest_sent(42)
+                await db.save_stream_chat_meta(
+                    chat_id, "channel", "stream-1", True, None, None, 1.0
+                )
+                await db.add_stream_history(
+                    chat_id, "channel", "stream-1", 1.0, 60, 10, 5, 1
+                )
+                await db.save_vod(
+                    chat_id,
+                    "channel",
+                    "stream-1",
+                    "https://example.test/vod",
+                    None,
+                    "[]",
+                )
+                await db.create_report_delivery(
+                    chat_id,
+                    "channel",
+                    "stream-1",
+                    chat_id,
+                    "brief",
+                    "text",
+                    None,
+                    1.0,
+                )
+
+                self.assertEqual(await db.remove_all_channels(chat_id), 1)
+
+                for table in (
+                    "tracked_channels",
+                    "telegram_channels",
+                    "stats_recipients",
+                    "quiet_hours",
+                    "user_timezones",
+                    "stream_chat_meta",
+                    "deferred_reports",
+                    "quiet_hours_digest_sent",
+                ):
+                    cursor = await db.conn.execute(f"SELECT COUNT(*) FROM {table}")
+                    self.assertEqual((await cursor.fetchone())[0], 0, table)
+                self.assertIsNotNone(
+                    await db.get_finished_stream(chat_id, "channel", "stream-1")
+                )
+                self.assertIsNotNone(
+                    await db.get_vod(chat_id, "channel", "stream-1")
+                )
+                self.assertIsNotNone(
+                    await db.get_report_delivery_for_stream(
+                        chat_id, "channel", "stream-1"
+                    )
+                )
             finally:
                 await db.close()
 

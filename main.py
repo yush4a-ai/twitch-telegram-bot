@@ -176,7 +176,6 @@ async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
                 mask_chat_id(chat_id),
             )
 
-        await db.unregister_telegram_channel(chat_id)
         removed = await db.remove_all_channels(chat_id)
         logger.info(
             "Stale Telegram-канал %s очищен; снято Twitch-подписок: %s",

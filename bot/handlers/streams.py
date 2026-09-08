@@ -490,7 +490,6 @@ async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> N
             await db.register_telegram_channel(event.chat.id, event.chat.title or str(event.chat.id))
         elif new_status in ("left", "kicked", "member"):
             # "member" — бота понизили из админов, без прав постить он бесполезен для канала
-            await db.unregister_telegram_channel(event.chat.id)
             removed = await db.remove_all_channels(event.chat.id)
             if removed:
                 logger.info(

@@ -203,6 +203,11 @@ CREATE TABLE IF NOT EXISTS stream_history (
 
 CREATE INDEX IF NOT EXISTS idx_stream_history_lookup
     ON stream_history (chat_id, twitch_login, ended_at);
+-- retention общих чатеров проверяет свежесть logical stream сразу по всем
+-- Telegram-источникам; без этого индекса коррелированный lookup сканировал бы
+-- бессрочную history для каждой удаляемой строки большого чата
+CREATE INDEX IF NOT EXISTS idx_stream_history_stream_retention
+    ON stream_history (twitch_login, stream_id, ended_at);
 
 -- Persistent outbox для автоматических итоговых отчётов. Payload хранится здесь,
 -- чтобы после рестарта повторить только недоставленную часть, не полагаясь на уже
@@ -564,17 +569,34 @@ class Database:
 
     @_serialized
     async def remove_all_channels(self, chat_id: int) -> int:
-        """Снимает с отслеживания всё в этом чате и убирает связанные с ним настройки —
-        вызывается, когда бота удалили из группы. Возвращает число снятых каналов."""
+        """Атомарно удаляет current-state недоступного Telegram-чата.
+
+        История, VOD и report outbox намеренно остаются: первые два — архив,
+        pending delivery должна пройти final guard и стать terminal. Возвращает
+        число снятых Twitch-каналов.
+        """
         cursor = await self.conn.execute(
             "DELETE FROM tracked_channels WHERE chat_id = ?", (chat_id,)
         )
         removed = cursor.rowcount
         for table in (
-            "stats_recipients", "quiet_hours", "deferred_reports",
-            "quiet_hours_digest_sent", "stream_chat_meta",
+            "telegram_channels", "stats_recipients", "quiet_hours",
+            "quiet_hours_digest_sent", "stream_chat_meta", "user_timezones",
         ):
             await self.conn.execute(f"DELETE FROM {table} WHERE chat_id = ?", (chat_id,))
+        # Удаляем и очередь, предназначенную самому чату, и указатели на отчёты,
+        # источником которых был удалённый чат. Сама stream_history остаётся.
+        await self.conn.execute(
+            "DELETE FROM deferred_reports WHERE chat_id = ? OR source_chat_id = ?",
+            (chat_id, chat_id),
+        )
+        # Marker без очереди смысла не имеет. Это также убирает marker личного
+        # получателя, если его последние deferred rows пришли из удалённого source.
+        await self.conn.execute(
+            "DELETE FROM quiet_hours_digest_sent WHERE NOT EXISTS ("
+            "SELECT 1 FROM deferred_reports d "
+            "WHERE d.chat_id = quiet_hours_digest_sent.chat_id)"
+        )
         await self.conn.commit()
         return removed
 
@@ -1747,19 +1769,56 @@ class Database:
 
     @_serialized
     async def purge_old_report_data(self, older_than_ts: float) -> None:
-        """Удаляет сырые поминутные данные (график, ники чатеров) старше указанного времени.
-        Свёрнутая сводка в stream_history не трогается — она хранится всегда."""
+        """Удаляет raw-данные завершённых сессий после retention от их окончания.
+
+        Ранний sample длинного стрима может быть намного старше ``older_than_ts``,
+        хотя сам стрим закончился недавно. Поэтому active/reconnect/pending session
+        и вся сессия со свежей history защищены целиком. Свёрнутая ``stream_history``
+        не трогается — она хранится всегда.
+        """
         await self.conn.execute(
-            "DELETE FROM stream_samples WHERE sampled_at < ?", (older_than_ts,)
+            "DELETE FROM stream_samples AS raw WHERE raw.sampled_at < ? "
+            "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = raw.chat_id AND tc.twitch_login = raw.twitch_login "
+            "AND tc.last_stream_id = raw.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0)) "
+            "AND NOT EXISTS (SELECT 1 FROM stream_history h "
+            "WHERE h.chat_id = raw.chat_id AND h.twitch_login = raw.twitch_login "
+            "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+            (older_than_ts, older_than_ts),
         )
         await self.conn.execute(
-            "DELETE FROM chat_activity_samples WHERE minute_ts < ?", (older_than_ts,)
+            "DELETE FROM chat_activity_samples AS raw WHERE raw.minute_ts < ? "
+            "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = raw.chat_id AND tc.twitch_login = raw.twitch_login "
+            "AND tc.last_stream_id = raw.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0)) "
+            "AND NOT EXISTS (SELECT 1 FROM stream_history h "
+            "WHERE h.chat_id = raw.chat_id AND h.twitch_login = raw.twitch_login "
+            "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+            (older_than_ts, older_than_ts),
         )
         await self.conn.execute(
-            "DELETE FROM chat_unique_nicks WHERE joined_at < ?", (older_than_ts,)
+            "DELETE FROM chat_unique_nicks AS raw WHERE raw.joined_at < ? "
+            "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = raw.chat_id AND tc.twitch_login = raw.twitch_login "
+            "AND tc.last_stream_id = raw.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0)) "
+            "AND NOT EXISTS (SELECT 1 FROM stream_history h "
+            "WHERE h.chat_id = raw.chat_id AND h.twitch_login = raw.twitch_login "
+            "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+            (older_than_ts, older_than_ts),
         )
         await self.conn.execute(
-            "DELETE FROM stream_chatters WHERE first_seen_at < ?", (older_than_ts,)
+            "DELETE FROM stream_chatters AS raw WHERE raw.first_seen_at < ? "
+            "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.twitch_login = raw.twitch_login "
+            "AND tc.last_stream_id = raw.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0)) "
+            "AND NOT EXISTS (SELECT 1 FROM stream_history h "
+            "WHERE h.twitch_login = raw.twitch_login "
+            "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+            (older_than_ts, older_than_ts),
         )
         # подстраховка: записи, чей отчёт так и не был отправлен (например, чат
         # удалил бота сразу после стрима), иначе копились бы вечно
