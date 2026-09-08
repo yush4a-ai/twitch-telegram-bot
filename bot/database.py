@@ -232,9 +232,9 @@ CREATE TABLE IF NOT EXISTS deferred_reports (
     chat_id INTEGER NOT NULL,
     source_chat_id INTEGER NOT NULL,
     twitch_login TEXT NOT NULL,
-    stream_id TEXT,
+    stream_id TEXT NOT NULL DEFAULT '',
     ended_at REAL NOT NULL,
-    PRIMARY KEY (chat_id, source_chat_id, twitch_login)
+    PRIMARY KEY (chat_id, source_chat_id, twitch_login, stream_id)
 );
 
 CREATE TABLE IF NOT EXISTS quiet_hours_digest_sent (
@@ -295,6 +295,7 @@ class Database:
             },
         )
         await self._migrate_user_tokens_encryption()
+        await self._migrate_deferred_reports_key()
         # До этого релиза интерфейс позволял выбрать группу получателем итогов.
         # Удаляем только маршруты доставки и отложенные групповые отправки; сама
         # история стримов остаётся нетронутой и доступна через /report в личке.
@@ -612,7 +613,7 @@ class Database:
 
         Положительный chat_id означает личку. Обычная группа никогда не становится
         получателем, но зарегистрированный Telegram-канал сохраняет отдельное
-        поведение: там итоговый отчёт заменяет живой пост после эфира.
+        поведение: живой пост удаляется отдельно, а итог публикуется новым сообщением.
         """
         per_channel = await self.get_post_recipient(chat_id, twitch_login)
         if per_channel is not None and per_channel > 0:
@@ -766,9 +767,63 @@ class Database:
         await self.conn.execute(
             "INSERT INTO deferred_reports (chat_id, source_chat_id, twitch_login, stream_id, ended_at) "
             "VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(chat_id, source_chat_id, twitch_login) DO UPDATE SET "
-            "stream_id = excluded.stream_id, ended_at = excluded.ended_at",
-            (chat_id, source_chat_id, twitch_login, stream_id, ended_at),
+            "ON CONFLICT(chat_id, source_chat_id, twitch_login, stream_id) DO UPDATE SET "
+            "ended_at = excluded.ended_at",
+            (chat_id, source_chat_id, twitch_login, stream_id or "", ended_at),
+        )
+        await self.conn.execute(
+            "DELETE FROM quiet_hours_digest_sent WHERE chat_id = ?", (chat_id,)
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def relocate_deferred_report(
+        self,
+        old_chat_id: int,
+        new_chat_id: int,
+        source_chat_id: int,
+        twitch_login: str,
+        stream_id: str | None,
+        ended_at: float,
+    ) -> None:
+        normalized_stream_id = stream_id or ""
+        await self.conn.execute(
+            "INSERT INTO deferred_reports "
+            "(chat_id, source_chat_id, twitch_login, stream_id, ended_at) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(chat_id, source_chat_id, twitch_login, stream_id) "
+            "DO UPDATE SET ended_at = excluded.ended_at",
+            (
+                new_chat_id,
+                source_chat_id,
+                twitch_login,
+                normalized_stream_id,
+                ended_at,
+            ),
+        )
+        await self.conn.execute(
+            "DELETE FROM deferred_reports WHERE chat_id = ? AND source_chat_id = ? "
+            "AND twitch_login = ? AND stream_id = ?",
+            (old_chat_id, source_chat_id, twitch_login, normalized_stream_id),
+        )
+        await self.conn.execute(
+            "DELETE FROM quiet_hours_digest_sent WHERE chat_id IN (?, ?)",
+            (old_chat_id, new_chat_id),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def delete_deferred_report(
+        self,
+        chat_id: int,
+        source_chat_id: int,
+        twitch_login: str,
+        stream_id: str | None,
+    ) -> None:
+        await self.conn.execute(
+            "DELETE FROM deferred_reports WHERE chat_id = ? AND source_chat_id = ? "
+            "AND twitch_login = ? AND stream_id = ?",
+            (chat_id, source_chat_id, twitch_login, stream_id or ""),
         )
         await self.conn.commit()
 
@@ -801,7 +856,16 @@ class Database:
             "FROM deferred_reports WHERE chat_id = ? ORDER BY ended_at ASC",
             (chat_id,),
         )
-        return await cursor.fetchall()
+        return [
+            (source_chat_id, login, stream_id or None, ended_at)
+            for source_chat_id, login, stream_id, ended_at in await cursor.fetchall()
+        ]
+
+    async def all_deferred_recipient_chat_ids(self) -> list[int]:
+        cursor = await self.conn.execute(
+            "SELECT DISTINCT chat_id FROM deferred_reports ORDER BY chat_id"
+        )
+        return [row[0] for row in await cursor.fetchall()]
 
     async def is_quiet_hours_digest_sent(self, chat_id: int) -> bool:
         cursor = await self.conn.execute(
@@ -1005,6 +1069,34 @@ class Database:
         )
         await self.conn.commit()
 
+    async def _migrate_deferred_reports_key(self) -> None:
+        """Разрешает хранить несколько завершённых стримов одного канала в очереди."""
+        cursor = await self.conn.execute("PRAGMA table_info(deferred_reports)")
+        columns = await cursor.fetchall()
+        primary_key = [
+            row[1] for row in sorted(columns, key=lambda row: row[5]) if row[5]
+        ]
+        if primary_key == ["chat_id", "source_chat_id", "twitch_login", "stream_id"]:
+            return
+
+        await self.conn.execute(
+            "ALTER TABLE deferred_reports RENAME TO deferred_reports_legacy"
+        )
+        await self.conn.execute(
+            "CREATE TABLE deferred_reports ("
+            "chat_id INTEGER NOT NULL, source_chat_id INTEGER NOT NULL, "
+            "twitch_login TEXT NOT NULL, stream_id TEXT NOT NULL DEFAULT '', "
+            "ended_at REAL NOT NULL, "
+            "PRIMARY KEY (chat_id, source_chat_id, twitch_login, stream_id))"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO deferred_reports "
+            "(chat_id, source_chat_id, twitch_login, stream_id, ended_at) "
+            "SELECT chat_id, source_chat_id, twitch_login, "
+            "COALESCE(stream_id, ''), ended_at FROM deferred_reports_legacy"
+        )
+        await self.conn.execute("DROP TABLE deferred_reports_legacy")
+
     @_serialized
     async def clear_live_message(self, chat_id: int, twitch_login: str) -> None:
         """Забывает только Telegram live-пост, сохраняя логическую Twitch-сессию."""
@@ -1181,6 +1273,23 @@ class Database:
             "FROM stream_history WHERE chat_id = ? AND twitch_login = ? "
             "ORDER BY ended_at DESC LIMIT 1",
             (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return tuple(row) if row else None
+
+    async def get_finished_stream(
+        self, chat_id: int, twitch_login: str, stream_id: str
+    ) -> tuple[
+        str, float, str | None, str | None, int, int, int, int | None,
+        str | None, int | None, int | None, str | None, str | None, str | None,
+    ] | None:
+        """Конкретный завершённый стрим для устойчивой deferred-доставки."""
+        cursor = await self.conn.execute(
+            "SELECT stream_id, ended_at, started_at, title, duration_seconds, peak_viewers, "
+            "avg_viewers, new_followers, new_followers_text, unique_chatters, join_reliable, "
+            "top_chatters_json, raid_events_json, collab_json "
+            "FROM stream_history WHERE chat_id = ? AND twitch_login = ? AND stream_id = ?",
+            (chat_id, twitch_login, stream_id),
         )
         row = await cursor.fetchone()
         return tuple(row) if row else None

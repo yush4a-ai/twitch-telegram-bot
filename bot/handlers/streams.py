@@ -482,6 +482,13 @@ async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> N
         elif new_status in ("left", "kicked", "member"):
             # "member" — бота понизили из админов, без прав постить он бесполезен для канала
             await db.unregister_telegram_channel(event.chat.id)
+            removed = await db.remove_all_channels(event.chat.id)
+            if removed:
+                logger.info(
+                    "Бот удалён/понижен в Telegram-канале %s — снято с отслеживания: %s",
+                    mask_chat_id(event.chat.id),
+                    removed,
+                )
         return
 
     # из группы бота могли удалить — без уборки поллер продолжал бы каждую минуту
@@ -829,7 +836,6 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
 async def cb_quiet_hours_disable(callback: CallbackQuery, db: Database) -> None:
     chat_id = callback.message.chat.id
     await db.clear_quiet_hours(chat_id)
-    await db.get_and_clear_deferred_reports(chat_id)
     await db.clear_quiet_hours_digest_sent(chat_id)
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
     await callback.message.edit_text(text, reply_markup=keyboard)
@@ -873,22 +879,71 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
         await callback.answer()
         return
 
-    entries = await db.get_and_clear_deferred_reports(chat_id)
-    await db.clear_quiet_hours_digest_sent(chat_id)
-
+    entries = await db.peek_deferred_reports(chat_id)
     if not entries:
         await callback.answer()
         return
 
+    current_entries = []
+    for source_chat_id, login, stream_id, ended_at in entries:
+        current_recipient = await db.resolve_post_recipient(source_chat_id, login)
+        if current_recipient == chat_id:
+            current_entries.append((source_chat_id, login, stream_id, ended_at))
+        elif current_recipient is None:
+            await db.delete_deferred_report(
+                chat_id, source_chat_id, login, stream_id
+            )
+        else:
+            await db.relocate_deferred_report(
+                chat_id,
+                current_recipient,
+                source_chat_id,
+                login,
+                stream_id,
+                ended_at,
+            )
+
     if action == "skip":
+        for source_chat_id, login, stream_id, _ended_at in current_entries:
+            await db.delete_deferred_report(
+                chat_id, source_chat_id, login, stream_id
+            )
+        if not await db.has_deferred_reports(chat_id):
+            await db.clear_quiet_hours_digest_sent(chat_id)
         await callback.message.edit_text("Хорошо, пропускаю подробности.")
         await callback.answer()
         return
 
-    await callback.message.edit_reply_markup(reply_markup=None)
+    if action != "show":
+        await callback.answer()
+        return
+
     await callback.answer("Готовлю отчёты…")
-    for source_chat_id, login, _stream_id, _ended_at in entries:
-        await _send_report(callback.message, source_chat_id, login, db)
+    for source_chat_id, login, stream_id, _ended_at in current_entries:
+        try:
+            delivered = await _deliver_report(
+                callback.message,
+                source_chat_id,
+                login,
+                db,
+                recipient_chat_id=chat_id,
+                stream_id=stream_id,
+            )
+        except Exception:
+            logger.exception(
+                "Не удалось доставить отложенный отчёт %s в %s",
+                login,
+                mask_chat_id(chat_id),
+            )
+            continue
+        if delivered:
+            await db.delete_deferred_report(
+                chat_id, source_chat_id, login, stream_id
+            )
+
+    if not await db.has_deferred_reports(chat_id):
+        await db.clear_quiet_hours_digest_sent(chat_id)
+        await callback.message.edit_reply_markup(reply_markup=None)
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("managegroup:"))
@@ -918,7 +973,8 @@ _CHANNELS_HINT_PRIVATE = _CHANNELS_HINT
 _CHANNELS_HINT_TG_CHANNEL = (
     "📡 <b>Отслеживаемые каналы</b>\n"
     "Нажми на канал, чтобы открыть его настройки.\n\n"
-    "После завершения стрима живой пост сменится итоговым отчётом со статистикой."
+    "После завершения стрима живой пост удалится, а итоговый отчёт со статистикой "
+    "будет опубликован отдельно."
 )
 
 
@@ -1071,8 +1127,8 @@ async def _render_channel_card(
         text = (
             f"📡 <b>{login}</b>\n\n"
             "После завершения стрима бот отправит в этот Telegram-канал итоговый "
-            "отчёт со статистикой, а живой пост удалит только после успешной "
-            "обработки отчёта.\n\n"
+            "отчёт со статистикой отдельным сообщением. Живой пост удалится через "
+            "пять минут после подтверждённого завершения эфира.\n\n"
             "🔔/🔕 — присылать ли живой пост, когда канал выходит в эфир"
         )
     else:
@@ -1932,11 +1988,29 @@ async def _send_report(
     db: Database,
     *,
     recipient_chat_id: int | None = None,
-) -> None:
-    record = await db.get_last_finished_stream(chat_id, login)
+    stream_id: str | None = None,
+) -> bool:
+    recipient_chat_id = recipient_chat_id or message.chat.id
+    if recipient_chat_id <= 0 and not await db.is_telegram_channel(recipient_chat_id):
+        logger.warning(
+            "Ручной отчёт %s заблокирован: получатель %s не является личным чатом "
+            "или зарегистрированным Telegram-каналом",
+            login,
+            mask_chat_id(recipient_chat_id),
+        )
+        return False
+
+    record = (
+        await db.get_finished_stream(chat_id, login, stream_id)
+        if stream_id is not None
+        else await db.get_last_finished_stream(chat_id, login)
+    )
     if record is None:
-        await message.answer(f"Пока нет ни одного завершённого стрима «{login}» в этом чате.")
-        return
+        await message.bot.send_message(
+            recipient_chat_id,
+            f"Пока нет завершённого стрима «{login}» с сохранённым отчётом.",
+        )
+        return True
 
     (
         stream_id, ended_at, started_at, title, duration_seconds, peak_viewers,
@@ -1946,11 +2020,12 @@ async def _send_report(
 
     age = time.time() - ended_at
     if age > REPORT_RETENTION_SECONDS:
-        await message.answer(
+        await message.bot.send_message(
+            recipient_chat_id,
             f"Последний стрим «{login}» завершился более 24 часов назад — "
-            "полный отчёт с графиком и списком чатеров больше недоступен."
+            "полный отчёт с графиком и списком чатеров больше недоступен.",
         )
-        return
+        return True
 
     samples = await db.get_stream_samples(chat_id, login, stream_id)
     chat_activity = await db.get_chat_activity_samples(chat_id, login, stream_id)
@@ -1981,26 +2056,43 @@ async def _send_report(
     )
 
     file = BufferedInputFile(report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html")
-    recipient_chat_id = recipient_chat_id or message.chat.id
-    if recipient_chat_id <= 0:
-        logger.warning(
-            "Ручной отчёт %s заблокирован: получатель %s не является личным чатом",
-            login,
-            mask_chat_id(recipient_chat_id),
-        )
-        return
     await message.bot.send_document(
         recipient_chat_id, file, caption=f"Отчёт по последнему стриму «{login}»."
     )
+    return True
 
 
-async def _deliver_report(message: Message, chat_id: int, login: str, db: Database) -> None:
+async def _deliver_report(
+    message: Message,
+    chat_id: int,
+    login: str,
+    db: Database,
+    *,
+    recipient_chat_id: int | None = None,
+    stream_id: str | None = None,
+) -> bool:
     """Отдаёт отчёт так же, как он приходит сразу после эфира: текстовая выжимка,
     а к ней HTML — если для канала выбран развёрнутый формат."""
-    record = await db.get_last_finished_stream(chat_id, login)
+    recipient_chat_id = recipient_chat_id or message.chat.id
+    if recipient_chat_id <= 0 and not await db.is_telegram_channel(recipient_chat_id):
+        logger.warning(
+            "Ручной отчёт %s заблокирован для %s",
+            login,
+            mask_chat_id(recipient_chat_id),
+        )
+        return False
+
+    record = (
+        await db.get_finished_stream(chat_id, login, stream_id)
+        if stream_id is not None
+        else await db.get_last_finished_stream(chat_id, login)
+    )
     if record is None:
-        await message.answer(f"Пока нет ни одного завершённого стрима «{login}» в этом чате.")
-        return
+        await message.bot.send_message(
+            recipient_chat_id,
+            f"Пока нет завершённого стрима «{login}» с сохранённым отчётом.",
+        )
+        return True
 
     (
         stream_id, ended_at, started_at, title, duration_seconds, peak_viewers,
@@ -2009,7 +2101,8 @@ async def _deliver_report(message: Message, chat_id: int, login: str, db: Databa
     ) = record
 
     vod = await db.get_vod(chat_id, login, stream_id)
-    await message.answer(
+    await message.bot.send_message(
+        recipient_chat_id,
         _build_report_summary(
             login, title, format_duration_seconds(duration_seconds),
             peak_viewers, avg_viewers, new_followers_text, unique_chatters,
@@ -2020,10 +2113,17 @@ async def _deliver_report(message: Message, chat_id: int, login: str, db: Databa
     )
 
     if await db.get_report_format(chat_id, login) == "brief":
-        return
+        return True
     if time.time() - ended_at > REPORT_RETENTION_SECONDS:
-        return  # график и список чатеров уже вычищены, текст выше остаётся актуальным
-    await _send_report(message, chat_id, login, db)
+        return True  # график и список чатеров уже вычищены, текст выше остаётся актуальным
+    return await _send_report(
+        message,
+        chat_id,
+        login,
+        db,
+        recipient_chat_id=recipient_chat_id,
+        stream_id=stream_id,
+    )
 
 
 @router.message(Command("report"))
@@ -2041,7 +2141,7 @@ async def cmd_report(message: Message, command: CommandObject, db: Database) -> 
             )
             return
         recipient_chat_id = message.from_user.id
-    await _send_report(
+    await _deliver_report(
         message, message.chat.id, login, db, recipient_chat_id=recipient_chat_id
     )
 
@@ -2078,6 +2178,6 @@ async def cb_report_channel(callback: CallbackQuery, db: Database) -> None:
             return
         recipient_chat_id = callback.from_user.id
     await callback.answer("Готовлю отчёт…")
-    await _send_report(
+    await _deliver_report(
         callback.message, chat_id, login, db, recipient_chat_id=recipient_chat_id
     )

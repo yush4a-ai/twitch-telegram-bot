@@ -11,8 +11,8 @@ import time
 import aiohttp
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramNetworkError
+from aiogram.enums import ChatType, ParseMode
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 from aiogram.types import (
     BotCommand,
     BotCommandScopeAllGroupChats,
@@ -25,6 +25,7 @@ from bot.follow_listener import FollowEventListener
 from bot.config import load_config
 from bot.database import Database
 from bot.handlers import register_all_handlers
+from bot.logging_utils import mask_chat_id
 from bot.middlewares import setup_middlewares
 from bot.oauth import REDIRECT_PATH, OAuthCallbackServer
 from bot.poller import StreamPoller
@@ -113,6 +114,44 @@ async def _apply_auto_track(db: Database, config) -> None:
             logger.info("AUTO_TRACK: канал %s в чате %s уже отслеживается", login, chat_id)
 
 
+async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
+    """Удаляет stale-регистрации каналов, недоступных боту после рестарта."""
+    for chat_id, _title in await db.all_telegram_channels():
+        try:
+            chat = await bot.get_chat(chat_id)
+            member = await bot.get_chat_member(chat_id, bot.id)
+        except (TelegramForbiddenError, TelegramBadRequest) as e:
+            logger.warning(
+                "Telegram-канал %s больше недоступен, удаляю stale-регистрацию: %s",
+                mask_chat_id(chat_id),
+                e,
+            )
+        except TelegramNetworkError:
+            raise
+        except Exception:
+            logger.exception(
+                "Не удалось проверить регистрацию Telegram-канала %s; запись сохранена",
+                mask_chat_id(chat_id),
+            )
+            continue
+        else:
+            if chat.type == ChatType.CHANNEL and member.status == "administrator":
+                continue
+            logger.warning(
+                "Чат %s больше не является доступным Telegram-каналом; "
+                "удаляю stale-регистрацию",
+                mask_chat_id(chat_id),
+            )
+
+        await db.unregister_telegram_channel(chat_id)
+        removed = await db.remove_all_channels(chat_id)
+        logger.info(
+            "Stale Telegram-канал %s очищен; снято Twitch-подписок: %s",
+            mask_chat_id(chat_id),
+            removed,
+        )
+
+
 async def main() -> None:
     config = load_config()
 
@@ -127,6 +166,10 @@ async def main() -> None:
     bot = Bot(
         token=config.telegram_bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    await _with_startup_retry(
+        lambda: _reconcile_telegram_channels(bot, db),
+        "Проверка Telegram-каналов",
     )
     dp = Dispatcher()
     setup_middlewares(dp)
