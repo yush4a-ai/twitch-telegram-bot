@@ -1013,6 +1013,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_channel_stream_generates_and_marks_final_report(self) -> None:
         db = SimpleNamespace(
+            pending_report_deliveries=AsyncMock(return_value=[]),
             pending_stats=AsyncMock(
                 return_value=[
                     (
@@ -1039,6 +1040,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_failed_channel_report_stays_pending(self) -> None:
         db = SimpleNamespace(
+            pending_report_deliveries=AsyncMock(return_value=[]),
             pending_stats=AsyncMock(
                 return_value=[
                     (
@@ -1160,6 +1162,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_group_without_private_recipient_never_delivers_report(self) -> None:
         db = SimpleNamespace(
+            pending_report_deliveries=AsyncMock(return_value=[]),
             pending_stats=AsyncMock(
                 return_value=[
                     (-100, "channel", 0.0, "title", "2026-01-01T00:00:00Z", 10, 20, 2, "stream", None)
@@ -2666,12 +2669,39 @@ class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
             ("session-1", "2026-01-01T00:00:00Z", 140, 2),
         )
 
-    async def test_restart_new_twitch_id_outside_window_starts_new_session(self) -> None:
+    async def test_restart_new_twitch_id_at_boundary_finalizes_old_before_new(self) -> None:
         await self._seed_live(message_id=None)
+        await self.db.mark_known_private_user(1)
+        await self.db.set_report_format(1, "channel", "brief")
         await self._reopen()
-        poller, _bot = self._poller(_stream("session-2", viewers=40))
+        poller, bot = self._poller(_stream("session-2", viewers=40))
+        poller._fetch_top_clips = AsyncMock(return_value=[])
+        poller._fetch_and_save_vod = AsyncMock(return_value=None)
 
-        with patch("bot.poller.time.time", return_value=3001.0):
+        with patch("bot.poller.time.time", return_value=2800.0):
+            await poller._check_streams()
+
+        poller._notify.assert_not_awaited()
+        state = await self.db.get_live_state(1, "channel")
+        self.assertFalse(state[0])
+        self.assertEqual(state[1], "session-1")
+
+        with patch("bot.poller.time.time", return_value=2800.0):
+            await poller._send_pending_stats()
+        history = await self.db.get_finished_stream(1, "channel", "session-1")
+        self.assertIsNotNone(history)
+        delivery = await self.db.get_report_delivery_for_stream(
+            1, "channel", "session-1"
+        )
+        self.assertIsNotNone(delivery)
+        self.assertTrue(delivery.complete)
+        bot.send_message.assert_awaited_once()
+        self.assertEqual(
+            await self.db.get_live_state(1, "channel"),
+            (False, None, None, None, None, None, None),
+        )
+
+        with patch("bot.poller.time.time", return_value=2801.0):
             await poller._check_streams()
 
         self.assertFalse(poller._notify.await_args.kwargs.get("silent", False))
@@ -2679,6 +2709,61 @@ class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
             "SELECT last_stream_id, viewer_sum, viewer_samples FROM tracked_channels"
         )
         self.assertEqual(await cursor.fetchone(), ("session-2", 40, 1))
+
+    async def test_negative_last_seen_delta_never_overwrites_old_session(self) -> None:
+        await self._seed_live(message_id=None, last_seen_live_at=1000.0)
+        await self._reopen()
+        poller, _bot = self._poller(_stream("session-2", viewers=40))
+
+        with patch("bot.poller.time.time", return_value=999.0):
+            await poller._check_streams()
+
+        poller._notify.assert_not_awaited()
+        cursor = await self.db.conn.execute(
+            "SELECT is_live, last_stream_id, offline_since, viewer_sum, viewer_samples "
+            "FROM tracked_channels"
+        )
+        self.assertEqual(await cursor.fetchone(), (0, "session-1", 999.0, 100, 1))
+
+    async def test_ready_source_preserves_shared_chat_buffer_for_later_source(self) -> None:
+        await self._seed_live(chat_id=1, message_id=None, viewers=10)
+        await self._seed_live(chat_id=2, message_id=None, viewers=20)
+        for chat_id, offline_since in ((1, 1000.0), (2, 1000.1)):
+            await self.db.set_live_state(
+                chat_id,
+                "channel",
+                False,
+                "session-1",
+                message_id=None,
+                title="Original title",
+                offline_since=offline_since,
+                stream_started_at="2026-01-01T00:00:00Z",
+            )
+        listener = SimpleNamespace(
+            is_running=lambda login: True,
+            get_and_clear_activity=lambda login: [(1000.0, 3)],
+            get_and_clear_chatters=lambda login: {("viewer", 1000.0)},
+            get_and_clear_unique_viewers=lambda login: [],
+            get_and_clear_join_reliability=lambda login: True,
+            chatters_overflowed=lambda login: False,
+            get_and_clear_top_chatters=lambda login: [("viewer", 3)],
+            get_and_clear_raid_events=lambda login: [],
+            stop=AsyncMock(),
+        )
+        poller, _bot = self._poller(None)
+        poller._chat_listener = listener
+        poller._send_stats = AsyncMock(return_value=True)
+
+        with patch("bot.poller.time.time", return_value=2800.0):
+            await poller._send_pending_stats()
+
+        listener.stop.assert_awaited_once_with("channel")
+        self.assertEqual(
+            await self.db.get_stream_chat_meta(2, "channel", "session-1"),
+            (True, '[["viewer", 3]]', None),
+        )
+        pending = await self.db.pending_stats()
+        self.assertEqual([(row[0], row[1]) for row in pending], [(2, "channel")])
 
     async def test_followers_at_start_is_not_resnapshotted_after_restart(self) -> None:
         await self._seed_live()
@@ -3047,6 +3132,56 @@ class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
 
                 self.assertTrue(await db.is_telegram_channel(channel_id))
                 self.assertEqual(await db.list_channels(channel_id), ["channel"])
+            finally:
+                await db.close()
+
+    async def test_stale_channel_pending_html_becomes_terminal_after_tracking_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "Old channel")
+                await db.add_channel(channel_id, "channel")
+                delivery = await db.create_report_delivery(
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "full",
+                    "persisted text",
+                    "<html>pending</html>",
+                    1000.0,
+                )
+                await db.mark_report_text_sent(delivery, 1001.0)
+                bot = SimpleNamespace(
+                    id=99,
+                    get_chat=AsyncMock(
+                        return_value=SimpleNamespace(type="supergroup")
+                    ),
+                    get_chat_member=AsyncMock(
+                        return_value=SimpleNamespace(status="administrator")
+                    ),
+                    send_message=AsyncMock(),
+                    send_document=AsyncMock(),
+                )
+
+                await _reconcile_telegram_channels(bot, db)
+                self.assertEqual(await db.list_channels(channel_id), [])
+
+                poller = StreamPoller(bot, db, SimpleNamespace(), 60)
+                await poller._send_pending_stats()
+
+                updated = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                self.assertIsNotNone(updated)
+                self.assertTrue(updated.text_sent)
+                self.assertFalse(updated.html_sent)
+                self.assertTrue(updated.terminal_failed)
+                self.assertEqual(updated.terminal_reason, "destination_rejected")
+                bot.send_message.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
             finally:
                 await db.close()
 

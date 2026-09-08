@@ -1288,6 +1288,30 @@ class Database:
         row = await cursor.fetchone()
         return _report_delivery_from_row(tuple(row)) if row else None
 
+    async def pending_report_deliveries(
+        self, limit: int | None = None
+    ) -> list[ReportDelivery]:
+        """Незавершённые automatic outbox rows, включая оставшиеся без tracking.
+
+        Startup reconciliation может удалить stale Telegram-channel и его
+        ``tracked_channels`` раньше первого poll. Delivery при этом обязана дойти
+        до final guard и стать terminal, а не зависнуть сиротой навсегда.
+        """
+        sql = (
+            "SELECT source_chat_id, twitch_login, stream_id, recipient_chat_id, "
+            "report_format, text_payload, html_payload, text_sent, html_sent, "
+            "terminal_failed, terminal_reason, created_at, updated_at "
+            "FROM report_deliveries WHERE terminal_failed = 0 AND ("
+            "text_sent = 0 OR (report_format = 'full' AND html_sent = 0)) "
+            "ORDER BY created_at ASC"
+        )
+        params: tuple = ()
+        if limit is not None:
+            sql += " LIMIT ?"
+            params = (limit,)
+        cursor = await self.conn.execute(sql, params)
+        return [_report_delivery_from_row(tuple(row)) for row in await cursor.fetchall()]
+
     @_serialized
     async def mark_report_text_sent(
         self, delivery: ReportDelivery, updated_at: float

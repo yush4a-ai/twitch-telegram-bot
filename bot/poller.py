@@ -684,6 +684,47 @@ class StreamPoller:
                 ) = states[(chat_id, login)]
 
                 if stream is not None:
+                    # После падения процесс мог не успеть зафиксировать offline. Если
+                    # Twitch уже выдал новый id за пределами reconnect-window, сначала
+                    # переводим старую logical session в финализацию. Иначе новый id
+                    # перезапишет tracked state до создания history/outbox старой.
+                    last_seen_delta = (
+                        now - _last_seen_live_at
+                        if _last_seen_live_at is not None
+                        else None
+                    )
+                    stale_restart_session = (
+                        was_live
+                        and last_stream_id is not None
+                        and last_stream_id != stream.stream_id
+                        and not (
+                            last_seen_delta is not None
+                            and 0 <= last_seen_delta < RESTART_MERGE_GRACE_SECONDS
+                        )
+                    )
+                    if stale_restart_session:
+                        # Валидный старый timestamp позволяет финализировать сразу.
+                        # При отсутствующем/future timestamp начинаем обычное 30-минутное
+                        # ожидание от now: это задержит новый пост, но не потеряет старую
+                        # сессию и не примет clock anomaly за reconnect.
+                        recovered_offline_since = (
+                            _last_seen_live_at
+                            if last_seen_delta is not None and last_seen_delta >= 0
+                            else now
+                        )
+                        await self._db.set_live_state(
+                            chat_id,
+                            login,
+                            False,
+                            last_stream_id,
+                            last_message_id,
+                            last_title,
+                            offline_since=recovered_offline_since,
+                            stream_started_at=_stream_started_at,
+                            peak_viewers=_peak_viewers,
+                        )
+                        continue
+
                     # Возврат произошёл уже после окна reconnect, но прежняя сессия ещё
                     # ждёт финального отчёта в этом цикле. Не перезаписываем её новым
                     # stream_id: _send_pending_stats() завершит старую, а следующий poll
@@ -716,8 +757,8 @@ class StreamPoller:
                         was_live
                         and last_stream_id is not None
                         and last_stream_id != stream.stream_id
-                        and _last_seen_live_at is not None
-                        and 0 <= now - _last_seen_live_at < RESTART_MERGE_GRACE_SECONDS
+                        and last_seen_delta is not None
+                        and 0 <= last_seen_delta < RESTART_MERGE_GRACE_SECONDS
                     )
                     reconnect = reconnect or restart_reconnect
                     continuing_session = same_stream or reconnect
@@ -851,7 +892,7 @@ class StreamPoller:
                             last_stream_id,
                             last_message_id,
                             last_title,
-                            offline_since=time.time(),
+                            offline_since=now,
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
                         )
@@ -938,6 +979,29 @@ class StreamPoller:
 
     async def _send_pending_stats(self) -> None:
         now = time.time()
+        # Outbox — самостоятельный durable источник истины. Его нельзя обходить
+        # только через tracked_channels: startup reconciliation намеренно удаляет
+        # tracking недоступного Telegram-канала, но pending delivery всё равно должна
+        # пройти final guard и завершиться terminal либо быть доставлена.
+        attempted_deliveries: set[tuple[int, str, str]] = set()
+        for delivery in await self._db.pending_report_deliveries(
+            MAX_REPORTS_PER_CYCLE
+        ):
+            key = (
+                delivery.source_chat_id,
+                delivery.twitch_login,
+                delivery.stream_id,
+            )
+            attempted_deliveries.add(key)
+            delivered = await self._deliver_persisted_report(delivery)
+            if delivered:
+                await self._db.mark_stats_sent(
+                    delivery.source_chat_id, delivery.twitch_login
+                )
+                await self._db.clear_finished_session(
+                    delivery.source_chat_id, delivery.twitch_login
+                )
+
         pending = await self._db.pending_stats()
         ready = [
             row for row in pending
@@ -947,10 +1011,14 @@ class StreamPoller:
         # ChatListener общий для Twitch-логина. Снимаем его буфер ровно один раз и
         # только после истечения окна reconnect, до построения любого из отчётов.
         if ready and self._chat_listener is not None:
+            ready_logins = {row[1] for row in ready}
             by_login: dict[str, list[tuple[int, str]]] = {}
-            for row in ready:
+            # Listener и его RAM-буфер общие для Twitch login. Если timestamps у
+            # нескольких source chats отличаются даже на доли секунды, первая ready-
+            # строка не должна очистить буфер до сохранения meta остальных строк.
+            for row in pending:
                 chat_id, login, *_, stream_id, _followers = row
-                if stream_id is not None:
+                if login in ready_logins and stream_id is not None:
                     by_login.setdefault(login, []).append((chat_id, stream_id))
             for login, sessions in by_login.items():
                 await self._finish_chat_collection(login, sessions)
@@ -978,6 +1046,10 @@ class StreamPoller:
                 else None
             )
             if existing_delivery is not None:
+                if (chat_id, login, stream_id) in attempted_deliveries:
+                    # Эта delivery уже получила ровно одну попытку в начале цикла.
+                    # При temporary failure оставляем её до следующего poll.
+                    continue
                 delivered = await self._deliver_persisted_report(
                     existing_delivery
                 )
