@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import os
 import sqlite3
 import subprocess
@@ -12,7 +13,7 @@ import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, call, patch
 
 # Изолируем imports тестового процесса от production delivery settings и запрещаем
 # python-dotenv даже читать настоящий .env. Нужные значения тесты задают явно.
@@ -43,6 +44,7 @@ os.environ.update(
     }
 )
 
+import aiohttp
 from cryptography.fernet import Fernet
 from aiogram.exceptions import (
     TelegramForbiddenError,
@@ -69,12 +71,15 @@ from bot.handlers.streams import (
     cmd_report,
 )
 from bot.oauth import (
+    HEALTH_PATH,
+    REDIRECT_PATH,
     OAuthCallbackServer,
     OAuthFlowError,
     OAuthTokenRevokedError,
     OAuthTokenTemporaryError,
     UserTokenResult,
     _exchange_code,
+    evaluate_runtime_health,
     refresh_user_token,
 )
 from bot.poller import (
@@ -4631,6 +4636,347 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client._request.await_args.args[1]), 100)
 
 
+
+def _poller_health(
+    *,
+    running=True,
+    stopping=False,
+    success_age=10.0,
+    uptime=600.0,
+    stale_after=180.0,
+    last_cycle_error=None,
+):
+    """Форма ровно как у StreamPoller.health_snapshot()."""
+    return {
+        "running": running,
+        "stopping": stopping,
+        "last_successful_cycle_age_seconds": success_age,
+        "last_successful_cycle_at": None,
+        "uptime_seconds": uptime,
+        "stale_after_seconds": stale_after,
+        "last_cycle_error": last_cycle_error,
+        "last_cycle_duration_seconds": 1.0,
+        "active_chat_listeners": 0,
+        "background_tasks": 0,
+        "last_cycle_started_at": None,
+    }
+
+
+def _eventsub_health(*, running=True, stopping=False, configured=3, ready=3):
+    """Форма ровно как у FollowEventListener.health_snapshot()."""
+    return {
+        "running": running,
+        "stopping": stopping,
+        "configured_logins": configured,
+        "ready_logins": ready,
+        "stalest_message_age_seconds": None,
+        "last_error": None,
+        "last_error_age_seconds": None,
+    }
+
+
+class HealthEndpointSemanticsTests(unittest.TestCase):
+    """Семантика /healthz. Всё in-memory: ни Twitch, ни Telegram, ни SQLite."""
+
+    def test_fully_healthy_runtime_is_ok(self) -> None:
+        healthy, status = evaluate_runtime_health(_poller_health(), _eventsub_health())
+        self.assertTrue(healthy)
+        self.assertEqual(status, "ok")
+
+    def test_poller_stopping_is_unhealthy(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(stopping=True), _eventsub_health()
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "stopping")
+
+    def test_poller_not_running_is_degraded(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(running=False), _eventsub_health()
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "degraded")
+
+    def test_startup_grace_holds_while_first_cycle_pending(self) -> None:
+        """Пока grace не вышел, отвечаем starting, а не degraded."""
+        healthy, status = evaluate_runtime_health(
+            _poller_health(success_age=None, uptime=30.0, stale_after=180.0),
+            _eventsub_health(),
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "starting")
+
+    def test_startup_grace_is_bound_to_poll_interval(self) -> None:
+        """Grace обязан следовать за POLL_INTERVAL_SECONDS, а не быть константой."""
+        for stale_after, uptime, expected in (
+            (180.0, 170.0, "starting"),
+            (180.0, 190.0, "degraded"),
+            (30.0, 20.0, "starting"),
+            (30.0, 40.0, "degraded"),
+        ):
+            with self.subTest(stale_after=stale_after, uptime=uptime):
+                _healthy, status = evaluate_runtime_health(
+                    _poller_health(
+                        success_age=None, uptime=uptime, stale_after=stale_after
+                    ),
+                    _eventsub_health(),
+                )
+                self.assertEqual(status, expected)
+
+    def test_never_succeeded_after_grace_is_degraded(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(success_age=None, uptime=600.0, stale_after=180.0),
+            _eventsub_health(),
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "degraded")
+
+    def test_stale_last_success_is_degraded(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(success_age=181.0, stale_after=180.0), _eventsub_health()
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "degraded")
+
+    def test_recent_success_at_threshold_is_ok(self) -> None:
+        healthy, _status = evaluate_runtime_health(
+            _poller_health(success_age=180.0, stale_after=180.0), _eventsub_health()
+        )
+        self.assertTrue(healthy)
+
+    def test_success_age_is_derived_from_absolute_timestamp(self) -> None:
+        """Если age не посчитан, берём last_successful_cycle_at и now."""
+        snapshot = _poller_health(success_age=None)
+        snapshot["last_successful_cycle_at"] = 1_000.0
+        healthy, _status = evaluate_runtime_health(snapshot, _eventsub_health(), 1_010.0)
+        self.assertTrue(healthy)
+
+        stale = _poller_health(success_age=None)
+        stale["last_successful_cycle_at"] = 1_000.0
+        healthy, status = evaluate_runtime_health(stale, _eventsub_health(), 1_400.0)
+        self.assertFalse(healthy)
+        self.assertEqual(status, "degraded")
+
+    def test_eventsub_subsystem_dead_is_degraded(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(), _eventsub_health(running=False, configured=3, ready=0)
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "degraded")
+
+    def test_eventsub_stopping_is_unhealthy(self) -> None:
+        healthy, status = evaluate_runtime_health(
+            _poller_health(), _eventsub_health(stopping=True)
+        )
+        self.assertFalse(healthy)
+        self.assertEqual(status, "stopping")
+
+    def test_single_auth_blocked_login_keeps_health_ok(self) -> None:
+        """Один канал требует re-auth — деплой убивать нельзя."""
+        healthy, status = evaluate_runtime_health(
+            _poller_health(), _eventsub_health(configured=5, ready=4)
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(status, "ok")
+
+    def test_all_eventsub_logins_lost_is_degraded(self) -> None:
+        healthy, _status = evaluate_runtime_health(
+            _poller_health(), _eventsub_health(configured=5, ready=0)
+        )
+        self.assertFalse(healthy)
+
+    def test_no_configured_logins_does_not_force_degraded(self) -> None:
+        """Пустой EventSub — легальное состояние свежей установки."""
+        healthy, status = evaluate_runtime_health(
+            _poller_health(), _eventsub_health(running=False, configured=0, ready=0)
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(status, "ok")
+
+    def test_transient_cycle_error_with_recent_success_stays_ok(self) -> None:
+        """Закреплённая семантика: решает свежесть успешного цикла, а не
+        last_cycle_error. Иначе одна сетевая ошибка Twitch убила бы deployment,
+        хотя поллер продолжает успешно отрабатывать."""
+        healthy, status = evaluate_runtime_health(
+            _poller_health(success_age=5.0, last_cycle_error="TimeoutError"),
+            _eventsub_health(),
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(status, "ok")
+
+        healthy, _status = evaluate_runtime_health(
+            _poller_health(success_age=600.0, last_cycle_error="TimeoutError"),
+            _eventsub_health(),
+        )
+        self.assertFalse(healthy)
+
+    def test_missing_poller_snapshot_is_starting(self) -> None:
+        healthy, status = evaluate_runtime_health(None, _eventsub_health())
+        self.assertFalse(healthy)
+        self.assertEqual(status, "starting")
+
+    def test_unusable_stale_threshold_is_degraded(self) -> None:
+        for stale_after in (None, 0, -5, True):
+            with self.subTest(stale_after=stale_after):
+                healthy, status = evaluate_runtime_health(
+                    _poller_health(stale_after=stale_after), _eventsub_health()
+                )
+                self.assertFalse(healthy)
+                self.assertEqual(status, "degraded")
+
+
+class HealthEndpointHttpTests(unittest.IsolatedAsyncioTestCase):
+    """Реальный aiohttp-сервер на 127.0.0.1:0 — без внешней сети."""
+
+    async def _start(self, provider=None):
+        server = OAuthCallbackServer(
+            "https://example.test/twitch/callback",
+            "127.0.0.1",
+            0,
+            health_provider=provider,
+        )
+        await server.start()
+        self.addAsyncCleanup(server.stop)
+        port = server._runner.addresses[0][1]
+        session = aiohttp.ClientSession()
+        self.addAsyncCleanup(session.close)
+        return server, session, f"http://127.0.0.1:{port}"
+
+    async def test_healthy_runtime_returns_200_ok(self) -> None:
+        _server, session, base = await self._start(lambda: (True, "ok"))
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(await response.json(), {"status": "ok"})
+
+    async def test_unhealthy_runtime_returns_503(self) -> None:
+        _server, session, base = await self._start(lambda: (False, "degraded"))
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual(await response.json(), {"status": "degraded"})
+
+    async def test_missing_provider_reports_starting(self) -> None:
+        """OAuth server поднимается раньше poller — готовым притворяться нельзя."""
+        _server, session, base = await self._start(None)
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual(await response.json(), {"status": "starting"})
+
+    async def test_shutdown_flips_endpoint_to_503(self) -> None:
+        server, session, base = await self._start(lambda: (True, "ok"))
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 200)
+
+        server.set_health_provider(None)
+
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual(await response.json(), {"status": "starting"})
+
+    async def test_broken_provider_returns_503_without_stack_trace(self) -> None:
+        def _boom() -> tuple[bool, str]:
+            raise RuntimeError("secret-token-abc /data/bot.db")
+
+        _server, session, base = await self._start(_boom)
+        with self.assertLogs("bot.oauth", level="ERROR"):
+            async with session.get(f"{base}{HEALTH_PATH}") as response:
+                status = response.status
+                body = await response.text()
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body), {"status": "degraded"})
+        self.assertNotIn("secret-token-abc", body)
+        self.assertNotIn("Traceback", body)
+
+    async def test_health_response_leaks_no_internal_details(self) -> None:
+        provider = Mock(return_value=(True, "ok"))
+        _server, session, base = await self._start(provider)
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            payload = await response.json()
+            body = await response.text()
+
+        self.assertEqual(set(payload), {"status"})
+        for leaked in ("/data/bot.db", "bot.db", "chat_id", "token", "login", "Traceback"):
+            self.assertNotIn(leaked, body)
+
+    async def test_repeated_requests_do_not_mutate_state(self) -> None:
+        calls = []
+
+        def _provider() -> tuple[bool, str]:
+            calls.append(1)
+            return True, "ok"
+
+        server, session, base = await self._start(_provider)
+        server.register_state("state")
+
+        for _ in range(3):
+            async with session.get(f"{base}{HEALTH_PATH}") as response:
+                self.assertEqual(response.status, 200)
+
+        self.assertEqual(len(calls), 3)
+        # /healthz ничего не трогает в OAuth-состоянии.
+        self.assertEqual(list(server._pending), ["state"])
+        self.assertEqual(
+            server.health_snapshot(), {"runner_started": True, "pending_states": 1}
+        )
+
+    async def test_health_endpoint_performs_no_io(self) -> None:
+        """Провайдер синхронный: ни DB, ни Twitch, ни Telegram внутри запроса."""
+        db = AsyncMock()
+        bot = AsyncMock()
+        twitch = AsyncMock()
+
+        def _provider() -> tuple[bool, str]:
+            return evaluate_runtime_health(_poller_health(), _eventsub_health())
+
+        _server, session, base = await self._start(_provider)
+        async with session.get(f"{base}{HEALTH_PATH}") as response:
+            self.assertEqual(response.status, 200)
+
+        self.assertFalse(db.mock_calls)
+        self.assertFalse(bot.mock_calls)
+        self.assertFalse(twitch.mock_calls)
+
+    async def test_unknown_route_still_returns_404(self) -> None:
+        _server, session, base = await self._start(lambda: (True, "ok"))
+        for path in ("/", "/health", "/metrics", "/twitch"):
+            with self.subTest(path=path):
+                async with session.get(f"{base}{path}") as response:
+                    self.assertEqual(response.status, 404)
+
+    async def test_health_route_does_not_break_oauth_callback(self) -> None:
+        """Регрессия: старый callback обязан вести себя ровно как раньше."""
+        server, session, base = await self._start(lambda: (True, "ok"))
+        server.register_state("state")
+
+        async with session.get(
+            f"{base}{REDIRECT_PATH}", params={"state": "state", "code": "oauth-code"}
+        ) as response:
+            self.assertEqual(response.status, 200)
+
+        self.assertEqual(await server.wait_for_code("state", timeout=1), "oauth-code")
+
+        # неизвестный state и replay по-прежнему 400
+        async with session.get(
+            f"{base}{REDIRECT_PATH}", params={"state": "state", "code": "oauth-code"}
+        ) as response:
+            self.assertEqual(response.status, 400)
+        async with session.get(f"{base}{REDIRECT_PATH}") as response:
+            self.assertEqual(response.status, 400)
+
+    async def test_health_and_callback_share_one_port(self) -> None:
+        """Railway отдаёт один $PORT — второй сервер поднимать нельзя."""
+        server, session, base = await self._start(lambda: (True, "ok"))
+        server.register_state("state")
+
+        async with session.get(f"{base}{HEALTH_PATH}") as health:
+            self.assertEqual(health.status, 200)
+        async with session.get(
+            f"{base}{REDIRECT_PATH}", params={"state": "state", "code": "code"}
+        ) as callback:
+            self.assertEqual(callback.status, 200)
+
+        self.assertEqual(len(server._runner.addresses), 1)
+
+
 class StartupHardeningTests(unittest.TestCase):
     def test_railway_handles_unexpected_runtime_restart(self) -> None:
         with (
@@ -4770,7 +5116,9 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             stop=Mock(),
             shutdown=AsyncMock(side_effect=RuntimeError("cleanup failed")),
         )
-        oauth_server = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
+        oauth_server = SimpleNamespace(
+            start=AsyncMock(), stop=AsyncMock(), set_health_provider=Mock()
+        )
 
         with (
             patch.object(main_module, "load_config", return_value=config),
@@ -4794,6 +5142,9 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
         poller.shutdown.assert_awaited_once()
         follow_listener.stop.assert_awaited_once()
         oauth_server.stop.assert_awaited_once()
+        # Падение runtime обязано снять health provider, иначе /healthz продолжил бы
+        # отдавать 200 во время аварийного завершения процесса.
+        self.assertEqual(oauth_server.set_health_provider.call_args_list[-1], call(None))
         db.close.assert_awaited_once()
         bot.session.close.assert_awaited_once()
         self.assertTrue(session.exited)

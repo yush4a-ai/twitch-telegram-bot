@@ -28,7 +28,11 @@ from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
 from bot.middlewares import setup_middlewares
-from bot.oauth import REDIRECT_PATH, OAuthCallbackServer
+from bot.oauth import (
+    REDIRECT_PATH,
+    OAuthCallbackServer,
+    evaluate_runtime_health,
+)
 from bot.poller import StreamPoller
 from bot.token_store import TokenStore
 from bot.twitch import TwitchClient
@@ -328,6 +332,23 @@ async def main() -> None:
                 dp["poller"] = poller
                 poller_task = asyncio.create_task(poller.run())
 
+                # Только теперь runtime собран целиком, и /healthz может отвечать
+                # ok вместо starting. Provider синхронный и читает готовые
+                # in-memory snapshot, поэтому HTTP-запрос не трогает ни SQLite,
+                # ни Twitch, ни Telegram.
+                def _runtime_health(
+                    poller: StreamPoller = poller,
+                    follow_listener: FollowEventListener = follow_listener,
+                ) -> tuple[bool, str]:
+                    now = time.time()
+                    return evaluate_runtime_health(
+                        poller.health_snapshot(now),
+                        follow_listener.health_snapshot(now),
+                        now,
+                    )
+
+                oauth_server.set_health_provider(_runtime_health)
+
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=True), "Удаление webhook"
                 )
@@ -347,6 +368,10 @@ async def main() -> None:
                         raise RuntimeError(f"{name} неожиданно завершился")
                 await polling_task
             finally:
+                # Draining начался: снимаем provider, чтобы /healthz сразу отдавал
+                # 503 и балансировщик перестал считать инстанс здоровым, пока
+                # сервер ещё дослуживает текущие запросы.
+                oauth_server.set_health_provider(None)
                 if poller is not None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")

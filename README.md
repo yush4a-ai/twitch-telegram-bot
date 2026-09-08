@@ -62,9 +62,20 @@ EventSub/IRC-слушатели и встроенный HTTP-сервер OAuth 
 8. Включите restart при сбое и deployment draining не менее `30` секунд.
    Не включайте overlapping deploy: у бота нет distributed leader lock,
    а Volume должен монтироваться к одному активному deployment.
+9. В Settings → Deploy задайте `Healthcheck Path`: `/healthz`.
+   Healthcheck timeout возьмите с запасом от `POLL_INTERVAL_SECONDS`:
+   до первого успешного цикла эндпоинт отдаёт `503 {"status":"starting"}`,
+   и запас на старт равен `3 × POLL_INTERVAL_SECONDS`.
 
-`/health` — Telegram-команда, а не HTTP healthcheck. В Railway HTTP healthcheck
-для этого релиза не задавайте: отдельного `/healthz` пока нет.
+`/healthz` — HTTP healthcheck на том же `PORT`, что и OAuth callback; новых
+переменных и портов не требует. `200 {"status":"ok"}` — поллер жив и успел
+успешно отработать цикл не позже `3 × POLL_INTERVAL_SECONDS` назад, а EventSub
+не мёртв целиком. `503` — процесс ещё стартует, уже останавливается или
+деградировал. Отдельному каналу, которому нужна повторная авторизация, деплой
+не роняет. Ответ содержит только поле `status`.
+
+`/health` — отдельная Telegram-команда с подробной диагностикой для владельца;
+она строже HTTP-эндпоинта и для Railway healthcheck не используется.
 
 Railway Volume не заменяет backup. Храните отдельную резервную копию
 `TOKEN_ENCRYPTION_KEY`, делайте SQLite online backup и backup/snapshot перед крупными

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import secrets
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
@@ -26,6 +27,7 @@ USERS_URL = "https://api.twitch.tv/helix/users"
 # user:read:follows — список подписок пользователя для импорта каналов
 SCOPES = "moderator:read:followers user:read:follows"
 REDIRECT_PATH = "/twitch/callback"
+HEALTH_PATH = "/healthz"
 
 # сколько ждать, что пользователь пройдёт авторизацию по присланной ссылке,
 # прежде чем считать попытку истёкшей
@@ -85,6 +87,77 @@ async def _safe_error_payload(response) -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
+def _as_number(value: object) -> float | None:
+    """bool — подкласс int, но осмысленным числом здесь он никогда не является."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def evaluate_runtime_health(
+    poller: Mapping[str, object] | None,
+    eventsub: Mapping[str, object] | None,
+    now: float | None = None,
+) -> tuple[bool, str]:
+    """Готовность процесса для Railway healthcheck по уже собранным in-memory snapshot.
+
+    Осознанно строже Telegram /health в одном и мягче в другом. /health — диагностика
+    для владельца, поэтому там degraded даёт любая мелочь: непустой last_cycle_error,
+    отставший EventSub, единственный канал, которому нужна re-auth. Здесь ответ
+    решает, оставить ли Railway deployment живым, поэтому единственный вопрос —
+    работает ли процесс в целом. Один протухший Twitch-аккаунт весь бот не роняет.
+
+    Возвращает (healthy, status) без деталей: наружу уходит только status.
+    """
+    snapshot_at = time.time() if now is None else now
+
+    if poller is None:
+        # Poller ещё не создан: OAuth server стартует раньше него в main().
+        return False, "starting"
+    if poller.get("stopping"):
+        return False, "stopping"
+    if not poller.get("running"):
+        return False, "degraded"
+
+    stale_after = _as_number(poller.get("stale_after_seconds"))
+    if stale_after is None or stale_after <= 0:
+        # Без осмысленного порога считать свежесть нечем; молча объявлять
+        # процесс здоровым в таком состоянии нельзя.
+        return False, "degraded"
+
+    success_age = _as_number(poller.get("last_successful_cycle_age_seconds"))
+    if success_age is None:
+        last_success_at = _as_number(poller.get("last_successful_cycle_at"))
+        if last_success_at is not None:
+            success_age = max(0.0, snapshot_at - last_success_at)
+
+    if success_age is None:
+        # Первого успешного цикла ещё не было. Даём тот же запас, что и на
+        # протухание: иначе Railway убьёт новый deployment раньше первого poll.
+        uptime = _as_number(poller.get("uptime_seconds"))
+        if uptime is None or uptime <= stale_after:
+            return False, "starting"
+        return False, "degraded"
+
+    if success_age > stale_after:
+        return False, "degraded"
+
+    if eventsub is not None:
+        configured = _as_number(eventsub.get("configured_logins")) or 0.0
+        ready = _as_number(eventsub.get("ready_logins")) or 0.0
+        if eventsub.get("stopping"):
+            return False, "stopping"
+        # Подсистема EventSub целиком мертва — это глобальный отказ. А вот
+        # ready < configured сам по себе нормален: отдельному каналу может
+        # требоваться re-auth, пока остальной бот полностью работоспособен.
+        if configured > 0 and not eventsub.get("running"):
+            return False, "degraded"
+        if configured > 0 and ready <= 0:
+            return False, "degraded"
+
+    return True, "ok"
+
+
 class OAuthCallbackServer:
     """Единственный постоянный веб-сервер на весь процесс бота — принимает редиректы
     от Twitch по адресу REDIRECT_PATH. Раньше на каждый /auth_twitch поднимался и
@@ -92,16 +165,35 @@ class OAuthCallbackServer:
     хостинге, где нет доступа к localhost из браузера пользователя (например, Railway),
     и не позволяло два одновременных запроса авторизации от разных людей."""
 
-    def __init__(self, redirect_uri: str, host: str, port: int) -> None:
+    def __init__(
+        self,
+        redirect_uri: str,
+        host: str,
+        port: int,
+        health_provider: Callable[[], tuple[bool, str]] | None = None,
+    ) -> None:
         self.redirect_uri = redirect_uri
         self._host = host
         self._port = port
         self._pending: dict[str, asyncio.Future[str]] = {}
         self._runner: web.AppRunner | None = None
+        # Синхронный provider из main(): все нужные snapshot уже лежат в памяти,
+        # поэтому /healthz не ходит ни в SQLite, ни в Twitch, ни в Telegram.
+        self._health_provider = health_provider
+
+    def set_health_provider(
+        self, provider: Callable[[], tuple[bool, str]] | None
+    ) -> None:
+        """Позволяет main() отдать provider после создания poller.
+
+        Сервер поднимается раньше runtime, поэтому провайдер появляется позже —
+        до этого /healthz честно отвечает starting, а не выдумывает готовность."""
+        self._health_provider = provider
 
     async def start(self) -> None:
         app = web.Application()
         app.router.add_get(REDIRECT_PATH, self._handle_callback)
+        app.router.add_get(HEALTH_PATH, self._handle_health)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)
@@ -148,6 +240,26 @@ class OAuthCallbackServer:
             raise OAuthFlowError("Истекло время ожидания авторизации") from e
         finally:
             self._pending.pop(state, None)
+
+    async def _handle_health(self, request: web.Request) -> web.Response:
+        """Read-only: только чтение in-memory snapshot, без DB/сети и без мутаций."""
+        provider = self._health_provider
+        if provider is None:
+            healthy, status = False, "starting"
+        else:
+            try:
+                healthy, status = provider()
+            except Exception:
+                # Сломанный provider — это отказ, но /healthz обязан ответить
+                # кодом, а не 500 со стектрейсом наружу.
+                logger.exception("Не удалось собрать health snapshot")
+                healthy, status = False, "degraded"
+        # Наружу уходит только status: ни логинов, ни chat_id, ни путей, ни ошибок.
+        return web.json_response(
+            {"status": status},
+            status=200 if healthy else 503,
+            headers={"Cache-Control": "no-store"},
+        )
 
     async def _handle_callback(self, request: web.Request) -> web.Response:
         state = request.query.get("state")
