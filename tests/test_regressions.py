@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sqlite3
 import tempfile
@@ -56,6 +57,7 @@ from bot.poller import (
     _FAILED,
 )
 from bot.report_delivery import validate_report_destination
+from bot.token_store import TokenStore
 from bot.twitch import StreamInfo
 from main import _reconcile_telegram_channels
 
@@ -2489,6 +2491,469 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
                 await db.close()
 
 
+class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self._db_path = os.path.join(self._directory.name, "restart.db")
+        self.db = Database(self._db_path)
+        await self.db.connect()
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self._directory.cleanup()
+
+    async def _reopen(self) -> None:
+        await self.db.close()
+        self.db = Database(self._db_path)
+        await self.db.connect()
+
+    async def _seed_live(
+        self,
+        *,
+        chat_id: int = 1,
+        stream_id: str = "session-1",
+        message_id: int | None = 10,
+        last_seen_live_at: float = 1000.0,
+        viewers: int = 100,
+    ) -> None:
+        await self.db.add_channel(chat_id, "channel")
+        await self.db.set_live_state(
+            chat_id,
+            "channel",
+            True,
+            stream_id,
+            message_id=message_id,
+            title="Original title",
+            stream_started_at="2026-01-01T00:00:00Z",
+            last_seen_live_at=last_seen_live_at,
+        )
+        await self.db.record_viewer_sample(chat_id, "channel", viewers)
+        await self.db.set_followers_at_start(chat_id, "channel", 500)
+
+    def _poller(self, stream: StreamInfo | None) -> tuple[StreamPoller, SimpleNamespace]:
+        bot = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=99)),
+            send_document=AsyncMock(return_value=SimpleNamespace(message_id=100)),
+            delete_message=AsyncMock(),
+        )
+        twitch = SimpleNamespace(
+            get_live_streams=AsyncMock(
+                return_value={} if stream is None else {"channel": stream}
+            )
+        )
+        poller = StreamPoller(bot, self.db, twitch, 60)
+        poller._notify = AsyncMock(return_value=99)
+        poller._edit = AsyncMock(return_value=True)
+        poller._maybe_snapshot_followers = AsyncMock()
+        return poller, bot
+
+    async def _seed_offline(self, offline_since: float = 1000.0) -> None:
+        await self._seed_live()
+        await self.db.set_live_state(
+            1,
+            "channel",
+            False,
+            "session-1",
+            message_id=None,
+            title="Original title",
+            offline_since=offline_since,
+            stream_started_at="2026-01-01T00:00:00Z",
+            peak_viewers=100,
+        )
+
+    async def _seed_delivery(self, state: str):
+        await self._seed_offline()
+        await self.db.mark_known_private_user(1)
+        delivery = await self.db.create_report_delivery(
+            1,
+            "channel",
+            "session-1",
+            1,
+            "full",
+            "text payload",
+            "<html>payload</html>",
+            1000.0,
+        )
+        if state in {"html_pending", "complete"}:
+            await self.db.mark_report_text_sent(delivery, 1001.0)
+        if state == "complete":
+            await self.db.mark_report_html_sent(delivery, 1002.0)
+        if state == "terminal":
+            await self.db.mark_report_delivery_terminal(delivery, "blocked", 1002.0)
+        return delivery
+
+    async def test_live_stream_state_survives_database_reopen(self) -> None:
+        await self._seed_live()
+        await self.db.record_viewer_sample(1, "channel", 150)
+        await self._reopen()
+
+        cursor = await self.db.conn.execute(
+            "SELECT is_live, last_stream_id, last_message_id, last_title, offline_since, "
+            "stream_started_at, last_seen_live_at, peak_viewers, viewer_sum, "
+            "viewer_samples, followers_at_start, stats_sent FROM tracked_channels"
+        )
+        self.assertEqual(
+            await cursor.fetchone(),
+            (
+                1,
+                "session-1",
+                10,
+                "Original title",
+                None,
+                "2026-01-01T00:00:00Z",
+                1000.0,
+                150,
+                250,
+                2,
+                500,
+                0,
+            ),
+        )
+
+    async def test_existing_database_backfills_last_seen_from_stream_samples(self) -> None:
+        await self._seed_live(last_seen_live_at=1000.0)
+        await self.db.add_stream_sample(
+            1, "channel", "session-1", 1050.0, 110, "Title", "Game"
+        )
+        await self.db.conn.execute(
+            "UPDATE tracked_channels SET last_seen_live_at = NULL"
+        )
+        await self.db.conn.commit()
+
+        await self._reopen()
+
+        cursor = await self.db.conn.execute(
+            "SELECT last_seen_live_at FROM tracked_channels"
+        )
+        self.assertEqual(await cursor.fetchone(), (1050.0,))
+
+    async def test_restart_same_stream_id_edits_post_and_continues_counters(self) -> None:
+        await self._seed_live()
+        await self._reopen()
+        poller, _bot = self._poller(_stream("session-1", viewers=40))
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        poller._edit.assert_awaited_once()
+        poller._notify.assert_not_awaited()
+        cursor = await self.db.conn.execute(
+            "SELECT last_stream_id, stream_started_at, viewer_sum, viewer_samples "
+            "FROM tracked_channels"
+        )
+        self.assertEqual(
+            await cursor.fetchone(),
+            ("session-1", "2026-01-01T00:00:00Z", 140, 2),
+        )
+
+    async def test_restart_new_twitch_id_inside_window_keeps_logical_session(self) -> None:
+        await self._seed_live(message_id=None)
+        await self._reopen()
+        replacement = _stream("twitch-reconnect", viewers=40)
+        replacement.started_at = "2026-01-01T00:10:00Z"
+        poller, _bot = self._poller(replacement)
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        self.assertTrue(poller._notify.await_args.kwargs["silent"])
+        cursor = await self.db.conn.execute(
+            "SELECT last_stream_id, stream_started_at, viewer_sum, viewer_samples "
+            "FROM tracked_channels"
+        )
+        self.assertEqual(
+            await cursor.fetchone(),
+            ("session-1", "2026-01-01T00:00:00Z", 140, 2),
+        )
+
+    async def test_restart_new_twitch_id_outside_window_starts_new_session(self) -> None:
+        await self._seed_live(message_id=None)
+        await self._reopen()
+        poller, _bot = self._poller(_stream("session-2", viewers=40))
+
+        with patch("bot.poller.time.time", return_value=3001.0):
+            await poller._check_streams()
+
+        self.assertFalse(poller._notify.await_args.kwargs.get("silent", False))
+        cursor = await self.db.conn.execute(
+            "SELECT last_stream_id, viewer_sum, viewer_samples FROM tracked_channels"
+        )
+        self.assertEqual(await cursor.fetchone(), ("session-2", 40, 1))
+
+    async def test_followers_at_start_is_not_resnapshotted_after_restart(self) -> None:
+        await self._seed_live()
+        await self._reopen()
+        poller, _bot = self._poller(_stream("session-1"))
+        poller._maybe_snapshot_followers = AsyncMock()
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        poller._maybe_snapshot_followers.assert_awaited_once_with(1, "channel", 500)
+        self.assertEqual(await self.db.get_followers_at_start(1, "channel"), 500)
+
+    async def test_follow_reliability_stays_false_through_restart_reconnect(self) -> None:
+        await self._seed_live(message_id=None)
+        await self.db.start_follow_event_count(1, "channel", "session-1", True)
+        await self._reopen()
+        await self.db.invalidate_live_follow_counts_after_restart()
+        poller, _bot = self._poller(_stream("twitch-reconnect"))
+        poller._follow_listener = SimpleNamespace(
+            is_configured=lambda login: True,
+            covers_stream_start=lambda login, started_at: True,
+        )
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        self.assertEqual(
+            await self.db.get_follow_event_count(1, "channel", "session-1"),
+            (0, False),
+        )
+        self.assertIsNone(
+            await self.db.get_follow_event_count(1, "channel", "twitch-reconnect")
+        )
+
+    async def test_new_stream_after_finalization_can_be_follow_reliable(self) -> None:
+        await self._seed_live(message_id=None)
+        await self.db.start_follow_event_count(1, "channel", "session-1", False)
+        await self.db.set_live_state(
+            1,
+            "channel",
+            False,
+            "session-1",
+            offline_since=1000.0,
+            stream_started_at="2026-01-01T00:00:00Z",
+        )
+        await self.db.mark_stats_sent(1, "channel")
+        await self.db.clear_finished_session(1, "channel")
+        poller, _bot = self._poller(_stream("session-2"))
+        poller._follow_listener = SimpleNamespace(
+            is_configured=lambda login: True,
+            covers_stream_start=lambda login, started_at: True,
+        )
+
+        with patch("bot.poller.time.time", return_value=3000.0):
+            await poller._check_streams()
+
+        self.assertEqual(
+            await self.db.get_follow_event_count(1, "channel", "session-2"),
+            (0, True),
+        )
+
+    async def test_missing_live_post_after_restart_is_replaced_quietly(self) -> None:
+        await self._seed_live(message_id=None)
+        await self._reopen()
+        poller, _bot = self._poller(_stream("session-1"))
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        poller._notify.assert_awaited_once()
+        self.assertTrue(poller._notify.await_args.kwargs["silent"])
+        self.assertEqual((await self.db.get_live_state(1, "channel"))[2], 99)
+
+    async def test_deleted_live_post_after_restart_is_replaced_quietly(self) -> None:
+        await self._seed_live(message_id=10)
+        await self._reopen()
+        poller, bot = self._poller(_stream("session-1"))
+        poller._edit.return_value = False
+
+        with patch("bot.poller.time.time", return_value=1100.0):
+            await poller._check_streams()
+
+        bot.delete_message.assert_awaited_once_with(1, 10)
+        self.assertTrue(poller._notify.await_args.kwargs["silent"])
+        self.assertEqual((await self.db.get_live_state(1, "channel"))[1], "session-1")
+
+    async def test_offline_reconnect_timeout_is_not_reset_by_database_reopen(self) -> None:
+        await self._seed_offline(offline_since=1000.0)
+        await self._reopen()
+        poller, _bot = self._poller(None)
+        poller._send_stats = AsyncMock(return_value=True)
+
+        with patch("bot.poller.time.time", return_value=2799.0):
+            await poller._send_pending_stats()
+        poller._send_stats.assert_not_awaited()
+
+        with patch("bot.poller.time.time", return_value=2800.0):
+            await poller._send_pending_stats()
+        poller._send_stats.assert_awaited_once()
+
+    async def test_restart_after_reconnect_window_finalizes_promptly(self) -> None:
+        await self._seed_offline(offline_since=1000.0)
+        await self._reopen()
+        poller, _bot = self._poller(None)
+        poller._send_stats = AsyncMock(return_value=True)
+
+        with patch("bot.poller.time.time", return_value=3000.0):
+            await poller._send_pending_stats()
+
+        poller._send_stats.assert_awaited_once()
+        self.assertEqual(
+            await self.db.get_live_state(1, "channel"),
+            (False, None, None, None, None, None, None),
+        )
+
+    async def test_restart_during_offline_window_returns_quietly_and_finalizes_once(self) -> None:
+        await self._seed_offline(offline_since=1000.0)
+        await self._reopen()
+        await self.db.invalidate_live_follow_counts_after_restart()
+        await self.db.invalidate_live_chat_stats_after_restart()
+        poller, _bot = self._poller(_stream("twitch-reconnect", viewers=40))
+
+        with patch("bot.poller.time.time", return_value=1720.0):
+            await poller._check_streams()
+
+        self.assertTrue(poller._notify.await_args.kwargs["silent"])
+        cursor = await self.db.conn.execute(
+            "SELECT last_stream_id, stream_started_at, viewer_sum, viewer_samples "
+            "FROM tracked_channels"
+        )
+        self.assertEqual(
+            await cursor.fetchone(),
+            ("session-1", "2026-01-01T00:00:00Z", 140, 2),
+        )
+
+        poller._twitch.get_live_streams.return_value = {}
+        with patch("bot.poller.time.time", return_value=1800.0):
+            await poller._check_streams()
+        with patch("bot.poller.time.time", return_value=2100.0):
+            await poller._cleanup_offline_posts()
+
+        poller._send_stats = AsyncMock(return_value=True)
+        with patch("bot.poller.time.time", return_value=3599.0):
+            await poller._send_pending_stats()
+        poller._send_stats.assert_not_awaited()
+        with patch("bot.poller.time.time", return_value=3600.0):
+            await poller._send_pending_stats()
+            await poller._send_pending_stats()
+
+        poller._send_stats.assert_awaited_once()
+        self.assertEqual(
+            await self.db.get_live_state(1, "channel"),
+            (False, None, None, None, None, None, None),
+        )
+
+    async def test_complete_delivery_restart_sends_nothing_and_cleans_session(self) -> None:
+        await self._seed_delivery("complete")
+        await self._reopen()
+        poller, bot = self._poller(None)
+
+        with patch("bot.poller.time.time", return_value=3000.0):
+            await poller._send_pending_stats()
+
+        bot.send_message.assert_not_awaited()
+        bot.send_document.assert_not_awaited()
+        self.assertEqual(
+            await self.db.get_live_state(1, "channel"),
+            (False, None, None, None, None, None, None),
+        )
+
+    async def test_terminal_delivery_restart_sends_nothing_and_cleans_session(self) -> None:
+        await self._seed_delivery("terminal")
+        await self._reopen()
+        poller, bot = self._poller(None)
+
+        with patch("bot.poller.time.time", return_value=3000.0):
+            await poller._send_pending_stats()
+
+        bot.send_message.assert_not_awaited()
+        bot.send_document.assert_not_awaited()
+        self.assertEqual(
+            await self.db.get_live_state(1, "channel"),
+            (False, None, None, None, None, None, None),
+        )
+
+    async def test_html_pending_restart_retries_only_html_with_guard(self) -> None:
+        await self._seed_delivery("html_pending")
+        await self._reopen()
+        delivery = await self.db.get_report_delivery_for_stream(
+            1, "channel", "session-1"
+        )
+        self.assertIsNotNone(delivery)
+        poller, bot = self._poller(None)
+
+        delivered = await poller._deliver_persisted_report(delivery)
+
+        self.assertTrue(delivered)
+        bot.send_message.assert_not_awaited()
+        bot.send_document.assert_awaited_once()
+        completed = await self.db.get_report_delivery_for_stream(
+            1, "channel", "session-1"
+        )
+        self.assertTrue(completed.complete)
+
+    async def test_multiple_chats_resume_one_listener_and_keep_independent_rows(self) -> None:
+        await self._seed_live(chat_id=1, message_id=11, viewers=10)
+        await self._seed_live(chat_id=2, message_id=22, viewers=20)
+        await self._reopen()
+        listener = SimpleNamespace(start=Mock())
+        poller, _bot = self._poller(None)
+        poller._chat_listener = listener
+
+        await poller._resume_chat_listeners()
+
+        listener.start.assert_called_once_with("channel")
+        cursor = await self.db.conn.execute(
+            "SELECT chat_id, last_message_id, viewer_sum FROM tracked_channels "
+            "ORDER BY chat_id"
+        )
+        self.assertEqual(await cursor.fetchall(), [(1, 11, 10), (2, 22, 20)])
+
+    async def test_chat_stats_are_marked_incomplete_after_restart(self) -> None:
+        await self._seed_live()
+        await self._reopen()
+        await self.db.invalidate_live_chat_stats_after_restart()
+        await self.db.save_stream_chat_meta(
+            1,
+            "channel",
+            "session-1",
+            True,
+            '[["viewer", 3]]',
+            None,
+            1100.0,
+        )
+
+        meta = await self.db.get_stream_chat_meta(1, "channel", "session-1")
+        self.assertEqual(meta, (False, '[["viewer", 3]]', None))
+
+    async def test_offline_session_chat_stats_are_marked_incomplete_on_restart(self) -> None:
+        await self._seed_offline()
+        await self._reopen()
+        await self.db.invalidate_live_chat_stats_after_restart()
+
+        self.assertEqual(
+            await self.db.get_stream_chat_meta(1, "channel", "session-1"),
+            (False, None, None),
+        )
+
+    async def test_token_refresh_startup_race_is_serialized_per_login(self) -> None:
+        await self.db.save_user_token(
+            "channel", "broadcaster", "expired-access", "refresh-once", 0.0
+        )
+        store = TokenStore(
+            self.db,
+            "client-id",
+            "client-secret",
+            SimpleNamespace(),
+        )
+
+        async def refresh_once(*_args):
+            await asyncio.sleep(0)
+            return "fresh-access", "rotated-refresh", time.time() + 3600
+
+        with patch("bot.token_store.refresh_user_token", new=AsyncMock(side_effect=refresh_once)) as refresh:
+            first, second = await asyncio.gather(
+                store.get_valid_token("channel"),
+                store.get_valid_token("channel"),
+            )
+
+        self.assertEqual(first, ("broadcaster", "fresh-access"))
+        self.assertEqual(second, first)
+        refresh.assert_awaited_once()
+
+
 class TestIsolationTests(unittest.TestCase):
     def test_production_dotenv_loading_is_disabled(self) -> None:
         self.assertEqual(os.environ.get("PYTHON_DOTENV_DISABLED"), "1")
@@ -2503,6 +2968,28 @@ class TestIsolationTests(unittest.TestCase):
                 source,
                 f"{test_path.name} must use a fake/mock bot, not aiogram.Bot",
             )
+
+    def test_startup_orders_reliability_and_listener_recovery_before_polling(self) -> None:
+        project_root = Path(__file__).resolve().parents[1]
+        main_source = (project_root / "main.py").read_text(encoding="utf-8")
+        poller_source = (project_root / "bot" / "poller.py").read_text(encoding="utf-8")
+
+        ordered_main_fragments = (
+            "await db.connect()",
+            "await db.invalidate_live_follow_counts_after_restart()",
+            "await db.invalidate_live_chat_stats_after_restart()",
+            "lambda: _reconcile_telegram_channels(bot, db)",
+            "follow_listener_task = asyncio.create_task(follow_listener.run())",
+            "await follow_listener.wait_initial_ready()",
+            "poller_task = asyncio.create_task(poller.run())",
+            "await dp.start_polling(bot)",
+        )
+        positions = [main_source.index(fragment) for fragment in ordered_main_fragments]
+        self.assertEqual(positions, sorted(positions))
+        self.assertLess(
+            poller_source.index("await self._resume_chat_listeners()"),
+            poller_source.index("await self._check_once()"),
+        )
 
 
 class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):

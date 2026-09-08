@@ -1953,6 +1953,7 @@ def _build_report_summary(
     avg_viewers: int,
     new_followers_text: str | None,
     unique_chatters: int | None,
+    chat_stats_reliable: bool,
     top_chatters: list,
     raid_events: list,
     collab_logins: list,
@@ -1978,6 +1979,8 @@ def _build_report_summary(
         text += f"\nНовых фолловеров: {new_followers_text}"
     if unique_chatters:
         text += f"\nПисали в чат: {unique_chatters}"
+    if not chat_stats_reliable:
+        text += "\nДанные чата: неполные после перезапуска бота"
     if top_chatters:
         lines = "\n".join(
             f"{i}. {html.escape(str(nick))} — {count}"
@@ -2111,7 +2114,7 @@ async def _deliver_report(
 
     (
         stream_id, ended_at, started_at, title, duration_seconds, peak_viewers,
-        avg_viewers, _new_followers, new_followers_text, unique_chatters, _join_reliable,
+        avg_viewers, _new_followers, new_followers_text, unique_chatters, join_reliable,
         top_chatters_json, raid_events_json, collab_json,
     ) = record
 
@@ -2121,6 +2124,7 @@ async def _deliver_report(
         _build_report_summary(
             login, title, format_duration_seconds(duration_seconds),
             peak_viewers, avg_viewers, new_followers_text, unique_chatters,
+            bool(join_reliable) if join_reliable is not None else True,
             _safe_json_list(top_chatters_json), _safe_json_list(raid_events_json),
             _safe_json_list(collab_json), vod[0] if vod else None,
         ),

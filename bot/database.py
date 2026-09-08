@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     last_title TEXT,
     offline_since REAL,
     stream_started_at TEXT,
+    last_seen_live_at REAL,
     last_stream_ended_at REAL,
     peak_viewers INTEGER,
     viewer_sum INTEGER NOT NULL DEFAULT 0,
@@ -378,7 +379,19 @@ class Database:
                 "raid_detection_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "quiet_hours_exempt": "INTEGER NOT NULL DEFAULT 0",
                 "last_stream_ended_at": "REAL",
+                "last_seen_live_at": "REAL",
             },
+        )
+        # Для БД, созданной до появления last_seen_live_at, восстанавливаем момент
+        # последнего успешного live-poll из уже сохранённых samples. Это позволяет
+        # корректно распознать reconnect прямо на первом запуске новой версии.
+        await self.conn.execute(
+            "UPDATE tracked_channels SET last_seen_live_at = ("
+            "SELECT MAX(sampled_at) FROM stream_samples s "
+            "WHERE s.chat_id = tracked_channels.chat_id "
+            "AND s.twitch_login = tracked_channels.twitch_login "
+            "AND s.stream_id = tracked_channels.last_stream_id) "
+            "WHERE last_seen_live_at IS NULL AND last_stream_id IS NOT NULL"
         )
         await self._migrate_user_tokens_encryption()
         await self._migrate_deferred_reports_key()
@@ -1001,7 +1014,7 @@ class Database:
         Возвращает ({login: [chat_id, ...]}, {(chat_id, login): состояние})."""
         cursor = await self.conn.execute(
             "SELECT chat_id, twitch_login, is_live, last_stream_id, last_message_id, "
-            "last_title, offline_since, stream_started_at, peak_viewers, "
+            "last_title, offline_since, stream_started_at, last_seen_live_at, peak_viewers, "
             "notify_enabled, followers_at_start, stats_sent "
             "FROM tracked_channels ORDER BY twitch_login, chat_id"
         )
@@ -1011,8 +1024,8 @@ class Database:
             chat_id, login = row[0], row[1]
             chats_by_login.setdefault(login, []).append(chat_id)
             states[(chat_id, login)] = (
-                bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
-                bool(row[9]), row[10], bool(row[11]),
+                bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8], row[9],
+                bool(row[10]), row[11], bool(row[12]),
             )
         return chats_by_login, states
 
@@ -1060,6 +1073,7 @@ class Database:
         offline_since: float | None = None,
         stream_started_at: str | None = None,
         peak_viewers: int | None = None,
+        last_seen_live_at: float | None = None,
     ) -> None:
         # при старте нового стрима (is_live=True и меняется stream_id) обнуляем накопленную
         # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе.
@@ -1070,6 +1084,10 @@ class Database:
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
             "last_message_id = ?, last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
+            "last_seen_live_at = CASE "
+            "    WHEN ? IS NOT NULL THEN ? "
+            "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
+            "    ELSE last_seen_live_at END, "
             "peak_viewers = CASE "
             "    WHEN ? IS NOT NULL THEN ? "
             "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
@@ -1085,6 +1103,7 @@ class Database:
             (
                 int(is_live), stream_id, message_id, title, offline_since,
                 stream_started_at,
+                last_seen_live_at, last_seen_live_at, int(is_live), stream_id,
                 peak_viewers, peak_viewers, int(is_live), stream_id,
                 int(is_live),
                 int(is_live), stream_id, int(is_live), stream_id,
@@ -1372,7 +1391,8 @@ class Database:
         """
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
-            "offline_since = NULL, stream_started_at = NULL, peak_viewers = NULL, "
+            "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
+            "peak_viewers = NULL, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE chat_id = ? AND twitch_login = ? "
@@ -1390,7 +1410,8 @@ class Database:
         """
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
-            "offline_since = NULL, stream_started_at = NULL, peak_viewers = NULL, "
+            "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
+            "peak_viewers = NULL, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL"
@@ -1402,7 +1423,8 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, last_title = NULL, "
             "last_stream_id = NULL, offline_since = NULL, "
-            "stream_started_at = NULL, peak_viewers = NULL, stats_sent = 0, "
+            "stream_started_at = NULL, last_seen_live_at = NULL, peak_viewers = NULL, "
+            "stats_sent = 0, "
             "viewer_sum = 0, viewer_samples = 0, followers_at_start = NULL "
             "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
@@ -1566,7 +1588,7 @@ class Database:
             "(chat_id, twitch_login, stream_id, join_reliable, top_chatters_json, "
             "raid_events_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(chat_id, twitch_login, stream_id) DO UPDATE SET "
-            "join_reliable = excluded.join_reliable, "
+            "join_reliable = MIN(stream_chat_meta.join_reliable, excluded.join_reliable), "
             "top_chatters_json = excluded.top_chatters_json, "
             "raid_events_json = excluded.raid_events_json, "
             "created_at = excluded.created_at",
@@ -1603,6 +1625,23 @@ class Database:
         )
         await self.conn.commit()
         return bool(row[0]) if row[0] is not None else True, row[1], row[2]
+
+    @_serialized
+    async def invalidate_live_chat_stats_after_restart(self) -> None:
+        """Помечает chat stats текущих logical sessions как неполные после потери RAM."""
+        now = time.time()
+        await self.conn.execute(
+            "INSERT INTO stream_chat_meta "
+            "(chat_id, twitch_login, stream_id, join_reliable, top_chatters_json, "
+            "raid_events_json, created_at) "
+            "SELECT chat_id, twitch_login, last_stream_id, 0, NULL, NULL, ? "
+            "FROM tracked_channels WHERE last_stream_id IS NOT NULL "
+            "AND (is_live = 1 OR stats_sent = 0) "
+            "ON CONFLICT(chat_id, twitch_login, stream_id) DO UPDATE SET "
+            "join_reliable = 0, created_at = excluded.created_at",
+            (now,),
+        )
+        await self.conn.commit()
 
     async def get_stream_chat_meta(
         self, chat_id: int, twitch_login: str, stream_id: str
@@ -1648,7 +1687,13 @@ class Database:
         # подстраховка: записи, чей отчёт так и не был отправлен (например, чат
         # удалил бота сразу после стрима), иначе копились бы вечно
         await self.conn.execute(
-            "DELETE FROM stream_chat_meta WHERE created_at < ?", (older_than_ts,)
+            "DELETE FROM stream_chat_meta WHERE created_at < ? AND NOT EXISTS ("
+            "SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = stream_chat_meta.chat_id "
+            "AND tc.twitch_login = stream_chat_meta.twitch_login "
+            "AND tc.last_stream_id = stream_chat_meta.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0))",
+            (older_than_ts,),
         )
         # Завершённые/terminal outbox-записи нужны только для crash recovery.
         # Pending не удаляем по возрасту: payload хранится прямо в строке и может

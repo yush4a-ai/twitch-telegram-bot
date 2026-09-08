@@ -160,6 +160,9 @@ async def main() -> None:
     # Между остановкой старого процесса и запуском нового EventSub не слушается:
     # текущий эфир уже нельзя считать полностью покрытым событиями.
     await db.invalidate_live_follow_counts_after_restart()
+    # ChatListener держит активность, чатеров, топ и рейды в RAM. После restart
+    # текущая logical session продолжается, но её chat stats уже неполны.
+    await db.invalidate_live_chat_stats_after_restart()
     await _log_known_chats(db)
     await _apply_auto_track(db, config)
 

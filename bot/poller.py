@@ -676,6 +676,7 @@ class StreamPoller:
                     last_title,
                     offline_since,
                     _stream_started_at,
+                    _last_seen_live_at,
                     _peak_viewers,
                     notify_enabled,
                     followers_at_start,
@@ -708,6 +709,17 @@ class StreamPoller:
                         and offline_since is not None
                         and now - offline_since < RESTART_MERGE_GRACE_SECONDS
                     )
+                    # Процесс мог упасть до того, как успел увидеть offline. Если
+                    # Twitch уже выдал новый id, но последний live-poll был внутри
+                    # reconnect window, это продолжение прежней logical session.
+                    restart_reconnect = (
+                        was_live
+                        and last_stream_id is not None
+                        and last_stream_id != stream.stream_id
+                        and _last_seen_live_at is not None
+                        and 0 <= now - _last_seen_live_at < RESTART_MERGE_GRACE_SECONDS
+                    )
+                    reconnect = reconnect or restart_reconnect
                     continuing_session = same_stream or reconnect
                     # живой пост о старте стрима всегда публикуется в исходный чат —
                     # привязка к личке (post_recipient) влияет только на финальный отчёт
@@ -743,9 +755,9 @@ class StreamPoller:
                                 pass
                             message_id = await self._notify(
                                 chat_id, login, title, stream.viewer_count, game_name, return_note,
-                                silent=reconnect,
+                                silent=True,
                             )
-                    elif reconnect:
+                    elif continuing_session:
                         # Пост уже штатно удалён после 5 минут offline. Возвращаем карточку,
                         # но без звука: для пользователя это не новый старт стрима.
                         message_id = await self._notify(
@@ -784,7 +796,7 @@ class StreamPoller:
                     effective_stream_id = last_stream_id if reconnect else stream.stream_id
                     effective_started_at = (
                         _stream_started_at or stream.started_at
-                        if reconnect
+                        if continuing_session
                         else stream.started_at
                     )
 
@@ -796,6 +808,7 @@ class StreamPoller:
                         message_id,
                         title,
                         stream_started_at=effective_started_at,
+                        last_seen_live_at=now,
                     )
                     if (
                         self._follow_listener is not None
@@ -1144,9 +1157,9 @@ class StreamPoller:
                     new_followers=new_followers_text,
                     chat_activity=chat_activity,
                     unique_chatters=unique_chatters,
-                    # счёт идёт по написавшим — эта метрика достоверна всегда,
-                    # в отличие от прежнего подсчёта по JOIN
-                    unique_chatters_reliable=True,
+                    # После process restart часть сообщений могла остаться только
+                    # в потерянной RAM; persistent marker не даёт выдать срез как полный.
+                    unique_chatters_reliable=join_reliable,
                     chatter_nicks=chatter_nicks,
                     top_clips=top_clips,
                     vod_url=vod_url,
@@ -1201,6 +1214,8 @@ class StreamPoller:
             text += f"\nНовых фолловеров: {new_followers_text}"
         if unique_chatters:
             text += f"\nПисали в чат: {unique_chatters}"
+        if not join_reliable:
+            text += "\nДанные чата: неполные после перезапуска бота"
         if comparison_lines:
             text += "\n\n" + "\n".join(comparison_lines)
         if top_chatters:
