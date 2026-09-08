@@ -17,7 +17,12 @@ from bot.handlers.streams import (
     _message_can_manage_chat,
 )
 from bot.oauth import OAuthCallbackServer
-from bot.poller import StreamPoller, _FAILED
+from bot.poller import (
+    OFFLINE_GRACE_SECONDS,
+    RESTART_MERGE_GRACE_SECONDS,
+    StreamPoller,
+    _FAILED,
+)
 
 
 REQUIRED_ENV = {
@@ -375,6 +380,10 @@ class LiveListTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PollerCleanupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_live_post_cleanup_wait_is_five_minutes(self) -> None:
+        self.assertEqual(RESTART_MERGE_GRACE_SECONDS, 3 * 60)
+        self.assertEqual(OFFLINE_GRACE_SECONDS, 5 * 60)
+
     async def test_transient_delete_failure_keeps_message_for_retry(self) -> None:
         db = SimpleNamespace(
             pending_offline_posts=AsyncMock(return_value=[(1, "channel", 10, 0.0)]),
