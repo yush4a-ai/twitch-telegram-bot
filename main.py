@@ -23,7 +23,7 @@ from aiogram.utils.token import TokenValidationError
 
 from bot.chat_listener import ChatListener
 from bot.follow_listener import FollowEventListener
-from bot.config import ConfigError, load_config
+from bot.config import ConfigError, is_railway_environment, load_config
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
@@ -72,6 +72,7 @@ logger = logging.getLogger(__name__)
 # даём ей время подняться вместо мгновенного фатального падения
 STARTUP_NETWORK_RETRIES = 10
 STARTUP_RETRY_DELAY_SECONDS = 5
+SHUTDOWN_STEP_TIMEOUT_SECONDS = 3
 
 
 async def _with_startup_retry(coro_factory, description: str) -> None:
@@ -92,7 +93,13 @@ async def _with_startup_retry(coro_factory, description: str) -> None:
 async def _safe_cleanup(description: str, awaitable) -> None:
     """Не даёт сбою одного cleanup-шагa пропустить все последующие ресурсы."""
     try:
-        await awaitable
+        await asyncio.wait_for(awaitable, timeout=SHUTDOWN_STEP_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        logger.error(
+            "Cleanup превысил timeout %sс: %s",
+            SHUTDOWN_STEP_TIMEOUT_SECONDS,
+            description,
+        )
     except asyncio.CancelledError:
         logger.warning("Cleanup отменён: %s", description)
     except Exception:
@@ -104,27 +111,40 @@ async def _cancel_task(task: asyncio.Task | None, description: str) -> None:
         return
     if not task.done():
         task.cancel()
-    result = (await asyncio.gather(task, return_exceptions=True))[0]
-    if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
-        logger.error("Задача %s завершилась ошибкой при cleanup: %s", description, result)
+    done, _pending = await asyncio.wait(
+        {task}, timeout=SHUTDOWN_STEP_TIMEOUT_SECONDS
+    )
+    if not done:
+        logger.error(
+            "Задача %s не завершилась за %sс cleanup-timeout",
+            description,
+            SHUTDOWN_STEP_TIMEOUT_SECONDS,
+        )
+        return
+    if task.cancelled():
+        return
+    try:
+        task.result()
+    except BaseException as error:
+        logger.error("Задача %s завершилась ошибкой при cleanup: %s", description, error)
 
 
 async def _log_known_chats(db: Database) -> None:
-    """Печатает в лог чаты, о которых бот знает, вместе с их chat_id.
-
-    Нужно, чтобы узнать id Telegram-канала, не открывая Telegram: канал бот
-    запоминает сам, когда его делают администратором, но подсмотреть id было негде."""
+    """Печатает в лог чаты без раскрытия реальных chat_id."""
     channels = await db.all_telegram_channels()
     if channels:
-        logger.info("Подключённые Telegram-каналы (id — название):")
+        logger.info("Подключённые Telegram-каналы (псевдоним — название):")
         for chat_id, title in channels:
-            logger.info("    %s — %s", chat_id, title)
+            logger.info("    %s — %s", mask_chat_id(chat_id), title)
     else:
         logger.info("Telegram-каналов, где бот админ, пока нет")
 
     group_ids = await db.all_distinct_group_chat_ids()
     if group_ids:
-        logger.info("Группы с отслеживаемыми каналами: %s", ", ".join(str(g) for g in group_ids))
+        logger.info(
+            "Группы с отслеживаемыми каналами: %s",
+            ", ".join(mask_chat_id(g) for g in group_ids),
+        )
 
 
 async def _apply_auto_track(db: Database, config) -> None:
@@ -139,12 +159,24 @@ async def _apply_auto_track(db: Database, config) -> None:
         try:
             created = await db.add_channel(chat_id, login)
         except Exception:
-            logger.exception("AUTO_TRACK: не удалось добавить %s в чат %s", login, chat_id)
+            logger.exception(
+                "AUTO_TRACK: не удалось добавить %s в чат %s",
+                login,
+                mask_chat_id(chat_id),
+            )
             continue
         if created:
-            logger.info("AUTO_TRACK: канал %s добавлен в чат %s", login, chat_id)
+            logger.info(
+                "AUTO_TRACK: канал %s добавлен в чат %s",
+                login,
+                mask_chat_id(chat_id),
+            )
         else:
-            logger.info("AUTO_TRACK: канал %s в чате %s уже отслеживается", login, chat_id)
+            logger.info(
+                "AUTO_TRACK: канал %s в чате %s уже отслеживается",
+                login,
+                mask_chat_id(chat_id),
+            )
 
 
 async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
@@ -349,6 +381,11 @@ def run_forever() -> None:
             )
             raise SystemExit(2)
         except Exception:
+            if is_railway_environment():
+                logger.exception(
+                    "Бот упал с необработанной ошибкой; restart передан Railway"
+                )
+                raise
             logger.exception(
                 "Бот упал с необработанной ошибкой, перезапуск через %sс", RESTART_DELAY_SECONDS
             )

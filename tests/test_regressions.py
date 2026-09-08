@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import os
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -18,6 +22,14 @@ for _production_env_name in (
     "TWITCH_CLIENT_SECRET",
     "DB_PATH",
     "OWNER_CHAT_ID",
+    "PUBLIC_URL",
+    "PORT",
+    "TOKEN_ENCRYPTION_KEY",
+    "RAILWAY_PROJECT_ID",
+    "RAILWAY_ENVIRONMENT_ID",
+    "RAILWAY_SERVICE_ID",
+    "RAILWAY_PUBLIC_DOMAIN",
+    "RAILWAY_VOLUME_MOUNT_PATH",
 ):
     os.environ.pop(_production_env_name, None)
 os.environ["PYTHON_DOTENV_DISABLED"] = "1"
@@ -42,7 +54,7 @@ from aiogram.utils.token import TokenValidationError
 import main as main_module
 from bot.chat_listener import ChatListener
 from bot.config import ConfigError, load_config
-from bot.database import Database
+from bot.database import Database, DatabaseConfigurationError
 from bot.follow_listener import FollowEventListener
 from bot.handlers.streams import (
     TWITCH_CUSTOM_EMOJI_ID,
@@ -121,8 +133,105 @@ class _FakeHTTPResponse:
             raise self._payload
         return self._payload
 
+    def raise_for_status(self) -> None:
+        if self.status >= 400:
+            raise RuntimeError(f"HTTP {self.status}")
+
 
 class ConfigTests(unittest.TestCase):
+    def test_local_defaults_keep_localhost_and_repository_database(self) -> None:
+        with patch.dict(os.environ, REQUIRED_ENV, clear=True):
+            config = load_config()
+
+        self.assertEqual(config.oauth_host, "0.0.0.0")
+        self.assertEqual(config.oauth_port, 8765)
+        self.assertEqual(config.oauth_public_base_url, "http://localhost:8765")
+        self.assertEqual(config.db_path, "bot.db")
+
+    def test_railway_uses_assigned_port_domain_and_volume(self) -> None:
+        env = {
+            **REQUIRED_ENV,
+            "RAILWAY_ENVIRONMENT_ID": "environment-id",
+            "RAILWAY_PUBLIC_DOMAIN": "bot.example.up.railway.app",
+            "RAILWAY_VOLUME_MOUNT_PATH": "/data/",
+            "PORT": "49152",
+            "DB_PATH": "/data/state/bot.db",
+            "TOKEN_ENCRYPTION_KEY": "deployment-key",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            config = load_config()
+
+        self.assertEqual(config.oauth_host, "0.0.0.0")
+        self.assertEqual(config.oauth_port, 49152)
+        self.assertEqual(
+            config.oauth_public_base_url,
+            "https://bot.example.up.railway.app",
+        )
+        self.assertEqual(config.db_path, "/data/state/bot.db")
+
+    def test_public_url_is_normalized_without_trailing_slash(self) -> None:
+        with patch.dict(
+            os.environ,
+            {**REQUIRED_ENV, "PUBLIC_URL": "  https://example.test/  "},
+            clear=True,
+        ):
+            config = load_config()
+        self.assertEqual(config.oauth_public_base_url, "https://example.test")
+
+    def test_empty_or_malformed_public_url_fails_fast(self) -> None:
+        for value in ("", "example.test", "https://example.test/path", "https://x:bad"):
+            with self.subTest(value=value), patch.dict(
+                os.environ, {**REQUIRED_ENV, "PUBLIC_URL": value}, clear=True
+            ):
+                with self.assertRaisesRegex(ConfigError, "PUBLIC_URL"):
+                    load_config()
+
+    def test_railway_requires_public_url_volume_db_and_encryption_key(self) -> None:
+        valid = {
+            **REQUIRED_ENV,
+            "RAILWAY_ENVIRONMENT_ID": "environment-id",
+            "RAILWAY_PUBLIC_DOMAIN": "bot.example.up.railway.app",
+            "RAILWAY_VOLUME_MOUNT_PATH": "/data",
+            "DB_PATH": "/data/bot.db",
+            "TOKEN_ENCRYPTION_KEY": "deployment-key",
+        }
+        cases = (
+            ("RAILWAY_PUBLIC_DOMAIN", "PUBLIC_URL"),
+            ("RAILWAY_VOLUME_MOUNT_PATH", "Volume"),
+            ("DB_PATH", "DB_PATH"),
+            ("TOKEN_ENCRYPTION_KEY", "TOKEN_ENCRYPTION_KEY"),
+        )
+        for missing, expected in cases:
+            env = dict(valid)
+            env.pop(missing)
+            with self.subTest(missing=missing), patch.dict(os.environ, env, clear=True):
+                with self.assertRaisesRegex(ConfigError, expected):
+                    load_config()
+
+    def test_railway_rejects_http_and_database_outside_volume(self) -> None:
+        valid = {
+            **REQUIRED_ENV,
+            "RAILWAY_ENVIRONMENT_ID": "environment-id",
+            "PUBLIC_URL": "https://bot.example.test",
+            "RAILWAY_VOLUME_MOUNT_PATH": "/data",
+            "DB_PATH": "/data/bot.db",
+            "TOKEN_ENCRYPTION_KEY": "deployment-key",
+        }
+        for updates, expected in (
+            ({"PUBLIC_URL": "http://bot.example.test"}, "https"),
+            ({"DB_PATH": "/app/bot.db"}, "inside Volume|\u0432нутри Volume"),
+            ({"DB_PATH": "/data/../app/bot.db"}, "inside Volume|\u0432нутри Volume"),
+        ):
+            env = {**valid, **updates}
+            with self.subTest(updates=updates), patch.dict(os.environ, env, clear=True):
+                with self.assertRaisesRegex(ConfigError, expected):
+                    load_config()
+
+    def test_empty_database_path_fails_instead_of_opening_temporary_database(self) -> None:
+        with patch.dict(os.environ, {**REQUIRED_ENV, "DB_PATH": "  "}, clear=True):
+            with self.assertRaisesRegex(ConfigError, "DB_PATH"):
+                load_config()
+
     def test_poll_interval_must_be_positive(self) -> None:
         with patch.dict(os.environ, {**REQUIRED_ENV, "POLL_INTERVAL_SECONDS": "0"}, clear=True):
             with self.assertRaisesRegex(RuntimeError, "POLL_INTERVAL_SECONDS.*больше нуля"):
@@ -135,6 +244,101 @@ class ConfigTests(unittest.TestCase):
 
 
 class DatabaseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_invalid_encryption_key_is_permanent_before_connect(self) -> None:
+        with self.assertRaisesRegex(DatabaseConfigurationError, "Fernet"):
+            Database(":memory:", token_encryption_key="not-a-fernet-key")
+
+    async def test_connect_creates_missing_parent_and_enables_wal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "nested", "state", "bot.db")
+            db = Database(path)
+            await db.connect()
+            try:
+                self.assertTrue(os.path.isdir(os.path.dirname(path)))
+                cursor = await db.conn.execute("PRAGMA journal_mode")
+                self.assertEqual((await cursor.fetchone())[0].lower(), "wal")
+            finally:
+                await db.close()
+
+    async def test_database_directory_creation_failure_is_permanent(self) -> None:
+        db = Database(os.path.join("missing", "bot.db"))
+        with patch("bot.database.os.makedirs", side_effect=PermissionError("read-only")):
+            with self.assertRaisesRegex(DatabaseConfigurationError, "Volume.*permissions"):
+                await db.connect()
+        self.assertIsNone(db._conn)
+
+    async def test_wal_reopen_keeps_committed_and_discards_uncommitted_write(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "bot.db")
+            db = Database(path)
+            await db.connect()
+            await db.add_channel(1, "committed")
+            await db.conn.execute(
+                "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
+                (1, "uncommitted"),
+            )
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertEqual(await reopened.list_channels(1), ["committed"])
+                cursor = await reopened.conn.execute("PRAGMA journal_mode")
+                self.assertEqual((await cursor.fetchone())[0].lower(), "wal")
+            finally:
+                await reopened.close()
+
+    async def test_wal_recovers_after_process_like_abrupt_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "abrupt.db")
+            script = (
+                "import os, sqlite3, sys; "
+                "c = sqlite3.connect(sys.argv[1]); "
+                "c.execute('PRAGMA journal_mode=WAL'); "
+                "c.execute('CREATE TABLE probe(value TEXT)'); c.commit(); "
+                "c.execute(\"INSERT INTO probe VALUES ('committed')\"); c.commit(); "
+                "c.execute(\"INSERT INTO probe VALUES ('uncommitted')\"); "
+                "os._exit(0)"
+            )
+            subprocess.run([sys.executable, "-c", script, path], check=True)
+
+            db = Database(path)
+            await db.connect()
+            try:
+                cursor = await db.conn.execute("SELECT value FROM probe ORDER BY rowid")
+                self.assertEqual(await cursor.fetchall(), [("committed",)])
+            finally:
+                await db.close()
+
+    async def test_interrupted_migration_rolls_back_and_next_start_recovers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "migration.db")
+            initial = Database(path)
+            await initial.connect()
+            await initial.add_channel(1, "preserved")
+            await initial.close()
+
+            async def interrupted_migration(database) -> None:
+                await database.conn.execute("CREATE TABLE partial_migration(value INTEGER)")
+                raise RuntimeError("simulated process interruption")
+
+            interrupted = Database(path)
+            with patch.object(Database, "_migrate", new=interrupted_migration):
+                with self.assertRaisesRegex(RuntimeError, "simulated"):
+                    await interrupted.connect()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertEqual(await reopened.list_channels(1), ["preserved"])
+                cursor = await reopened.conn.execute(
+                    "SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type = 'table' AND name = 'partial_migration'"
+                )
+                self.assertEqual((await cursor.fetchone())[0], 0)
+            finally:
+                await reopened.close()
+
     async def test_per_channel_private_recipient_has_priority_over_chat_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))
@@ -800,6 +1004,35 @@ class OAuthTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(response.status, 200)
+        self.assertEqual(await server.wait_for_code("state", timeout=1), "oauth-code")
+
+    async def test_unknown_or_missing_state_is_rejected(self) -> None:
+        server = OAuthCallbackServer("https://example.test/twitch/callback", "127.0.0.1", 0)
+        for query in ({}, {"state": "unknown", "code": "code"}):
+            with self.subTest(query=query):
+                response = await server._handle_callback(SimpleNamespace(query=query))
+                self.assertEqual(response.status, 400)
+
+    async def test_missing_code_fails_registered_flow(self) -> None:
+        server = OAuthCallbackServer("https://example.test/twitch/callback", "127.0.0.1", 0)
+        server.register_state("state")
+
+        response = await server._handle_callback(SimpleNamespace(query={"state": "state"}))
+
+        self.assertEqual(response.status, 400)
+        with self.assertRaisesRegex(OAuthFlowError, "code"):
+            await server.wait_for_code("state", timeout=1)
+
+    async def test_callback_state_cannot_be_replayed(self) -> None:
+        server = OAuthCallbackServer("https://example.test/twitch/callback", "127.0.0.1", 0)
+        server.register_state("state")
+        request = SimpleNamespace(query={"state": "state", "code": "oauth-code"})
+
+        first = await server._handle_callback(request)
+        replay = await server._handle_callback(request)
+
+        self.assertEqual(first.status, 200)
+        self.assertEqual(replay.status, 400)
         self.assertEqual(await server.wait_for_code("state", timeout=1), "oauth-code")
 
 
@@ -3687,6 +3920,10 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual((result.login, result.broadcaster_id), ("channel", "42"))
         sleep.assert_awaited_once()
+        token_request = session.post.call_args
+        self.assertNotIn("params", token_request.kwargs)
+        self.assertEqual(token_request.kwargs["data"]["client_secret"], "secret")
+        self.assertEqual(token_request.kwargs["data"]["code"], "code")
 
     async def test_new_user_token_validation_401_is_safe_auth_error(self) -> None:
         session = self._session(
@@ -3739,6 +3976,10 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(expires_at, time.time())
         sleep.assert_awaited_once()
         self.assertEqual(session.post.call_count, 2)
+        for request in session.post.call_args_list:
+            self.assertNotIn("params", request.kwargs)
+            self.assertEqual(request.kwargs["data"]["client_secret"], "secret")
+            self.assertEqual(request.kwargs["data"]["refresh_token"], "old-refresh")
 
     async def test_refresh_429_with_long_wait_is_temporary_without_sleep(self) -> None:
         session = self._session(
@@ -4029,6 +4270,62 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
+    async def test_app_token_secret_is_sent_in_body_not_url(self) -> None:
+        session = SimpleNamespace(
+            post=Mock(
+                return_value=_FakeHTTPResponse(
+                    200, {"access_token": "app-access", "expires_in": 3600}
+                )
+            )
+        )
+        client = TwitchClient("client", "client-secret", session)
+
+        self.assertEqual(await client._ensure_token(), "app-access")
+
+        request = session.post.call_args
+        self.assertNotIn("params", request.kwargs)
+        self.assertEqual(request.kwargs["data"]["client_secret"], "client-secret")
+
+    async def test_logging_falls_back_to_console_when_log_directory_is_read_only(self) -> None:
+        stderr = io.StringIO()
+        with (
+            patch.object(main_module.os, "makedirs", side_effect=PermissionError("read-only")),
+            redirect_stderr(stderr),
+        ):
+            handlers = main_module._build_logging_handlers("unwritable")
+
+        self.assertEqual(len(handlers), 1)
+        self.assertIsInstance(handlers[0], main_module.logging.StreamHandler)
+        self.assertIn("Файловый лог недоступен", stderr.getvalue())
+
+    async def test_startup_logs_mask_real_chat_ids(self) -> None:
+        raw_channel_id = -1001234567890
+        raw_group_id = -1009876543210
+        db = SimpleNamespace(
+            all_telegram_channels=AsyncMock(return_value=[(raw_channel_id, "Channel")]),
+            all_distinct_group_chat_ids=AsyncMock(return_value=[raw_group_id]),
+        )
+
+        with self.assertLogs("main", level="INFO") as captured:
+            await main_module._log_known_chats(db)
+
+        logs = "\n".join(captured.output)
+        self.assertNotIn(str(raw_channel_id), logs)
+        self.assertNotIn(str(raw_group_id), logs)
+        self.assertIn("chat:", logs)
+
+    async def test_cleanup_step_has_bounded_timeout(self) -> None:
+        async def never_finishes() -> None:
+            await asyncio.Event().wait()
+
+        with (
+            patch.object(main_module, "SHUTDOWN_STEP_TIMEOUT_SECONDS", 0.01),
+            self.assertLogs("main", level="ERROR") as captured,
+        ):
+            await main_module._safe_cleanup("blocked resource", never_finishes())
+
+        self.assertIn("cleanup", "\n".join(captured.output).lower())
+
     async def test_twitch_stage_failure_does_not_starve_independent_cycle_work(self) -> None:
         db = SimpleNamespace(
             recover_finished_sessions=AsyncMock(),
@@ -4112,7 +4409,28 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
         )
         db = Database("ignored.db")
         with patch("bot.database.aiosqlite.connect", new=AsyncMock(return_value=connection)):
-            with self.assertRaisesRegex(OSError, "read-only"):
+            with self.assertRaisesRegex(DatabaseConfigurationError, "Volume.*permissions"):
+                await db.connect()
+        connection.close.assert_awaited_once()
+        self.assertIsNone(db._conn)
+
+    async def test_unopenable_database_is_classified_as_permanent(self) -> None:
+        db = Database("ignored.db")
+        error = sqlite3.OperationalError("unable to open database file")
+        with patch("bot.database.aiosqlite.connect", new=AsyncMock(side_effect=error)):
+            with self.assertRaisesRegex(DatabaseConfigurationError, "DB_PATH"):
+                await db.connect()
+
+    async def test_non_wal_filesystem_fails_fast(self) -> None:
+        busy_cursor = SimpleNamespace()
+        journal_cursor = SimpleNamespace(fetchone=AsyncMock(return_value=("delete",)))
+        connection = SimpleNamespace(
+            execute=AsyncMock(side_effect=[busy_cursor, journal_cursor]),
+            close=AsyncMock(),
+        )
+        db = Database("ignored.db")
+        with patch("bot.database.aiosqlite.connect", new=AsyncMock(return_value=connection)):
+            with self.assertRaisesRegex(DatabaseConfigurationError, "WAL"):
                 await db.connect()
         connection.close.assert_awaited_once()
         self.assertIsNone(db._conn)
@@ -4314,6 +4632,20 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
 
 
 class StartupHardeningTests(unittest.TestCase):
+    def test_railway_handles_unexpected_runtime_restart(self) -> None:
+        with (
+            patch.object(
+                main_module,
+                "main",
+                new=AsyncMock(side_effect=RuntimeError("runtime crash")),
+            ),
+            patch.object(main_module, "is_railway_environment", return_value=True),
+            patch.object(main_module.time, "sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "runtime crash"):
+                main_module.run_forever()
+        sleep.assert_not_called()
+
     def test_permanent_configuration_error_does_not_restart_forever(self) -> None:
         with (
             patch.object(

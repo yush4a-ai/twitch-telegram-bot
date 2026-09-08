@@ -1,9 +1,11 @@
 ﻿from __future__ import annotations
 
 import asyncio
+import errno
 import functools
 import logging
 import os
+import sqlite3
 import time
 from dataclasses import dataclass
 
@@ -17,6 +19,34 @@ logger = logging.getLogger(__name__)
 
 class DatabaseConfigurationError(RuntimeError):
     """Постоянная ошибка ключа/формата БД, которую restart сам не исправит."""
+
+
+_PERMANENT_SQLITE_MESSAGES = (
+    "unable to open database file",
+    "attempt to write a readonly database",
+    "read-only",
+    "readonly",
+    "permission denied",
+    "database or disk is full",
+    "database is full",
+    "file is not a database",
+    "database disk image is malformed",
+)
+
+
+def _is_permanent_storage_error(error: BaseException) -> bool:
+    if isinstance(error, OSError) and error.errno in {
+        errno.EACCES,
+        errno.ENOENT,
+        errno.ENOSPC,
+        errno.ENOTDIR,
+        errno.EROFS,
+    }:
+        return True
+    if isinstance(error, (OSError, sqlite3.DatabaseError)):
+        message = str(error).lower()
+        return any(marker in message for marker in _PERMANENT_SQLITE_MESSAGES)
+    return False
 
 
 @dataclass(frozen=True)
@@ -377,20 +407,49 @@ class Database:
             ) from e
 
     async def connect(self) -> None:
-        self._conn = await aiosqlite.connect(self._path)
+        if self._path != ":memory:":
+            parent = os.path.dirname(os.path.abspath(self._path))
+            try:
+                os.makedirs(parent, exist_ok=True)
+            except OSError as e:
+                raise DatabaseConfigurationError(
+                    "Не удалось создать каталог DB_PATH; проверь Volume и permissions"
+                ) from e
+        try:
+            self._conn = await aiosqlite.connect(self._path)
+        except BaseException as e:
+            if _is_permanent_storage_error(e):
+                raise DatabaseConfigurationError(
+                    "SQLite не может открыть DB_PATH; проверь Volume, путь и permissions"
+                ) from e
+            raise
         try:
             # Явный busy_timeout делает поведение одинаковым при кратком overlap двух
             # Railway-процессов во время redeploy, а не зависит от default библиотеки.
             await self._conn.execute("PRAGMA busy_timeout=5000;")
-            await self._conn.execute("PRAGMA journal_mode=WAL;")
+            journal_cursor = await self._conn.execute("PRAGMA journal_mode=WAL;")
+            journal_row = await journal_cursor.fetchone()
+            if self._path != ":memory:" and (
+                not journal_row or str(journal_row[0]).lower() != "wal"
+            ):
+                raise DatabaseConfigurationError(
+                    "SQLite не смогла включить WAL; проверь filesystem Volume"
+                )
             await self._conn.executescript(SCHEMA)
             await self._conn.commit()
+            # Python sqlite3 не начинает implicit transaction для DDL. Явная
+            # граница не даёт redeploy/crash оставить half-applied migration.
+            await self._conn.execute("BEGIN IMMEDIATE;")
             await self._migrate()
-        except BaseException:
+        except BaseException as e:
             try:
                 await self._conn.close()
             finally:
                 self._conn = None
+            if _is_permanent_storage_error(e):
+                raise DatabaseConfigurationError(
+                    "SQLite DB_PATH недоступен для записи/WAL; проверь Volume и permissions"
+                ) from e
             raise
 
     @_serialized

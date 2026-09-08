@@ -245,7 +245,7 @@ class TwitchClient:
 
         async with self._session.post(
             TOKEN_URL,
-            params={
+            data={
                 "client_id": self._client_id,
                 "client_secret": self._client_secret,
                 "grant_type": "client_credentials",

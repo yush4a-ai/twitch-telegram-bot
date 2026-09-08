@@ -217,7 +217,9 @@ async def _exchange_code(
 ) -> UserTokenResult:
     async with session.post(
         TOKEN_URL,
-        params={
+        # Twitch ожидает x-www-form-urlencoded body. Секреты не должны
+        # попадать в URL, который HTTP-клиенты часто включают в exception/log.
+        data={
             "client_id": client_id,
             "client_secret": client_secret,
             "code": code,
@@ -306,7 +308,7 @@ async def refresh_user_token(
         try:
             async with session.post(
                 TOKEN_URL,
-                params={
+                data={
                     "client_id": client_id,
                     "client_secret": client_secret,
                     "grant_type": "refresh_token",

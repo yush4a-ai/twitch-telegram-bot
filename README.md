@@ -29,32 +29,46 @@ copy .env.example .env
 
 ## Деплой на Railway
 
-Бот целиком совместим с Railway "как есть" — процесс-worker + long polling,
-без входящего HTTP-трафика для основной логики (только команда `/auth_twitch`
-поднимает встроенный веб-сервер для Twitch OAuth-редиректа).
+Один процесс совмещает Telegram long polling, Twitch-поллер,
+EventSub/IRC-слушатели и встроенный HTTP-сервер OAuth callback.
+Поэтому service должен одновременно иметь публичный domain и работать
+ровно в одном экземпляре.
 
 1. Залейте проект в GitHub-репозиторий, подключите его в Railway
    (New Project → Deploy from GitHub repo).
-2. В Variables задайте:
+2. В Service Settings оставьте Railpack и Start Command `python main.py`
+   (автоопределение `main.py` даёт ту же команду). `Procfile` также
+   содержит только `python main.py`, поэтому конкурирующего entrypoint нет.
+3. В Variables задайте:
    - `TELEGRAM_BOT_TOKEN`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`
-   - `PUBLIC_URL` — публичный домен, который выдаёт Railway (Settings →
-     Networking → Generate Domain), например `https://myproject.up.railway.app`
+   - `PUBLIC_URL` — `https://<public-domain>` без path/query; если его нет, бот
+     безопасно использует Railway-переменную `RAILWAY_PUBLIC_DOMAIN`
    - `DB_PATH` — путь к файлу БД **внутри примонтированного Volume**, например
      `/data/bot.db` (см. следующий пункт)
    - `TOKEN_ENCRYPTION_KEY` — Fernet-ключ для шифрования Twitch-токенов в SQLite.
      Сгенерировать один раз:
      `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
      Сохраните резервную копию ключа: без него зашифрованные токены восстановить нельзя.
-3. Подключите Volume (Settings → Volumes → New Volume), примонтируйте его,
+4. Подключите Volume и примонтируйте его,
    например, на `/data`. Без этого база SQLite будет пересоздаваться с нуля
    при каждом деплое — вся история стримов, настройки каналов и токены
    потеряются.
-4. В Twitch Developer Console (dev.twitch.tv/console/apps) добавьте
+5. В Networking сгенерируйте public domain для этого же service.
+   Приложение слушает Railway `PORT` на `0.0.0.0`; `OAUTH_PORT` не используется.
+6. В Twitch Developer Console (dev.twitch.tv/console/apps) добавьте
    Redirect URL: `<PUBLIC_URL>/twitch/callback`.
-5. Railway сам определит `Procfile` (`worker: python main.py`) — по умолчанию
-   у процесса `worker` нет входящего трафика, но `/auth_twitch` использует
-   исходящий редирект, поэтому это не проблема; если понадобится, Railway
-   можно переключить на `web`-процесс без дополнительных изменений в коде.
+7. Оставьте ровно `1` replica. Два экземпляра будут конкурировать за
+   Telegram long polling/SQLite и дублировать Twitch listeners/уведомления.
+8. Включите restart при сбое и deployment draining не менее `30` секунд.
+   Не включайте overlapping deploy: у бота нет distributed leader lock,
+   а Volume должен монтироваться к одному активному deployment.
+
+`/health` — Telegram-команда, а не HTTP healthcheck. В Railway HTTP healthcheck
+для этого релиза не задавайте: отдельного `/healthz` пока нет.
+
+Railway Volume не заменяет backup. Храните отдельную резервную копию
+`TOKEN_ENCRYPTION_KEY`, делайте SQLite online backup и backup/snapshot перед крупными
+миграциями.
 
 ## Команды бота
 
