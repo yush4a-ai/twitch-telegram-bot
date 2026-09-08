@@ -21,6 +21,7 @@ from .chat_listener import ChatListener
 from .database import Database
 from .logging_utils import mask_chat_id
 from .report import build_report_html
+from .report_delivery import validate_report_destination
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, TwitchClient
@@ -529,6 +530,17 @@ class StreamPoller:
         entries = await self._db.peek_deferred_reports(chat_id)
         if not entries:
             return False
+        if not await validate_report_destination(
+            self._db,
+            chat_id,
+            source_chat_id=None,
+            allow_telegram_channel=False,
+            operation="Сводка отложенных отчётов",
+        ):
+            # Deferred-очередь хранит только указатели на уже сохранённую историю.
+            # Убираем недопустимый destination, чтобы не ретраить группу бесконечно.
+            await self._db.get_and_clear_deferred_reports(chat_id)
+            return False
         logins = sorted({login for _source_chat_id, login, _stream_id, _ended_at in entries})
         lines = "\n".join(f"• {html.escape(login)}" for login in logins)
         text = (
@@ -987,11 +999,12 @@ class StreamPoller:
             )
             if delivered:
                 if recipient_chat_id is not None:
-                    destination_kind = (
-                        "Telegram-канал"
-                        if recipient_chat_id < 0
-                        else "личный чат"
-                    )
+                    if recipient_chat_id > 0:
+                        destination_kind = "личный чат"
+                    elif await self._db.is_telegram_channel(recipient_chat_id):
+                        destination_kind = "Telegram-канал"
+                    else:
+                        destination_kind = "запрещённый маршрут без отправки"
                     logger.info(
                         "Итоговый отчёт %s обработан: %s %s (источник %s)",
                         login,
@@ -1175,12 +1188,34 @@ class StreamPoller:
             # штатное состояние, поэтому отчёт считаем обработанным и не ретраим
             # каждую минуту в общий чат.
             return True
+        allow_telegram_channel = (
+            recipient_chat_id == chat_id
+            and await self._db.is_telegram_channel(chat_id)
+        )
+        if not await validate_report_destination(
+            self._db,
+            recipient_chat_id,
+            source_chat_id=chat_id,
+            allow_telegram_channel=allow_telegram_channel,
+            operation=f"Итоговый текст {login}",
+        ):
+            # История уже записана выше. Недопустимый маршрут — terminal outcome,
+            # иначе повреждённый recipient вызывал бы попытку каждый poll.
+            return True
         sent = await self._tg_call(
             lambda: self._bot.send_message(recipient_chat_id, text),
             f"Итоговый отчёт в {mask_chat_id(recipient_chat_id)}",
             permanent_failure_is_success=True,
         )
         if sent is not _FAILED and sent is not None and report_html is not None:
+            if not await validate_report_destination(
+                self._db,
+                recipient_chat_id,
+                source_chat_id=chat_id,
+                allow_telegram_channel=allow_telegram_channel,
+                operation=f"HTML-отчёт {login}",
+            ):
+                return True
             file = BufferedInputFile(
                 report_html.encode("utf-8"), filename=f"stream_{login}_{stream_id}.html"
             )

@@ -36,6 +36,7 @@ from ..poller import (
     _strip_links,
 )
 from ..report import build_report_html, format_duration_seconds
+from ..report_delivery import validate_report_destination
 from ..twitch import TwitchClient
 
 logger = logging.getLogger(__name__)
@@ -888,7 +889,20 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
     for source_chat_id, login, stream_id, ended_at in entries:
         current_recipient = await db.resolve_post_recipient(source_chat_id, login)
         if current_recipient == chat_id:
-            current_entries.append((source_chat_id, login, stream_id, ended_at))
+            if await validate_report_destination(
+                db,
+                chat_id,
+                source_chat_id=source_chat_id,
+                allow_telegram_channel=False,
+                operation=f"Deferred report {login}",
+            ):
+                current_entries.append(
+                    (source_chat_id, login, stream_id, ended_at)
+                )
+            else:
+                await db.delete_deferred_report(
+                    chat_id, source_chat_id, login, stream_id
+                )
         elif current_recipient is None:
             await db.delete_deferred_report(
                 chat_id, source_chat_id, login, stream_id
@@ -1991,13 +2005,13 @@ async def _send_report(
     stream_id: str | None = None,
 ) -> bool:
     recipient_chat_id = recipient_chat_id or message.chat.id
-    if recipient_chat_id <= 0 and not await db.is_telegram_channel(recipient_chat_id):
-        logger.warning(
-            "Ручной отчёт %s заблокирован: получатель %s не является личным чатом "
-            "или зарегистрированным Telegram-каналом",
-            login,
-            mask_chat_id(recipient_chat_id),
-        )
+    if not await validate_report_destination(
+        db,
+        recipient_chat_id,
+        source_chat_id=chat_id,
+        allow_telegram_channel=False,
+        operation=f"Ручной HTML-отчёт {login}",
+    ):
         return False
 
     record = (
@@ -2074,12 +2088,13 @@ async def _deliver_report(
     """Отдаёт отчёт так же, как он приходит сразу после эфира: текстовая выжимка,
     а к ней HTML — если для канала выбран развёрнутый формат."""
     recipient_chat_id = recipient_chat_id or message.chat.id
-    if recipient_chat_id <= 0 and not await db.is_telegram_channel(recipient_chat_id):
-        logger.warning(
-            "Ручной отчёт %s заблокирован для %s",
-            login,
-            mask_chat_id(recipient_chat_id),
-        )
+    if not await validate_report_destination(
+        db,
+        recipient_chat_id,
+        source_chat_id=chat_id,
+        allow_telegram_channel=False,
+        operation=f"Ручной текстовый отчёт {login}",
+    ):
         return False
 
     record = (
