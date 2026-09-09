@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     stats_sent INTEGER NOT NULL DEFAULT 0,
     followers_at_start INTEGER,
     notify_enabled INTEGER NOT NULL DEFAULT 1,
+    channel_report_enabled INTEGER NOT NULL DEFAULT 0,
     post_recipient_chat_id INTEGER,
     report_format TEXT NOT NULL DEFAULT 'full',
     raid_detection_enabled INTEGER NOT NULL DEFAULT 1,
@@ -474,6 +475,7 @@ class Database:
             "tracked_channels",
             {
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
+                "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
                 "report_format": "TEXT NOT NULL DEFAULT 'full'",
                 "raid_detection_enabled": "INTEGER NOT NULL DEFAULT 1",
@@ -725,18 +727,23 @@ class Database:
 
     async def list_channels_with_routing(
         self, chat_id: int
-    ) -> list[tuple[str, bool, int | None, str, bool, bool, bool]]:
+    ) -> list[tuple[str, bool, int | None, str, bool, bool, bool, bool]]:
         """(twitch_login, notify_enabled, post_recipient_chat_id, report_format,
-        raid_detection_enabled, quiet_hours_exempt, is_live) для всех каналов чата."""
+        raid_detection_enabled, quiet_hours_exempt, channel_report_enabled,
+        is_live) для всех каналов чата."""
         cursor = await self.conn.execute(
             "SELECT twitch_login, notify_enabled, post_recipient_chat_id, report_format, "
-            "raid_detection_enabled, quiet_hours_exempt, is_live FROM tracked_channels "
+            "raid_detection_enabled, quiet_hours_exempt, channel_report_enabled, "
+            "is_live FROM tracked_channels "
             "WHERE chat_id = ? ORDER BY twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
         return [
-            (row[0], bool(row[1]), row[2], row[3] or "full", bool(row[4]), bool(row[5]), bool(row[6]))
+            (
+                row[0], bool(row[1]), row[2], row[3] or "full",
+                bool(row[4]), bool(row[5]), bool(row[6]), bool(row[7]),
+            )
             for row in rows
         ]
 
@@ -755,6 +762,33 @@ class Database:
         )
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
+
+    @_serialized
+    async def set_channel_report_enabled(
+        self, chat_id: int, twitch_login: str, enabled: bool
+    ) -> None:
+        """Включает публичный итог только для конкретной tracked-пары.
+
+        Регистрация Telegram-канала проверяется в routing/guard, а не превращает
+        эту настройку в неявный opt-in.
+        """
+        await self.conn.execute(
+            "UPDATE tracked_channels SET channel_report_enabled = ? "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (int(enabled), chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    async def get_channel_report_enabled(
+        self, chat_id: int, twitch_login: str
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "SELECT channel_report_enabled FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return bool(row[0]) if row else False
 
     @_serialized
     async def set_report_format(self, chat_id: int, twitch_login: str, report_format: str) -> None:
@@ -834,11 +868,11 @@ class Database:
         return row[0] if row and row[0] is not None else None
 
     async def resolve_post_recipient(self, chat_id: int, twitch_login: str) -> int | None:
-        """Получатель итогового отчёта — только личный Telegram-чат.
+        """Получатель итогового отчёта с безопасным channel opt-in.
 
-        Положительный chat_id означает личку. Обычная группа никогда не становится
-        получателем, но зарегистрированный Telegram-канал сохраняет отдельное
-        поведение: живой пост удаляется отдельно, а итог публикуется новым сообщением.
+        Положительные per-channel/chat-wide привязки имеют приоритет. Обычная группа
+        никогда не становится получателем. Telegram-канал получает итог в себя только
+        когда он зарегистрирован и настройка конкретного Twitch-канала включена.
         """
         per_channel = await self.get_post_recipient(chat_id, twitch_login)
         if per_channel is not None and per_channel > 0:
@@ -846,7 +880,11 @@ class Database:
         default_recipient = await self.get_stats_recipient(chat_id)
         if default_recipient is not None and default_recipient > 0:
             return default_recipient
-        if await self.is_telegram_channel(chat_id):
+        if (
+            chat_id < 0
+            and await self.is_telegram_channel(chat_id)
+            and await self.get_channel_report_enabled(chat_id, twitch_login)
+        ):
             return chat_id
         return chat_id if chat_id > 0 else None
 

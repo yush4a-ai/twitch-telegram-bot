@@ -601,7 +601,6 @@ class StreamPoller:
             self._db,
             chat_id,
             source_chat_id=None,
-            allow_telegram_channel=False,
             operation="Сводка отложенных отчётов",
         ):
             # Deferred-очередь хранит только указатели на уже сохранённую историю.
@@ -1431,17 +1430,12 @@ class StreamPoller:
         if delivery.terminal_failed or delivery.complete:
             return True
 
-        allow_telegram_channel = (
-            delivery.recipient_chat_id == delivery.source_chat_id
-            and await self._db.is_telegram_channel(delivery.source_chat_id)
-        )
-
         if not delivery.text_sent:
             if not await validate_report_destination(
                 self._db,
                 delivery.recipient_chat_id,
                 source_chat_id=delivery.source_chat_id,
-                allow_telegram_channel=allow_telegram_channel,
+                telegram_channel_login=delivery.twitch_login,
                 operation=f"Итоговый текст {delivery.twitch_login}",
             ):
                 await self._db.mark_report_delivery_terminal(
@@ -1482,7 +1476,7 @@ class StreamPoller:
             self._db,
             delivery.recipient_chat_id,
             source_chat_id=delivery.source_chat_id,
-            allow_telegram_channel=allow_telegram_channel,
+            telegram_channel_login=delivery.twitch_login,
             operation=f"HTML-отчёт {delivery.twitch_login}",
         ):
             await self._db.mark_report_delivery_terminal(

@@ -154,7 +154,7 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
 
 def _channels_keyboard(
     target_chat_id: int,
-    channels: list[tuple[str, bool, int | None, str, bool, bool, bool]],
+    channels: list[tuple[str, bool, int | None, str, bool, bool, bool, bool]],
     chat_default_recipient: int | None,
     *,
     back_callback: str = "menu:home",
@@ -164,13 +164,18 @@ def _channels_keyboard(
 ) -> InlineKeyboardMarkup:
     """Компакт-список: одна строка на канал (имя + иконки-статусы), тап открывает
     карточку канала с полной настройкой — вместо частокола из 5+ кнопок на канал.
-    is_telegram_channel=True показывает только 🔔/🔕: отчёт в канал отправляется
-    автоматически с настройками по умолчанию."""
+    Для Telegram-канала дополнительно показывает состояние opt-in итогового отчёта."""
     rows = []
-    for login, notify_enabled, post_recipient, report_format, raid_detection_enabled, _quiet_hours_exempt, is_live in channels:
+    for (
+        login, notify_enabled, post_recipient, report_format,
+        raid_detection_enabled, _quiet_hours_exempt, channel_report_enabled,
+        is_live,
+    ) in channels:
         bell = "🔔" if notify_enabled else "🔕"
         status_icons = bell
-        if not is_telegram_channel:
+        if is_telegram_channel:
+            status_icons += " 📊" if channel_report_enabled else " 🚫"
+        else:
             if show_recipient_toggle:
                 effective = post_recipient or chat_default_recipient
                 status_icons += " 📩" if effective is not None and effective > 0 else " ⚠️"
@@ -203,6 +208,7 @@ def _channel_card_keyboard(
     report_format: str,
     raid_detection_enabled: bool,
     quiet_hours_exempt: bool,
+    channel_report_enabled: bool,
     *,
     back_callback: str,
     show_recipient_toggle: bool,
@@ -211,8 +217,7 @@ def _channel_card_keyboard(
 ) -> InlineKeyboardMarkup:
     """Полная настройка одного канала — каждый переключатель на своей строке
     с явной подписью, вместо мелких кнопок вперемешку в общем списке.
-    is_telegram_channel=True скрывает дополнительные настройки итогового отчёта:
-    в сам канал он отправляется автоматически с настройками по умолчанию."""
+    Для Telegram-канала live и final report управляются независимо."""
     rows = [
         [
             InlineKeyboardButton(
@@ -222,6 +227,27 @@ def _channel_card_keyboard(
         ]
     ]
     if is_telegram_channel:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=(
+                        "Итоговый отчёт в канал: ✅ вкл"
+                        if channel_report_enabled
+                        else "Итоговый отчёт в канал: ❌ выкл"
+                    ),
+                    callback_data=f"togglechannelreport:{target_chat_id}:{login}",
+                )
+            ]
+        )
+        format_label = "📄 Кратко" if report_format == "brief" else "📑 Развёрнуто"
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"Формат отчёта: {format_label}",
+                    callback_data=f"toggleformat:{target_chat_id}:{login}",
+                )
+            ]
+        )
         rows.append(
             [InlineKeyboardButton(text="❌ Удалить канал", callback_data=f"untrack:{target_chat_id}:{login}")]
         )
@@ -296,11 +322,25 @@ async def _start_link_keyboard(bot: Bot, chat_id: int) -> InlineKeyboardMarkup:
     )
 
 
-async def _added_channel_summary(message: Message, db: Database, login: str, is_first_channel: bool) -> str:
+async def _added_channel_summary(
+    message: Message,
+    db: Database,
+    login: str,
+    is_first_channel: bool,
+    *,
+    target_chat_id: int | None = None,
+) -> str:
     """Явно проговаривает, что произойдёт с только что добавленным каналом при
     настройках по умолчанию — чтобы не приходилось гадать, придёт ли вообще что-то.
-    При самом первом канале в чате также объясняет разницу между живым постом
-    (всегда в этот чат) и итоговым отчётом (только в личку)."""
+    При самом первом канале также объясняет разницу между live-постом и итогом."""
+    target_chat_id = target_chat_id or message.chat.id
+    if await db.is_telegram_channel(target_chat_id):
+        return (
+            f"Готово, слежу за каналом «{login}».\n\n"
+            "🔴 Live-уведомление будет публиковаться в Telegram-канале.\n"
+            "📊 Итоговый отчёт в канал по умолчанию выключен. При необходимости "
+            "включи его отдельно в карточке этого Twitch-канала."
+        )
     if is_first_channel:
         return (
             f"Готово, слежу за каналом «{login}».\n\n"
@@ -311,7 +351,7 @@ async def _added_channel_summary(message: Message, db: Database, login: str, is_
         )
     return (
         f"Готово, слежу за каналом «{login}».\n\n"
-        "🔴 Живой пост — в этот чат. 📊 Итоговый отчёт — только в привязанную личку."
+        "🔴 Live-пост — в этот чат. 📊 Итоговый отчёт — только в привязанную личку."
     )
 
 
@@ -357,8 +397,9 @@ ABOUT_TEXT = (
     "Покажу рейды и коллабы, отфильтрую подозрительные скачки зрителей. "
     "Сообщу, если канал сменил имя или пропал с Twitch.\n\n"
     "🌙 <b>Работаю по твоим правилам</b>\n"
-    "Итоговые отчёты приходят только в личку. Тихие часы соберут ночные "
-    "стримы в одну утреннюю сводку.\n\n"
+    "В обычной группе итоги приходят только в привязанную личку. В Telegram-канале "
+    "публичный итог включается отдельно для каждого Twitch-канала и по умолчанию "
+    "выключен. Тихие часы соберут ночные стримы в одну утреннюю сводку.\n\n"
     "<b>Быстрые команды</b>\n"
     "📺 /live  кто сейчас в эфире\n"
     "📥 /import_follows  импорт подписок\n"
@@ -1059,7 +1100,6 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
                 db,
                 chat_id,
                 source_chat_id=source_chat_id,
-                allow_telegram_channel=False,
                 operation=f"Deferred report {login}",
             ):
                 current_entries.append(
@@ -1153,8 +1193,8 @@ _CHANNELS_HINT_PRIVATE = _CHANNELS_HINT
 _CHANNELS_HINT_TG_CHANNEL = (
     "📡 <b>Отслеживаемые каналы</b>\n"
     "Нажми на канал, чтобы открыть его настройки.\n\n"
-    "После завершения стрима живой пост удалится, а итоговый отчёт со статистикой "
-    "будет опубликован отдельно."
+    "Live-уведомление и итоговый отчёт в канал настраиваются отдельно для каждого "
+    "Twitch-канала. Итоговый отчёт по умолчанию выключен."
 )
 
 
@@ -1287,7 +1327,10 @@ async def _render_channel_card(
     match = next((c for c in channels if c[0] == login), None)
     if match is None:
         return None
-    _, notify_enabled, post_recipient, report_format, raid_detection_enabled, quiet_hours_exempt, _is_live = match
+    (
+        _, notify_enabled, post_recipient, report_format, raid_detection_enabled,
+        quiet_hours_exempt, channel_report_enabled, _is_live,
+    ) = match
 
     is_private = target_chat_id > 0
     is_telegram_channel = await db.is_telegram_channel(target_chat_id)
@@ -1306,10 +1349,12 @@ async def _render_channel_card(
     if is_telegram_channel:
         text = (
             f"📡 <b>{login}</b>\n\n"
-            "После завершения стрима бот отправит в этот Telegram-канал итоговый "
-            "отчёт со статистикой отдельным сообщением. Живой пост удалится через "
-            "пять минут после подтверждённого завершения эфира.\n\n"
-            "🔔/🔕 — присылать ли живой пост, когда канал выходит в эфир"
+            "Уведомление о начале и итоговый отчёт управляются независимо. "
+            "Публичный итог выключен по умолчанию и появится в канале только после "
+            "ручного включения для этого Twitch-канала.\n\n"
+            "🔔/🔕 — публиковать ли live-уведомление\n"
+            "✅/❌ — публиковать ли итоговый отчёт в канал\n"
+            "📑/📄 — развёрнутый (текст + HTML) или краткий (только текст) итог"
         )
     else:
         lines = [
@@ -1332,6 +1377,7 @@ async def _render_channel_card(
     keyboard = _channel_card_keyboard(
         target_chat_id, login, notify_enabled, post_recipient, chat_default_recipient,
         report_format, raid_detection_enabled, quiet_hours_exempt,
+        channel_report_enabled,
         back_callback=f"channellist:{target_chat_id}:{list_back_callback}",
         show_recipient_toggle=not is_private,
         is_telegram_channel=is_telegram_channel,
@@ -1468,6 +1514,43 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
 
     await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(answer_text)
+
+
+@router.callback_query(
+    lambda c: c.data and c.data.startswith("togglechannelreport:")
+)
+async def cb_toggle_channel_report(callback: CallbackQuery, db: Database) -> None:
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
+
+    if not await _check_manage_permission(callback, target_chat_id):
+        await callback.answer(
+            "Только админы этого канала могут менять настройки.",
+            show_alert=True,
+        )
+        return
+    if not await db.is_telegram_channel(target_chat_id):
+        await callback.answer(
+            "Эта настройка доступна только для Telegram-канала.",
+            show_alert=True,
+        )
+        return
+
+    currently_enabled = await db.get_channel_report_enabled(
+        target_chat_id, login
+    )
+    await db.set_channel_report_enabled(
+        target_chat_id, login, not currently_enabled
+    )
+    await _refresh_channel_card(callback, db, target_chat_id, login)
+    await callback.answer(
+        "Итоговый отчёт в канал выключен"
+        if currently_enabled
+        else "Итоговый отчёт в канал включён"
+    )
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("toggleformat:"))
@@ -1873,7 +1956,11 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
     added = await db.add_channel(target_chat_id, login)
     if added:
         text = await _added_channel_summary(
-            callback.message, db, login, is_first_channel=not had_channels_before
+            callback.message,
+            db,
+            login,
+            is_first_channel=not had_channels_before,
+            target_chat_id=target_chat_id,
         )
     else:
         text = f"Канал «{login}» уже отслеживается в этом чате."
@@ -1922,7 +2009,13 @@ async def process_login_input(
     await state.clear()
 
     if added:
-        text = await _added_channel_summary(message, db, login, is_first_channel=not had_channels_before)
+        text = await _added_channel_summary(
+            message,
+            db,
+            login,
+            is_first_channel=not had_channels_before,
+            target_chat_id=target_chat_id,
+        )
     else:
         text = f"Канал «{login}» уже отслеживается в этом чате."
 
@@ -1969,7 +2062,13 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
     had_channels_before = await db.count_channels(message.chat.id) > 0
     added = await db.add_channel(message.chat.id, login)
     if added:
-        text = await _added_channel_summary(message, db, login, is_first_channel=not had_channels_before)
+        text = await _added_channel_summary(
+            message,
+            db,
+            login,
+            is_first_channel=not had_channels_before,
+            target_chat_id=message.chat.id,
+        )
     else:
         text = f"Канал «{login}» уже отслеживается в этом чате."
 
@@ -2199,7 +2298,6 @@ async def _send_report(
         db,
         recipient_chat_id,
         source_chat_id=chat_id,
-        allow_telegram_channel=False,
         operation=f"Ручной HTML-отчёт {login}",
     ):
         return False
@@ -2282,7 +2380,6 @@ async def _deliver_report(
         db,
         recipient_chat_id,
         source_chat_id=chat_id,
-        allow_telegram_channel=False,
         operation=f"Ручной текстовый отчёт {login}",
     ):
         return False

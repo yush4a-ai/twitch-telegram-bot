@@ -62,11 +62,13 @@ from bot.handlers.streams import (
     TWITCH_CUSTOM_EMOJI_ID,
     _build_live_list,
     _build_health_text,
+    _channel_card_keyboard,
     _deliver_report,
     _format_viewers,
     _message_can_manage_chat,
     _run_import_follows,
     cb_quiet_digest_response,
+    cb_toggle_channel_report,
     cmd_health,
     cmd_report,
 )
@@ -597,7 +599,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
-    async def test_telegram_channel_keeps_its_final_report(self) -> None:
+    async def test_telegram_channel_report_is_opt_in(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))
             await db.connect()
@@ -606,8 +608,17 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                 await db.register_telegram_channel(channel_id, "News")
                 await db.add_channel(channel_id, "channel")
 
+                self.assertFalse(
+                    await db.get_channel_report_enabled(channel_id, "channel")
+                )
+                self.assertIsNone(
+                    await db.resolve_post_recipient(channel_id, "channel")
+                )
+
+                await db.set_channel_report_enabled(channel_id, "channel", True)
                 self.assertEqual(
-                    await db.resolve_post_recipient(channel_id, "channel"), channel_id
+                    await db.resolve_post_recipient(channel_id, "channel"),
+                    channel_id,
                 )
             finally:
                 await db.close()
@@ -632,7 +643,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await migrated.close()
 
-    async def test_migration_preserves_private_and_registered_channel_routes(self) -> None:
+    async def test_migration_keeps_legacy_channel_routes_disabled_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "test.db")
             channel_id = -100456
@@ -662,6 +673,14 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                         await migrated.get_stats_recipient(channel_id), channel_id
                     )
                     self.assertTrue(await migrated.has_deferred_reports(channel_id))
+                    self.assertFalse(
+                        await migrated.get_channel_report_enabled(
+                            channel_id, "channel"
+                        )
+                    )
+                    self.assertIsNone(
+                        await migrated.resolve_post_recipient(channel_id, "channel")
+                    )
                     self.assertEqual(
                         await migrated.get_post_recipient(-100123, "personal"), 42
                     )
@@ -670,6 +689,179 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                     )
                 finally:
                     await migrated.close()
+
+    async def test_channel_report_toggle_is_per_tracked_channel_and_persistent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "test.db")
+            channel_id = -100456
+            db = Database(path)
+            await db.connect()
+            await db.register_telegram_channel(channel_id, "News")
+            await db.add_channel(channel_id, "alpha")
+            await db.add_channel(channel_id, "beta")
+
+            self.assertFalse(
+                await db.get_channel_report_enabled(channel_id, "alpha")
+            )
+            self.assertFalse(
+                await db.get_channel_report_enabled(channel_id, "beta")
+            )
+            await db.set_channel_report_enabled(channel_id, "alpha", True)
+            self.assertTrue(
+                await db.get_channel_report_enabled(channel_id, "alpha")
+            )
+            self.assertFalse(
+                await db.get_channel_report_enabled(channel_id, "beta")
+            )
+            await db.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertTrue(
+                    await reopened.get_channel_report_enabled(
+                        channel_id, "alpha"
+                    )
+                )
+                self.assertFalse(
+                    await reopened.get_channel_report_enabled(
+                        channel_id, "beta"
+                    )
+                )
+                await reopened.set_channel_report_enabled(
+                    channel_id, "alpha", False
+                )
+            finally:
+                await reopened.close()
+
+            second_reopen = Database(path)
+            await second_reopen.connect()
+            try:
+                self.assertFalse(
+                    await second_reopen.get_channel_report_enabled(
+                        channel_id, "alpha"
+                    )
+                )
+            finally:
+                await second_reopen.close()
+
+    async def test_legacy_database_migrates_channel_reports_off_without_data_loss(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "legacy.db")
+            channel_id = -100456
+            legacy = Database(path)
+            await legacy.connect()
+            await legacy.register_telegram_channel(channel_id, "News")
+            await legacy.add_channel(channel_id, "channel")
+            # Это значение использовалось старой автоматической логикой и не
+            # доказывает ручной opt-in пользователя.
+            await legacy.set_post_recipient(channel_id, "channel", channel_id)
+            await legacy.add_stream_history(
+                channel_id, "channel", "history-stream", 1.0, 60, 10, 5, 1
+            )
+            await legacy.save_vod(
+                channel_id,
+                "channel",
+                "history-stream",
+                "https://example.test/vod",
+                "VOD",
+                None,
+            )
+            await legacy.save_user_token(
+                "channel", "broadcaster", "access", "refresh", 9999.0
+            )
+            await legacy.close()
+
+            raw = sqlite3.connect(path)
+            raw.execute(
+                "ALTER TABLE tracked_channels DROP COLUMN channel_report_enabled"
+            )
+            raw.commit()
+            raw.close()
+
+            migrated = Database(path)
+            await migrated.connect()
+            try:
+                columns = {
+                    row[1]: row
+                    for row in await (
+                        await migrated.conn.execute(
+                            "PRAGMA table_info(tracked_channels)"
+                        )
+                    ).fetchall()
+                }
+                self.assertEqual(
+                    columns["channel_report_enabled"][4], "0"
+                )
+                self.assertFalse(
+                    await migrated.get_channel_report_enabled(
+                        channel_id, "channel"
+                    )
+                )
+                self.assertIsNone(
+                    await migrated.resolve_post_recipient(channel_id, "channel")
+                )
+                self.assertIsNotNone(
+                    await migrated.get_finished_stream(
+                        channel_id, "channel", "history-stream"
+                    )
+                )
+                self.assertEqual(
+                    await migrated.get_vod(
+                        channel_id, "channel", "history-stream"
+                    ),
+                    ("https://example.test/vod", "VOD", None),
+                )
+                self.assertEqual(
+                    await migrated.get_user_token("channel"),
+                    ("broadcaster", "access", "refresh", 9999.0),
+                )
+
+                await migrated.set_live_state(
+                    channel_id,
+                    "channel",
+                    False,
+                    "new-stream",
+                    title="Stream",
+                    offline_since=1000.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                    peak_viewers=10,
+                )
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(), send_document=AsyncMock()
+                )
+                poller = StreamPoller(
+                    bot,
+                    migrated,
+                    SimpleNamespace(get_user_id=AsyncMock(return_value=None)),
+                    60,
+                )
+                poller._fetch_top_clips = AsyncMock(return_value=[])
+                poller._fetch_and_save_vod = AsyncMock(return_value=None)
+                with patch("bot.poller.time.time", return_value=2801.0):
+                    await poller._send_pending_stats()
+
+                bot.send_message.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
+                self.assertIsNotNone(
+                    await migrated.get_finished_stream(
+                        channel_id, "channel", "new-stream"
+                    )
+                )
+                self.assertEqual(await migrated.pending_stats(), [])
+            finally:
+                await migrated.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertFalse(
+                    await reopened.get_channel_report_enabled(
+                        channel_id, "channel"
+                    )
+                )
+            finally:
+                await reopened.close()
 
     async def test_deferred_reports_survive_restart_and_keep_multiple_streams(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1508,7 +1700,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
-    async def test_registered_channel_receives_text_html_and_keeps_history(self) -> None:
+    async def test_registered_channel_report_off_saves_history_without_payload(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             channel_id = -100456
             db = Database(os.path.join(directory, "test.db"))
@@ -1538,19 +1730,285 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                 with patch("bot.poller.time.time", return_value=2801.0):
                     await poller._send_pending_stats()
 
-                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
-                self.assertEqual(bot.send_document.await_args.args[0], channel_id)
+                bot.send_message.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
                 self.assertIsNotNone(
                     await db.get_finished_stream(channel_id, "channel", "stream-1")
                 )
                 delivery = await db.get_report_delivery(
                     channel_id, "channel", "stream-1", channel_id
                 )
-                self.assertIsNotNone(delivery)
-                self.assertTrue(delivery.complete)
+                self.assertIsNone(delivery)
                 self.assertEqual(await db.pending_stats(), [])
+                self.assertEqual(
+                    await db.get_live_state(channel_id, "channel"),
+                    (False, None, None, None, None, None, None),
+                )
             finally:
                 await db.close()
+
+    async def test_registered_channel_report_on_sends_text_html_and_keeps_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            channel_id = -100456
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.set_channel_report_enabled(channel_id, "channel", True)
+                await db.set_live_state(
+                    channel_id,
+                    "channel",
+                    False,
+                    "stream-1",
+                    title="Stream",
+                    offline_since=1000.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                    peak_viewers=10,
+                )
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(
+                        return_value=SimpleNamespace(message_id=1)
+                    ),
+                    send_document=AsyncMock(
+                        return_value=SimpleNamespace(message_id=2)
+                    ),
+                )
+                poller = StreamPoller(
+                    bot,
+                    db,
+                    SimpleNamespace(get_user_id=AsyncMock(return_value=None)),
+                    60,
+                )
+                poller._fetch_top_clips = AsyncMock(return_value=[])
+                poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+                with patch("bot.poller.time.time", return_value=2801.0):
+                    await poller._send_pending_stats()
+
+                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
+                self.assertEqual(bot.send_document.await_args.args[0], channel_id)
+                self.assertIsNotNone(
+                    await db.get_finished_stream(
+                        channel_id, "channel", "stream-1"
+                    )
+                )
+                delivery = await db.get_report_delivery(
+                    channel_id, "channel", "stream-1", channel_id
+                )
+                self.assertIsNotNone(delivery)
+                self.assertTrue(delivery.complete)
+            finally:
+                await db.close()
+
+    async def test_registered_channel_report_on_brief_sends_no_document(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            channel_id = -100456
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.set_channel_report_enabled(channel_id, "channel", True)
+                await db.set_report_format(channel_id, "channel", "brief")
+                await db.set_live_state(
+                    channel_id,
+                    "channel",
+                    False,
+                    "stream-1",
+                    title="Stream",
+                    offline_since=1000.0,
+                    stream_started_at="2026-01-01T00:00:00Z",
+                    peak_viewers=10,
+                )
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(
+                        return_value=SimpleNamespace(message_id=1)
+                    ),
+                    send_document=AsyncMock(),
+                )
+                poller = StreamPoller(
+                    bot,
+                    db,
+                    SimpleNamespace(get_user_id=AsyncMock(return_value=None)),
+                    60,
+                )
+                poller._fetch_top_clips = AsyncMock(return_value=[])
+                poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+                with patch("bot.poller.time.time", return_value=2801.0):
+                    await poller._send_pending_stats()
+
+                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
+                bot.send_document.assert_not_awaited()
+            finally:
+                await db.close()
+
+    async def test_notify_on_report_off_keeps_live_but_suppresses_final(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            channel_id = -100456
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                twitch = SimpleNamespace(
+                    get_live_streams=AsyncMock(
+                        side_effect=[{"channel": _stream("stream-1")}, {}]
+                    ),
+                    get_user_id=AsyncMock(return_value=None),
+                )
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(
+                        return_value=SimpleNamespace(message_id=10)
+                    ),
+                    send_document=AsyncMock(),
+                    delete_message=AsyncMock(),
+                )
+                poller = StreamPoller(bot, db, twitch, 60)
+                poller._fetch_top_clips = AsyncMock(return_value=[])
+                poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+                with patch("bot.poller.time.time", return_value=1000.0):
+                    await poller._check_streams()
+                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
+
+                with patch("bot.poller.time.time", return_value=1100.0):
+                    await poller._check_streams()
+                with patch("bot.poller.time.time", return_value=2901.0):
+                    await poller._send_pending_stats()
+
+                self.assertEqual(bot.send_message.await_count, 1)
+                bot.send_document.assert_not_awaited()
+                self.assertIsNotNone(
+                    await db.get_finished_stream(
+                        channel_id, "channel", "stream-1"
+                    )
+                )
+                self.assertEqual(await db.pending_stats(), [])
+                self.assertFalse(
+                    (await db.get_live_state(channel_id, "channel"))[0]
+                )
+            finally:
+                await db.close()
+
+    async def test_notify_off_report_on_suppresses_live_but_sends_final(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            channel_id = -100456
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.set_notify_enabled(channel_id, "channel", False)
+                await db.set_channel_report_enabled(channel_id, "channel", True)
+                await db.set_report_format(channel_id, "channel", "brief")
+                twitch = SimpleNamespace(
+                    get_live_streams=AsyncMock(
+                        side_effect=[{"channel": _stream("stream-1")}, {}]
+                    ),
+                    get_user_id=AsyncMock(return_value=None),
+                )
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(
+                        return_value=SimpleNamespace(message_id=10)
+                    ),
+                    send_document=AsyncMock(),
+                )
+                poller = StreamPoller(bot, db, twitch, 60)
+                poller._fetch_top_clips = AsyncMock(return_value=[])
+                poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+                with patch("bot.poller.time.time", return_value=1000.0):
+                    await poller._check_streams()
+                bot.send_message.assert_not_awaited()
+
+                with patch("bot.poller.time.time", return_value=1100.0):
+                    await poller._check_streams()
+                with patch("bot.poller.time.time", return_value=2901.0):
+                    await poller._send_pending_stats()
+
+                bot.send_message.assert_awaited_once()
+                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
+                bot.send_document.assert_not_awaited()
+            finally:
+                await db.close()
+
+    def test_channel_card_exposes_separate_live_report_and_format_controls(self) -> None:
+        keyboard = _channel_card_keyboard(
+            -100456,
+            "channel",
+            True,
+            None,
+            None,
+            "full",
+            True,
+            False,
+            False,
+            back_callback="menu:home",
+            show_recipient_toggle=False,
+            is_telegram_channel=True,
+        )
+
+        labels = [row[0].text for row in keyboard.inline_keyboard]
+        callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
+        self.assertIn("Уведомление о начале: 🔔 вкл", labels)
+        self.assertIn("Итоговый отчёт в канал: ❌ выкл", labels)
+        self.assertIn("Формат отчёта: 📑 Развёрнуто", labels)
+        self.assertIn(
+            "togglechannelreport:-100456:channel", callbacks
+        )
+
+    async def test_channel_report_callback_toggles_setting_for_admin(self) -> None:
+        channel_id = -100456
+        db = SimpleNamespace(
+            is_telegram_channel=AsyncMock(return_value=True),
+            get_channel_report_enabled=AsyncMock(return_value=False),
+            set_channel_report_enabled=AsyncMock(),
+        )
+        callback = SimpleNamespace(
+            data=f"togglechannelreport:{channel_id}:channel",
+            from_user=SimpleNamespace(id=42),
+            bot=SimpleNamespace(
+                get_chat_member=AsyncMock(
+                    return_value=SimpleNamespace(status="administrator")
+                )
+            ),
+            message=SimpleNamespace(chat=SimpleNamespace(id=channel_id)),
+            answer=AsyncMock(),
+        )
+
+        with patch(
+            "bot.handlers.streams._refresh_channel_card", new=AsyncMock()
+        ) as refresh:
+            await cb_toggle_channel_report(callback, db)
+
+        db.set_channel_report_enabled.assert_awaited_once_with(
+            channel_id, "channel", True
+        )
+        refresh.assert_awaited_once_with(
+            callback, db, channel_id, "channel"
+        )
+
+    async def test_channel_report_callback_rejects_non_admin(self) -> None:
+        channel_id = -100456
+        db = SimpleNamespace(set_channel_report_enabled=AsyncMock())
+        callback = SimpleNamespace(
+            data=f"togglechannelreport:{channel_id}:channel",
+            from_user=SimpleNamespace(id=42),
+            bot=SimpleNamespace(
+                get_chat_member=AsyncMock(
+                    return_value=SimpleNamespace(status="member")
+                )
+            ),
+            message=SimpleNamespace(chat=SimpleNamespace(id=channel_id)),
+            answer=AsyncMock(),
+        )
+
+        await cb_toggle_channel_report(callback, db)
+
+        db.set_channel_report_enabled.assert_not_awaited()
+        self.assertTrue(callback.answer.await_args.kwargs["show_alert"])
 
     async def test_channel_stream_generates_and_marks_final_report(self) -> None:
         db = SimpleNamespace(
@@ -2400,6 +2858,10 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
             try:
                 channel_id = -100456
                 await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.set_channel_report_enabled(
+                    channel_id, "channel", True
+                )
                 delivery = await db.create_report_delivery(
                     channel_id,
                     "channel",
@@ -2433,6 +2895,124 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse(updated.html_sent)
                 self.assertTrue(updated.terminal_failed)
                 self.assertEqual(updated.terminal_reason, "destination_rejected")
+            finally:
+                await db.close()
+
+    async def test_existing_channel_delivery_is_terminal_when_toggle_is_off(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                delivery = await db.create_report_delivery(
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "full",
+                    "persisted text",
+                    "<html>persisted</html>",
+                    1.0,
+                )
+                poller, bot = self._poller(db)
+                poller._tg_call = AsyncMock()
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(delivery)
+                )
+
+                poller._tg_call.assert_not_awaited()
+                bot.send_message.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
+                updated = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                self.assertTrue(updated.terminal_failed)
+                self.assertEqual(
+                    updated.terminal_reason, "destination_rejected"
+                )
+            finally:
+                await db.close()
+
+    async def test_existing_channel_html_is_blocked_when_toggle_is_off(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                delivery = await db.create_report_delivery(
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "full",
+                    "already sent text",
+                    "<html>pending</html>",
+                    1.0,
+                )
+                await db.mark_report_text_sent(delivery, 2.0)
+                current = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                poller, bot = self._poller(db)
+                poller._tg_call = AsyncMock()
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(current)
+                )
+
+                poller._tg_call.assert_not_awaited()
+                bot.send_document.assert_not_awaited()
+                updated = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                self.assertFalse(updated.html_sent)
+                self.assertTrue(updated.terminal_failed)
+                self.assertEqual(
+                    updated.terminal_reason, "destination_rejected"
+                )
+            finally:
+                await db.close()
+
+    async def test_existing_channel_delivery_retries_when_toggle_is_on(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.set_channel_report_enabled(
+                    channel_id, "channel", True
+                )
+                delivery = await db.create_report_delivery(
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    channel_id,
+                    "brief",
+                    "persisted text",
+                    None,
+                    1.0,
+                )
+                poller, bot = self._poller(db)
+
+                self.assertTrue(
+                    await poller._deliver_persisted_report(delivery)
+                )
+
+                bot.send_message.assert_awaited_once()
+                self.assertEqual(bot.send_message.await_args.args[0], channel_id)
+                bot.send_document.assert_not_awaited()
+                updated = await db.get_report_delivery_for_stream(
+                    channel_id, "channel", "stream-1"
+                )
+                self.assertTrue(updated.complete)
+                self.assertFalse(updated.terminal_failed)
             finally:
                 await db.close()
 
@@ -2722,6 +3302,40 @@ class ManualReportTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+    async def test_manual_report_from_channel_stays_private_when_public_auto_is_on(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            channel_id = -100456
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                await db.register_telegram_channel(channel_id, "News")
+                await self._seed_history(db, channel_id)
+                await db.set_channel_report_enabled(
+                    channel_id, "channel", True
+                )
+                await db.mark_known_private_user(42)
+                bot = SimpleNamespace(
+                    send_message=AsyncMock(), send_document=AsyncMock()
+                )
+                message = SimpleNamespace(
+                    chat=SimpleNamespace(id=channel_id),
+                    from_user=SimpleNamespace(id=42),
+                    bot=bot,
+                    answer=AsyncMock(),
+                )
+
+                await cmd_report(
+                    message, SimpleNamespace(args="channel"), db
+                )
+
+                self.assertEqual(bot.send_message.await_args.args[0], 42)
+                self.assertEqual(bot.send_document.await_args.args[0], 42)
+                self.assertNotEqual(
+                    bot.send_message.await_args.args[0], channel_id
+                )
+            finally:
+                await db.close()
+
     async def test_manual_report_without_private_link_sends_only_service_hint(self) -> None:
         db = SimpleNamespace(is_known_private_user=AsyncMock(return_value=False))
         bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
@@ -2891,6 +3505,31 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
+    async def test_deferred_channel_report_off_is_removed_without_send(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            db = Database(os.path.join(directory, "test.db"))
+            await db.connect()
+            try:
+                channel_id = -100456
+                await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
+                await db.add_deferred_report(
+                    channel_id,
+                    channel_id,
+                    "channel",
+                    "stream-1",
+                    1.0,
+                )
+                bot = SimpleNamespace(send_message=AsyncMock())
+                poller = StreamPoller(bot, db, SimpleNamespace(), 60)
+
+                await poller._check_quiet_hours_end()
+
+                bot.send_message.assert_not_awaited()
+                self.assertFalse(await db.has_deferred_reports(channel_id))
+            finally:
+                await db.close()
+
     async def test_deferred_negative_group_destination_moves_to_private_recipient(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))
@@ -2955,20 +3594,33 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await db.close()
 
-    async def test_registered_channel_is_allowed_only_for_special_flow(self) -> None:
+    async def test_registered_channel_requires_explicit_enabled_flow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             db = Database(os.path.join(directory, "test.db"))
             await db.connect()
             try:
                 channel_id = -100456
                 await db.register_telegram_channel(channel_id, "News")
+                await db.add_channel(channel_id, "channel")
 
+                self.assertFalse(
+                    await validate_report_destination(
+                        db,
+                        channel_id,
+                        source_chat_id=channel_id,
+                        telegram_channel_login="channel",
+                        operation="test",
+                    )
+                )
+                await db.set_channel_report_enabled(
+                    channel_id, "channel", True
+                )
                 self.assertTrue(
                     await validate_report_destination(
                         db,
                         channel_id,
                         source_chat_id=channel_id,
-                        allow_telegram_channel=True,
+                        telegram_channel_login="channel",
                         operation="test",
                     )
                 )
@@ -2977,7 +3629,6 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
                         db,
                         channel_id,
                         source_chat_id=channel_id,
-                        allow_telegram_channel=False,
                         operation="test",
                     )
                 )
@@ -2994,7 +3645,7 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
                         db,
                         -100456,
                         source_chat_id=-100456,
-                        allow_telegram_channel=True,
+                        telegram_channel_login="channel",
                         operation="test",
                     )
                 )
@@ -3648,7 +4299,7 @@ class TelegramChannelRegistryRemovalTests(unittest.IsolatedAsyncioTestCase):
                         db,
                         channel_id,
                         source_chat_id=channel_id,
-                        allow_telegram_channel=True,
+                        telegram_channel_login="channel",
                         operation="test",
                     )
                 )
@@ -5610,6 +6261,9 @@ class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
                 channel_id = -100456
                 await db.register_telegram_channel(channel_id, "Old channel")
                 await db.add_channel(channel_id, "channel")
+                await db.set_channel_report_enabled(
+                    channel_id, "channel", True
+                )
                 delivery = await db.create_report_delivery(
                     channel_id,
                     "channel",
