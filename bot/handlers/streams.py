@@ -27,6 +27,11 @@ import aiohttp
 
 from ..config import Config
 from ..database import Database
+from ..deep_links import (
+    TRACK_START_PREFIX,
+    TWITCH_LOGIN_RE,
+    parse_track_start_payload,
+)
 from ..follow_listener import FollowEventListener
 from ..logging_utils import mask_chat_id
 from ..oauth import (
@@ -55,7 +60,7 @@ REPORT_RETENTION_SECONDS = 24 * 60 * 60
 
 router = Router(name="streams")
 
-LOGIN_RE = re.compile(r"^[a-zA-Z0-9_]{4,25}$")
+LOGIN_RE = TWITCH_LOGIN_RE
 
 # защита от злоупотребления: сколько каналов может отслеживать один чат
 MAX_CHANNELS_PER_CHAT = 50
@@ -82,7 +87,7 @@ class QuietHoursSetup(StatesGroup):
 def _extract_login_text(text: str) -> str | None:
     login = text.strip().lower()
     login = login.removeprefix("https://twitch.tv/").removeprefix("twitch.tv/").strip("/ ")
-    if not LOGIN_RE.match(login):
+    if not LOGIN_RE.fullmatch(login):
         return None
     return login
 
@@ -94,7 +99,7 @@ def _extract_login(command: CommandObject) -> str | None:
 
 
 def _is_valid_login(value: str) -> bool:
-    return bool(LOGIN_RE.match(value))
+    return bool(LOGIN_RE.fullmatch(value))
 
 
 def _parse_chat_and_login(data: str) -> tuple[int, str] | None:
@@ -408,11 +413,62 @@ ABOUT_TEXT = (
 
 
 @router.message(CommandStart(deep_link=True))
-async def cmd_start_link(message: Message, command: CommandObject, state: FSMContext, db: Database) -> None:
+async def cmd_start_link(
+    message: Message,
+    command: CommandObject,
+    state: FSMContext,
+    db: Database,
+    twitch: TwitchClient,
+) -> None:
     if message.chat.type == ChatType.PRIVATE:
         await db.mark_known_private_user(message.chat.id)
 
     payload = command.args or ""
+    if payload.startswith(TRACK_START_PREFIX):
+        if (
+            message.chat.type != ChatType.PRIVATE
+            or not await _message_can_manage_chat(message)
+        ):
+            await cmd_start(message, state, db)
+            return
+
+        await state.clear()
+        login = parse_track_start_payload(payload)
+        if login is None:
+            await message.answer(
+                "Не удалось прочитать ссылку подключения. Открой актуальную ссылку "
+                "из live-поста ещё раз.",
+                reply_markup=_main_menu_keyboard(message.chat.type),
+            )
+            return
+
+        result, _ = await _add_validated_tracking(message.chat.id, login, db, twitch)
+        if result == _TRACK_CREATED:
+            text = (
+                f"✅ Уведомления о стримах {login} подключены.\n\n"
+                "Теперь я сообщу тебе, когда он выйдет в эфир."
+            )
+        elif result == _TRACK_ALREADY:
+            text = f"🔔 Уведомления о {login} уже подключены."
+        elif result == _TRACK_LIMIT:
+            text = (
+                f"В личном чате уже отслеживается максимум каналов "
+                f"({MAX_CHANNELS_PER_CHAT}). Удали ненужный через «Мои каналы» "
+                "и открой ссылку снова."
+            )
+        elif result == _TRACK_NOT_FOUND:
+            text = (
+                "Не удалось найти этот Twitch-канал. Возможно, он переименован "
+                "или удалён."
+            )
+        else:
+            text = (
+                "Twitch временно не отвечает. Ничего не добавлено — попробуй "
+                "открыть ссылку чуть позже."
+            )
+        await message.answer(text, reply_markup=_main_menu_keyboard(message.chat.type))
+        return
+
     if payload.startswith("link_") and message.chat.type == ChatType.PRIVATE:
         try:
             source_chat_id = int(payload.removeprefix("link_"))
@@ -1742,6 +1798,47 @@ async def _offer_search_results(
     )
 
 
+_TRACK_CREATED = "created"
+_TRACK_ALREADY = "already"
+_TRACK_LIMIT = "limit"
+_TRACK_NOT_FOUND = "not_found"
+_TRACK_TEMPORARY_ERROR = "temporary_error"
+
+
+async def _add_validated_tracking(
+    chat_id: int,
+    login: str,
+    db: Database,
+    twitch: TwitchClient,
+) -> tuple[str, bool]:
+    """Общий add-flow для /track, menu:add и /start track_*.
+
+    Возвращает (result, is_first_channel). Проверка duplicate идёт до лимита и
+    Twitch API, поэтому повторный deep-link идемпотентен даже в заполненном списке.
+    """
+    if not _is_valid_login(login):
+        return _TRACK_NOT_FOUND, False
+
+    tracked = await db.list_channels(chat_id)
+    if login in tracked:
+        return _TRACK_ALREADY, False
+    if len(tracked) >= MAX_CHANNELS_PER_CHAT:
+        return _TRACK_LIMIT, False
+
+    try:
+        exists = await twitch.channel_exists(login)
+    except Exception:
+        logger.exception("Не удалось проверить Twitch-канал %s", login)
+        return _TRACK_TEMPORARY_ERROR, False
+    if not exists:
+        return _TRACK_NOT_FOUND, False
+
+    result = await db.add_channel_with_limit(
+        chat_id, login, MAX_CHANNELS_PER_CHAT
+    )
+    return result, not tracked if result == _TRACK_CREATED else False
+
+
 # сколько логинов показать в предпросмотре перед импортом, чтобы не упереться
 # в лимит длины сообщения Telegram на аккаунтах с сотнями подписок
 IMPORT_PREVIEW_LIMIT = 30
@@ -1919,9 +2016,12 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
 
     added = 0
     for login in logins:
-        if await db.count_channels(current_chat_id) >= MAX_CHANNELS_PER_CHAT:
+        result = await db.add_channel_with_limit(
+            current_chat_id, login, MAX_CHANNELS_PER_CHAT
+        )
+        if result == _TRACK_LIMIT:
             break
-        if await db.add_channel(current_chat_id, login):
+        if result == _TRACK_CREATED:
             added += 1
 
     _, keyboard = await _render_channels_list(current_chat_id, db)
@@ -1946,15 +2046,17 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
         return
 
     await state.clear()
-    if await db.count_channels(target_chat_id) >= MAX_CHANNELS_PER_CHAT:
+    had_channels_before = await db.count_channels(target_chat_id) > 0
+    result = await db.add_channel_with_limit(
+        target_chat_id, login, MAX_CHANNELS_PER_CHAT
+    )
+    if result == _TRACK_LIMIT:
         await callback.answer(
             f"В этом чате уже максимум каналов ({MAX_CHANNELS_PER_CHAT}).", show_alert=True
         )
         return
 
-    had_channels_before = await db.count_channels(target_chat_id) > 0
-    added = await db.add_channel(target_chat_id, login)
-    if added:
+    if result == _TRACK_CREATED:
         text = await _added_channel_summary(
             callback.message,
             db,
@@ -1991,11 +2093,24 @@ async def process_login_input(
     login = _extract_login_text(query)
     # текст не похож на логин (например, кириллица) либо такого логина нет —
     # не отфутболиваем, а ищем канал по имени через Twitch и предлагаем варианты
-    if login is None or not await twitch.channel_exists(login):
+    if login is None:
         await _offer_search_results(message, query, target_chat_id, twitch, back_keyboard)
         return
 
-    if await db.count_channels(target_chat_id) >= MAX_CHANNELS_PER_CHAT:
+    result, is_first_channel = await _add_validated_tracking(
+        target_chat_id, login, db, twitch
+    )
+    if result == _TRACK_NOT_FOUND:
+        await _offer_search_results(message, query, target_chat_id, twitch, back_keyboard)
+        return
+    if result == _TRACK_TEMPORARY_ERROR:
+        await message.answer(
+            "Не получилось проверить канал на Twitch. Ничего не добавлено — "
+            "попробуй ещё раз чуть позже.",
+            reply_markup=back_keyboard,
+        )
+        return
+    if result == _TRACK_LIMIT:
         await state.clear()
         await message.answer(
             f"В этом чате уже отслеживается максимум каналов ({MAX_CHANNELS_PER_CHAT}). "
@@ -2004,16 +2119,14 @@ async def process_login_input(
         )
         return
 
-    had_channels_before = await db.count_channels(target_chat_id) > 0
-    added = await db.add_channel(target_chat_id, login)
     await state.clear()
 
-    if added:
+    if result == _TRACK_CREATED:
         text = await _added_channel_summary(
             message,
             db,
             login,
-            is_first_channel=not had_channels_before,
+            is_first_channel=is_first_channel,
             target_chat_id=target_chat_id,
         )
     else:
@@ -2048,25 +2161,35 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
 
     login = _extract_login(command)
     # имя вместо логина или опечатка — предлагаем найденное вместо сухого отказа
-    if login is None or not await twitch.channel_exists(login):
+    if login is None:
         await _offer_search_results(message, query, message.chat.id, twitch, _back_keyboard())
         return
 
-    if await db.count_channels(message.chat.id) >= MAX_CHANNELS_PER_CHAT:
+    result, is_first_channel = await _add_validated_tracking(
+        message.chat.id, login, db, twitch
+    )
+    if result == _TRACK_NOT_FOUND:
+        await _offer_search_results(message, query, message.chat.id, twitch, _back_keyboard())
+        return
+    if result == _TRACK_TEMPORARY_ERROR:
+        await message.answer(
+            "Не получилось проверить канал на Twitch. Ничего не добавлено — "
+            "попробуй ещё раз чуть позже."
+        )
+        return
+    if result == _TRACK_LIMIT:
         await message.answer(
             f"В этом чате уже отслеживается максимум каналов ({MAX_CHANNELS_PER_CHAT}). "
             "Удали ненужный через /untrack или кнопку «Мои каналы», прежде чем добавлять новый."
         )
         return
 
-    had_channels_before = await db.count_channels(message.chat.id) > 0
-    added = await db.add_channel(message.chat.id, login)
-    if added:
+    if result == _TRACK_CREATED:
         text = await _added_channel_summary(
             message,
             db,
             login,
-            is_first_channel=not had_channels_before,
+            is_first_channel=is_first_channel,
             target_chat_id=message.chat.id,
         )
     else:

@@ -635,6 +635,41 @@ class Database:
             return False
 
     @_serialized
+    async def add_channel_with_limit(
+        self, chat_id: int, twitch_login: str, max_channels: int
+    ) -> str:
+        """Атомарно добавляет канал с per-chat лимитом.
+
+        Возвращает ``created``, ``already`` или ``limit``. Повторная проверка под
+        общей write-lock обязательна: между предварительной Twitch-валидацией двух
+        параллельных запросов оба могли увидеть 49 строк и иначе создать 51-ю.
+        """
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        if await cursor.fetchone() is not None:
+            return "already"
+
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM tracked_channels WHERE chat_id = ?", (chat_id,)
+        )
+        row = await cursor.fetchone()
+        if row is not None and row[0] >= max_channels:
+            return "limit"
+
+        try:
+            await self.conn.execute(
+                "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
+                (chat_id, twitch_login),
+            )
+            await self.conn.commit()
+            return "created"
+        except aiosqlite.IntegrityError:
+            await self.conn.rollback()
+            return "already"
+
+    @_serialized
     async def remove_channel(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
             "DELETE FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",

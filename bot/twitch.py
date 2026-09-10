@@ -335,7 +335,12 @@ class TwitchClient:
 
     async def channel_exists(self, login: str) -> bool:
         data = await self._request(USERS_URL, [("login", login)])
-        return len(data.get("data", [])) > 0
+        items = data.get("data")
+        if not isinstance(items, list):
+            raise TwitchTemporaryError(
+                "Twitch users endpoint вернул некорректный ответ"
+            )
+        return len(items) > 0
 
     async def get_existing_logins(self, logins: list[str]) -> set[str]:
         """Вернёт подмножество logins, реально существующих на Twitch (не забанены/не

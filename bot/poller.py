@@ -19,6 +19,7 @@ from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboar
 
 from .chat_listener import ChatListener
 from .database import Database, ReportDelivery, StreamHistoryRecord
+from .deep_links import build_track_deep_link
 from .logging_utils import mask_chat_id
 from .report import build_report_html
 from .report_delivery import validate_report_destination
@@ -726,6 +727,7 @@ class StreamPoller:
         chats_by_login, states = await self._db.snapshot_tracked_state()
         if not chats_by_login:
             return
+        telegram_channel_ids = await self._db.telegram_channel_ids()
         last_stream_ends = await self._db.snapshot_last_stream_ends()
         logins = list(chats_by_login)
         live_streams = await self._twitch.get_live_streams(logins)
@@ -736,6 +738,7 @@ class StreamPoller:
             chat_ids = chats_by_login[login]
             stream = live_streams.get(login)
             for chat_id in chat_ids:
+                include_track_link = chat_id in telegram_channel_ids
                 (
                     was_live,
                     last_stream_id,
@@ -851,6 +854,7 @@ class StreamPoller:
                         edited = await self._edit(
                             chat_id, last_message_id, login, title, stream.viewer_count,
                             game_name, return_note,
+                            include_track_link=include_track_link,
                         )
                         if edited:
                             message_id = last_message_id
@@ -864,6 +868,7 @@ class StreamPoller:
                             message_id = await self._notify(
                                 chat_id, login, title, stream.viewer_count, game_name, return_note,
                                 silent=True,
+                                include_track_link=include_track_link,
                             )
                     elif continuing_session:
                         # Пост уже штатно удалён после 5 минут offline. Возвращаем карточку,
@@ -871,6 +876,7 @@ class StreamPoller:
                         message_id = await self._notify(
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             silent=True,
+                            include_track_link=include_track_link,
                         )
                     else:
                         if last_message_id is not None:
@@ -894,7 +900,8 @@ class StreamPoller:
                             # новый набор статистики.
                             await self._db.clear_message(chat_id, login)
                         message_id = await self._notify(
-                            chat_id, login, title, stream.viewer_count, game_name, return_note
+                            chat_id, login, title, stream.viewer_count, game_name, return_note,
+                            include_track_link=include_track_link,
                         )
 
                     # при reconnect держим прежний stream_id как идентификатор
@@ -1655,6 +1662,8 @@ class StreamPoller:
         game_name: str | None,
         viewer_count: int,
         return_note: str | None,
+        *,
+        include_track_link: bool = False,
     ) -> str:
         channel_name = await self._channel_display_name(login)
         template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
@@ -1675,6 +1684,12 @@ class StreamPoller:
         )
         if return_note:
             text += f"\n\n{return_note}"
+        if include_track_link:
+            subscribe_url = html.escape(build_track_deep_link(login), quote=True)
+            text += (
+                f'\n\n🔔 <a href="{subscribe_url}">'
+                "Подключить уведомления</a>"
+            )
         return text
 
     async def _notify(
@@ -1687,8 +1702,12 @@ class StreamPoller:
         return_note: str | None = None,
         *,
         silent: bool = False,
+        include_track_link: bool = False,
     ) -> int | None:
-        text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
+        text = await self._build_live_text(
+            login, title, game_name, viewer_count, return_note,
+            include_track_link=include_track_link,
+        )
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
             lambda: self._bot.send_message(
@@ -1713,11 +1732,16 @@ class StreamPoller:
         viewer_count: int,
         game_name: str | None = None,
         return_note: str | None = None,
+        *,
+        include_track_link: bool = False,
     ) -> bool:
         """Возвращает False, если сообщение нельзя отредактировать как текст
         (например, старый пост — фото из прошлой версии бота) — в этом случае
         вызывающий код должен пересоздать пост заново."""
-        text = await self._build_live_text(login, title, game_name, viewer_count, return_note)
+        text = await self._build_live_text(
+            login, title, game_name, viewer_count, return_note,
+            include_track_link=include_track_link,
+        )
         keyboard = await self._build_keyboard(login)
         try:
             await self._bot.edit_message_text(

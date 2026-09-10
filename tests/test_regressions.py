@@ -46,6 +46,7 @@ os.environ.update(
 
 import aiohttp
 from cryptography.fernet import Fernet
+from aiogram.enums import ChatType
 from aiogram.exceptions import (
     TelegramForbiddenError,
     TelegramNetworkError,
@@ -57,8 +58,14 @@ import main as main_module
 from bot.chat_listener import ChatListener
 from bot.config import ConfigError, load_config
 from bot.database import Database, DatabaseConfigurationError
+from bot.deep_links import (
+    TRACK_START_PREFIX,
+    build_track_deep_link,
+    parse_track_start_payload,
+)
 from bot.follow_listener import FollowEventListener
 from bot.handlers.streams import (
+    MAX_CHANNELS_PER_CHAT,
     TWITCH_CUSTOM_EMOJI_ID,
     _build_live_list,
     _build_health_text,
@@ -67,10 +74,14 @@ from bot.handlers.streams import (
     _format_viewers,
     _message_can_manage_chat,
     _run_import_follows,
+    cb_add_found_channel,
+    cb_import_follows_add,
     cb_quiet_digest_response,
     cb_toggle_channel_report,
     cmd_health,
     cmd_report,
+    cmd_start_link,
+    cmd_track,
 )
 from bot.oauth import (
     HEALTH_PATH,
@@ -6305,6 +6316,521 @@ class TelegramChannelRegistryTests(unittest.IsolatedAsyncioTestCase):
                 bot.send_document.assert_not_awaited()
             finally:
                 await db.close()
+
+
+class TrackDeepLinkValueTests(unittest.TestCase):
+    def test_deep_link_url_is_exact(self) -> None:
+        self.assertEqual(
+            build_track_deep_link("paverpapa"),
+            "https://t.me/twitchSignalBot?start=track_paverpapa",
+        )
+
+    def test_deep_link_normalizes_uppercase_login(self) -> None:
+        self.assertEqual(
+            build_track_deep_link("PaverPapa"),
+            "https://t.me/twitchSignalBot?start=track_paverpapa",
+        )
+
+    def test_deep_link_builder_rejects_untrusted_login(self) -> None:
+        for login in ("bad!login", "abc", "a" * 26, "name&amp;admin", "validname\n"):
+            with self.subTest(login=login):
+                with self.assertRaises(ValueError):
+                    build_track_deep_link(login)
+
+    def test_start_payload_parser_is_strict_and_bounded(self) -> None:
+        self.assertEqual(parse_track_start_payload("track_PaverPapa"), "paverpapa")
+        for payload in (
+            "track_invalid!!!",
+            "track_abc",
+            "track_" + "a" * 26,
+            "track_https://twitch.tv/paverpapa",
+            "track_validname\n",
+            "other_paverpapa",
+        ):
+            with self.subTest(payload=payload):
+                self.assertIsNone(parse_track_start_payload(payload))
+
+
+class TwitchChannelValidationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_data_field_is_temporary_instead_of_false_not_found(self) -> None:
+        client = TwitchClient("client", "secret", SimpleNamespace())
+        client._request = AsyncMock(return_value={})
+
+        with self.assertRaises(TwitchTemporaryError):
+            await client.channel_exists("paverpapa")
+
+    async def test_valid_empty_users_response_means_channel_not_found(self) -> None:
+        client = TwitchClient("client", "secret", SimpleNamespace())
+        client._request = AsyncMock(return_value={"data": []})
+
+        self.assertFalse(await client.channel_exists("paverpapa"))
+
+
+class TelegramChannelLiveDeepLinkTests(unittest.IsolatedAsyncioTestCase):
+    LINK = (
+        '🔔 <a href="https://t.me/twitchSignalBot?start=track_paverpapa">'
+        "Подключить уведомления</a>"
+    )
+
+    async def asyncSetUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.db = Database(os.path.join(self._directory.name, "live-link.db"))
+        await self.db.connect()
+        self.telegram = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=701)),
+            edit_message_text=AsyncMock(),
+            delete_message=AsyncMock(),
+        )
+        self.twitch = SimpleNamespace(get_live_streams=AsyncMock(return_value={}))
+        self.poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+        self.poller._maybe_snapshot_followers = AsyncMock()
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self._directory.cleanup()
+
+    @staticmethod
+    def _live(
+        stream_id: str = "live-1",
+        *,
+        title: str = "Test stream",
+        game_name: str = "Test game",
+        viewers: int = 25,
+    ) -> StreamInfo:
+        return StreamInfo(
+            user_login="paverpapa",
+            stream_id=stream_id,
+            title=title,
+            game_name=game_name,
+            viewer_count=viewers,
+            started_at="2026-01-01T00:00:00Z",
+        )
+
+    async def _run_initial(
+        self,
+        chat_id: int,
+        *,
+        registered_channel: bool,
+        stream: StreamInfo | None = None,
+    ):
+        await self.db.add_channel(chat_id, "paverpapa")
+        if registered_channel:
+            await self.db.register_telegram_channel(chat_id, "Test channel")
+        self.twitch.get_live_streams.return_value = {
+            "paverpapa": stream or self._live()
+        }
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+        return self.telegram.send_message.await_args
+
+    async def test_registered_channel_initial_post_has_exact_final_link(self) -> None:
+        sent = await self._run_initial(-100100, registered_channel=True)
+
+        self.assertEqual(sent.args[0], -100100)
+        self.assertTrue(sent.args[1].endswith(self.LINK))
+        self.assertEqual(sent.args[1].count("Подключить уведомления"), 1)
+
+    async def test_ordinary_group_initial_post_has_no_subscribe_link(self) -> None:
+        sent = await self._run_initial(-100200, registered_channel=False)
+
+        self.assertNotIn("Подключить уведомления", sent.args[1])
+        self.assertNotIn("start=track_", sent.args[1])
+
+    async def test_private_initial_post_has_no_subscribe_link(self) -> None:
+        sent = await self._run_initial(200, registered_channel=False)
+
+        self.assertNotIn("Подключить уведомления", sent.args[1])
+        self.assertNotIn("start=track_", sent.args[1])
+
+    async def test_main_twitch_button_remains_the_only_inline_button(self) -> None:
+        sent = await self._run_initial(-100300, registered_channel=True)
+
+        keyboard = sent.kwargs["reply_markup"]
+        self.assertEqual(len(keyboard.inline_keyboard), 1)
+        self.assertEqual(len(keyboard.inline_keyboard[0]), 1)
+        button = keyboard.inline_keyboard[0][0]
+        self.assertEqual(button.text, "Смотреть на Twitch")
+        self.assertEqual(button.url, "https://twitch.tv/paverpapa")
+
+    async def test_same_stream_edit_preserves_channel_subscribe_link(self) -> None:
+        await self._run_initial(-100400, registered_channel=True)
+        self.telegram.edit_message_text.reset_mock()
+        self.twitch.get_live_streams.return_value = {
+            "paverpapa": self._live(title="Updated title", viewers=99)
+        }
+
+        with patch("bot.poller.time.time", return_value=1060.0):
+            await self.poller._check_streams()
+
+        edited = self.telegram.edit_message_text.await_args
+        self.assertIn("Updated title", edited.args[0])
+        self.assertTrue(edited.args[0].endswith(self.LINK))
+        self.assertEqual(edited.kwargs["message_id"], 701)
+
+    async def test_reconnect_silent_replacement_preserves_channel_link(self) -> None:
+        await self._run_initial(-100500, registered_channel=True)
+        self.twitch.get_live_streams.return_value = {}
+        with patch("bot.poller.time.time", return_value=1060.0):
+            await self.poller._check_streams()
+        await self.db.clear_live_message(-100500, "paverpapa")
+        self.telegram.send_message.reset_mock()
+        self.twitch.get_live_streams.return_value = {
+            "paverpapa": self._live("twitch-reconnect", viewers=42)
+        }
+
+        with patch("bot.poller.time.time", return_value=1120.0):
+            await self.poller._check_streams()
+
+        sent = self.telegram.send_message.await_args
+        self.assertTrue(sent.kwargs["disable_notification"])
+        self.assertTrue(sent.args[1].endswith(self.LINK))
+        state = await self.db.get_live_state(-100500, "paverpapa")
+        self.assertEqual(state[1], "live-1")
+
+    async def test_channel_no_game_template_keeps_subscribe_link(self) -> None:
+        sent = await self._run_initial(
+            -100600,
+            registered_channel=True,
+            stream=self._live(game_name=""),
+        )
+
+        self.assertNotIn("🎮", sent.args[1])
+        self.assertTrue(sent.args[1].endswith(self.LINK))
+
+    async def test_live_html_is_escaped_without_breaking_subscribe_href(self) -> None:
+        await self.db.set_display_name("paverpapa", 'Paver <Papa> & "friends"')
+
+        text = await self.poller._build_live_text(
+            "paverpapa",
+            'Title <tag> & "quote"',
+            'Game <mode> & "more"',
+            123,
+            None,
+            include_track_link=True,
+        )
+
+        self.assertIn("Paver &lt;Papa&gt; &amp; &quot;friends&quot;", text)
+        self.assertIn("Title &lt;tag&gt; &amp; &quot;quote&quot;", text)
+        self.assertIn("Game &lt;mode&gt; &amp; &quot;more&quot;", text)
+        self.assertTrue(text.endswith(self.LINK))
+        self.assertEqual(text.count("https://t.me/twitchSignalBot?start=track_paverpapa"), 1)
+
+    async def test_channel_registry_snapshot_does_not_confuse_negative_group_id(self) -> None:
+        channel_id = -100701
+        group_id = -100702
+        for chat_id in (channel_id, group_id):
+            await self.db.add_channel(chat_id, "paverpapa")
+        await self.db.register_telegram_channel(channel_id, "Registered")
+        self.twitch.get_live_streams.return_value = {"paverpapa": self._live()}
+
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+
+        sent_by_chat = {
+            item.args[0]: item.args[1]
+            for item in self.telegram.send_message.await_args_list
+        }
+        self.assertTrue(sent_by_chat[channel_id].endswith(self.LINK))
+        self.assertNotIn("Подключить уведомления", sent_by_chat[group_id])
+
+
+class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.db = Database(os.path.join(self._directory.name, "track-link.db"))
+        await self.db.connect()
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self._directory.cleanup()
+
+    @staticmethod
+    def _message(
+        chat_id: int,
+        chat_type: ChatType = ChatType.PRIVATE,
+        *,
+        user_id: int | None = None,
+    ) -> SimpleNamespace:
+        sender_id = chat_id if user_id is None else user_id
+        return SimpleNamespace(
+            chat=SimpleNamespace(id=chat_id, type=chat_type),
+            from_user=SimpleNamespace(id=sender_id),
+            sender_chat=None,
+            answer=AsyncMock(),
+            bot=SimpleNamespace(),
+        )
+
+    async def _start(
+        self,
+        payload: str,
+        *,
+        chat_id: int = 101,
+        chat_type: ChatType = ChatType.PRIVATE,
+        user_id: int | None = None,
+        twitch: SimpleNamespace | None = None,
+    ) -> tuple[SimpleNamespace, SimpleNamespace, SimpleNamespace]:
+        message = self._message(chat_id, chat_type, user_id=user_id)
+        state = SimpleNamespace(clear=AsyncMock())
+        twitch = twitch or SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        await cmd_start_link(
+            message,
+            SimpleNamespace(args=payload),
+            state,
+            self.db,
+            twitch,
+        )
+        return message, state, twitch
+
+    async def test_private_track_start_creates_exactly_one_personal_row(self) -> None:
+        message, state, twitch = await self._start("track_paverpapa")
+
+        self.assertEqual(await self.db.list_channels(101), ["paverpapa"])
+        self.assertIn("✅ Уведомления о стримах paverpapa подключены", message.answer.await_args.args[0])
+        state.clear.assert_awaited_once()
+        twitch.channel_exists.assert_awaited_once_with("paverpapa")
+
+    async def test_repeated_track_start_is_idempotent_and_reports_already(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        await self._start("track_paverpapa", twitch=twitch)
+        message, _state, _ = await self._start("track_paverpapa", twitch=twitch)
+
+        self.assertEqual(await self.db.list_channels(101), ["paverpapa"])
+        self.assertIn("уже подключены", message.answer.await_args.args[0])
+        self.assertEqual(twitch.channel_exists.await_count, 1)
+
+    async def test_user_a_tracking_is_not_added_to_user_b(self) -> None:
+        await self._start("track_paverpapa", chat_id=111)
+
+        self.assertEqual(await self.db.list_channels(111), ["paverpapa"])
+        self.assertEqual(await self.db.list_channels(222), [])
+
+    async def test_two_users_receive_independent_personal_tracking_rows(self) -> None:
+        await self._start("track_paverpapa", chat_id=111)
+        await self._start("track_paverpapa", chat_id=222)
+
+        self.assertEqual(await self.db.list_channels(111), ["paverpapa"])
+        self.assertEqual(await self.db.list_channels(222), ["paverpapa"])
+
+    async def test_source_telegram_channel_tracking_is_unchanged(self) -> None:
+        source_id = -100800
+        await self.db.register_telegram_channel(source_id, "Source")
+        await self.db.add_channel(source_id, "paverpapa")
+        await self.db.set_notify_enabled(source_id, "paverpapa", False)
+        before = await self.db.list_channels_with_routing(source_id)
+
+        await self._start("track_paverpapa", chat_id=333)
+
+        self.assertEqual(await self.db.list_channels_with_routing(source_id), before)
+        self.assertEqual(await self.db.list_channels(333), ["paverpapa"])
+
+    async def test_source_channel_report_off_remains_off(self) -> None:
+        source_id = -100801
+        await self.db.register_telegram_channel(source_id, "Source")
+        await self.db.add_channel(source_id, "paverpapa")
+
+        await self._start("track_paverpapa", chat_id=334)
+
+        self.assertFalse(await self.db.get_channel_report_enabled(source_id, "paverpapa"))
+
+    async def test_source_channel_report_on_remains_on(self) -> None:
+        source_id = -100802
+        await self.db.register_telegram_channel(source_id, "Source")
+        await self.db.add_channel(source_id, "paverpapa")
+        await self.db.set_channel_report_enabled(source_id, "paverpapa", True)
+
+        await self._start("track_paverpapa", chat_id=335)
+
+        self.assertTrue(await self.db.get_channel_report_enabled(source_id, "paverpapa"))
+
+    async def test_invalid_login_payload_never_calls_twitch_or_inserts(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, _state, _ = await self._start("track_invalid!!!", twitch=twitch)
+
+        self.assertEqual(await self.db.list_channels(101), [])
+        twitch.channel_exists.assert_not_awaited()
+        self.assertIn("Не удалось прочитать ссылку", message.answer.await_args.args[0])
+
+    async def test_oversized_payload_never_calls_twitch_or_inserts(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, _state, _ = await self._start(
+            TRACK_START_PREFIX + "a" * 59,
+            twitch=twitch,
+        )
+
+        self.assertEqual(await self.db.list_channels(101), [])
+        twitch.channel_exists.assert_not_awaited()
+        self.assertIn("Не удалось прочитать ссылку", message.answer.await_args.args[0])
+
+    async def test_missing_twitch_channel_is_not_inserted(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=False))
+        message, _state, _ = await self._start("track_ghost_user", twitch=twitch)
+
+        self.assertEqual(await self.db.list_channels(101), [])
+        self.assertIn("переименован или удалён", message.answer.await_args.args[0])
+
+    async def test_temporary_twitch_error_is_not_reported_as_not_found(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(side_effect=TimeoutError("offline")))
+        message, _state, _ = await self._start("track_paverpapa", twitch=twitch)
+
+        text = message.answer.await_args.args[0]
+        self.assertEqual(await self.db.list_channels(101), [])
+        self.assertIn("Twitch временно не отвечает", text)
+        self.assertNotIn("переименован или удалён", text)
+
+    async def test_max_channel_limit_blocks_the_fifty_first_row(self) -> None:
+        for index in range(MAX_CHANNELS_PER_CHAT):
+            await self.db.add_channel(101, f"user{index:04d}")
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, _state, _ = await self._start("track_overflow", twitch=twitch)
+
+        self.assertEqual(await self.db.count_channels(101), MAX_CHANNELS_PER_CHAT)
+        self.assertNotIn("overflow", await self.db.list_channels(101))
+        twitch.channel_exists.assert_not_awaited()
+        self.assertIn("максимум каналов", message.answer.await_args.args[0])
+
+    async def test_duplicate_at_limit_returns_already_before_limit_check(self) -> None:
+        for index in range(MAX_CHANNELS_PER_CHAT):
+            await self.db.add_channel(101, f"user{index:04d}")
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, _state, _ = await self._start("track_user0000", twitch=twitch)
+
+        self.assertEqual(await self.db.count_channels(101), MAX_CHANNELS_PER_CHAT)
+        twitch.channel_exists.assert_not_awaited()
+        self.assertIn("уже подключены", message.answer.await_args.args[0])
+
+    async def test_parallel_deep_links_cannot_create_the_fifty_first_row(self) -> None:
+        for index in range(MAX_CHANNELS_PER_CHAT - 1):
+            await self.db.add_channel(101, f"user{index:04d}")
+        both_validating = asyncio.Event()
+        arrivals = 0
+
+        async def channel_exists(_login: str) -> bool:
+            nonlocal arrivals
+            arrivals += 1
+            if arrivals == 2:
+                both_validating.set()
+            await both_validating.wait()
+            return True
+
+        twitch = SimpleNamespace(channel_exists=AsyncMock(side_effect=channel_exists))
+        results = await asyncio.gather(
+            self._start("track_raceone", twitch=twitch),
+            self._start("track_racetwo", twitch=twitch),
+        )
+
+        self.assertEqual(await self.db.count_channels(101), MAX_CHANNELS_PER_CHAT)
+        added = set(await self.db.list_channels(101)) & {"raceone", "racetwo"}
+        self.assertEqual(len(added), 1)
+        replies = [result[0].answer.await_args.args[0] for result in results]
+        self.assertEqual(sum("✅" in reply for reply in replies), 1)
+        self.assertEqual(sum("максимум каналов" in reply for reply in replies), 1)
+
+    async def test_non_private_start_does_not_add_group_tracking(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, state, _ = await self._start(
+            "track_paverpapa",
+            chat_id=-100900,
+            chat_type=ChatType.SUPERGROUP,
+            user_id=90,
+            twitch=twitch,
+        )
+
+        self.assertEqual(await self.db.list_channels(-100900), [])
+        self.assertFalse(await self.db.is_known_private_user(90))
+        twitch.channel_exists.assert_not_awaited()
+        state.clear.assert_awaited_once()
+        self.assertIn("Выбери действие", message.answer.await_args.args[0])
+
+    async def test_private_payload_cannot_target_a_different_user_chat(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        await self._start(
+            "track_paverpapa",
+            chat_id=777,
+            user_id=778,
+            twitch=twitch,
+        )
+
+        self.assertEqual(await self.db.list_channels(777), [])
+        twitch.channel_exists.assert_not_awaited()
+
+    async def test_forged_negative_chat_id_payload_cannot_choose_target(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        await self._start("track_-100901:paverpapa", chat_id=444, twitch=twitch)
+
+        self.assertEqual(await self.db.list_channels(444), [])
+        self.assertEqual(await self.db.list_channels(-100901), [])
+        twitch.channel_exists.assert_not_awaited()
+
+    async def test_unknown_start_prefix_falls_back_to_normal_start(self) -> None:
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        message, state, _ = await self._start("unknown_paverpapa", twitch=twitch)
+
+        self.assertEqual(await self.db.list_channels(101), [])
+        twitch.channel_exists.assert_not_awaited()
+        state.clear.assert_awaited_once()
+        self.assertIn("Выбери действие", message.answer.await_args.args[0])
+
+    async def test_deep_link_marks_user_as_known_private_user(self) -> None:
+        self.assertFalse(await self.db.is_known_private_user(555))
+
+        await self._start("track_paverpapa", chat_id=555)
+
+        self.assertTrue(await self.db.is_known_private_user(555))
+
+    async def test_regular_track_command_uses_the_same_validated_add_flow(self) -> None:
+        message = self._message(666)
+        twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+
+        await cmd_track(
+            message,
+            SimpleNamespace(args="PaverPapa"),
+            self.db,
+            twitch,
+        )
+
+        self.assertEqual(await self.db.list_channels(666), ["paverpapa"])
+        twitch.channel_exists.assert_awaited_once_with("paverpapa")
+
+    async def test_search_result_menu_add_uses_atomic_limited_insert(self) -> None:
+        for index in range(MAX_CHANNELS_PER_CHAT - 1):
+            await self.db.add_channel(101, f"user{index:04d}")
+        message = self._message(101)
+        message.edit_text = AsyncMock()
+        callback = SimpleNamespace(
+            data="addfound:101:paverpapa",
+            message=message,
+            from_user=SimpleNamespace(id=101),
+            bot=SimpleNamespace(),
+            answer=AsyncMock(),
+        )
+        state = SimpleNamespace(clear=AsyncMock())
+
+        await cb_add_found_channel(callback, state, self.db)
+
+        self.assertEqual(await self.db.count_channels(101), MAX_CHANNELS_PER_CHAT)
+        self.assertIn("paverpapa", await self.db.list_channels(101))
+        message.edit_text.assert_awaited_once()
+
+    async def test_import_menu_stops_atomically_at_channel_limit(self) -> None:
+        for index in range(MAX_CHANNELS_PER_CHAT - 1):
+            await self.db.add_channel(101, f"user{index:04d}")
+        message = self._message(101)
+        message.edit_text = AsyncMock()
+        callback = SimpleNamespace(
+            message=message,
+            answer=AsyncMock(),
+        )
+        state = SimpleNamespace(
+            get_data=AsyncMock(return_value={"import_logins": ["raceone", "racetwo"]}),
+            clear=AsyncMock(),
+        )
+
+        await cb_import_follows_add(callback, state, self.db)
+
+        self.assertEqual(await self.db.count_channels(101), MAX_CHANNELS_PER_CHAT)
+        added = set(await self.db.list_channels(101)) & {"raceone", "racetwo"}
+        self.assertEqual(len(added), 1)
+        self.assertIn("добавил каналов: 1", message.edit_text.await_args.args[0])
 
 
 if __name__ == "__main__":
