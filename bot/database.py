@@ -92,6 +92,17 @@ class StreamHistoryRecord:
     collab_json: str | None = None
 
 
+@dataclass(frozen=True)
+class LivePostState:
+    chat_id: int
+    twitch_login: str
+    logical_stream_id: str | None
+    message_id: int | None
+    message_kind: str
+    media_transition_pending: bool
+    preview_enabled: bool
+
+
 def _report_delivery_from_row(row: tuple) -> ReportDelivery:
     return ReportDelivery(
         source_chat_id=row[0],
@@ -142,6 +153,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     last_stream_id TEXT,
     last_message_id INTEGER,
     last_message_kind TEXT NOT NULL DEFAULT 'text',
+    media_transition_pending INTEGER NOT NULL DEFAULT 0,
     last_title TEXT,
     offline_since REAL,
     stream_started_at TEXT,
@@ -479,6 +491,7 @@ class Database:
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "preview_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
+                "media_transition_pending": "INTEGER NOT NULL DEFAULT 0",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
                 "report_format": "TEXT NOT NULL DEFAULT 'full'",
@@ -1284,6 +1297,144 @@ class Database:
             return False, None, None, None, None, None, None
         return bool(row[0]), row[1], row[2], row[3], row[4], row[5], row[6]
 
+    async def get_live_post_state(
+        self, chat_id: int, twitch_login: str
+    ) -> LivePostState | None:
+        cursor = await self.conn.execute(
+            "SELECT last_stream_id, last_message_id, last_message_kind, "
+            "media_transition_pending, preview_enabled "
+            "FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return LivePostState(
+            chat_id=chat_id,
+            twitch_login=twitch_login,
+            logical_stream_id=row[0],
+            message_id=row[1],
+            message_kind=row[2],
+            media_transition_pending=bool(row[3]),
+            preview_enabled=bool(row[4]),
+        )
+
+    @_serialized
+    async def begin_video_transition(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET media_transition_pending = 1 "
+            "WHERE chat_id = ? AND twitch_login = ? AND is_live = 1 "
+            "AND last_stream_id = ? AND last_message_id = ?",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    @_serialized
+    async def finish_video_transition(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        return await self._set_live_message_kind_if_current_unlocked(
+            chat_id,
+            twitch_login,
+            logical_stream_id,
+            message_id,
+            "video",
+            False,
+        )
+
+    @_serialized
+    async def clear_video_transition(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET media_transition_pending = 0 "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+            "AND last_message_id = ?",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    async def _set_live_message_kind_if_current_unlocked(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+        message_kind: str,
+        media_transition_pending: bool,
+    ) -> bool:
+        if message_kind not in {"text", "video"}:
+            raise ValueError(f"Unsupported live message kind: {message_kind!r}")
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET last_message_kind = ?, "
+            "media_transition_pending = ? "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+            "AND last_message_id = ?",
+            (
+                message_kind,
+                int(media_transition_pending),
+                chat_id,
+                twitch_login,
+                logical_stream_id,
+                message_id,
+            ),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    @_serialized
+    async def set_live_message_kind_if_current(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+        message_kind: str,
+        media_transition_pending: bool,
+    ) -> bool:
+        return await self._set_live_message_kind_if_current_unlocked(
+            chat_id,
+            twitch_login,
+            logical_stream_id,
+            message_id,
+            message_kind,
+            media_transition_pending,
+        )
+
+    @_serialized
+    async def clear_live_message_if_current(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET last_message_id = NULL, "
+            "last_message_kind = 'text', media_transition_pending = 0 "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+            "AND last_message_id = ?",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
     @_serialized
     async def set_live_state(
         self,
@@ -1306,8 +1457,15 @@ class Database:
         # тем, как record_viewer_sample успевает честно накопить в нём максимум за стрим.
         await self.conn.execute(
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
+            "last_message_kind = CASE "
+            "    WHEN ? IS NULL THEN 'text' "
+            "    WHEN last_message_id = ? THEN last_message_kind "
+            "    ELSE 'text' END, "
+            "media_transition_pending = CASE "
+            "    WHEN ? IS NULL THEN 0 "
+            "    WHEN last_message_id = ? THEN media_transition_pending "
+            "    ELSE 0 END, "
             "last_message_id = ?, "
-            "last_message_kind = CASE WHEN ? IS NULL THEN 'text' ELSE ? END, "
             "last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
             "last_seen_live_at = CASE "
@@ -1327,7 +1485,8 @@ class Database:
             "    THEN NULL ELSE followers_at_start END "
             "WHERE chat_id = ? AND twitch_login = ?",
             (
-                int(is_live), stream_id, message_id, message_id, message_kind,
+                int(is_live), stream_id,
+                message_id, message_id, message_id, message_id, message_id,
                 title, offline_since,
                 stream_started_at,
                 last_seen_live_at, last_seen_live_at, int(is_live), stream_id,
@@ -1655,7 +1814,8 @@ class Database:
     async def clear_live_message(self, chat_id: int, twitch_login: str) -> None:
         """Забывает только Telegram live-пост, сохраняя логическую Twitch-сессию."""
         await self.conn.execute(
-            "UPDATE tracked_channels SET last_message_id = NULL, last_message_kind = 'text' "
+            "UPDATE tracked_channels SET last_message_id = NULL, last_message_kind = 'text', "
+            "media_transition_pending = 0 "
             "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1672,6 +1832,7 @@ class Database:
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
             "peak_viewers = NULL, last_message_kind = 'text', "
+            "media_transition_pending = 0, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE chat_id = ? AND twitch_login = ? "
@@ -1691,6 +1852,7 @@ class Database:
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
             "peak_viewers = NULL, last_message_kind = 'text', "
+            "media_transition_pending = 0, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL"
@@ -1701,7 +1863,7 @@ class Database:
     async def clear_message(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, "
-            "last_message_kind = 'text', last_title = NULL, "
+            "last_message_kind = 'text', media_transition_pending = 0, last_title = NULL, "
             "last_stream_id = NULL, offline_since = NULL, "
             "stream_started_at = NULL, last_seen_live_at = NULL, peak_viewers = NULL, "
             "stats_sent = 0, "

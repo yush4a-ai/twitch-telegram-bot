@@ -27,6 +27,7 @@ from bot.config import ConfigError, is_railway_environment, load_config
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
+from bot.live_post import LivePostUpdater
 from bot.middlewares import setup_middlewares
 from bot.oauth import (
     REDIRECT_PATH,
@@ -240,6 +241,7 @@ async def main() -> None:
             token=config.telegram_bot_token,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
+        live_post_updater = LivePostUpdater(bot, db)
         await _with_startup_retry(
             lambda: _reconcile_telegram_channels(bot, db),
             "Проверка Telegram-каналов",
@@ -328,6 +330,7 @@ async def main() -> None:
                     chat_listener=chat_listener,
                     follow_listener=follow_listener,
                     owner_chat_id=config.owner_chat_id,
+                    live_post_updater=live_post_updater,
                 )
                 dp["poller"] = poller
                 poller_task = asyncio.create_task(poller.run())

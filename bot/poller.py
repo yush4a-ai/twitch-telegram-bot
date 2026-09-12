@@ -21,7 +21,12 @@ from .chat_listener import ChatListener
 from .database import Database, ReportDelivery, StreamHistoryRecord
 from .deep_links import build_track_deep_link
 from .logging_utils import mask_chat_id
-from .live_post import LivePostUpdater, LivePostUpdateResult
+from .live_post import (
+    LivePostContent,
+    LivePostTarget,
+    LivePostUpdater,
+    LivePostUpdateResult,
+)
 from .report import build_report_html
 from .report_delivery import validate_report_destination
 from .token_store import TokenStore
@@ -288,6 +293,7 @@ class StreamPoller:
         chat_listener: ChatListener | None = None,
         follow_listener: FollowEventListener | None = None,
         owner_chat_id: int | None = None,
+        live_post_updater: LivePostUpdater | None = None,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -306,7 +312,7 @@ class StreamPoller:
         self._last_cycle_error: str | None = None
         self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
-        self._live_post_updater = LivePostUpdater(bot)
+        self._live_post_updater = live_post_updater or LivePostUpdater(bot, db)
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -857,25 +863,33 @@ class StreamPoller:
                         message_id = last_message_id
                         message_kind = last_message_kind
                     elif continuing_session and last_message_id is not None:
-                        edited = await self._edit(
-                            chat_id, last_message_id, last_message_kind,
-                            login, title, stream.viewer_count,
+                        update_result = await self._edit(
+                            chat_id, last_message_id, login,
+                            last_stream_id or stream.stream_id,
+                            title, stream.viewer_count,
                             game_name, return_note,
                             include_track_link=include_track_link,
                         )
-                        if edited:
+                        if update_result is LivePostUpdateResult.STALE_TARGET:
+                            continue
+                        if (
+                            update_result is not False
+                            and update_result is not LivePostUpdateResult.REPLACE_REQUIRED
+                        ):
                             message_id = last_message_id
                             message_kind = last_message_kind
                         else:
                             # старый пост — фото (до перехода на текстовые сообщения),
                             # его нельзя отредактировать в текст; пересоздаём как текст
-                            try:
-                                await self._bot.delete_message(chat_id, last_message_id)
-                            except (TelegramForbiddenError, TelegramBadRequest):
-                                pass
-                            message_id = await self._notify(
-                                chat_id, login, title, stream.viewer_count, game_name, return_note,
-                                silent=True,
+                            message_id = await self._replace_live_post_if_current(
+                                chat_id,
+                                login,
+                                last_stream_id or stream.stream_id,
+                                last_message_id,
+                                title,
+                                stream.viewer_count,
+                                game_name,
+                                return_note,
                                 include_track_link=include_track_link,
                             )
                             message_kind = "text"
@@ -895,20 +909,37 @@ class StreamPoller:
                             # остаётся висеть навсегда, потому что is_live уже снова
                             # стало True и он больше не подпадает под условие
                             # pending_offline_posts()
-                            deleted = await self._tg_call(
-                                lambda: self._bot.delete_message(chat_id, last_message_id),
-                                f"Удаление прошлого поста {last_message_id} "
-                                f"в {mask_chat_id(chat_id)}",
-                                permanent_failure_is_success=True,
-                            )
-                            if deleted is _FAILED:
-                                # Не затираем идентификатор недоступного старого поста:
-                                # повторим переход к новой сессии в следующем poll.
-                                continue
-                            # В редком случае Twitch повторно использовал тот же id после
-                            # уже финализированной сессии, явная очистка всё равно гарантирует
-                            # новый набор статистики.
-                            await self._db.clear_message(chat_id, login)
+                            async with self._live_post_updater.serialized(
+                                chat_id, last_message_id
+                            ):
+                                current = await self._db.get_live_post_state(
+                                    chat_id, login
+                                )
+                                if (
+                                    current is None
+                                    or current.message_id != last_message_id
+                                    or current.logical_stream_id != last_stream_id
+                                ):
+                                    continue
+                                deleted = await self._tg_call(
+                                    lambda: self._bot.delete_message(
+                                        chat_id, last_message_id
+                                    ),
+                                    f"Удаление прошлого поста {last_message_id} "
+                                    f"в {mask_chat_id(chat_id)}",
+                                    permanent_failure_is_success=True,
+                                )
+                                if deleted is _FAILED:
+                                    # Не затираем идентификатор недоступного старого поста:
+                                    # повторим переход к новой сессии в следующем poll.
+                                    continue
+                                if not await self._db.clear_live_message_if_current(
+                                    chat_id,
+                                    login,
+                                    last_stream_id,
+                                    last_message_id,
+                                ):
+                                    continue
                         message_id = await self._notify(
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             include_track_link=include_track_link,
@@ -1068,17 +1099,44 @@ class StreamPoller:
         ) in await self._db.pending_offline_posts():
             if now - offline_since < OFFLINE_GRACE_SECONDS:
                 continue
-            deleted = await self._tg_call(
-                lambda: self._bot.delete_message(chat_id, message_id),
-                f"Удаление поста {message_id} в {mask_chat_id(chat_id)}",
-                permanent_failure_is_success=True,
-            )
-            # При временной ошибке сети/лимите Telegram сохраняем message_id, чтобы
-            # повторить удаление в следующем цикле, а не оставить пост навсегда.
-            if deleted is not _FAILED:
-                await self._db.clear_live_message(chat_id, login)
-                if stats_sent:
-                    await self._db.clear_finished_session(chat_id, login)
+            if not hasattr(self._db, "get_live_post_state"):
+                deleted = await self._tg_call(
+                    lambda: self._bot.delete_message(chat_id, message_id),
+                    f"Удаление поста {message_id} в {mask_chat_id(chat_id)}",
+                    permanent_failure_is_success=True,
+                )
+                if deleted is not _FAILED:
+                    await self._db.clear_live_message(chat_id, login)
+                    if stats_sent:
+                        await self._db.clear_finished_session(chat_id, login)
+                continue
+            state = await self._db.get_live_post_state(chat_id, login)
+            if state is None or state.logical_stream_id is None:
+                continue
+            async with self._live_post_updater.serialized(chat_id, message_id):
+                state = await self._db.get_live_post_state(chat_id, login)
+                if (
+                    state is None
+                    or state.message_id != message_id
+                    or state.logical_stream_id is None
+                ):
+                    continue
+                deleted = await self._tg_call(
+                    lambda: self._bot.delete_message(chat_id, message_id),
+                    f"Удаление поста {message_id} в {mask_chat_id(chat_id)}",
+                    permanent_failure_is_success=True,
+                )
+                # При временной ошибке сети/лимите Telegram сохраняем message_id, чтобы
+                # повторить удаление в следующем цикле, а не оставить пост навсегда.
+                if deleted is not _FAILED:
+                    cleared = await self._db.clear_live_message_if_current(
+                        chat_id,
+                        login,
+                        state.logical_stream_id,
+                        message_id,
+                    )
+                    if cleared and stats_sent:
+                        await self._db.clear_finished_session(chat_id, login)
 
     async def _send_pending_stats(self) -> None:
         now = time.time()
@@ -1740,28 +1798,91 @@ class StreamPoller:
         self,
         chat_id: int,
         message_id: int,
-        message_kind: str,
         login: str,
+        logical_stream_id: str,
         title: str,
         viewer_count: int,
         game_name: str | None = None,
         return_note: str | None = None,
         *,
         include_track_link: bool = False,
-    ) -> bool:
-        """Возвращает False, если сообщение нельзя отредактировать как текст
-        (например, старый пост — фото из прошлой версии бота) — в этом случае
-        вызывающий код должен пересоздать пост заново."""
-        text = await self._build_live_text(
-            login, title, game_name, viewer_count, return_note,
-            include_track_link=include_track_link,
+    ) -> LivePostUpdateResult:
+        """Обновляет current post и сохраняет типизированную lifecycle-семантику."""
+        return await self._live_post_updater.update_content(
+            target=LivePostTarget(
+                chat_id=chat_id,
+                twitch_login=login,
+                logical_stream_id=logical_stream_id,
+                message_id=message_id,
+            ),
+            build_content=lambda: self._live_post_content(
+                login,
+                title,
+                game_name,
+                viewer_count,
+                return_note,
+                include_track_link=include_track_link,
+            ),
         )
-        keyboard = await self._build_keyboard(login)
-        result = await self._live_post_updater.update(
-            chat_id=chat_id,
-            message_id=message_id,
-            message_kind=message_kind,
-            text=text,
-            reply_markup=keyboard,
+
+    async def _live_post_content(
+        self,
+        login: str,
+        title: str,
+        game_name: str | None,
+        viewer_count: int,
+        return_note: str | None,
+        *,
+        include_track_link: bool,
+    ) -> LivePostContent:
+        return LivePostContent(
+            html=await self._build_live_text(
+                login,
+                title,
+                game_name,
+                viewer_count,
+                return_note,
+                include_track_link=include_track_link,
+            ),
+            reply_markup=await self._build_keyboard(login),
         )
-        return result is not LivePostUpdateResult.REPLACE_REQUIRED
+
+    async def _replace_live_post_if_current(
+        self,
+        chat_id: int,
+        login: str,
+        logical_stream_id: str,
+        message_id: int,
+        title: str,
+        viewer_count: int,
+        game_name: str | None,
+        return_note: str | None,
+        *,
+        include_track_link: bool,
+    ) -> int | None:
+        async with self._live_post_updater.serialized(chat_id, message_id):
+            state = await self._db.get_live_post_state(chat_id, login)
+            if (
+                state is None
+                or state.logical_stream_id != logical_stream_id
+                or state.message_id != message_id
+            ):
+                return state.message_id if state is not None else None
+            try:
+                await self._bot.delete_message(chat_id, message_id)
+            except (TelegramForbiddenError, TelegramBadRequest):
+                pass
+            if not await self._db.clear_live_message_if_current(
+                chat_id, login, logical_stream_id, message_id
+            ):
+                return None
+            return await self._notify(
+                chat_id,
+                login,
+                title,
+                viewer_count,
+                game_name,
+                return_note,
+                silent=True,
+                include_track_link=include_track_link,
+            )
