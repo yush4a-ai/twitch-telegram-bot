@@ -18,7 +18,12 @@ from aiogram.exceptions import (
 from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 
 from .chat_listener import ChatListener
-from .database import Database, ReportDelivery, StreamHistoryRecord
+from .database import (
+    Database,
+    PreviewDestinationState,
+    ReportDelivery,
+    StreamHistoryRecord,
+)
 from .deep_links import build_track_deep_link
 from .logging_utils import mask_chat_id
 from .live_post import (
@@ -29,6 +34,7 @@ from .live_post import (
 )
 from .report import build_report_html
 from .report_delivery import validate_report_destination
+from .preview_runtime import PreviewObservation, PreviewObserver
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, TwitchClient
@@ -294,6 +300,7 @@ class StreamPoller:
         follow_listener: FollowEventListener | None = None,
         owner_chat_id: int | None = None,
         live_post_updater: LivePostUpdater | None = None,
+        preview_observer: PreviewObserver | None = None,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -313,6 +320,7 @@ class StreamPoller:
         self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
         self._live_post_updater = live_post_updater or LivePostUpdater(bot, db)
+        self._preview_observer = preview_observer
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -320,9 +328,12 @@ class StreamPoller:
     def stop(self) -> None:
         self._stop_event.set()
 
+    def set_preview_observer(self, observer: PreviewObserver | None) -> None:
+        self._preview_observer = observer
+
     def health_snapshot(self, now: float | None = None) -> dict[str, object]:
         snapshot_at = time.time() if now is None else now
-        return {
+        snapshot = {
             "running": self._running,
             "last_cycle_started_at": self._last_cycle_started_at,
             "last_successful_cycle_at": self._last_successful_cycle_at,
@@ -341,6 +352,18 @@ class StreamPoller:
             "uptime_seconds": max(0.0, snapshot_at - self._created_at),
             "stale_after_seconds": self._interval * 3,
         }
+        observer = self._preview_observer
+        if observer is not None and hasattr(observer, "health_snapshot"):
+            try:
+                snapshot["preview"] = observer.health_snapshot()
+            except Exception as error:
+                snapshot["preview"] = {
+                    "enabled": False,
+                    "manager_running": False,
+                    "disabled_reason": "health_error",
+                    "last_error": type(error).__name__,
+                }
+        return snapshot
 
     async def shutdown(self) -> None:
         """Гасит всё, что поллер запустил в фоне, до закрытия общей HTTP-сессии.
@@ -734,6 +757,7 @@ class StreamPoller:
         # три запроса на весь круг вместо нескольких на каждую пару «канал × чат»
         chats_by_login, states = await self._db.snapshot_tracked_state()
         if not chats_by_login:
+            self._publish_preview_observations(())
             return
         telegram_channel_ids = await self._db.telegram_channel_ids()
         last_stream_ends = await self._db.snapshot_last_stream_ends()
@@ -1017,6 +1041,35 @@ class StreamPoller:
                             peak_viewers=_peak_viewers,
                             message_kind=last_message_kind,
                         )
+
+        self._publish_preview_observations(
+            tuple(
+                PreviewObservation(
+                    twitch_login=login,
+                    online=(stream := live_streams.get(login)) is not None,
+                    physical_stream_id=stream.stream_id if stream is not None else None,
+                    title=(stream.title or "(без названия)") if stream is not None else "",
+                    game_name=(stream.game_name or None) if stream is not None else None,
+                    viewer_count=stream.viewer_count if stream is not None else 0,
+                    twitch_started_at=stream.started_at if stream is not None else None,
+                )
+                for login in logins
+            )
+        )
+
+    def _publish_preview_observations(
+        self, observations: tuple[PreviewObservation, ...]
+    ) -> None:
+        observer = self._preview_observer
+        if observer is None:
+            return
+        try:
+            observer.observe_cycle(observations)
+        except Exception as error:
+            logger.warning(
+                "Preview observer пропустил poll cycle: %s", type(error).__name__
+            )
+
     async def _finish_chat_collection(
         self, login: str, went_offline: list[tuple[int, str]],
     ) -> None:
@@ -1845,6 +1898,20 @@ class StreamPoller:
                 include_track_link=include_track_link,
             ),
             reply_markup=await self._build_keyboard(login),
+        )
+
+    async def build_preview_content(
+        self,
+        observation: PreviewObservation,
+        destination: PreviewDestinationState,
+    ) -> LivePostContent:
+        return await self._live_post_content(
+            observation.twitch_login,
+            observation.title,
+            observation.game_name,
+            observation.viewer_count,
+            _build_return_note(destination.last_stream_ended_at),
+            include_track_link=destination.include_track_link,
         )
 
     async def _replace_live_post_if_current(

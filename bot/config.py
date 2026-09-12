@@ -1,11 +1,19 @@
 import os
 import posixpath
+import logging
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+PREVIEW_INITIAL_DELAY_SECONDS = 75
+PREVIEW_INTERVAL_SECONDS = 300
+PREVIEW_MAX_CONCURRENT_JOBS = 1
+PREVIEW_JOB_TIMEOUT_SECONDS = 120
 
 
 class ConfigError(RuntimeError):
@@ -117,6 +125,71 @@ def _database_path(*, railway: bool) -> str:
 
 
 @dataclass(frozen=True)
+class PreviewRuntimeConfig:
+    enabled: bool = False
+    initial_delay_seconds: int = PREVIEW_INITIAL_DELAY_SECONDS
+    interval_seconds: int = PREVIEW_INTERVAL_SECONDS
+    max_concurrent_jobs: int = PREVIEW_MAX_CONCURRENT_JOBS
+    job_timeout_seconds: int = PREVIEW_JOB_TIMEOUT_SECONDS
+    disabled_reason: str | None = None
+
+
+def _preview_config() -> PreviewRuntimeConfig:
+    invalid_names: list[str] = []
+    raw_enabled = os.getenv("PREVIEW_RUNTIME_ENABLED", "false").strip().lower()
+    if raw_enabled in {"1", "true", "yes", "on"}:
+        enabled = True
+    elif raw_enabled in {"0", "false", "no", "off"}:
+        enabled = False
+    else:
+        enabled = False
+        invalid_names.append("PREVIEW_RUNTIME_ENABLED")
+
+    def positive(name: str, default: int) -> int:
+        raw = os.getenv(name)
+        if raw is None:
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            invalid_names.append(name)
+            return default
+        if value <= 0:
+            invalid_names.append(name)
+            return default
+        return value
+
+    config = PreviewRuntimeConfig(
+        enabled=enabled,
+        initial_delay_seconds=positive(
+            "PREVIEW_INITIAL_DELAY_SECONDS", PREVIEW_INITIAL_DELAY_SECONDS
+        ),
+        interval_seconds=positive("PREVIEW_INTERVAL_SECONDS", PREVIEW_INTERVAL_SECONDS),
+        max_concurrent_jobs=positive(
+            "PREVIEW_MAX_CONCURRENT_JOBS", PREVIEW_MAX_CONCURRENT_JOBS
+        ),
+        job_timeout_seconds=positive(
+            "PREVIEW_JOB_TIMEOUT_SECONDS", PREVIEW_JOB_TIMEOUT_SECONDS
+        ),
+        disabled_reason="config_error" if invalid_names else None,
+    )
+    if not invalid_names:
+        return config
+    logger.warning(
+        "Preview runtime отключён: некорректные переменные %s",
+        ", ".join(sorted(set(invalid_names))),
+    )
+    return PreviewRuntimeConfig(
+        enabled=False,
+        initial_delay_seconds=config.initial_delay_seconds,
+        interval_seconds=config.interval_seconds,
+        max_concurrent_jobs=config.max_concurrent_jobs,
+        job_timeout_seconds=config.job_timeout_seconds,
+        disabled_reason="config_error",
+    )
+
+
+@dataclass(frozen=True)
 class Config:
     telegram_bot_token: str
     twitch_client_id: str
@@ -131,6 +204,7 @@ class Config:
     # подписки, которые нужно завести при старте, — запасной путь на случай, когда
     # до меню бота не добраться (нет Telegram под рукой). Список (chat_id, логин)
     auto_track: tuple[tuple[int, str], ...]
+    preview: PreviewRuntimeConfig
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -182,4 +256,5 @@ def load_config() -> Config:
         oauth_public_base_url=public_url,
         token_encryption_key=token_encryption_key,
         auto_track=_parse_auto_track(os.getenv("AUTO_TRACK")),
+        preview=_preview_config(),
     )

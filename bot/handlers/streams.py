@@ -711,6 +711,24 @@ def _build_health_text(
     poller_state = "работает" if poller.get("running") else "остановлен"
     eventsub_state = "работает" if eventsub.get("running") else "остановлен"
     oauth_state = "работает" if oauth.get("runner_started") else "остановлен"
+    preview = poller.get("preview")
+    preview_block = ""
+    if isinstance(preview, dict):
+        preview_state = (
+            "работает"
+            if preview.get("enabled") and preview.get("manager_running")
+            else "отключён"
+        )
+        preview_block = (
+            "\n\n<b>Preview</b>\n"
+            f"Manager: <b>{preview_state}</b> · причина "
+            f"<code>{_health_error(preview.get('disabled_reason'))}</code>\n"
+            f"Сессий: <b>{_health_value(preview.get('active_sessions'))}</b> · "
+            f"jobs: <b>{_health_value(preview.get('active_jobs'))}</b>\n"
+            f"Observation: <b>{_health_age(preview.get('latest_observation_age_seconds'))}</b> · "
+            f"success: <b>{_health_age(preview.get('last_success_age_seconds'))}</b> · "
+            f"ошибка <code>{_health_error(preview.get('last_error'))}</code>"
+        )
 
     return (
         "🩺 <b>Состояние: " + ("DEGRADED" if degraded else "OK") + "</b>\n\n"
@@ -720,7 +738,8 @@ def _build_health_text(
         f"Twitch-чатов: <b>{_health_value(poller.get('active_chat_listeners'))}</b> · "
         f"фоновых задач: <b>{_health_value(poller.get('background_tasks'))}</b>\n"
         f"OAuth: <b>{oauth_state}</b> · ожиданий: "
-        f"<b>{_health_value(oauth.get('pending_states'))}</b>\n\n"
+        f"<b>{_health_value(oauth.get('pending_states'))}</b>"
+        f"{preview_block}\n\n"
         "<b>Twitch / EventSub</b>\n"
         f"Listener: <b>{eventsub_state}</b> · готово: "
         f"<b>{eventsub_ready}/{eventsub_configured}</b>\n"

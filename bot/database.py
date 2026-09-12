@@ -101,6 +101,21 @@ class LivePostState:
     message_kind: str
     media_transition_pending: bool
     preview_enabled: bool
+    notify_enabled: bool
+
+
+@dataclass(frozen=True)
+class PreviewDestinationState:
+    chat_id: int
+    twitch_login: str
+    notify_enabled: bool
+    preview_enabled: bool
+    is_live: bool
+    logical_stream_id: str | None
+    message_id: int | None
+    message_kind: str
+    include_track_link: bool
+    last_stream_ended_at: float | None
 
 
 def _report_delivery_from_row(row: tuple) -> ReportDelivery:
@@ -1302,7 +1317,7 @@ class Database:
     ) -> LivePostState | None:
         cursor = await self.conn.execute(
             "SELECT last_stream_id, last_message_id, last_message_kind, "
-            "media_transition_pending, preview_enabled "
+            "media_transition_pending, preview_enabled, notify_enabled "
             "FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1317,6 +1332,53 @@ class Database:
             message_kind=row[2],
             media_transition_pending=bool(row[3]),
             preview_enabled=bool(row[4]),
+            notify_enabled=bool(row[5]),
+        )
+
+    async def list_preview_destination_states(
+        self, twitch_login: str
+    ) -> list[PreviewDestinationState]:
+        cursor = await self.conn.execute(
+            "SELECT tc.chat_id, tc.twitch_login, tc.notify_enabled, "
+            "tc.preview_enabled, tc.is_live, tc.last_stream_id, "
+            "tc.last_message_id, tc.last_message_kind, "
+            "EXISTS(SELECT 1 FROM telegram_channels tgc "
+            "WHERE tgc.chat_id = tc.chat_id), tc.last_stream_ended_at "
+            "FROM tracked_channels tc WHERE tc.twitch_login = ? "
+            "ORDER BY tc.chat_id",
+            (twitch_login,),
+        )
+        return [self._preview_destination_from_row(row) for row in await cursor.fetchall()]
+
+    async def get_preview_destination_state(
+        self, chat_id: int, twitch_login: str
+    ) -> PreviewDestinationState | None:
+        cursor = await self.conn.execute(
+            "SELECT tc.chat_id, tc.twitch_login, tc.notify_enabled, "
+            "tc.preview_enabled, tc.is_live, tc.last_stream_id, "
+            "tc.last_message_id, tc.last_message_kind, "
+            "EXISTS(SELECT 1 FROM telegram_channels tgc "
+            "WHERE tgc.chat_id = tc.chat_id), tc.last_stream_ended_at "
+            "FROM tracked_channels tc "
+            "WHERE tc.chat_id = ? AND tc.twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return self._preview_destination_from_row(row) if row is not None else None
+
+    @staticmethod
+    def _preview_destination_from_row(row: tuple) -> PreviewDestinationState:
+        return PreviewDestinationState(
+            chat_id=row[0],
+            twitch_login=row[1],
+            notify_enabled=bool(row[2]),
+            preview_enabled=bool(row[3]),
+            is_live=bool(row[4]),
+            logical_stream_id=row[5],
+            message_id=row[6],
+            message_kind=row[7] or "text",
+            include_track_link=bool(row[8]),
+            last_stream_ended_at=row[9],
         )
 
     @_serialized

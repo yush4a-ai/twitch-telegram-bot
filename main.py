@@ -23,7 +23,12 @@ from aiogram.utils.token import TokenValidationError
 
 from bot.chat_listener import ChatListener
 from bot.follow_listener import FollowEventListener
-from bot.config import ConfigError, is_railway_environment, load_config
+from bot.config import (
+    ConfigError,
+    PreviewRuntimeConfig,
+    is_railway_environment,
+    load_config,
+)
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
@@ -35,6 +40,11 @@ from bot.oauth import (
     evaluate_runtime_health,
 )
 from bot.poller import StreamPoller
+from bot.preview_runtime import (
+    DisabledPreviewObserver,
+    NoopPreviewArtifactProvider,
+    PreviewManager,
+)
 from bot.token_store import TokenStore
 from bot.twitch import TwitchClient
 
@@ -306,6 +316,7 @@ async def main() -> None:
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None
+            preview_manager = None
             poller_task: asyncio.Task | None = None
             polling_task: asyncio.Task | None = None
             try:
@@ -321,6 +332,30 @@ async def main() -> None:
                 follow_listener_task = asyncio.create_task(follow_listener.run())
                 await follow_listener.wait_initial_ready()
 
+                preview_config = getattr(config, "preview", PreviewRuntimeConfig())
+                try:
+                    preview_manager = PreviewManager(
+                        db,
+                        live_post_updater,
+                        NoopPreviewArtifactProvider(),
+                        enabled=preview_config.enabled,
+                        disabled_reason=preview_config.disabled_reason,
+                        initial_delay_seconds=preview_config.initial_delay_seconds,
+                        interval_seconds=preview_config.interval_seconds,
+                        max_concurrent_jobs=preview_config.max_concurrent_jobs,
+                        job_timeout_seconds=preview_config.job_timeout_seconds,
+                        poll_interval_seconds=config.poll_interval_seconds,
+                        build_content=lambda observation, destination: (
+                            poller.build_preview_content(observation, destination)
+                        ),
+                    )
+                except Exception as error:
+                    logger.error(
+                        "Preview runtime не собран; core продолжает работу: %s",
+                        type(error).__name__,
+                    )
+                    preview_manager = DisabledPreviewObserver("startup_error")
+
                 poller = StreamPoller(
                     bot,
                     db,
@@ -331,8 +366,23 @@ async def main() -> None:
                     follow_listener=follow_listener,
                     owner_chat_id=config.owner_chat_id,
                     live_post_updater=live_post_updater,
+                    preview_observer=preview_manager,
                 )
                 dp["poller"] = poller
+                dp["preview_manager"] = preview_manager
+                try:
+                    preview_manager.start()
+                except Exception as error:
+                    logger.error(
+                        "Preview runtime не стартовал; core продолжает работу: %s",
+                        type(error).__name__,
+                    )
+                    await _safe_cleanup(
+                        "PreviewManager startup rollback", preview_manager.shutdown()
+                    )
+                    preview_manager = DisabledPreviewObserver("startup_error")
+                    poller.set_preview_observer(preview_manager)
+                    dp["preview_manager"] = preview_manager
                 poller_task = asyncio.create_task(poller.run())
 
                 # Только теперь runtime собран целиком, и /healthz может отвечать
@@ -379,6 +429,8 @@ async def main() -> None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")
                 await _cancel_task(poller_task, "StreamPoller")
+                if preview_manager is not None:
+                    await _safe_cleanup("PreviewManager", preview_manager.shutdown())
                 if poller is not None:
                     await _safe_cleanup("StreamPoller", poller.shutdown())
                 await _safe_cleanup("FollowEventListener", follow_listener.stop())

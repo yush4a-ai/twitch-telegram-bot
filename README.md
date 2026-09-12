@@ -24,6 +24,12 @@ copy .env.example .env
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — из [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps)
   (Redirect URL для локальной разработки: `http://localhost:8765/twitch/callback`)
 
+Preview runtime в P3 — только fail-open orchestration-каркас с no-op provider.
+Он по умолчанию выключен (`PREVIEW_RUNTIME_ENABLED=false`) и пока не захватывает,
+не кодирует и не отправляет реальное видео. Остальные `PREVIEW_*` значения задают
+warmup, интервал, глобальную конкуренцию и timeout; неверное preview-значение
+отключает только optional preview subsystem, не основной бот.
+
 ## Запуск (локально)
 
 ```powershell
@@ -80,7 +86,9 @@ EventSub/IRC-слушатели и встроенный HTTP-сервер OAuth 
 не роняет. Ответ содержит только поле `status`.
 
 `/health` — отдельная Telegram-команда с подробной диагностикой для владельца;
-она строже HTTP-эндпоинта и для Railway healthcheck не используется.
+она строже HTTP-эндпоинта, показывает отдельный диагностический блок Preview и
+для Railway healthcheck не используется. Сбой или отключение Preview не меняет
+результат `/healthz`.
 
 Railway Volume не заменяет backup. Храните отдельную резервную копию
 `TOKEN_ENCRYPTION_KEY`, делайте SQLite online backup и backup/snapshot перед крупными
@@ -107,6 +115,7 @@ bot/chat_listener.py         — IRC-клиент чата Twitch (топ чат
 bot/oauth.py                 — Twitch OAuth flow + постоянный callback-сервер
 bot/token_store.py           — хранение и обновление пользовательских Twitch-токенов
 bot/poller.py                — фоновый цикл проверки стримов, отчёты, алерты
+bot/preview_runtime.py       — fail-open lifecycle/scheduling preview-сессий (P3)
 bot/report.py                 — генерация HTML-отчёта
 bot/handlers/streams.py      — основные команды и меню
 bot/handlers/auth.py          — команда /auth_twitch

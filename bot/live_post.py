@@ -234,7 +234,7 @@ class LivePostUpdater:
             )
             if not self._is_current(state, target):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-            if not state.preview_enabled:
+            if not self._media_enabled(state):
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if not await self._guard_is_current(is_current_physical_stream):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
@@ -248,7 +248,7 @@ class LivePostUpdater:
             )
             if not self._is_current(state, target):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-            if not state.preview_enabled:
+            if not self._media_enabled(state):
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if not await self._guard_is_current(is_current_physical_stream):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
@@ -257,7 +257,7 @@ class LivePostUpdater:
             )
             if not self._is_current(state, target):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-            if not state.preview_enabled:
+            if not self._media_enabled(state):
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
 
             if state.media_transition_pending:
@@ -271,7 +271,7 @@ class LivePostUpdater:
                 )
                 if not self._is_current(state, target):
                     return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-                if not state.preview_enabled:
+                if not self._media_enabled(state):
                     return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
                 if not await self._guard_is_current(is_current_physical_stream):
                     return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
@@ -280,7 +280,7 @@ class LivePostUpdater:
                 )
                 if not self._is_current(state, target):
                     return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-                if not state.preview_enabled:
+                if not self._media_enabled(state):
                     return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
 
             first_transition = state.message_kind == "text"
@@ -300,7 +300,7 @@ class LivePostUpdater:
                 )
                 if not self._is_current(state, target):
                     return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
-                if not state.preview_enabled:
+                if not self._media_enabled(state):
                     await self._clear_pending(target)
                     return LivePostMediaResult(
                         LivePostMediaStatus.SKIPPED_DISABLED
@@ -425,6 +425,10 @@ class LivePostUpdater:
             and state.logical_stream_id == target.logical_stream_id
             and state.message_id == target.message_id
         )
+
+    @staticmethod
+    def _media_enabled(state: LivePostState) -> bool:
+        return state.preview_enabled and state.notify_enabled
 
     @staticmethod
     async def _build_content(factory: ContentFactory) -> LivePostContent:
