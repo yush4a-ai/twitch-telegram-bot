@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import importlib
 import json
 import os
 import sqlite3
@@ -48,11 +49,13 @@ import aiohttp
 from cryptography.fernet import Fernet
 from aiogram.enums import ChatType
 from aiogram.exceptions import (
+    TelegramBadRequest,
     TelegramForbiddenError,
     TelegramNetworkError,
     TelegramRetryAfter,
 )
 from aiogram.utils.token import TokenValidationError
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 import main as main_module
 from bot.handlers import streams as streams_module
@@ -2413,6 +2416,556 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
             )
         finally:
             await db.close()
+
+
+class LivePostMediaReadyTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self._directory = tempfile.TemporaryDirectory()
+        self.db = Database(os.path.join(self._directory.name, "live-post.db"))
+        await self.db.connect()
+        self.telegram = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=701)),
+            edit_message_text=AsyncMock(),
+            delete_message=AsyncMock(),
+        )
+        self.twitch = SimpleNamespace(get_live_streams=AsyncMock(return_value={}))
+        self.poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+        self.poller._maybe_snapshot_followers = AsyncMock()
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self._directory.cleanup()
+
+    async def _assert_message_kind_column(self, db: Database | None = None) -> None:
+        target = db or self.db
+        columns = {
+            row[1]
+            for row in await (
+                await target.conn.execute("PRAGMA table_info(tracked_channels)")
+            ).fetchall()
+        }
+        self.assertIn(
+            "last_message_kind",
+            columns,
+            "tracked_channels must persist the Telegram live-message kind",
+        )
+
+    async def _stored_message_kind(
+        self,
+        chat_id: int,
+        login: str = "channel",
+        *,
+        db: Database | None = None,
+    ) -> str:
+        target = db or self.db
+        await self._assert_message_kind_column(target)
+        cursor = await target.conn.execute(
+            "SELECT last_message_kind FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, login),
+        )
+        row = await cursor.fetchone()
+        self.assertIsNotNone(row)
+        return row[0]
+
+    def _live_post_module(self):
+        try:
+            return importlib.import_module("bot.live_post")
+        except ModuleNotFoundError:
+            self.fail("bot.live_post with LivePostUpdater must exist")
+
+    @staticmethod
+    def _live(
+        stream_id: str = "stream-1",
+        *,
+        title: str = "Test stream",
+        game_name: str = "Test game",
+        viewers: int = 25,
+    ) -> StreamInfo:
+        return StreamInfo(
+            user_login="channel",
+            stream_id=stream_id,
+            title=title,
+            game_name=game_name,
+            viewer_count=viewers,
+            started_at="2026-01-01T00:00:00Z",
+        )
+
+    async def _track(self, chat_id: int, *, telegram_channel: bool = False) -> None:
+        await self.db.add_channel(chat_id, "channel")
+        if telegram_channel:
+            await self.db.register_telegram_channel(chat_id, "Test channel")
+
+    async def _poll_live(
+        self,
+        chat_id: int,
+        *,
+        stream: StreamInfo | None = None,
+        now: float,
+    ) -> None:
+        self.twitch.get_live_streams.return_value = {
+            "channel": stream or self._live()
+        }
+        with patch("bot.poller.time.time", return_value=now):
+            await self.poller._check_streams()
+
+    async def _poll_offline(self, *, now: float) -> None:
+        self.twitch.get_live_streams.return_value = {}
+        with patch("bot.poller.time.time", return_value=now):
+            await self.poller._check_streams()
+
+    async def test_new_tracking_row_defaults_message_kind_to_text(self) -> None:
+        await self._track(101)
+
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_legacy_database_migrates_message_kind_to_text(self) -> None:
+        path = os.path.join(self._directory.name, "legacy.db")
+        legacy = Database(path)
+        await legacy.connect()
+        await legacy.add_channel(101, "channel")
+        await legacy.close()
+
+        raw = sqlite3.connect(path)
+        columns = {
+            row[1] for row in raw.execute("PRAGMA table_info(tracked_channels)")
+        }
+        if "last_message_kind" in columns:
+            raw.execute(
+                "ALTER TABLE tracked_channels DROP COLUMN last_message_kind"
+            )
+            raw.commit()
+        raw.close()
+
+        migrated = Database(path)
+        await migrated.connect()
+        try:
+            self.assertEqual(
+                await self._stored_message_kind(101, db=migrated),
+                "text",
+            )
+        finally:
+            await migrated.close()
+
+    async def test_set_live_state_records_message_id_as_text(self) -> None:
+        await self._track(101)
+        await self._assert_message_kind_column()
+
+        await self.db.set_live_state(
+            101,
+            "channel",
+            True,
+            "stream-1",
+            701,
+            "Title",
+            message_kind="text",
+        )
+
+        cursor = await self.db.conn.execute(
+            "SELECT last_message_id, last_message_kind FROM tracked_channels "
+            "WHERE chat_id = 101 AND twitch_login = 'channel'"
+        )
+        self.assertEqual(await cursor.fetchone(), (701, "text"))
+
+    async def test_clear_live_message_resets_kind_to_text(self) -> None:
+        await self._track(101)
+        await self._assert_message_kind_column()
+        await self.db.set_live_state(
+            101,
+            "channel",
+            True,
+            "stream-1",
+            701,
+            message_kind="future-kind",
+        )
+
+        await self.db.clear_live_message(101, "channel")
+
+        cursor = await self.db.conn.execute(
+            "SELECT last_message_id, last_message_kind FROM tracked_channels "
+            "WHERE chat_id = 101 AND twitch_login = 'channel'"
+        )
+        self.assertEqual(await cursor.fetchone(), (None, "text"))
+
+    async def test_clear_message_resets_kind_to_text(self) -> None:
+        await self._track(101)
+        await self._assert_message_kind_column()
+        await self.db.set_live_state(
+            101,
+            "channel",
+            True,
+            "stream-1",
+            701,
+            message_kind="future-kind",
+        )
+
+        await self.db.clear_message(101, "channel")
+
+        cursor = await self.db.conn.execute(
+            "SELECT last_message_id, last_message_kind FROM tracked_channels "
+            "WHERE chat_id = 101 AND twitch_login = 'channel'"
+        )
+        self.assertEqual(await cursor.fetchone(), (None, "text"))
+
+    async def test_finished_session_cleanup_resets_kind_to_text(self) -> None:
+        await self._track(101)
+        await self._assert_message_kind_column()
+        await self.db.set_live_state(101, "channel", False, "stream-1")
+        await self.db.mark_stats_sent(101, "channel")
+        await self.db.conn.execute(
+            "UPDATE tracked_channels SET last_message_kind = 'future-kind' "
+            "WHERE chat_id = 101 AND twitch_login = 'channel'"
+        )
+        await self.db.conn.commit()
+
+        await self.db.clear_finished_session(101, "channel")
+
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_restart_snapshot_and_recovery_preserve_safe_kind(self) -> None:
+        await self._track(101)
+        await self._assert_message_kind_column()
+        await self.db.set_live_state(
+            101,
+            "channel",
+            True,
+            "stream-1",
+            701,
+            message_kind="text",
+        )
+        await self.db.close()
+        self.db = Database(os.path.join(self._directory.name, "live-post.db"))
+        await self.db.connect()
+
+        _, states = await self.db.snapshot_tracked_state()
+        self.assertEqual(states[(101, "channel")][2:4], (701, "text"))
+
+        await self.db.set_live_state(101, "channel", False, "stream-1")
+        await self.db.mark_stats_sent(101, "channel")
+        await self.db.conn.execute(
+            "UPDATE tracked_channels SET last_message_kind = 'future-kind' "
+            "WHERE chat_id = 101 AND twitch_login = 'channel'"
+        )
+        await self.db.conn.commit()
+        await self.db.recover_finished_sessions()
+
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_text_updater_preserves_html_and_keyboard(self) -> None:
+        live_post = self._live_post_module()
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="Смотреть на Twitch",
+                        url="https://twitch.tv/channel",
+                    )
+                ]
+            ]
+        )
+        bot = SimpleNamespace(edit_message_text=AsyncMock())
+        updater = live_post.LivePostUpdater(bot)
+
+        result = await updater.update(
+            chat_id=101,
+            message_id=701,
+            message_kind="text",
+            text="<b>Exact HTML</b>",
+            reply_markup=keyboard,
+        )
+
+        self.assertEqual(result, live_post.LivePostUpdateResult.UPDATED)
+        bot.edit_message_text.assert_awaited_once_with(
+            "<b>Exact HTML</b>",
+            chat_id=101,
+            message_id=701,
+            reply_markup=keyboard,
+            disable_web_page_preview=True,
+        )
+
+    async def test_updater_defers_retry_after_and_network_errors(self) -> None:
+        live_post = self._live_post_module()
+        errors = (
+            TelegramRetryAfter(SimpleNamespace(), "retry", retry_after=3),
+            TelegramNetworkError(SimpleNamespace(), "offline"),
+        )
+        for error in errors:
+            with self.subTest(error=type(error).__name__):
+                bot = SimpleNamespace(
+                    edit_message_text=AsyncMock(side_effect=error)
+                )
+                updater = live_post.LivePostUpdater(bot)
+
+                result = await updater.update(
+                    chat_id=101,
+                    message_id=701,
+                    message_kind="text",
+                    text="text",
+                    reply_markup=None,
+                )
+
+                self.assertEqual(
+                    result,
+                    live_post.LivePostUpdateResult.RETRY_LATER,
+                )
+                self.assertEqual(bot.edit_message_text.await_count, 1)
+
+    async def test_updater_classifies_missing_and_non_text_messages_for_replacement(self) -> None:
+        live_post = self._live_post_module()
+        messages = (
+            "message to edit not found",
+            "there is no text in the message to edit",
+        )
+        for message in messages:
+            with self.subTest(message=message):
+                bot = SimpleNamespace(
+                    edit_message_text=AsyncMock(
+                        side_effect=TelegramBadRequest(
+                            SimpleNamespace(),
+                            message,
+                        )
+                    )
+                )
+
+                result = await live_post.LivePostUpdater(bot).update(
+                    chat_id=101,
+                    message_id=701,
+                    message_kind="text",
+                    text="text",
+                    reply_markup=None,
+                )
+
+                self.assertEqual(
+                    result,
+                    live_post.LivePostUpdateResult.REPLACE_REQUIRED,
+                )
+
+    async def test_updater_preserves_existing_semantics_for_other_telegram_errors(self) -> None:
+        live_post = self._live_post_module()
+        cases = (
+            (
+                TelegramBadRequest(SimpleNamespace(), "message is not modified"),
+                live_post.LivePostUpdateResult.UPDATED,
+            ),
+            (
+                TelegramBadRequest(SimpleNamespace(), "other bad request"),
+                live_post.LivePostUpdateResult.KEEP_EXISTING,
+            ),
+            (
+                TelegramForbiddenError(SimpleNamespace(), "blocked"),
+                live_post.LivePostUpdateResult.KEEP_EXISTING,
+            ),
+        )
+        for error, expected in cases:
+            with self.subTest(error=str(error)):
+                bot = SimpleNamespace(
+                    edit_message_text=AsyncMock(side_effect=error)
+                )
+
+                result = await live_post.LivePostUpdater(bot).update(
+                    chat_id=101,
+                    message_id=701,
+                    message_kind="text",
+                    text="text",
+                    reply_markup=None,
+                )
+
+                self.assertEqual(result, expected)
+
+    async def test_updater_rejects_unknown_message_kind_without_side_effect(self) -> None:
+        live_post = self._live_post_module()
+        bot = SimpleNamespace(edit_message_text=AsyncMock())
+
+        with self.assertRaisesRegex(ValueError, "message kind"):
+            await live_post.LivePostUpdater(bot).update(
+                chat_id=101,
+                message_id=701,
+                message_kind="video",
+                text="text",
+                reply_markup=None,
+            )
+
+        bot.edit_message_text.assert_not_awaited()
+
+    async def test_online_still_sends_text_post_and_records_kind(self) -> None:
+        await self._track(101)
+
+        await self._poll_live(101, now=1000.0)
+
+        self.telegram.send_message.assert_awaited_once()
+        self.telegram.edit_message_text.assert_not_awaited()
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[2], 701)
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_live_update_edits_same_message_with_title_game_viewers_and_button(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        self.telegram.send_message.reset_mock()
+        self.telegram.edit_message_text.reset_mock()
+
+        await self._poll_live(
+            101,
+            stream=self._live(
+                title="Updated title",
+                game_name="Updated game",
+                viewers=99,
+            ),
+            now=1060.0,
+        )
+
+        self.telegram.send_message.assert_not_awaited()
+        edited = self.telegram.edit_message_text.await_args
+        self.assertEqual(edited.kwargs["message_id"], 701)
+        self.assertIn("Updated title", edited.args[0])
+        self.assertIn("Updated game", edited.args[0])
+        self.assertIn("9️⃣9️⃣", edited.args[0])
+        keyboard = edited.kwargs["reply_markup"]
+        self.assertEqual(len(keyboard.inline_keyboard), 1)
+        self.assertEqual(len(keyboard.inline_keyboard[0]), 1)
+        self.assertEqual(keyboard.inline_keyboard[0][0].text, "Смотреть на Twitch")
+        self.assertEqual(
+            keyboard.inline_keyboard[0][0].url,
+            "https://twitch.tv/channel",
+        )
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_reconnect_with_same_stream_id_edits_existing_text_post(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+        self.telegram.send_message.reset_mock()
+        self.telegram.edit_message_text.reset_mock()
+
+        await self._poll_live(101, now=1120.0)
+
+        self.telegram.send_message.assert_not_awaited()
+        self.assertEqual(
+            self.telegram.edit_message_text.await_args.kwargs["message_id"],
+            701,
+        )
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[1], "stream-1")
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_reconnect_with_new_physical_id_keeps_logical_post(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+        self.telegram.send_message.reset_mock()
+        self.telegram.edit_message_text.reset_mock()
+
+        await self._poll_live(
+            101,
+            stream=self._live("physical-stream-2"),
+            now=1120.0,
+        )
+
+        self.telegram.send_message.assert_not_awaited()
+        self.assertEqual(
+            self.telegram.edit_message_text.await_args.kwargs["message_id"],
+            701,
+        )
+        state = await self.db.get_live_state(101, "channel")
+        self.assertEqual(state[1], "stream-1")
+        self.assertEqual(state[2], 701)
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_restart_recovery_edits_persisted_text_post(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self.db.close()
+        self.db = Database(os.path.join(self._directory.name, "live-post.db"))
+        await self.db.connect()
+        telegram = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=702)),
+            edit_message_text=AsyncMock(),
+            delete_message=AsyncMock(),
+        )
+        twitch = SimpleNamespace(
+            get_live_streams=AsyncMock(return_value={"channel": self._live()})
+        )
+        poller = StreamPoller(telegram, self.db, twitch, 60)
+        poller._maybe_snapshot_followers = AsyncMock()
+
+        with patch("bot.poller.time.time", return_value=1060.0):
+            await poller._check_streams()
+
+        telegram.send_message.assert_not_awaited()
+        self.assertEqual(
+            telegram.edit_message_text.await_args.kwargs["message_id"],
+            701,
+        )
+        _, states = await self.db.snapshot_tracked_state()
+        self.assertEqual(states[(101, "channel")][2:4], (701, "text"))
+
+    async def test_offline_cleanup_deletes_post_and_resets_kind(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+
+        self.telegram.delete_message.assert_awaited_once_with(101, 701)
+        self.assertIsNone((await self.db.get_live_state(101, "channel"))[2])
+        self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_telegram_channel_keeps_deep_link_and_single_twitch_button(self) -> None:
+        channel_id = -100500
+        await self._track(channel_id, telegram_channel=True)
+
+        await self._poll_live(channel_id, now=1000.0)
+
+        sent = self.telegram.send_message.await_args
+        self.assertTrue(
+            sent.args[1].endswith(
+                '🔔 <a href="https://t.me/twitchSignalBot?start=track_channel">'
+                "Подключить уведомления</a>"
+            )
+        )
+        keyboard = sent.kwargs["reply_markup"]
+        self.assertEqual(len(keyboard.inline_keyboard), 1)
+        self.assertEqual(len(keyboard.inline_keyboard[0]), 1)
+        self.assertEqual(keyboard.inline_keyboard[0][0].text, "Смотреть на Twitch")
+        self.assertEqual(
+            keyboard.inline_keyboard[0][0].url,
+            "https://twitch.tv/channel",
+        )
+        self.assertEqual(await self._stored_message_kind(channel_id), "text")
+
+    async def test_disabling_notify_keeps_active_post_for_offline_cleanup(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self.db.set_notify_enabled(101, "channel", False)
+
+        await self._poll_live(101, now=1060.0)
+
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[2], 701)
+        await self._poll_offline(now=1120.0)
+        pending = await self.db.pending_offline_posts()
+        self.assertEqual(pending[0][:3], (101, "channel", 701))
+
+    async def test_reenabling_notify_same_stream_reuses_post_without_duplicate(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        self.telegram.send_message.reset_mock()
+        self.telegram.edit_message_text.reset_mock()
+        await self.db.set_notify_enabled(101, "channel", False)
+        await self._poll_live(101, now=1060.0)
+
+        await self.db.set_notify_enabled(101, "channel", True)
+        await self._poll_live(
+            101,
+            stream=self._live(title="Still the same stream"),
+            now=1120.0,
+        )
+
+        self.telegram.send_message.assert_not_awaited()
+        self.telegram.edit_message_text.assert_awaited_once()
+        self.assertEqual(
+            self.telegram.edit_message_text.await_args.kwargs["message_id"],
+            701,
+        )
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[2], 701)
 
 
 class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):

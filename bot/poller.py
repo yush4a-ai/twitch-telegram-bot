@@ -21,6 +21,7 @@ from .chat_listener import ChatListener
 from .database import Database, ReportDelivery, StreamHistoryRecord
 from .deep_links import build_track_deep_link
 from .logging_utils import mask_chat_id
+from .live_post import LivePostUpdater, LivePostUpdateResult
 from .report import build_report_html
 from .report_delivery import validate_report_destination
 from .token_store import TokenStore
@@ -305,6 +306,7 @@ class StreamPoller:
         self._last_cycle_error: str | None = None
         self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
+        self._live_post_updater = LivePostUpdater(bot)
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -743,6 +745,7 @@ class StreamPoller:
                     was_live,
                     last_stream_id,
                     last_message_id,
+                    last_message_kind,
                     last_title,
                     offline_since,
                     _stream_started_at,
@@ -792,6 +795,7 @@ class StreamPoller:
                             offline_since=recovered_offline_since,
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
+                            message_kind=last_message_kind,
                         )
                         continue
 
@@ -848,16 +852,20 @@ class StreamPoller:
 
                     if not notify_enabled:
                         # уведомления выключены для этого канала в этом чате — статистика
-                        # всё равно собирается, но пост не публикуется и не редактируется
-                        message_id = None
+                        # всё равно собирается, но пост не публикуется и не редактируется.
+                        # Уже опубликованный post сохраняем для resume/offline cleanup.
+                        message_id = last_message_id
+                        message_kind = last_message_kind
                     elif continuing_session and last_message_id is not None:
                         edited = await self._edit(
-                            chat_id, last_message_id, login, title, stream.viewer_count,
+                            chat_id, last_message_id, last_message_kind,
+                            login, title, stream.viewer_count,
                             game_name, return_note,
                             include_track_link=include_track_link,
                         )
                         if edited:
                             message_id = last_message_id
+                            message_kind = last_message_kind
                         else:
                             # старый пост — фото (до перехода на текстовые сообщения),
                             # его нельзя отредактировать в текст; пересоздаём как текст
@@ -870,6 +878,7 @@ class StreamPoller:
                                 silent=True,
                                 include_track_link=include_track_link,
                             )
+                            message_kind = "text"
                     elif continuing_session:
                         # Пост уже штатно удалён после 5 минут offline. Возвращаем карточку,
                         # но без звука: для пользователя это не новый старт стрима.
@@ -878,6 +887,7 @@ class StreamPoller:
                             silent=True,
                             include_track_link=include_track_link,
                         )
+                        message_kind = "text"
                     else:
                         if last_message_id is not None:
                             # стрим прервался надолго, потом начался заново (новый
@@ -903,6 +913,7 @@ class StreamPoller:
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             include_track_link=include_track_link,
                         )
+                        message_kind = "text"
 
                     # при reconnect держим прежний stream_id как идентификатор
                     # сессии — иначе накопленные viewer_sum/peak_viewers/samples
@@ -924,6 +935,7 @@ class StreamPoller:
                         title,
                         stream_started_at=effective_started_at,
                         last_seen_live_at=now,
+                        message_kind=message_kind,
                     )
                     if (
                         self._follow_listener is not None
@@ -972,6 +984,7 @@ class StreamPoller:
                             offline_since=now,
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
+                            message_kind=last_message_kind,
                         )
     async def _finish_chat_collection(
         self, login: str, went_offline: list[tuple[int, str]],
@@ -1727,6 +1740,7 @@ class StreamPoller:
         self,
         chat_id: int,
         message_id: int,
+        message_kind: str,
         login: str,
         title: str,
         viewer_count: int,
@@ -1743,40 +1757,11 @@ class StreamPoller:
             include_track_link=include_track_link,
         )
         keyboard = await self._build_keyboard(login)
-        try:
-            await self._bot.edit_message_text(
-                text,
-                chat_id=chat_id,
-                message_id=message_id,
-                reply_markup=keyboard,
-                disable_web_page_preview=True,
-            )
-            return True
-        except TelegramRetryAfter as e:
-            # лимит Telegram — пост живой, редактировать будем в следующем круге;
-            # пересоздавать его в этом случае нельзя, иначе чат завалит дублями
-            logger.info(
-                "Лимит Telegram при обновлении поста в %s, повтор через %sс",
-                mask_chat_id(chat_id), e.retry_after,
-            )
-            return True
-        except TelegramNetworkError as e:
-            logger.warning("Сеть недоступна при обновлении поста в %s: %s", mask_chat_id(chat_id), e)
-            return True
-        except TelegramBadRequest as e:
-            if "message is not modified" in str(e):
-                return True
-            if "there is no text in the message to edit" in str(e):
-                return False
-            if "message to edit not found" in str(e):
-                # получатель поста сменился (привязку к личке добавили/убрали посреди
-                # стрима) — старого сообщения там нет, пересоздаём на новом месте
-                return False
-            logger.warning("Не удалось отредактировать сообщение %s в %s: %s", message_id, mask_chat_id(chat_id), e)
-            return True
-        except TelegramForbiddenError as e:
-            logger.warning(
-                "Не удалось отредактировать сообщение %s в %s: %s",
-                message_id, mask_chat_id(chat_id), e,
-            )
-            return True
+        result = await self._live_post_updater.update(
+            chat_id=chat_id,
+            message_id=message_id,
+            message_kind=message_kind,
+            text=text,
+            reply_markup=keyboard,
+        )
+        return result is not LivePostUpdateResult.REPLACE_REQUIRED

@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     is_live INTEGER NOT NULL DEFAULT 0,
     last_stream_id TEXT,
     last_message_id INTEGER,
+    last_message_kind TEXT NOT NULL DEFAULT 'text',
     last_title TEXT,
     offline_since REAL,
     stream_started_at TEXT,
@@ -477,6 +478,7 @@ class Database:
             {
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "preview_enabled": "INTEGER NOT NULL DEFAULT 0",
+                "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
                 "report_format": "TEXT NOT NULL DEFAULT 'full'",
@@ -1235,8 +1237,8 @@ class Database:
         Возвращает ({login: [chat_id, ...]}, {(chat_id, login): состояние})."""
         cursor = await self.conn.execute(
             "SELECT chat_id, twitch_login, is_live, last_stream_id, last_message_id, "
-            "last_title, offline_since, stream_started_at, last_seen_live_at, peak_viewers, "
-            "notify_enabled, followers_at_start, stats_sent "
+            "last_message_kind, last_title, offline_since, stream_started_at, "
+            "last_seen_live_at, peak_viewers, notify_enabled, followers_at_start, stats_sent "
             "FROM tracked_channels ORDER BY twitch_login, chat_id"
         )
         chats_by_login: dict[str, list[int]] = {}
@@ -1245,8 +1247,8 @@ class Database:
             chat_id, login = row[0], row[1]
             chats_by_login.setdefault(login, []).append(chat_id)
             states[(chat_id, login)] = (
-                bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8], row[9],
-                bool(row[10]), row[11], bool(row[12]),
+                bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
+                row[9], row[10], bool(row[11]), row[12], bool(row[13]),
             )
         return chats_by_login, states
 
@@ -1295,6 +1297,7 @@ class Database:
         stream_started_at: str | None = None,
         peak_viewers: int | None = None,
         last_seen_live_at: float | None = None,
+        message_kind: str = "text",
     ) -> None:
         # при старте нового стрима (is_live=True и меняется stream_id) обнуляем накопленную
         # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе.
@@ -1303,7 +1306,9 @@ class Database:
         # тем, как record_viewer_sample успевает честно накопить в нём максимум за стрим.
         await self.conn.execute(
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
-            "last_message_id = ?, last_title = ?, offline_since = ?, "
+            "last_message_id = ?, "
+            "last_message_kind = CASE WHEN ? IS NULL THEN 'text' ELSE ? END, "
+            "last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
             "last_seen_live_at = CASE "
             "    WHEN ? IS NOT NULL THEN ? "
@@ -1322,7 +1327,8 @@ class Database:
             "    THEN NULL ELSE followers_at_start END "
             "WHERE chat_id = ? AND twitch_login = ?",
             (
-                int(is_live), stream_id, message_id, title, offline_since,
+                int(is_live), stream_id, message_id, message_id, message_kind,
+                title, offline_since,
                 stream_started_at,
                 last_seen_live_at, last_seen_live_at, int(is_live), stream_id,
                 peak_viewers, peak_viewers, int(is_live), stream_id,
@@ -1649,7 +1655,7 @@ class Database:
     async def clear_live_message(self, chat_id: int, twitch_login: str) -> None:
         """Забывает только Telegram live-пост, сохраняя логическую Twitch-сессию."""
         await self.conn.execute(
-            "UPDATE tracked_channels SET last_message_id = NULL "
+            "UPDATE tracked_channels SET last_message_id = NULL, last_message_kind = 'text' "
             "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1665,7 +1671,7 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
-            "peak_viewers = NULL, "
+            "peak_viewers = NULL, last_message_kind = 'text', "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE chat_id = ? AND twitch_login = ? "
@@ -1684,7 +1690,7 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
-            "peak_viewers = NULL, "
+            "peak_viewers = NULL, last_message_kind = 'text', "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL"
@@ -1694,7 +1700,8 @@ class Database:
     @_serialized
     async def clear_message(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
-            "UPDATE tracked_channels SET last_message_id = NULL, last_title = NULL, "
+            "UPDATE tracked_channels SET last_message_id = NULL, "
+            "last_message_kind = 'text', last_title = NULL, "
             "last_stream_id = NULL, offline_since = NULL, "
             "stream_started_at = NULL, last_seen_live_at = NULL, peak_viewers = NULL, "
             "stats_sent = 0, "
