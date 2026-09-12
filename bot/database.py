@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     stats_sent INTEGER NOT NULL DEFAULT 0,
     followers_at_start INTEGER,
     notify_enabled INTEGER NOT NULL DEFAULT 1,
+    preview_enabled INTEGER NOT NULL DEFAULT 0,
     channel_report_enabled INTEGER NOT NULL DEFAULT 0,
     post_recipient_chat_id INTEGER,
     report_format TEXT NOT NULL DEFAULT 'full',
@@ -475,6 +476,7 @@ class Database:
             "tracked_channels",
             {
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
+                "preview_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
                 "report_format": "TEXT NOT NULL DEFAULT 'full'",
@@ -762,22 +764,22 @@ class Database:
 
     async def list_channels_with_routing(
         self, chat_id: int
-    ) -> list[tuple[str, bool, int | None, str, bool, bool, bool, bool]]:
-        """(twitch_login, notify_enabled, post_recipient_chat_id, report_format,
-        raid_detection_enabled, quiet_hours_exempt, channel_report_enabled,
-        is_live) для всех каналов чата."""
+    ) -> list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool]]:
+        """(twitch_login, notify_enabled, preview_enabled,
+        post_recipient_chat_id, report_format, raid_detection_enabled,
+        quiet_hours_exempt, channel_report_enabled, is_live) для всех каналов чата."""
         cursor = await self.conn.execute(
-            "SELECT twitch_login, notify_enabled, post_recipient_chat_id, report_format, "
-            "raid_detection_enabled, quiet_hours_exempt, channel_report_enabled, "
-            "is_live FROM tracked_channels "
+            "SELECT twitch_login, notify_enabled, preview_enabled, "
+            "post_recipient_chat_id, report_format, raid_detection_enabled, "
+            "quiet_hours_exempt, channel_report_enabled, is_live FROM tracked_channels "
             "WHERE chat_id = ? ORDER BY twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
         return [
             (
-                row[0], bool(row[1]), row[2], row[3] or "full",
-                bool(row[4]), bool(row[5]), bool(row[6]), bool(row[7]),
+                row[0], bool(row[1]), bool(row[2]), row[3], row[4] or "full",
+                bool(row[5]), bool(row[6]), bool(row[7]), bool(row[8]),
             )
             for row in rows
         ]
@@ -797,6 +799,26 @@ class Database:
         )
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
+
+    @_serialized
+    async def set_preview_enabled(
+        self, chat_id: int, twitch_login: str, enabled: bool
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE tracked_channels SET preview_enabled = ? "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (int(enabled), chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    async def get_preview_enabled(self, chat_id: int, twitch_login: str) -> bool:
+        cursor = await self.conn.execute(
+            "SELECT preview_enabled FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return bool(row[0]) if row else False
 
     @_serialized
     async def set_channel_report_enabled(

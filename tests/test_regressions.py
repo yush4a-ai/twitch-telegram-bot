@@ -55,6 +55,7 @@ from aiogram.exceptions import (
 from aiogram.utils.token import TokenValidationError
 
 import main as main_module
+from bot.handlers import streams as streams_module
 from bot.chat_listener import ChatListener
 from bot.config import ConfigError, load_config
 from bot.database import Database, DatabaseConfigurationError
@@ -2072,6 +2073,346 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
         await poller._send_pending_stats()
 
         db.mark_stats_sent.assert_not_awaited()
+
+
+class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
+    def _preview_card_keyboard(
+        self,
+        *,
+        preview_enabled: bool,
+        target_chat_id: int = -100123,
+        notify_enabled: bool = True,
+        report_format: str = "full",
+        raid_detection_enabled: bool = True,
+        quiet_hours_exempt: bool = False,
+        channel_report_enabled: bool = False,
+        is_telegram_channel: bool = False,
+        show_quiet_hours_toggle: bool = False,
+    ):
+        return _channel_card_keyboard(
+            target_chat_id,
+            "channel",
+            notify_enabled,
+            None,
+            42,
+            report_format,
+            raid_detection_enabled,
+            quiet_hours_exempt,
+            channel_report_enabled,
+            preview_enabled=preview_enabled,
+            back_callback="menu:home",
+            show_recipient_toggle=target_chat_id < 0,
+            is_telegram_channel=is_telegram_channel,
+            show_quiet_hours_toggle=show_quiet_hours_toggle,
+        )
+
+    async def test_new_tracked_channel_has_live_preview_disabled(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "channel")
+            self.assertFalse(await db.get_preview_enabled(101, "channel"))
+        finally:
+            await db.close()
+
+    async def test_live_preview_can_be_enabled(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "channel")
+            await db.set_preview_enabled(101, "channel", True)
+
+            self.assertTrue(await db.get_preview_enabled(101, "channel"))
+        finally:
+            await db.close()
+
+    async def test_live_preview_can_be_disabled_again(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "channel")
+            await db.set_preview_enabled(101, "channel", True)
+
+            await db.set_preview_enabled(101, "channel", False)
+
+            self.assertFalse(await db.get_preview_enabled(101, "channel"))
+        finally:
+            await db.close()
+
+    async def test_live_preview_is_independent_between_destination_chats(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "channel")
+            await db.add_channel(202, "channel")
+            await db.set_preview_enabled(101, "channel", True)
+
+            self.assertTrue(await db.get_preview_enabled(101, "channel"))
+            self.assertFalse(await db.get_preview_enabled(202, "channel"))
+        finally:
+            await db.close()
+
+    async def test_live_preview_is_independent_between_streamers(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "alpha")
+            await db.add_channel(101, "beta")
+            await db.set_preview_enabled(101, "alpha", True)
+
+            self.assertTrue(await db.get_preview_enabled(101, "alpha"))
+            self.assertFalse(await db.get_preview_enabled(101, "beta"))
+        finally:
+            await db.close()
+
+    async def test_legacy_database_migrates_live_preview_off(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "legacy.db")
+            legacy = Database(path)
+            await legacy.connect()
+            await legacy.add_channel(-100123, "channel")
+            await legacy.close()
+
+            raw = sqlite3.connect(path)
+            columns_before = {
+                row[1] for row in raw.execute("PRAGMA table_info(tracked_channels)")
+            }
+            if "preview_enabled" in columns_before:
+                raw.execute("ALTER TABLE tracked_channels DROP COLUMN preview_enabled")
+                raw.commit()
+            raw.close()
+
+            migrated = Database(path)
+            await migrated.connect()
+            try:
+                columns_after = {
+                    row[1]
+                    for row in await (
+                        await migrated.conn.execute(
+                            "PRAGMA table_info(tracked_channels)"
+                        )
+                    ).fetchall()
+                }
+                self.assertIn("preview_enabled", columns_after)
+                self.assertFalse(
+                    await migrated.get_preview_enabled(-100123, "channel")
+                )
+            finally:
+                await migrated.close()
+
+    def test_channel_card_shows_live_preview_disabled(self) -> None:
+        keyboard = self._preview_card_keyboard(
+            preview_enabled=False,
+            target_chat_id=101,
+        )
+
+        labels = [row[0].text for row in keyboard.inline_keyboard]
+        callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
+        self.assertIn("🎞 Живое превью: ❌ выкл", labels)
+        self.assertIn("togglepreview:101:channel", callbacks)
+
+    def test_channel_card_shows_live_preview_enabled(self) -> None:
+        keyboard = self._preview_card_keyboard(preview_enabled=True)
+
+        labels = [row[0].text for row in keyboard.inline_keyboard]
+        self.assertIn("🎞 Живое превью: ✅ вкл", labels)
+
+    async def test_remote_group_admin_can_toggle_live_preview_and_refresh_card(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            target_chat_id = -100123
+            await db.add_channel(target_chat_id, "channel")
+            callback = SimpleNamespace(
+                data=f"togglepreview:{target_chat_id}:channel",
+                from_user=SimpleNamespace(id=42),
+                bot=SimpleNamespace(
+                    get_chat_member=AsyncMock(
+                        return_value=SimpleNamespace(status="administrator")
+                    )
+                ),
+                message=SimpleNamespace(
+                    chat=SimpleNamespace(id=42),
+                    edit_text=AsyncMock(),
+                ),
+                answer=AsyncMock(),
+            )
+
+            await streams_module.cb_toggle_preview(callback, db)
+
+            self.assertTrue(
+                await db.get_preview_enabled(target_chat_id, "channel")
+            )
+            callback.bot.get_chat_member.assert_awaited_once_with(
+                target_chat_id, 42
+            )
+            callback.message.edit_text.assert_awaited_once()
+            refreshed_keyboard = callback.message.edit_text.await_args.kwargs[
+                "reply_markup"
+            ]
+            self.assertIn(
+                "🎞 Живое превью: ✅ вкл",
+                [row[0].text for row in refreshed_keyboard.inline_keyboard],
+            )
+            callback.answer.assert_awaited_once_with("Живое превью включено")
+        finally:
+            await db.close()
+
+    async def test_group_member_cannot_toggle_live_preview(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            target_chat_id = -100123
+            await db.add_channel(target_chat_id, "channel")
+            callback = SimpleNamespace(
+                data=f"togglepreview:{target_chat_id}:channel",
+                from_user=SimpleNamespace(id=42),
+                bot=SimpleNamespace(
+                    get_chat_member=AsyncMock(
+                        return_value=SimpleNamespace(status="member")
+                    )
+                ),
+                message=SimpleNamespace(
+                    chat=SimpleNamespace(id=42),
+                    edit_text=AsyncMock(),
+                ),
+                answer=AsyncMock(),
+            )
+
+            await streams_module.cb_toggle_preview(callback, db)
+
+            self.assertFalse(
+                await db.get_preview_enabled(target_chat_id, "channel")
+            )
+            callback.message.edit_text.assert_not_awaited()
+            self.assertTrue(callback.answer.await_args.kwargs["show_alert"])
+        finally:
+            await db.close()
+
+    async def test_malformed_live_preview_callback_does_not_change_database(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(101, "channel")
+            callback = SimpleNamespace(
+                data="togglepreview:not-a-chat:channel",
+                from_user=SimpleNamespace(id=101),
+                bot=SimpleNamespace(get_chat_member=AsyncMock()),
+                message=SimpleNamespace(
+                    chat=SimpleNamespace(id=101),
+                    edit_text=AsyncMock(),
+                ),
+                answer=AsyncMock(),
+            )
+
+            await streams_module.cb_toggle_preview(callback, db)
+
+            self.assertFalse(await db.get_preview_enabled(101, "channel"))
+            callback.bot.get_chat_member.assert_not_awaited()
+            callback.message.edit_text.assert_not_awaited()
+            callback.answer.assert_awaited_once_with()
+        finally:
+            await db.close()
+
+    async def test_telegram_channel_owner_can_toggle_live_preview(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            channel_id = -100456
+            await db.register_telegram_channel(channel_id, "News")
+            await db.add_channel(channel_id, "channel")
+            callback = SimpleNamespace(
+                data=f"togglepreview:{channel_id}:channel",
+                from_user=SimpleNamespace(id=42),
+                bot=SimpleNamespace(
+                    get_chat_member=AsyncMock(
+                        return_value=SimpleNamespace(status="creator")
+                    )
+                ),
+                message=SimpleNamespace(
+                    chat=SimpleNamespace(id=channel_id),
+                    edit_text=AsyncMock(),
+                ),
+                answer=AsyncMock(),
+            )
+
+            await streams_module.cb_toggle_preview(callback, db)
+
+            self.assertTrue(await db.get_preview_enabled(channel_id, "channel"))
+            callback.bot.get_chat_member.assert_awaited_once_with(channel_id, 42)
+            refreshed_keyboard = callback.message.edit_text.await_args.kwargs[
+                "reply_markup"
+            ]
+            labels = [row[0].text for row in refreshed_keyboard.inline_keyboard]
+            self.assertIn("🎞 Живое превью: ✅ вкл", labels)
+            self.assertIn("Итоговый отчёт в канал: ❌ выкл", labels)
+        finally:
+            await db.close()
+
+    def test_existing_channel_card_controls_keep_their_values(self) -> None:
+        keyboard = self._preview_card_keyboard(
+            preview_enabled=False,
+            notify_enabled=False,
+            report_format="brief",
+            raid_detection_enabled=True,
+            quiet_hours_exempt=True,
+            show_quiet_hours_toggle=True,
+        )
+
+        labels = [row[0].text for row in keyboard.inline_keyboard]
+        callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
+        self.assertIn("Уведомление о начале: 🔕 выкл", labels)
+        self.assertIn("Итоговый отчёт → 📩 Личка", labels)
+        self.assertIn("Формат отчёта: 📄 Кратко", labels)
+        self.assertIn("Детектор рейдов: ⚡ вкл", labels)
+        self.assertIn("🌙 Тихие часы: не действуют", labels)
+        self.assertIn("togglenotify:-100123:channel", callbacks)
+        self.assertIn("toggleformat:-100123:channel", callbacks)
+        self.assertIn("toggleraid:-100123:channel", callbacks)
+        self.assertIn("qhx:-100123:channel", callbacks)
+
+    async def test_routing_tuple_keeps_existing_settings_with_live_preview(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(-100123, "channel")
+            await db.set_notify_enabled(-100123, "channel", False)
+            await db.set_preview_enabled(-100123, "channel", True)
+            await db.set_post_recipient(-100123, "channel", 42)
+            await db.set_report_format(-100123, "channel", "brief")
+            await db.set_raid_detection_enabled(-100123, "channel", False)
+            await db.set_quiet_hours_exempt(-100123, "channel", True)
+            await db.set_channel_report_enabled(-100123, "channel", True)
+
+            rows = await db.list_channels_with_routing(-100123)
+
+            self.assertEqual(
+                rows,
+                [
+                    (
+                        "channel",
+                        False,
+                        True,
+                        42,
+                        "brief",
+                        False,
+                        True,
+                        True,
+                        False,
+                    )
+                ],
+            )
+            keyboard = streams_module._channels_keyboard(
+                -100123,
+                rows,
+                None,
+            )
+            self.assertIn(
+                "channel  🔕 📩 📄",
+                keyboard.inline_keyboard[0][0].text,
+            )
+        finally:
+            await db.close()
 
 
 class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):

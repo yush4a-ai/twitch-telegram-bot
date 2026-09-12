@@ -159,7 +159,7 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
 
 def _channels_keyboard(
     target_chat_id: int,
-    channels: list[tuple[str, bool, int | None, str, bool, bool, bool, bool]],
+    channels: list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool]],
     chat_default_recipient: int | None,
     *,
     back_callback: str = "menu:home",
@@ -172,7 +172,7 @@ def _channels_keyboard(
     Для Telegram-канала дополнительно показывает состояние opt-in итогового отчёта."""
     rows = []
     for (
-        login, notify_enabled, post_recipient, report_format,
+        login, notify_enabled, _preview_enabled, post_recipient, report_format,
         raid_detection_enabled, _quiet_hours_exempt, channel_report_enabled,
         is_live,
     ) in channels:
@@ -217,6 +217,7 @@ def _channel_card_keyboard(
     *,
     back_callback: str,
     show_recipient_toggle: bool,
+    preview_enabled: bool = False,
     is_telegram_channel: bool = False,
     show_quiet_hours_toggle: bool = False,
 ) -> InlineKeyboardMarkup:
@@ -231,6 +232,18 @@ def _channel_card_keyboard(
             )
         ]
     ]
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=(
+                    "🎞 Живое превью: ✅ вкл"
+                    if preview_enabled
+                    else "🎞 Живое превью: ❌ выкл"
+                ),
+                callback_data=f"togglepreview:{target_chat_id}:{login}",
+            )
+        ]
+    )
     if is_telegram_channel:
         rows.append(
             [
@@ -1384,8 +1397,9 @@ async def _render_channel_card(
     if match is None:
         return None
     (
-        _, notify_enabled, post_recipient, report_format, raid_detection_enabled,
-        quiet_hours_exempt, channel_report_enabled, _is_live,
+        _, notify_enabled, preview_enabled, post_recipient, report_format,
+        raid_detection_enabled, quiet_hours_exempt, channel_report_enabled,
+        _is_live,
     ) = match
 
     is_private = target_chat_id > 0
@@ -1436,6 +1450,7 @@ async def _render_channel_card(
         channel_report_enabled,
         back_callback=f"channellist:{target_chat_id}:{list_back_callback}",
         show_recipient_toggle=not is_private,
+        preview_enabled=preview_enabled,
         is_telegram_channel=is_telegram_channel,
         show_quiet_hours_toggle=show_quiet_hours_toggle,
     )
@@ -1524,6 +1539,32 @@ async def cb_toggle_notify(callback: CallbackQuery, db: Database) -> None:
     await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Уведомления выключены" if currently_enabled else "Уведомления включены"
+    )
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("togglepreview:"))
+async def cb_toggle_preview(callback: CallbackQuery, db: Database) -> None:
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
+
+    if not await _check_manage_permission(callback, target_chat_id):
+        await callback.answer(
+            "Только админы этого чата могут менять настройки.",
+            show_alert=True,
+        )
+        return
+
+    currently_enabled = await db.get_preview_enabled(target_chat_id, login)
+    await db.set_preview_enabled(target_chat_id, login, not currently_enabled)
+
+    await _refresh_channel_card(callback, db, target_chat_id, login)
+    await callback.answer(
+        "Живое превью выключено"
+        if currently_enabled
+        else "Живое превью включено"
     )
 
 
