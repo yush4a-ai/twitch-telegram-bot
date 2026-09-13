@@ -30,6 +30,13 @@ Preview runtime в P3 — только fail-open orchestration-каркас с n
 warmup, интервал, глобальную конкуренцию и timeout; неверное preview-значение
 отключает только optional preview subsystem, не основной бот.
 
+В P4A также присутствует изолированное ядро локального FFmpeg/HLS-захвата, но
+оно ещё не подключено к production preview runtime. Его rolling-buffer ограничен
+`PREVIEW_BUFFER_SECONDS` (по умолчанию 120, допустимо 30–240) и
+`PREVIEW_BUFFER_MAX_BYTES` (по умолчанию 150 MiB, допустимо 32–150 MiB).
+Некорректные значения fail-soft отключают только capture capability. FFmpeg не
+устанавливается Python-зависимостями и определяется отдельным capability probe.
+
 ## Запуск (локально)
 
 ```powershell
@@ -116,6 +123,7 @@ bot/oauth.py                 — Twitch OAuth flow + постоянный callba
 bot/token_store.py           — хранение и обновление пользовательских Twitch-токенов
 bot/poller.py                — фоновый цикл проверки стримов, отчёты, алерты
 bot/preview_runtime.py       — fail-open lifecycle/scheduling preview-сессий (P3)
+bot/preview_capture/         — изолированное bounded FFmpeg/HLS capture-ядро (P4A)
 bot/report.py                 — генерация HTML-отчёта
 bot/handlers/streams.py      — основные команды и меню
 bot/handlers/auth.py          — команда /auth_twitch

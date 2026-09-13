@@ -14,6 +14,8 @@ PREVIEW_INITIAL_DELAY_SECONDS = 75
 PREVIEW_INTERVAL_SECONDS = 300
 PREVIEW_MAX_CONCURRENT_JOBS = 1
 PREVIEW_JOB_TIMEOUT_SECONDS = 120
+PREVIEW_BUFFER_SECONDS = 120
+PREVIEW_BUFFER_MAX_BYTES = 150 * 1024 * 1024
 
 
 class ConfigError(RuntimeError):
@@ -134,6 +136,57 @@ class PreviewRuntimeConfig:
     disabled_reason: str | None = None
 
 
+@dataclass(frozen=True)
+class PreviewCaptureConfig:
+    enabled: bool = True
+    buffer_seconds: int = PREVIEW_BUFFER_SECONDS
+    buffer_max_bytes: int = PREVIEW_BUFFER_MAX_BYTES
+    disabled_reason: str | None = None
+
+
+def _preview_capture_config() -> PreviewCaptureConfig:
+    invalid_names: list[str] = []
+
+    def bounded(name: str, default: int, minimum: int, maximum: int) -> int:
+        raw = os.getenv(name)
+        if raw is None:
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            invalid_names.append(name)
+            return default
+        if not minimum <= value <= maximum:
+            invalid_names.append(name)
+            return default
+        return value
+
+    config = PreviewCaptureConfig(
+        buffer_seconds=bounded(
+            "PREVIEW_BUFFER_SECONDS", PREVIEW_BUFFER_SECONDS, 30, 240
+        ),
+        buffer_max_bytes=bounded(
+            "PREVIEW_BUFFER_MAX_BYTES",
+            PREVIEW_BUFFER_MAX_BYTES,
+            32 * 1024 * 1024,
+            150 * 1024 * 1024,
+        ),
+        disabled_reason="config_error" if invalid_names else None,
+    )
+    if not invalid_names:
+        return config
+    logger.warning(
+        "Preview capture отключён: некорректные переменные %s",
+        ", ".join(sorted(set(invalid_names))),
+    )
+    return PreviewCaptureConfig(
+        enabled=False,
+        buffer_seconds=config.buffer_seconds,
+        buffer_max_bytes=config.buffer_max_bytes,
+        disabled_reason="config_error",
+    )
+
+
 def _preview_config() -> PreviewRuntimeConfig:
     invalid_names: list[str] = []
     raw_enabled = os.getenv("PREVIEW_RUNTIME_ENABLED", "false").strip().lower()
@@ -205,6 +258,7 @@ class Config:
     # до меню бота не добраться (нет Telegram под рукой). Список (chat_id, логин)
     auto_track: tuple[tuple[int, str], ...]
     preview: PreviewRuntimeConfig
+    preview_capture: PreviewCaptureConfig
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -257,4 +311,5 @@ def load_config() -> Config:
         token_encryption_key=token_encryption_key,
         auto_track=_parse_auto_track(os.getenv("AUTO_TRACK")),
         preview=_preview_config(),
+        preview_capture=_preview_capture_config(),
     )
