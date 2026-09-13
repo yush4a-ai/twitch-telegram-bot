@@ -67,9 +67,8 @@ class PreviewAnalysisBoundaryTests(unittest.TestCase):
             sorted(name for name in imports if name in forbidden), imports
         )
 
-    def test_analysis_is_dormant_and_not_wired_into_runtime(self) -> None:
+    def test_analysis_is_not_wired_into_lower_runtime_layers(self) -> None:
         runtime_files = (
-            ROOT / "main.py",
             ROOT / "bot" / "preview_runtime.py",
             ROOT / "bot" / "poller.py",
             ROOT / "bot" / "live_post.py",

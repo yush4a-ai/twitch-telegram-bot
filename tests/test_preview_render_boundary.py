@@ -38,7 +38,7 @@ class PreviewRenderBoundaryTests(unittest.TestCase):
             },
         )
 
-    def test_package_is_dormant_and_has_no_p2b_local_video_dependency(self) -> None:
+    def test_package_has_no_p2b_dependency_and_stays_outside_lower_runtime(self) -> None:
         package = PROJECT / "bot" / "preview_render"
         self.assertTrue(package.is_dir())
         source = "\n".join(
@@ -48,7 +48,6 @@ class PreviewRenderBoundaryTests(unittest.TestCase):
         self.assertNotIn("bot.preview_source", source)
         self.assertNotIn("aiogram", source)
         for relative in (
-            "main.py",
             "bot/preview_runtime.py",
             "bot/poller.py",
             "bot/live_post.py",

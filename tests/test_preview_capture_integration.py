@@ -29,9 +29,9 @@ class PreviewCaptureBoundaryTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, source)
 
-    def test_p4a_is_not_wired_into_main_poller_or_preview_runtime(self) -> None:
+    def test_p4a_is_not_wired_into_poller_or_preview_runtime(self) -> None:
         project = Path(__file__).parents[1]
-        for relative in ("main.py", "bot/poller.py", "bot/preview_runtime.py"):
+        for relative in ("bot/poller.py", "bot/preview_runtime.py"):
             source = (project / relative).read_text(encoding="utf-8").lower()
             self.assertNotIn("preview_capture", source)
 

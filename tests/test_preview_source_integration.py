@@ -65,13 +65,12 @@ class PreviewSourceBoundaryTests(unittest.TestCase):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, rendered)
 
-    def test_main_and_preview_runtime_have_no_p4b_wiring(self) -> None:
-        paths = (REPO_ROOT / "main.py", REPO_ROOT / "bot" / "preview_runtime.py")
-        for path in paths:
-            with self.subTest(path=path.name):
-                text = path.read_text(encoding="utf-8").lower()
-                self.assertNotIn("preview_source", text)
-                self.assertNotIn("twitchcapturesource", text)
+    def test_preview_runtime_has_no_p4b_wiring(self) -> None:
+        path = REPO_ROOT / "bot" / "preview_runtime.py"
+        text = path.read_text(encoding="utf-8").lower()
+
+        self.assertNotIn("preview_source", text)
+        self.assertNotIn("twitchcapturesource", text)
 
     def test_no_streamlink_dependency_or_new_environment_configuration(self) -> None:
         requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")

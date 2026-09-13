@@ -25,6 +25,7 @@ from bot.chat_listener import ChatListener
 from bot.follow_listener import FollowEventListener
 from bot.config import (
     ConfigError,
+    PreviewCaptureConfig,
     PreviewRuntimeConfig,
     is_railway_environment,
     load_config,
@@ -32,6 +33,7 @@ from bot.config import (
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.logging_utils import mask_chat_id
+from bot.live_preview_provider import LivePreviewArtifactProvider
 from bot.live_post import LivePostUpdater
 from bot.middlewares import setup_middlewares
 from bot.oauth import (
@@ -40,10 +42,18 @@ from bot.oauth import (
     evaluate_runtime_health,
 )
 from bot.poller import StreamPoller
+from bot.preview_analysis import HighlightAnalyzer
+from bot.preview_capture import CaptureService, CaptureSettings
+from bot.preview_render import PreviewRenderer
 from bot.preview_runtime import (
     DisabledPreviewObserver,
     NoopPreviewArtifactProvider,
     PreviewManager,
+)
+from bot.preview_source import (
+    TwitchCaptureSource,
+    TwitchPlaybackResolver,
+    probe_streamlink,
 )
 from bot.token_store import TokenStore
 from bot.twitch import TwitchClient
@@ -142,6 +152,184 @@ async def _cancel_task(task: asyncio.Task | None, description: str) -> None:
         task.result()
     except BaseException as error:
         logger.error("Задача %s завершилась ошибкой при cleanup: %s", description, error)
+
+
+async def _safe_preview_cleanup(description: str, awaitable) -> bool:
+    """Закрывает preview-ресурс без утечки деталей ошибки в production log."""
+    try:
+        await asyncio.wait_for(awaitable, timeout=SHUTDOWN_STEP_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        logger.error(
+            "Preview cleanup превысил timeout %sс: %s",
+            SHUTDOWN_STEP_TIMEOUT_SECONDS,
+            description,
+        )
+    except asyncio.CancelledError:
+        logger.warning("Preview cleanup отменён: %s", description)
+    except Exception as error:
+        logger.error(
+            "Ошибка preview cleanup: %s (%s)",
+            description,
+            type(error).__name__,
+        )
+    else:
+        return True
+    return False
+
+
+async def _close_preview_capture_service(capture_service, description: str) -> bool:
+    return await _safe_preview_cleanup(description, capture_service.close())
+
+
+async def _build_preview_runtime(
+    db,
+    live_post_updater,
+    *,
+    preview_config: PreviewRuntimeConfig,
+    capture_config: PreviewCaptureConfig,
+    poll_interval_seconds: float,
+    build_content,
+    capture_owner=None,
+):
+    provider = NoopPreviewArtifactProvider()
+    capture_service = None
+    enabled = preview_config.enabled
+    disabled_reason = preview_config.disabled_reason
+
+    async def close_partial_capture() -> bool:
+        nonlocal capture_service
+        if capture_service is None:
+            return True
+        service = capture_service
+        closed = await _close_preview_capture_service(
+            service, "Preview CaptureService startup rollback"
+        )
+        if closed:
+            capture_service = None
+            if capture_owner is not None:
+                capture_owner(None)
+        return closed
+
+    if enabled and not capture_config.enabled:
+        enabled = False
+        disabled_reason = capture_config.disabled_reason or "config_error"
+
+    if enabled:
+        try:
+            streamlink_capability = await probe_streamlink()
+            if not streamlink_capability.available:
+                enabled = False
+                disabled_reason = "streamlink_unavailable"
+            else:
+                capture_service = await CaptureService.create(
+                    settings=CaptureSettings(
+                        buffer_seconds=capture_config.buffer_seconds,
+                        buffer_max_bytes=capture_config.buffer_max_bytes,
+                    )
+                )
+                if capture_owner is not None:
+                    capture_owner(capture_service)
+                if not capture_service.capability.available:
+                    enabled = False
+                    disabled_reason = "capture_unavailable"
+                    await close_partial_capture()
+                else:
+                    renderer = PreviewRenderer.create()
+                    render_capability = await renderer.capability()
+                    if not render_capability.available:
+                        enabled = False
+                        disabled_reason = "render_unavailable"
+                        await close_partial_capture()
+                    else:
+                        source = TwitchCaptureSource(
+                            TwitchPlaybackResolver(streamlink_capability),
+                            capture_service,
+                        )
+                        provider = LivePreviewArtifactProvider(
+                            source=source,
+                            analyzer=HighlightAnalyzer(),
+                            renderer=renderer,
+                        )
+        except asyncio.CancelledError:
+            await close_partial_capture()
+            raise
+        except Exception as error:
+            logger.error(
+                "Preview runtime не собран; core продолжает работу: %s",
+                type(error).__name__,
+            )
+            enabled = False
+            disabled_reason = "startup_error"
+            await close_partial_capture()
+
+    try:
+        manager = PreviewManager(
+            db,
+            live_post_updater,
+            provider,
+            enabled=enabled,
+            disabled_reason=disabled_reason,
+            initial_delay_seconds=preview_config.initial_delay_seconds,
+            interval_seconds=preview_config.interval_seconds,
+            max_concurrent_jobs=preview_config.max_concurrent_jobs,
+            job_timeout_seconds=preview_config.job_timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+            build_content=build_content,
+        )
+    except Exception as error:
+        logger.error(
+            "Preview runtime не собран; core продолжает работу: %s",
+            type(error).__name__,
+        )
+        await close_partial_capture()
+        return DisabledPreviewObserver("startup_error"), capture_service
+    return manager, capture_service
+
+
+async def _start_preview_runtime(preview_manager, capture_service):
+    manager_enabled = capture_service is not None
+    try:
+        manager_enabled = bool(preview_manager.health_snapshot().get("enabled"))
+    except (AttributeError, TypeError):
+        pass
+
+    start_error: Exception | None = None
+    try:
+        preview_task = preview_manager.start()
+    except Exception as error:
+        start_error = error
+        preview_task = None
+
+    if start_error is None and (not manager_enabled or preview_task is not None):
+        if not manager_enabled and capture_service is not None:
+            if await _close_preview_capture_service(
+                capture_service, "Preview CaptureService startup rollback retry"
+            ):
+                capture_service = None
+        return preview_manager, capture_service
+
+    logger.error(
+        "Preview runtime не стартовал; core продолжает работу: %s",
+        type(start_error).__name__ if start_error is not None else "startup_error",
+    )
+    await _safe_preview_cleanup(
+        "PreviewManager startup rollback", preview_manager.shutdown()
+    )
+    if capture_service is not None:
+        if await _close_preview_capture_service(
+            capture_service, "Preview CaptureService startup rollback"
+        ):
+            capture_service = None
+    return DisabledPreviewObserver("startup_error"), capture_service
+
+
+async def _shutdown_preview_runtime(preview_manager, capture_service) -> None:
+    if preview_manager is not None:
+        await _safe_preview_cleanup("PreviewManager", preview_manager.shutdown())
+    if capture_service is not None:
+        await _close_preview_capture_service(
+            capture_service, "Preview CaptureService"
+        )
 
 
 async def _log_known_chats(db: Database) -> None:
@@ -317,6 +505,7 @@ async def main() -> None:
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None
             preview_manager = None
+            preview_capture_service = None
             poller_task: asyncio.Task | None = None
             polling_task: asyncio.Task | None = None
             try:
@@ -333,28 +522,27 @@ async def main() -> None:
                 await follow_listener.wait_initial_ready()
 
                 preview_config = getattr(config, "preview", PreviewRuntimeConfig())
-                try:
-                    preview_manager = PreviewManager(
+                capture_config = getattr(
+                    config, "preview_capture", PreviewCaptureConfig()
+                )
+
+                def own_preview_capture(service) -> None:
+                    nonlocal preview_capture_service
+                    preview_capture_service = service
+
+                preview_manager, preview_capture_service = (
+                    await _build_preview_runtime(
                         db,
                         live_post_updater,
-                        NoopPreviewArtifactProvider(),
-                        enabled=preview_config.enabled,
-                        disabled_reason=preview_config.disabled_reason,
-                        initial_delay_seconds=preview_config.initial_delay_seconds,
-                        interval_seconds=preview_config.interval_seconds,
-                        max_concurrent_jobs=preview_config.max_concurrent_jobs,
-                        job_timeout_seconds=preview_config.job_timeout_seconds,
+                        preview_config=preview_config,
+                        capture_config=capture_config,
                         poll_interval_seconds=config.poll_interval_seconds,
                         build_content=lambda observation, destination: (
                             poller.build_preview_content(observation, destination)
                         ),
+                        capture_owner=own_preview_capture,
                     )
-                except Exception as error:
-                    logger.error(
-                        "Preview runtime не собран; core продолжает работу: %s",
-                        type(error).__name__,
-                    )
-                    preview_manager = DisabledPreviewObserver("startup_error")
+                )
 
                 poller = StreamPoller(
                     bot,
@@ -370,17 +558,13 @@ async def main() -> None:
                 )
                 dp["poller"] = poller
                 dp["preview_manager"] = preview_manager
-                try:
-                    preview_manager.start()
-                except Exception as error:
-                    logger.error(
-                        "Preview runtime не стартовал; core продолжает работу: %s",
-                        type(error).__name__,
+                started_preview_manager, preview_capture_service = (
+                    await _start_preview_runtime(
+                        preview_manager, preview_capture_service
                     )
-                    await _safe_cleanup(
-                        "PreviewManager startup rollback", preview_manager.shutdown()
-                    )
-                    preview_manager = DisabledPreviewObserver("startup_error")
+                )
+                if started_preview_manager is not preview_manager:
+                    preview_manager = started_preview_manager
                     poller.set_preview_observer(preview_manager)
                     dp["preview_manager"] = preview_manager
                 poller_task = asyncio.create_task(poller.run())
@@ -429,8 +613,9 @@ async def main() -> None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")
                 await _cancel_task(poller_task, "StreamPoller")
-                if preview_manager is not None:
-                    await _safe_cleanup("PreviewManager", preview_manager.shutdown())
+                await _shutdown_preview_runtime(
+                    preview_manager, preview_capture_service
+                )
                 if poller is not None:
                     await _safe_cleanup("StreamPoller", poller.shutdown())
                 await _safe_cleanup("FollowEventListener", follow_listener.stop())
