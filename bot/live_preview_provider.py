@@ -4,7 +4,12 @@ import asyncio
 from typing import Any, NoReturn
 
 from bot.live_post import LocalVideo
-from bot.preview_analysis import AnalysisResult, AnalysisStatus, HighlightAnalyzer
+from bot.preview_analysis import (
+    AnalysisResult,
+    AnalysisStatus,
+    HighlightAnalyzer,
+    HighlightSelection,
+)
 from bot.preview_capture import CaptureOutcome, SnapshotAcquireResult, SnapshotStatus
 from bot.preview_render import PreviewRenderer, RenderResult, RenderStatus
 from bot.preview_runtime import (
@@ -143,7 +148,9 @@ class _LivePreviewArtifactSession:
 
         snapshot = acquired.snapshot
         try:
-            result = await self._create_from_snapshot(snapshot)
+            result = await self._create_from_snapshot(
+                snapshot, request.is_first_preview
+            )
         except asyncio.CancelledError:
             self._release_during_cancellation(snapshot)
             raise
@@ -172,21 +179,28 @@ class _LivePreviewArtifactSession:
             return None
         return self._transfer_rendered_preview(result)
 
-    async def _create_from_snapshot(self, snapshot: Any) -> object | None:
+    async def _create_from_snapshot(
+        self, snapshot: Any, is_first_preview: bool
+    ) -> object | None:
         try:
-            analysis = await self._analyzer.analyze(snapshot)
+            analysis = await self._analyzer.analyze(
+                snapshot, include_fallback=is_first_preview
+            )
         except asyncio.CancelledError:
             raise
         except Exception:
             _provider_error()
         if not isinstance(analysis, AnalysisResult):
             _provider_error()
-        if analysis.status in {
-            AnalysisStatus.NO_SELECTION,
-            AnalysisStatus.SNAPSHOT_TOO_SHORT,
-        }:
+        if analysis.status is AnalysisStatus.SNAPSHOT_TOO_SHORT:
             return None
-        if analysis.status is not AnalysisStatus.SUCCESS:
+        if analysis.status is AnalysisStatus.NO_SELECTION:
+            if analysis.fallback is None:
+                return None
+            selection = HighlightSelection((analysis.fallback,))
+        elif analysis.status is AnalysisStatus.SUCCESS:
+            selection = analysis.selection
+        else:
             if (
                 analysis.status is AnalysisStatus.SNAPSHOT_INVALIDATED
                 or (
@@ -199,7 +213,7 @@ class _LivePreviewArtifactSession:
             _provider_error()
 
         try:
-            rendered = await self._renderer.render(snapshot, analysis.selection)
+            rendered = await self._renderer.render(snapshot, selection)
         except asyncio.CancelledError:
             raise
         except Exception:

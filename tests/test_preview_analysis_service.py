@@ -303,6 +303,28 @@ class HighlightAnalyzerTests(unittest.IsolatedAsyncioTestCase):
             ).analyze(snapshot)
         self.assertEqual(result.status, analysis.AnalysisStatus.NO_SELECTION)
         self.assertEqual(result.selection.windows, ())
+        self.assertIsNone(result.fallback)
+
+    async def test_flat_valid_stream_with_include_fallback_returns_safe_window(self) -> None:
+        analysis, metrics, _ = _modules()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            snapshot = _snapshot(root, 30)
+            flat = metrics.VisualMetrics(
+                tuple(
+                    metrics.VisualSample(sec + frame / 10, 1.0, 0.0, 0.0)
+                    for sec in range(30)
+                    for frame in range(10)
+                )
+            )
+            executor = FakeExecutor((flat, metrics.AudioMetrics(())))
+            result = await analysis.HighlightAnalyzer(
+                executor=executor, temp_root=root / "jobs"
+            ).analyze(snapshot, include_fallback=True)
+        self.assertEqual(result.status, analysis.AnalysisStatus.NO_SELECTION)
+        self.assertEqual(result.selection.windows, ())
+        self.assertIsNotNone(result.fallback)
+        self.assertEqual(result.fallback.duration_seconds, 5.0)
 
     async def test_validity_is_checked_at_every_phase_boundary(self) -> None:
         analysis, metrics, _ = _modules()

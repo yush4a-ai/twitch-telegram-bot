@@ -130,6 +130,30 @@ class AnalysisModelTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 models.AnalysisConfig(**changes)
 
+    def test_fallback_window_is_only_valid_on_no_selection(self) -> None:
+        models = _models()
+        fallback = models.HighlightWindow(0.0, 5.0, 0.0)
+        result = models.AnalysisResult(
+            models.AnalysisStatus.NO_SELECTION, fallback=fallback
+        )
+        self.assertIs(result.fallback, fallback)
+        for status in models.AnalysisStatus:
+            if status in (models.AnalysisStatus.NO_SELECTION, models.AnalysisStatus.SUCCESS):
+                continue
+            with self.subTest(status=status), self.assertRaises(ValueError):
+                models.AnalysisResult(status, fallback=fallback)
+        with self.assertRaises(ValueError):
+            models.AnalysisResult(
+                models.AnalysisStatus.SUCCESS,
+                models.HighlightSelection((fallback,)),
+                fallback=fallback,
+            )
+
+    def test_no_selection_without_fallback_defaults_to_none(self) -> None:
+        models = _models()
+        result = models.AnalysisResult(models.AnalysisStatus.NO_SELECTION)
+        self.assertIsNone(result.fallback)
+
 
 if __name__ == "__main__":
     unittest.main()

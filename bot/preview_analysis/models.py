@@ -67,6 +67,7 @@ class AnalysisResult:
     status: AnalysisStatus
     selection: HighlightSelection = HighlightSelection()
     diagnostic_code: str | None = None
+    fallback: HighlightWindow | None = None
 
     def __post_init__(self) -> None:
         has_windows = bool(self.selection.windows)
@@ -76,6 +77,8 @@ class AnalysisResult:
             raise ValueError("non-success results cannot contain windows")
         if self.diagnostic_code not in DIAGNOSTIC_CODES | {None}:
             raise ValueError("diagnostic code is not allowlisted")
+        if self.fallback is not None and self.status is not AnalysisStatus.NO_SELECTION:
+            raise ValueError("fallback window is only valid for NO_SELECTION")
 
 
 @dataclass(frozen=True)

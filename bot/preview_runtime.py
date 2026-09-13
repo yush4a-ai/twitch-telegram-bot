@@ -56,6 +56,7 @@ class PreviewGeneration:
 class PreviewArtifactRequest:
     generation: PreviewGeneration
     observation: PreviewObservation
+    is_first_preview: bool = False
 
 
 class PreviewSessionState(Enum):
@@ -446,7 +447,11 @@ class PreviewManager:
                 observed = self._latest.get(record.key.twitch_login)
                 if observed is None or not self._is_current(record.token):
                     break
-                request = PreviewArtifactRequest(record.token, observed.value)
+                request = PreviewArtifactRequest(
+                    record.token,
+                    observed.value,
+                    is_first_preview=self._is_first_preview(participants),
+                )
                 artifact: PreviewArtifact | None = None
                 job: asyncio.Task | None = None
                 try:
@@ -762,25 +767,35 @@ class PreviewManager:
 
     async def _frozen_participants(
         self, login: str
-    ) -> tuple[tuple[int, str, int], ...]:
+    ) -> tuple[tuple[int, str, int, str], ...]:
         destinations = await self._db.list_preview_destination_states(login)
         return tuple(
-            (state.chat_id, state.logical_stream_id, state.message_id)
+            (state.chat_id, state.logical_stream_id, state.message_id, state.message_kind)
             for state in destinations
             if self._eligible(state)
             and state.logical_stream_id is not None
             and state.message_id is not None
         )
 
+    @staticmethod
+    def _is_first_preview(
+        participants: tuple[tuple[int, str, int, str], ...]
+    ) -> bool:
+        """True until at least one eligible destination has an applied video
+        preview (``message_kind == "video"``) for the current physical stream.
+        Reuses the durable P2B lifecycle field already tracked per logical
+        stream instead of introducing a second persistent state."""
+        return not any(kind == "video" for _, _, _, kind in participants)
+
     async def _fan_out(
         self,
         token: PreviewGeneration,
         request: PreviewArtifactRequest,
-        participants: tuple[tuple[int, str, int], ...],
+        participants: tuple[tuple[int, str, int, str], ...],
         artifact: PreviewArtifact,
     ) -> None:
         cached_file_id: str | None = None
-        for chat_id, logical_stream_id, message_id in participants:
+        for chat_id, logical_stream_id, message_id, _message_kind in participants:
             if not self._is_current(token):
                 return
             destination = await self._db.get_preview_destination_state(

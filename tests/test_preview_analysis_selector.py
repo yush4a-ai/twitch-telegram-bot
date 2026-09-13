@@ -215,5 +215,84 @@ class SelectorCorpusTests(unittest.TestCase):
         self.assertEqual(result.windows, ())
 
 
+class SafeFallbackTests(unittest.TestCase):
+    def test_flat_uninteresting_timeline_still_yields_a_fallback(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNotNone(window)
+
+    def test_fallback_duration_is_exactly_five_seconds(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertEqual(window.duration_seconds, 5.0)
+
+    def test_fallback_is_one_continuous_window(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertEqual(window.duration_seconds, selector.FALLBACK_DURATION_SECONDS)
+        self.assertGreaterEqual(window.start_seconds, 0.0)
+        self.assertLessEqual(window.start_seconds + window.duration_seconds, 40.0)
+
+    def test_fallback_avoids_black_interval(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        bins = _replace(models, bins, 0, 35, black_ratio=1.0)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNotNone(window)
+        for offset in range(int(window.duration_seconds)):
+            index = int(window.start_seconds) + offset
+            self.assertLessEqual(bins[index].black_ratio, models.AnalysisConfig().black_second_limit)
+
+    def test_fallback_avoids_freeze_static_interval(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        bins = _replace(models, bins, 0, 35, static_seconds=1.0)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNotNone(window)
+        total_static = sum(
+            bins[int(window.start_seconds) + offset].static_seconds
+            for offset in range(int(window.duration_seconds))
+        )
+        self.assertLess(total_static, models.AnalysisConfig().static_overlap_limit)
+
+    def test_fallback_rejects_entirely_invalid_or_corrupt_snapshot(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40, valid=False)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNone(window)
+
+    def test_fallback_rejects_low_coverage_interval(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        bins = _replace(models, bins, 0, 40, visual_coverage=0.1)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNone(window)
+
+    def test_fallback_ignores_lack_of_interestingness(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40, motion=0.0, audio_spike=0.0, scene_score=0.0)
+        self.assertEqual(selector.select_highlights(bins, 40.0, models.AnalysisConfig()).windows, ())
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNotNone(window)
+
+    def test_fallback_is_deterministic_not_random(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        first = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        second = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertEqual(first, second)
+
+    def test_fallback_picks_the_safest_window_not_an_arbitrary_one(self) -> None:
+        models, selector = _modules()
+        bins = _timeline(models, 40)
+        bins = _replace(models, bins, 0, 20, black_ratio=0.19)
+        window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
+        self.assertIsNotNone(window)
+        self.assertGreaterEqual(window.start_seconds, 20.0)
+
+
 if __name__ == "__main__":
     unittest.main()

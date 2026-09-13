@@ -52,6 +52,23 @@ MESSAGE_TEMPLATE_NO_GAME = (
     "👁 Сейчас смотрят: {viewer_count}"
 )
 
+# Telegram-канал: без отдельной строки логина стримера — название стрима само
+# кликабельно на Twitch, поэтому канал/логин в тексте не дублируется.
+CHANNEL_MESSAGE_TEMPLATE = (
+    "🔴 Стрим «{title}» уже идёт!{collab_line}\n\n"
+    "🎮 <b>Категория:</b> {game_name}\n"
+    "👥 Зрителей: {viewer_count}"
+)
+CHANNEL_MESSAGE_TEMPLATE_NO_GAME = (
+    "🔴 Стрим «{title}» уже идёт!{collab_line}\n\n"
+    "👥 Зрителей: {viewer_count}"
+)
+
+# бюджет на УЖЕ экранированный заголовок в channel-шаблоне: с остальным
+# фиксированным текстом (anchor, категория, зрители, ссылка на уведомления)
+# даже в худшем случае укладывается в CAPTION_UTF16_LIMIT с большим запасом
+_CHANNEL_TITLE_MAX_CODE_UNITS = 200
+
 # В течение этого окна возврат Twitch в live считается продолжением одной логической
 # сессии даже при новом stream_id. Это намеренно не связано со сроком жизни live-поста.
 RESTART_MERGE_GRACE_SECONDS = 30 * 60
@@ -92,6 +109,25 @@ _KEYCAP_DIGITS = {
 
 def _keycap_number(value: int) -> str:
     return "".join(_KEYCAP_DIGITS[digit] for digit in str(value))
+
+
+def _truncate_escaped_utf16(raw_text: str, max_code_units: int) -> str:
+    """HTML-escapes ``raw_text`` and truncates the *escaped* HTML on a UTF-16
+    code-unit boundary (Telegram's own length unit) that never lands inside
+    an entity such as ``&amp;``, so the result is both well-formed HTML and
+    safely under ``max_code_units`` regardless of how much escaping expands
+    the source (a title of only "&" characters expands 5x)."""
+    escaped = html.escape(raw_text)
+    encoded = escaped.encode("utf-16-le")
+    if len(encoded) // 2 <= max_code_units:
+        return escaped
+    truncated = encoded[: max_code_units * 2].decode("utf-16-le", errors="ignore")
+    # an entity ends in ";" — cutting mid-entity would leak a literal "&name"
+    # into the caption, so back off to the last safe boundary before one
+    last_amp = truncated.rfind("&")
+    if last_amp != -1 and ";" not in truncated[last_amp:]:
+        truncated = truncated[:last_amp]
+    return truncated.rstrip() + "…"
 
 
 def _load_json_list(raw: str | None) -> list:
@@ -1788,10 +1824,10 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool = False,
+        is_channel: bool = False,
     ) -> str:
-        channel_name = await self._channel_display_name(login)
-        template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
         clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
+        clean_title = clean_title or "(без названия)"
         collab_line = ""
         if collab_logins:
             collab_links = " × ".join(
@@ -1799,13 +1835,35 @@ class StreamPoller:
                 for collab in collab_logins
             )
             collab_line = f"\n🤝 Вместе с: {collab_links}"
-        text = template.format(
-            channel_name=html.escape(channel_name),
-            title=html.escape(clean_title or "(без названия)"),
-            collab_line=collab_line,
-            game_name=html.escape(game_name or ""),
-            viewer_count=_keycap_number(viewer_count),
-        )
+
+        if is_channel:
+            template = (
+                CHANNEL_MESSAGE_TEMPLATE if game_name else CHANNEL_MESSAGE_TEMPLATE_NO_GAME
+            )
+            escaped_title = _truncate_escaped_utf16(
+                clean_title, _CHANNEL_TITLE_MAX_CODE_UNITS
+            )
+            twitch_url = html.escape(
+                f"https://www.twitch.tv/{login}", quote=True
+            )
+            title_html = f'<a href="{twitch_url}">{escaped_title}</a>'
+            text = template.format(
+                title=title_html,
+                collab_line=collab_line,
+                game_name=html.escape(game_name or ""),
+                viewer_count=viewer_count,
+            )
+        else:
+            channel_name = await self._channel_display_name(login)
+            template = MESSAGE_TEMPLATE if game_name else MESSAGE_TEMPLATE_NO_GAME
+            text = template.format(
+                channel_name=html.escape(channel_name),
+                title=html.escape(clean_title),
+                collab_line=collab_line,
+                game_name=html.escape(game_name or ""),
+                viewer_count=_keycap_number(viewer_count),
+            )
+
         if return_note:
             text += f"\n\n{return_note}"
         if include_track_link:
@@ -1831,6 +1889,7 @@ class StreamPoller:
         text = await self._build_live_text(
             login, title, game_name, viewer_count, return_note,
             include_track_link=include_track_link,
+            is_channel=include_track_link,
         )
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
@@ -1896,6 +1955,7 @@ class StreamPoller:
                 viewer_count,
                 return_note,
                 include_track_link=include_track_link,
+                is_channel=include_track_link,
             ),
             reply_markup=await self._build_keyboard(login),
         )

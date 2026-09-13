@@ -46,6 +46,7 @@ def _request(
     observation_login: str | None = None,
     observation_physical_id: str | None = None,
     online: bool = True,
+    is_first_preview: bool = False,
 ) -> PreviewArtifactRequest:
     return PreviewArtifactRequest(
         generation=PreviewGeneration(
@@ -66,6 +67,7 @@ def _request(
             viewer_count=1,
             twitch_started_at="2026-09-13T00:00:00Z",
         ),
+        is_first_preview=is_first_preview,
     )
 
 
@@ -163,9 +165,11 @@ class FakeAnalyzer:
     def __init__(self, *results: object) -> None:
         self.results = deque(results)
         self.calls: list[object] = []
+        self.include_fallback_calls: list[bool] = []
 
-    async def analyze(self, snapshot: object):
+    async def analyze(self, snapshot: object, *, include_fallback: bool = False):
         self.calls.append(snapshot)
+        self.include_fallback_calls.append(include_fallback)
         if not self.results:
             raise AssertionError("unexpected analyzer call")
         result = self.results.popleft()
@@ -353,6 +357,75 @@ class ArtifactFlowTests(ProviderTestCase):
         self.assertEqual(len(source.open_calls), 1)
         self.assertEqual(handle.close_calls, 0)
         self.assertEqual(renderer.calls, [])
+
+    async def test_non_first_preview_does_not_request_fallback(self) -> None:
+        snapshot = FakeSnapshot()
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        analyzer = FakeAnalyzer(AnalysisResult(AnalysisStatus.NO_SELECTION))
+        session, _source, analyzer, renderer = await self._session(
+            handle, analyzer
+        )
+        request = _request(self.key, is_first_preview=False)
+
+        artifact = await session.create_artifact(request)
+
+        self.assertIsNone(artifact)
+        self.assertEqual(analyzer.include_fallback_calls, [False])
+        self.assertEqual(renderer.calls, [])
+
+    async def test_first_preview_requests_fallback_and_no_fallback_found_returns_none(
+        self,
+    ) -> None:
+        snapshot = FakeSnapshot()
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        analyzer = FakeAnalyzer(AnalysisResult(AnalysisStatus.NO_SELECTION))
+        session, _source, analyzer, renderer = await self._session(
+            handle, analyzer
+        )
+        request = _request(self.key, is_first_preview=True)
+
+        artifact = await session.create_artifact(request)
+
+        self.assertIsNone(artifact)
+        self.assertEqual(analyzer.include_fallback_calls, [True])
+        self.assertEqual(renderer.calls, [])
+        self.assertEqual(snapshot.release_calls, 1)
+
+    async def test_first_preview_no_selection_with_fallback_renders_via_p6(self) -> None:
+        from bot.preview_analysis import HighlightWindow
+
+        snapshot = FakeSnapshot()
+        fallback = HighlightWindow(12.0, 5.0, 0.0)
+        rendered = FakeRenderedPreview()
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        analyzer = FakeAnalyzer(
+            AnalysisResult(AnalysisStatus.NO_SELECTION, fallback=fallback)
+        )
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=rendered)
+        )
+        session, _source, analyzer, _renderer = await self._session(
+            handle, analyzer, renderer
+        )
+        request = _request(self.key, is_first_preview=True)
+
+        artifact = await session.create_artifact(request)
+
+        self.assertIsInstance(artifact, LocalVideo)
+        self.assertEqual(artifact.path, rendered.path)
+        self.assertEqual(analyzer.include_fallback_calls, [True])
+        self.assertEqual(len(renderer.calls), 1)
+        rendered_snapshot, rendered_selection = renderer.calls[0]
+        self.assertIs(rendered_snapshot, snapshot)
+        self.assertEqual(rendered_selection.windows, (fallback,))
+        self.assertEqual(snapshot.release_calls, 1)
+        self.assertEqual(rendered.release_calls, 0)
 
     async def test_success_runs_pipeline_once_and_transfers_render_lease(self) -> None:
         snapshot = FakeSnapshot()

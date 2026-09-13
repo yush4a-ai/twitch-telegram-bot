@@ -44,11 +44,13 @@ def fingerprint_distance(left: bytes, right: bytes) -> float:
     return sum(abs(a - b) for a, b in zip(left, right)) / (len(left) * 255)
 
 
-def _candidate(
-    bins: tuple[AnalysisBin, ...], start: int, config: AnalysisConfig
-) -> _Candidate | None:
-    selected = bins[start : start + config.candidate_duration]
-    if len(selected) != config.candidate_duration:
+def _windowed(
+    bins: tuple[AnalysisBin, ...], start: int, duration: int
+) -> tuple[AnalysisBin, ...] | None:
+    """Contiguous, chronologically-verified slice of ``duration`` bins, or
+    ``None`` if the window is short, gapped, or carries non-finite data."""
+    selected = bins[start : start + duration]
+    if len(selected) != duration:
         return None
     finite_fields = tuple(
         value
@@ -74,19 +76,39 @@ def _candidate(
         for offset, item in enumerate(selected)
     ):
         return None
+    return selected
 
+
+def _is_safe_window(
+    selected: tuple[AnalysisBin, ...], config: AnalysisConfig
+) -> bool:
+    """Black/freeze/cut/coverage gate shared by highlight scoring and the
+    first-preview fallback: a window must clear this before it is usable at
+    all, independent of whether it is also "interesting"."""
     black = statistics.fmean(item.black_ratio for item in selected)
     if black > config.black_weighted_limit:
-        return None
+        return False
     if any(item.black_ratio > config.black_second_limit for item in selected):
-        return None
+        return False
     if sum(item.static_seconds for item in selected) >= config.static_overlap_limit:
-        return None
+        return False
     cut_count = sum(item.scene_cut_count for item in selected)
     if cut_count >= config.cut_count_limit:
-        return None
+        return False
     if any(item.visual_coverage < config.visual_min_coverage for item in selected):
+        return False
+    return True
+
+
+def _candidate(
+    bins: tuple[AnalysisBin, ...], start: int, config: AnalysisConfig
+) -> _Candidate | None:
+    selected = _windowed(bins, start, config.candidate_duration)
+    if selected is None:
         return None
+    if not _is_safe_window(selected, config):
+        return None
+    cut_count = sum(item.scene_cut_count for item in selected)
 
     motions = [item.motion for item in selected]
     motion = 0.7 * statistics.fmean(motions) + 0.3 * max(motions)
@@ -190,3 +212,46 @@ def select_highlights(
         for item in sorted(accepted, key=lambda item: item.start_seconds)
     )
     return HighlightSelection(windows)
+
+
+FALLBACK_DURATION_SECONDS = 5
+
+
+def select_safe_fallback(
+    bins: tuple[AnalysisBin, ...],
+    duration_seconds: float,
+    config: AnalysisConfig,
+) -> HighlightWindow | None:
+    """One safe, continuous ``FALLBACK_DURATION_SECONDS`` window for the very
+    first preview of a physical stream when :func:`select_highlights` found no
+    interesting highlight. Reuses the same black/freeze/cut/coverage safety
+    gate as normal candidates (:func:`_is_safe_window`) so a fallback never
+    surfaces a black, frozen, or corrupt interval — it only skips the
+    interestingness (motion/audio/scene) requirement. Picks the least
+    black/cut/static window rather than a random or arbitrary one; ties break
+    on the earliest start so the result is deterministic."""
+    if not math.isfinite(duration_seconds):
+        return None
+    if any(
+        not math.isclose(item.start_seconds, float(index), abs_tol=1e-6)
+        for index, item in enumerate(bins)
+    ):
+        return None
+
+    best: tuple[float, float, float, float] | None = None
+    best_start: int | None = None
+    for start in range(0, max(0, len(bins) - FALLBACK_DURATION_SECONDS + 1)):
+        selected = _windowed(bins, start, FALLBACK_DURATION_SECONDS)
+        if selected is None or not _is_safe_window(selected, config):
+            continue
+        black = statistics.fmean(item.black_ratio for item in selected)
+        static = sum(item.static_seconds for item in selected)
+        cuts = float(sum(item.scene_cut_count for item in selected))
+        key = (black, cuts, static, float(start))
+        if best is None or key < best:
+            best = key
+            best_start = start
+
+    if best_start is None:
+        return None
+    return HighlightWindow(float(best_start), float(FALLBACK_DURATION_SECONDS), 0.0)

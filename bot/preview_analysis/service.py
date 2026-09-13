@@ -38,7 +38,7 @@ from .process import (
     AnalysisProcessTimeout,
     AnalysisSnapshotInvalidated,
 )
-from .selector import select_highlights
+from .selector import select_highlights, select_safe_fallback
 
 
 def _concat_input_argv(manifest: Path) -> tuple[str, ...]:
@@ -173,10 +173,13 @@ class HighlightAnalyzer:
             total_max_bytes=self._config.metadata_total_max_bytes,
         )
 
-    async def analyze(self, snapshot: PinnedSnapshot) -> AnalysisResult:
+    async def analyze(
+        self, snapshot: PinnedSnapshot, *, include_fallback: bool = False
+    ) -> AnalysisResult:
         try:
             return await asyncio.wait_for(
-                self._analyze(snapshot), self._config.overall_timeout
+                self._analyze(snapshot, include_fallback),
+                self._config.overall_timeout,
             )
         except asyncio.CancelledError:
             raise
@@ -219,7 +222,9 @@ class HighlightAnalyzer:
         except Exception:
             return _empty_result(AnalysisStatus.INTERNAL_ERROR, "unexpected_error")
 
-    async def _analyze(self, snapshot: PinnedSnapshot) -> AnalysisResult:
+    async def _analyze(
+        self, snapshot: PinnedSnapshot, include_fallback: bool
+    ) -> AnalysisResult:
         validated = validate_snapshot(snapshot)
         duration = validated.duration_seconds
         if duration < self._config.min_snapshot_seconds:
@@ -287,6 +292,12 @@ class HighlightAnalyzer:
             snapshot.ensure_valid()
             if selection.windows:
                 return AnalysisResult(AnalysisStatus.SUCCESS, selection)
-            return _empty_result(AnalysisStatus.NO_SELECTION)
+            fallback = (
+                select_safe_fallback(bins, duration, self._config)
+                if include_fallback
+                else None
+            )
+            snapshot.ensure_valid()
+            return AnalysisResult(AnalysisStatus.NO_SELECTION, fallback=fallback)
         finally:
             job.cleanup()

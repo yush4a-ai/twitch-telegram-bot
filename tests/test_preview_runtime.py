@@ -380,6 +380,61 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.provider.create_calls), 1)
         self.assertEqual(len(self.updater.calls), 5)
 
+    async def test_request_is_first_preview_when_message_kind_is_text(self) -> None:
+        await self.seed(101, kind="text")
+        manager = self.manager()
+
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+
+        self.assertTrue(self.provider.create_calls[0][1].is_first_preview)
+
+    async def test_request_is_not_first_preview_when_message_kind_is_video(self) -> None:
+        await self.seed(101, logical="physical-A", message_id=701)
+        self.assertTrue(
+            await self.db.begin_video_transition(101, "channel", "physical-A", 701)
+        )
+        self.assertTrue(
+            await self.db.finish_video_transition(101, "channel", "physical-A", 701)
+        )
+        manager = self.manager()
+
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+
+        self.assertFalse(self.provider.create_calls[0][1].is_first_preview)
+
+    async def test_physical_change_gets_its_own_first_preview_state(self) -> None:
+        await self.seed(101, logical="physical-A", message_id=701)
+        self.assertTrue(
+            await self.db.begin_video_transition(101, "channel", "physical-A", 701)
+        )
+        self.assertTrue(
+            await self.db.finish_video_transition(101, "channel", "physical-A", 701)
+        )
+        self.provider.default_outcome = None
+        manager = self.manager()
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+        self.assertFalse(self.provider.create_calls[0][1].is_first_preview)
+
+        # A new physical stream posts a fresh message: last_message_id changes,
+        # so the durable message_kind resets to "text" for physical-B.
+        await self.db.set_live_state(
+            101,
+            "channel",
+            True,
+            "physical-B",
+            702,
+            "Title",
+            stream_started_at="2026-01-01T00:00:00Z",
+            last_seen_live_at=self.clock(),
+        )
+        manager.observe_cycle((self.observation(physical="physical-B"),))
+        await _wait_until(lambda: len(self.provider.create_calls) == 2)
+
+        self.assertTrue(self.provider.create_calls[1][1].is_first_preview)
+
     async def test_disabled_notify_and_missing_message_destinations_are_excluded(self) -> None:
         await self.seed(101, preview=False)
         await self.seed(102, notify=False)
@@ -1321,6 +1376,42 @@ class PreviewPollerIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(observations, [])
 
+    async def test_registered_telegram_channel_gets_new_layout_end_to_end(self) -> None:
+        await self.db.add_channel(-100501, "channel")
+        await self.db.register_telegram_channel(-100501, "Public Channel")
+        poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+        poller._maybe_snapshot_followers = AsyncMock()
+
+        await poller._check_streams()
+
+        calls = [
+            call
+            for call in self.telegram.send_message.await_args_list
+            if call.args[0] == -100501
+        ]
+        self.assertEqual(len(calls), 1)
+        text = calls[0].args[1]
+        self.assertTrue(text.startswith("🔴 Стрим «"))
+        self.assertNotIn("🔴 channel", text)
+
+    async def test_unregistered_group_chat_keeps_old_layout_end_to_end(self) -> None:
+        # chat 101 from asyncSetUp is a plain tracked chat, never registered as a
+        # Telegram channel — it must keep receiving the pre-existing layout.
+        poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+        poller._maybe_snapshot_followers = AsyncMock()
+
+        await poller._check_streams()
+
+        calls = [
+            call
+            for call in self.telegram.send_message.await_args_list
+            if call.args[0] == 101
+        ]
+        self.assertEqual(len(calls), 1)
+        text = calls[0].args[1]
+        self.assertTrue(text.startswith("🔴 <b>channel</b>"))
+        self.assertNotIn("Стрим «", text)
+
     async def test_empty_authoritative_cycle_prunes_previous_login(self) -> None:
         batches: list[tuple] = []
         observer = SimpleNamespace(observe_cycle=lambda batch: batches.append(tuple(batch)))
@@ -1365,9 +1456,9 @@ class PreviewPollerIntegrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             content.html,
-            "🔴 <b>Channel &amp; Friends</b>\n\n<b>Co-op with</b>"
+            "🔴 Стрим «<a href=\"https://www.twitch.tv/channel\">Co-op with</a>» уже идёт!"
             "\n🤝 Вместе с: <a href=\"https://www.twitch.tv/friend\">friend</a>\n\n"
-            "🎮 Game &amp; More\n👁 Сейчас смотрят: 4️⃣2️⃣\n\n"
+            "🎮 <b>Категория:</b> Game &amp; More\n👥 Зрителей: 42\n\n"
             "🔔 <a href=\"https://t.me/twitchSignalBot?start=track_channel\">"
             "Подключить уведомления</a>",
         )
@@ -1377,6 +1468,201 @@ class PreviewPollerIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((button.text, button.url), (
             "Смотреть на Twitch", "https://twitch.tv/channel"
         ))
+
+
+class ChannelLayoutTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.preview = _preview_module()
+        self.directory = tempfile.TemporaryDirectory()
+        self.db = Database(os.path.join(self.directory.name, "channel-layout.db"))
+        await self.db.connect()
+        self.telegram = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=701)),
+            edit_message_text=AsyncMock(),
+            edit_message_caption=AsyncMock(),
+            edit_message_media=AsyncMock(),
+            delete_message=AsyncMock(),
+        )
+        self.twitch = SimpleNamespace(get_live_streams=AsyncMock(return_value={}))
+        self.poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self.directory.cleanup()
+
+    def _destination(self, chat_id: int, *, include_track_link: bool):
+        destination_type = getattr(
+            importlib.import_module("bot.database"), "PreviewDestinationState"
+        )
+        return destination_type(
+            chat_id=chat_id,
+            twitch_login="paverpapa",
+            notify_enabled=True,
+            preview_enabled=True,
+            is_live=True,
+            logical_stream_id="logical-1",
+            message_id=701,
+            message_kind="text",
+            include_track_link=include_track_link,
+            last_stream_ended_at=None,
+        )
+
+    def _observation(self, *, title: str = "Разбор эфира", viewer_count: int = 977):
+        return self.preview.PreviewObservation(
+            twitch_login="paverpapa",
+            online=True,
+            physical_stream_id="physical-A",
+            title=title,
+            game_name="Just Chatting",
+            viewer_count=viewer_count,
+            twitch_started_at="2026-01-01T00:00:00Z",
+        )
+
+    async def test_channel_body_has_no_standalone_streamer_row(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        self.assertNotIn("🔴 paverpapa", content.html)
+        self.assertNotIn(">paverpapa<", content.html)
+
+    async def test_channel_first_row_wraps_clickable_title(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        first_line = content.html.split("\n", 1)[0]
+        self.assertTrue(first_line.startswith("🔴 Стрим «"))
+        self.assertTrue(first_line.endswith("» уже идёт!"))
+
+    async def test_channel_title_is_clickable_to_correct_twitch_url(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        self.assertIn(
+            '<a href="https://www.twitch.tv/paverpapa">Разбор эфира</a>', content.html
+        )
+
+    async def test_channel_title_html_escaped(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(title="<script>alert(1)</script> & со скидкой"),
+            self._destination(-100201, include_track_link=True),
+        )
+        self.assertNotIn("<script>", content.html)
+        self.assertIn("&lt;script&gt;", content.html)
+        self.assertIn("&amp;", content.html)
+
+    async def test_channel_category_line_format(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        self.assertIn("🎮 <b>Категория:</b> Just Chatting", content.html)
+
+    async def test_channel_viewers_line_format_without_emoji_digits(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(viewer_count=977),
+            self._destination(-100201, include_track_link=True),
+        )
+        self.assertIn("👥 Зрителей: 977", content.html)
+        self.assertNotIn("⃣", content.html)  # combining keycap marker (emoji digits)
+
+    async def test_channel_notification_link_preserved(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        self.assertIn("🔔 <a href=", content.html)
+        self.assertIn("Подключить уведомления</a>", content.html)
+
+    async def test_channel_has_no_separate_textual_twitch_url_outside_anchor(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        # The only occurrence of the Twitch URL must be inside the title anchor's href.
+        self.assertEqual(content.html.count("twitch.tv/paverpapa"), 1)
+
+    async def test_channel_keyboard_keeps_single_twitch_button(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100201, include_track_link=True)
+        )
+        self.assertEqual(len(content.reply_markup.inline_keyboard), 1)
+        button = content.reply_markup.inline_keyboard[0][0]
+        self.assertEqual(button.text, "Смотреть на Twitch")
+        self.assertEqual(button.url, "https://twitch.tv/paverpapa")
+
+    async def test_channel_video_caption_uses_same_layout_as_text(self) -> None:
+        destination = self._destination(-100201, include_track_link=True)
+        content = await self.poller.build_preview_content(self._observation(), destination)
+        self.assertTrue(content.html.startswith("🔴 Стрим «"))
+        self.assertIn("🎮 <b>Категория:</b>", content.html)
+        self.assertIn("👥 Зрителей:", content.html)
+
+    async def test_channel_layout_stable_across_viewer_and_title_updates(self) -> None:
+        destination = self._destination(-100201, include_track_link=True)
+        first = await self.poller.build_preview_content(
+            self._observation(title="Первый", viewer_count=10), destination
+        )
+        second = await self.poller.build_preview_content(
+            self._observation(title="Второй заголовок", viewer_count=999), destination
+        )
+        for content in (first, second):
+            self.assertTrue(content.html.startswith("🔴 Стрим «"))
+            self.assertIn("🎮 <b>Категория:</b>", content.html)
+        self.assertIn("👥 Зрителей: 10", first.html)
+        self.assertIn("👥 Зрителей: 999", second.html)
+
+    async def test_long_title_respects_caption_limit(self) -> None:
+        from bot.live_post import CAPTION_UTF16_LIMIT
+
+        long_title = "Очень длинное название стрима " * 30
+        content = await self.poller.build_preview_content(
+            self._observation(title=long_title),
+            self._destination(-100201, include_track_link=True),
+        )
+        length = len(content.html.encode("utf-16-le")) // 2
+        self.assertLessEqual(length, CAPTION_UTF16_LIMIT)
+
+    async def test_title_with_heavy_html_escaping_still_respects_caption_limit(self) -> None:
+        from bot.live_post import CAPTION_UTF16_LIMIT
+
+        # "&" expands 5x via HTML-escaping ("&amp;"); this must not blow the budget.
+        adversarial_title = "&" * 400
+        content = await self.poller.build_preview_content(
+            self._observation(title=adversarial_title),
+            self._destination(-100201, include_track_link=True),
+        )
+        length = len(content.html.encode("utf-16-le")) // 2
+        self.assertLessEqual(length, CAPTION_UTF16_LIMIT)
+        opens = content.html.count("<a ")
+        closes = content.html.count("</a>")
+        self.assertEqual(opens, closes)
+
+    async def test_long_title_truncation_keeps_html_well_formed(self) -> None:
+        long_title = "Очень длинное название стрима " * 30
+        content = await self.poller.build_preview_content(
+            self._observation(title=long_title),
+            self._destination(-100201, include_track_link=True),
+        )
+        self.assertIn('<a href="https://www.twitch.tv/paverpapa">', content.html)
+        opens = content.html.count("<a ")
+        closes = content.html.count("</a>")
+        self.assertEqual(opens, closes)
+        self.assertIn("</a>» уже идёт!", content.html)
+
+    async def test_private_chat_layout_unchanged(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(555555, include_track_link=False)
+        )
+        self.assertNotIn("Стрим «", content.html)
+        self.assertIn("👁 Сейчас смотрят:", content.html)
+        self.assertIn("🎮 Just Chatting", content.html)
+        self.assertNotIn("🔔 <a href=", content.html)
+
+    async def test_group_chat_layout_unchanged(self) -> None:
+        content = await self.poller.build_preview_content(
+            self._observation(), self._destination(-100999, include_track_link=False)
+        )
+        self.assertNotIn("Стрим «", content.html)
+        self.assertIn("👁 Сейчас смотрят:", content.html)
+        self.assertIn("🎮 Just Chatting", content.html)
+        self.assertNotIn("🔔 <a href=", content.html)
 
 
 class LivePostNotifyRaceTests(unittest.IsolatedAsyncioTestCase):
