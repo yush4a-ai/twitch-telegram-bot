@@ -8,6 +8,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAILPACK_PATH = PROJECT_ROOT / "railpack.json"
+REQUIREMENTS_PATH = PROJECT_ROOT / "requirements.txt"
 
 FFMPEG_IMAGE = (
     "mwader/static-ffmpeg:9.0.1@"
@@ -18,9 +19,6 @@ PREVIEW_BIN = "/app/.preview-bin"
 UNCHANGED_FILE_SHA256 = {
     ".python-version": (
         "5b703ca38d3fd391f3e889f7ba893f94b921ff9e7b7e5d8d6622d5f7daca7049"
-    ),
-    "requirements.txt": (
-        "36f198142f112fc24e5386f087242655125a5acbcaeec98b25d13c0ce0667221"
     ),
     "Procfile": (
         "c52a15bf646894a3a95343b5c792016ec9713f6c2826cc657b266b694cbd8345"
@@ -59,19 +57,36 @@ class DeploymentPackagingTests(unittest.TestCase):
         self.assertIsInstance(config.get("packages"), dict)
         self.assertIsInstance(config.get("steps"), dict)
         self.assertIsInstance(config.get("deploy"), dict)
-        self.assertEqual(set(config["packages"]), {"python", "pipx:streamlink"})
+        self.assertEqual(set(config["packages"]), {"python"})
         self.assertEqual(set(config["steps"]), {"preview-tools"})
         self.assertEqual(
             set(config["steps"]["preview-tools"]), {"commands", "deployOutputs"}
         )
         self.assertEqual(set(config["deploy"]), {"paths"})
 
-    def test_streamlink_and_python_packages_are_exactly_versioned(self) -> None:
+    def test_python_package_is_exactly_versioned_without_pipx(self) -> None:
         packages = self._config()["packages"]
 
         self.assertEqual(packages.get("python"), "3.12.10")
-        self.assertEqual(packages.get("pipx:streamlink"), "8.5.0")
+        self.assertNotIn("pipx", packages)
+        self.assertNotIn("pipx:streamlink", packages)
         self.assertNotIn("latest", json.dumps(packages).lower())
+
+    def test_streamlink_is_pinned_once_in_application_requirements(self) -> None:
+        requirements = REQUIREMENTS_PATH.read_text(encoding="utf-8").splitlines()
+        streamlink_requirements = [
+            line.strip()
+            for line in requirements
+            if line.strip().lower().startswith("streamlink")
+        ]
+
+        self.assertEqual(streamlink_requirements, ["streamlink==8.5.0"])
+
+    def test_railpack_does_not_install_streamlink_a_second_time(self) -> None:
+        serialized = json.dumps(self._config(), sort_keys=True).lower()
+
+        self.assertNotIn("streamlink", serialized)
+        self.assertNotIn("pipx", serialized)
 
     def test_ffmpeg_source_is_tagged_and_digest_pinned(self) -> None:
         copies = self._copy_commands()

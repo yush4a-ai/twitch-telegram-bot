@@ -1,8 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "packages": {
-    "python": "3.12.10",
-    "pipx:streamlink": "8.5.0"
+    "python": "3.12.10"
   },
   "steps": {
     "preview-tools": {

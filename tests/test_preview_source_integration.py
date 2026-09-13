@@ -76,7 +76,12 @@ class PreviewSourceBoundaryTests(unittest.TestCase):
         requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8")
         config = (REPO_ROOT / "bot" / "config.py").read_text(encoding="utf-8")
 
-        self.assertNotIn("streamlink", requirements.lower())
+        streamlink_requirements = [
+            line.strip()
+            for line in requirements.splitlines()
+            if line.strip().lower().startswith("streamlink")
+        ]
+        self.assertEqual(streamlink_requirements, ["streamlink==8.5.0"])
         self.assertNotIn("streamlink", config.lower())
         self.assertNotIn("preview_source", config.lower())
 
