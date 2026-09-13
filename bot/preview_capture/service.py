@@ -309,6 +309,8 @@ class CaptureRootManager:
                 if _safe_regular(path, session):
                     try:
                         total += path.stat().st_size
+                    except FileNotFoundError:
+                        continue
                     except OSError:
                         return ROOT_HARD_MAX_BYTES + 1
         return total
@@ -502,6 +504,8 @@ class CaptureHandle:
                 continue
             try:
                 total += path.stat().st_size
+            except FileNotFoundError:
+                continue
             except OSError:
                 return PARTIAL_FILE_MAX_BYTES + 1
         return total

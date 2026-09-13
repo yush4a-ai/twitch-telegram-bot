@@ -274,11 +274,16 @@ class HighlightAnalyzerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(argv[argv.index("-protocol_whitelist") + 1], "file")
             self.assertNotIn("-filter_script", argv)
         graph = visual[visual.index("-filter_complex") + 1]
-        for token in ("setpts=PTS-STARTPTS", "fps=10", "scale=320:180:flags=area", "signalstats", "scdet=t=10", "blackframe=amount=0:threshold=32", "freezedetect", "pipe\\:1"):
+        for token in ("setpts=PTS-STARTPTS", "fps=10", "scale=320:180:flags=area", "signalstats", "scdet=t=10", "blackframe=amount=0:threshold=32", "freezedetect", "pipe\\\\:1"):
             self.assertIn(token, graph)
+        self.assertEqual(graph.count("metadata=print"), 1)
+        self.assertNotIn("file=pipe\\:1:direct=1", graph)
         self.assertIn("0:a:0?", audio)
         self.assertIn("0:v:0", audio)
         self.assertIn("asetpts=PTS-STARTPTS", audio[audio.index("-af") + 1])
+        self.assertEqual(audio[audio.index("-af") + 1].count("ametadata=print"), 1)
+        self.assertIn("file=pipe\\\\:1:direct=1", audio[audio.index("-af") + 1])
+        self.assertNotIn("file=pipe\\:1:direct=1", audio[audio.index("-af") + 1])
 
     async def test_flat_valid_stream_returns_no_selection_without_fallback(self) -> None:
         analysis, metrics, _ = _modules()

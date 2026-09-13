@@ -91,7 +91,7 @@ class AnalysisConfig:
     pass_timeout: float = 45.0
     overall_timeout: float = 60.0
     metadata_line_max_bytes: int = 4 * 1024
-    metadata_total_max_bytes: int = 2 * 1024 * 1024
+    metadata_total_max_bytes: int = 3 * 1024 * 1024
     visual_record_tolerance: int = 20
     audio_record_tolerance: int = 2
     visual_min_coverage: float = 0.70

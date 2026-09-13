@@ -62,18 +62,6 @@ def build_visual_argv(
     fingerprint_path: Path,
     config: AnalysisConfig,
 ) -> tuple[str, ...]:
-    metadata_keys = (
-        "lavfi.signalstats.YDIF",
-        "lavfi.scd.score",
-        "lavfi.blackframe.pblack",
-        "lavfi.freezedetect.freeze_start",
-        "lavfi.freezedetect.freeze_end",
-        "lavfi.freezedetect.freeze_duration",
-    )
-    printers = ",".join(
-        f"metadata=print:key={key}:file=pipe\\:1:direct=1"
-        for key in metadata_keys
-    )
     graph = (
         "[0:v:0]settb=AVTB,setpts=PTS-STARTPTS,"
         f"fps={config.analysis_fps},"
@@ -84,7 +72,7 @@ def build_visual_argv(
         "blackframe=amount=0:threshold=32,"
         f"freezedetect=n={format(config.freeze_noise_db, 'g')}dB:"
         f"d={format(config.freeze_duration, 'g')},"
-        f"{printers}[metrics_out];"
+        "metadata=print:file=pipe\\\\:1:direct=1[metrics_out];"
         f"[finger_in]fps=1,scale={config.fingerprint_width}:"
         f"{config.fingerprint_height}:flags=area,format=gray[finger_out]"
     )
@@ -124,10 +112,7 @@ def build_audio_argv(
         "aresample=48000,asetpts=PTS-STARTPTS,asetnsamples=n=48000:p=1,"
         "astats=metadata=1:reset=1:measure_perchannel=none:"
         "measure_overall=RMS_level+Peak_level,"
-        "ametadata=print:key=lavfi.astats.Overall.RMS_level:"
-        "file=pipe\\:1:direct=1,"
-        "ametadata=print:key=lavfi.astats.Overall.Peak_level:"
-        "file=pipe\\:1:direct=1"
+        "ametadata=print:file=pipe\\\\:1:direct=1"
     )
     return (
         executable,

@@ -325,6 +325,25 @@ class RootOwnershipTests(unittest.TestCase):
             self.assertEqual(manager.cleanup_orphans(now_unix=10_000), 1)
             self.assertFalse(tuple(manager.root.glob(".deleting-*")))
 
+    def test_atomic_rename_during_root_size_scan_is_not_disk_pressure(self) -> None:
+        with TemporaryDirectory() as parent:
+            manager = capture.CaptureRootManager(Path(parent) / "root")
+            session = manager.create_session(now_unix=0)
+            transient = session / "segment-000000000.ts.tmp"
+            transient.write_bytes(b"x" * 1024)
+            original_lstat = Path.lstat
+
+            def disappearing_lstat(path, *args, **kwargs):
+                info = original_lstat(path, *args, **kwargs)
+                if path == transient and transient.exists():
+                    transient.unlink()
+                return info
+
+            with patch.object(type(transient), "lstat", disappearing_lstat):
+                total = manager.total_owned_bytes()
+
+            self.assertLess(total, capture.ROOT_HARD_MAX_BYTES)
+
 
 class ProgressWatchdogTests(unittest.TestCase):
     def test_first_segment_grace_then_stall_from_registered_progress_only(self) -> None:
@@ -360,6 +379,32 @@ class ProgressWatchdogTests(unittest.TestCase):
 
 
 class CaptureServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_atomic_tmp_rename_during_scan_is_not_disk_pressure(self) -> None:
+        with TemporaryDirectory() as parent:
+            process = FakeProcess()
+            service = capture.CaptureService(
+                root=Path(parent) / "root",
+                capability=_available_capability(),
+                process_runner=FakeProcessRunner(process),
+                sample_interval=10,
+            )
+            handle = (await service.start(capture.UrlCaptureInput("https://valid"))).handle
+            transient = handle.session_dir / "segment-000000000.ts.tmp"
+            transient.write_bytes(b"x" * 1024)
+            original_lstat = Path.lstat
+
+            def disappearing_lstat(path, *args, **kwargs):
+                info = original_lstat(path, *args, **kwargs)
+                if path == transient and transient.exists():
+                    transient.unlink()
+                return info
+
+            with patch.object(type(transient), "lstat", disappearing_lstat):
+                self.assertFalse(handle._disk_pressure())
+
+            await handle.close()
+            await service.close()
+
     async def test_out_of_contract_settings_disable_capture_fail_soft(self) -> None:
         with TemporaryDirectory() as parent:
             service = capture.CaptureService(

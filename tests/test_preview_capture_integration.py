@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import shutil
 import subprocess
 import unittest
+from fractions import Fraction
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -111,16 +113,21 @@ class RealFfmpegCaptureTests(unittest.IsolatedAsyncioTestCase):
                     ffprobe,
                     "-v",
                     "error",
-                    "-select_streams",
-                    "v:0",
                     "-show_entries",
-                    "stream=r_frame_rate",
+                    "stream=index,codec_type,avg_frame_rate,r_frame_rate",
                     "-of",
-                    "default=noprint_wrappers=1:nokey=1",
+                    "json",
                     str(concatenated),
                 )
                 self.assertEqual(code, 0, metadata.decode(errors="replace"))
-                self.assertEqual(metadata.decode().strip(), f"{fps}/1")
+                document = json.loads(metadata)
+                streams = document["streams"]
+                videos = [stream for stream in streams if stream["codec_type"] == "video"]
+                audios = [stream for stream in streams if stream["codec_type"] == "audio"]
+                self.assertEqual(len(videos), 1)
+                self.assertEqual(len(audios), 1)
+                self.assertEqual(Fraction(videos[0]["avg_frame_rate"]), Fraction(fps, 1))
+                self.assertEqual(Fraction(videos[0]["r_frame_rate"]), Fraction(fps, 1))
 
             snapshot.release()
             await handle.close()
