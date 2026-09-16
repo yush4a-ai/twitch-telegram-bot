@@ -388,6 +388,22 @@ class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
                 result = await self._run(stderr)
                 self.assertEqual(result.failure_code, expected)
 
+    async def test_gql_transport_failure_prefers_safe_transport_category(self) -> None:
+        cases = (
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (Read timed out.)", "read_timeout"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (Connect timeout)", "connect_timeout"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (Remote end closed connection without response)", "remote_closed"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (500 Server Error)", "http_500"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (502 Bad Gateway)", "http_502"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (503 Service Unavailable)", "http_503"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (504 Gateway Timeout)", "http_504"),
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (ProxyError)", "proxy_error"),
+        )
+        for stdout, expected in cases:
+            with self.subTest(expected=expected):
+                result = await self._run(stdout=stdout)
+                self.assertEqual(result.failure_code, expected)
+
     async def test_url_open_failure_exposes_only_allowlisted_endpoint(self) -> None:
         cases = (
             (b"error: Unable to open URL: https://gql.twitch.tv/gql (opaque)", "url_open_gql"),
