@@ -27,7 +27,11 @@ def _classify_streamlink_failure(stderr_bytes: bytes) -> str:
         ("http_401", (b" 401", b"401 ", b"unauthorized")),
         ("dns_error", (b"name resolution", b"name or service not known", b"nodename nor servname", b"getaddrinfo failed")),
         ("tls_error", (b"certificate verify failed", b"ssl error", b"tls error")),
-        ("network_error", (b"connection reset", b"connection refused", b"network is unreachable", b"max retries exceeded", b"unable to open url")),
+        ("connection_reset", (b"connection reset",)),
+        ("connection_refused", (b"connection refused",)),
+        ("network_unreachable", (b"network is unreachable",)),
+        ("max_retries", (b"max retries exceeded",)),
+        ("url_open_failed", (b"unable to open url",)),
         ("no_plugin", (b"no plugin can handle url",)),
         ("twitch_api_error", (b"streaming access token", b"access token", b"gql.twitch.tv")),
     )

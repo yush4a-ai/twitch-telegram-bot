@@ -377,7 +377,11 @@ class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
             (b"error: HTTP 429 Too Many Requests", "http_429"),
             (b"error: Temporary failure in name resolution", "dns_error"),
             (b"error: certificate verify failed", "tls_error"),
-            (b"error: connection reset by peer", "network_error"),
+            (b"error: connection reset by peer", "connection_reset"),
+            (b"error: connection refused", "connection_refused"),
+            (b"error: network is unreachable", "network_unreachable"),
+            (b"error: Max retries exceeded", "max_retries"),
+            (b"error: Unable to open URL", "url_open_failed"),
         )
         for stderr, expected in cases:
             with self.subTest(stderr=stderr):
