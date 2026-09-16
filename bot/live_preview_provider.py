@@ -10,7 +10,12 @@ from bot.preview_analysis import (
     HighlightAnalyzer,
     HighlightSelection,
 )
-from bot.preview_capture import CaptureOutcome, SnapshotAcquireResult, SnapshotStatus
+from bot.preview_capture import (
+    CaptureEndReason,
+    CaptureOutcome,
+    SnapshotAcquireResult,
+    SnapshotStatus,
+)
 from bot.preview_render import PreviewRenderer, RenderResult, RenderStatus
 from bot.preview_runtime import (
     PreviewArtifact,
@@ -20,6 +25,7 @@ from bot.preview_runtime import (
 )
 from bot.preview_source import (
     CaptureRetryAction,
+    PlaybackResolveStatus,
     RetryDisposition,
     TwitchCaptureSource,
     TwitchCaptureStartResult,
@@ -36,10 +42,23 @@ _CAPTURE_RESET_RENDER_DIAGNOSTICS = frozenset({"source_file_missing"})
 _RECOVER_CAPTURE = object()
 
 
-_PROVIDER_ERROR_PHASES = frozenset({
-    "source_open", "capture_state", "snapshot", "analysis", "render",
-    "artifact", "request", "session_close", "capture_recovery", "provider",
-})
+_SOURCE_RESOLVE_PHASES = frozenset(
+    f"source_resolve_{status.value}"
+    for status in PlaybackResolveStatus
+    if status is not PlaybackResolveStatus.RESOLVED
+)
+_SOURCE_CAPTURE_PHASES = frozenset(
+    f"source_capture_{reason.value}" for reason in CaptureEndReason
+)
+_PROVIDER_ERROR_PHASES = (
+    frozenset({
+        "source_open", "source_invalid_identity", "source_capture_capacity",
+        "capture_state", "snapshot", "analysis", "render", "artifact",
+        "request", "session_close", "capture_recovery", "provider",
+    })
+    | _SOURCE_RESOLVE_PHASES
+    | _SOURCE_CAPTURE_PHASES
+)
 
 
 class LivePreviewProviderError(RuntimeError):
@@ -75,7 +94,7 @@ class LivePreviewArtifactProvider:
         except Exception:
             _provider_error("source_open")
         if not _started(result):
-            _provider_error("source_open")
+            _provider_error(_source_failure_phase(result))
         return _LivePreviewArtifactSession(
             source=self._source,
             analyzer=self._analyzer,
@@ -91,6 +110,32 @@ def _started(result: object) -> bool:
         and result.status is TwitchCaptureStartStatus.STARTED
         and result.handle is not None
     )
+
+
+def _source_failure_phase(result: object) -> str:
+    if not isinstance(result, TwitchCaptureStartResult):
+        return "source_open"
+    if result.status is TwitchCaptureStartStatus.INVALID_IDENTITY:
+        return "source_invalid_identity"
+    if (
+        result.status is TwitchCaptureStartStatus.RESOLVE_FAILED
+        and result.resolve_status is not None
+    ):
+        candidate = f"source_resolve_{result.resolve_status.value}"
+        return candidate if candidate in _PROVIDER_ERROR_PHASES else "source_open"
+    if (
+        result.status is TwitchCaptureStartStatus.CAPTURE_NOT_STARTED
+        and result.capture_outcome is not None
+    ):
+        outcome = result.capture_outcome
+        if (
+            outcome.reason is CaptureEndReason.CAPABILITY_UNAVAILABLE
+            and outcome.diagnostic_code == "capacity"
+        ):
+            return "source_capture_capacity"
+        candidate = f"source_capture_{outcome.reason.value}"
+        return candidate if candidate in _PROVIDER_ERROR_PHASES else "source_open"
+    return "source_open"
 
 
 class _LivePreviewArtifactSession:
@@ -320,7 +365,7 @@ class _LivePreviewArtifactSession:
         if not isinstance(result, TwitchCaptureStartResult):
             _provider_error()
         self._apply_start_failure(result)
-        _provider_error()
+        _provider_error(_source_failure_phase(result))
 
     async def _recover_capture(self, action: CaptureRetryAction) -> None:
         handle = self._handle

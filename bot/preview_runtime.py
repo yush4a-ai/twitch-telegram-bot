@@ -22,8 +22,18 @@ from .live_post import (
 logger = logging.getLogger(__name__)
 
 _PROVIDER_FAILURE_PHASES = frozenset({
-    "source_open", "capture_state", "snapshot", "analysis", "render",
-    "artifact", "request", "session_close", "capture_recovery", "provider",
+    "source_open", "source_invalid_identity",
+    "source_resolve_invalid_login", "source_resolve_capability_unavailable",
+    "source_resolve_timeout", "source_resolve_process_failed",
+    "source_resolve_malformed_output", "source_resolve_internal_error",
+    "source_capture_clean_eof", "source_capture_process_exit",
+    "source_capture_stalled", "source_capture_invalid_input",
+    "source_capture_disk_pressure", "source_capture_permission_denied",
+    "source_capture_start_failed", "source_capture_shutdown",
+    "source_capture_capability_unavailable", "source_capture_internal_error",
+    "source_capture_capacity", "capture_state", "snapshot", "analysis",
+    "render", "artifact", "request", "session_close",
+    "capture_recovery", "provider",
 })
 
 PreviewArtifact: TypeAlias = LocalVideo | TelegramVideo

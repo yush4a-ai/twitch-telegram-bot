@@ -33,6 +33,7 @@ from bot.preview_runtime import (
     PreviewSessionKey,
 )
 from bot.preview_source import (
+    PlaybackResolveStatus,
     RetryDisposition,
     TwitchCaptureStartResult,
     TwitchCaptureStartStatus,
@@ -1234,3 +1235,30 @@ class ProviderDiagnosticPhaseTests(ProviderTestCase):
             await session.create_artifact(self.request)
         self.assertEqual(raised.exception.phase, "render")
         self.assertEqual(snapshot.release_calls, 1)
+
+
+class ProviderSourceFailureDetailTests(ProviderTestCase):
+    async def test_resolve_timeout_exposes_safe_specific_phase(self) -> None:
+        result = TwitchCaptureStartResult(
+            status=TwitchCaptureStartStatus.RESOLVE_FAILED,
+            retry_disposition=RetryDisposition.RETRYABLE,
+            resolve_status=PlaybackResolveStatus.TIMEOUT,
+        )
+        provider = LivePreviewArtifactProvider(FakeSource(result), FakeAnalyzer(), FakeRenderer())
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await provider.open_session(self.key)
+        self.assertEqual(raised.exception.phase, "source_resolve_timeout")
+
+    async def test_capture_capacity_exposes_safe_specific_phase(self) -> None:
+        result = TwitchCaptureStartResult(
+            status=TwitchCaptureStartStatus.CAPTURE_NOT_STARTED,
+            retry_disposition=RetryDisposition.RETRYABLE,
+            capture_outcome=CaptureOutcome(
+                CaptureEndReason.CAPABILITY_UNAVAILABLE,
+                diagnostic_code="capacity",
+            ),
+        )
+        provider = LivePreviewArtifactProvider(FakeSource(result), FakeAnalyzer(), FakeRenderer())
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await provider.open_session(self.key)
+        self.assertEqual(raised.exception.phase, "source_capture_capacity")
