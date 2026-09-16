@@ -388,6 +388,19 @@ class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
                 result = await self._run(stderr)
                 self.assertEqual(result.failure_code, expected)
 
+    async def test_url_open_failure_exposes_only_allowlisted_endpoint(self) -> None:
+        cases = (
+            (b"error: Unable to open URL: https://gql.twitch.tv/gql (opaque)", "url_open_gql"),
+            (b"error: Unable to open URL: https://usher.ttvnw.net/api/channel/hls/private.m3u8 (opaque)", "url_open_usher"),
+            (b"error: Unable to open URL: https://abc.playlist.ttvnw.net/v1/private.m3u8 (opaque)", "url_open_playlist"),
+            (b"error: Unable to open URL: https://www.twitch.tv/private_login (opaque)", "url_open_twitch"),
+        )
+        for stdout, expected in cases:
+            with self.subTest(expected=expected):
+                result = await self._run(stdout=stdout)
+                self.assertEqual(result.failure_code, expected)
+                self.assertNotIn("private", repr(result))
+
     async def test_unknown_error_falls_back_to_process_failed(self) -> None:
         result = await self._run(b"opaque internal failure token=secret-value")
         self.assertEqual(result.failure_code, "process_failed")
