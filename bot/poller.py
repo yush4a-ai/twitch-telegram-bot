@@ -41,6 +41,34 @@ from .twitch import ClipInfo, TwitchClient
 
 logger = logging.getLogger(__name__)
 
+
+def normalize_telegram_channel_username(username: str | None) -> str | None:
+    if not isinstance(username, str):
+        return None
+    normalized = username.strip().lstrip("@").lower()
+    return normalized or None
+
+
+class TelegramChannelUsernameCache:
+    def __init__(self) -> None:
+        self._usernames: dict[int, str] = {}
+
+    def update(self, chat_id: int, username: str | None) -> None:
+        normalized = normalize_telegram_channel_username(username)
+        if normalized is None:
+            self._usernames.pop(chat_id, None)
+            return
+        self._usernames[chat_id] = normalized
+
+    def discard(self, chat_id: int) -> None:
+        self._usernames.pop(chat_id, None)
+
+    def get(self, chat_id: int) -> str | None:
+        return self._usernames.get(chat_id)
+
+    def include_video_submission_link(self, chat_id: int) -> bool:
+        return self.get(chat_id) == "papapavertv"
+
 MESSAGE_TEMPLATE = (
     "🔴 <b>{channel_name}</b>\n\n<b>{title}</b>{collab_line}\n\n"
     "🎮 {game_name}\n"
@@ -337,6 +365,7 @@ class StreamPoller:
         owner_chat_id: int | None = None,
         live_post_updater: LivePostUpdater | None = None,
         preview_observer: PreviewObserver | None = None,
+        telegram_channel_username_cache: TelegramChannelUsernameCache | None = None,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -357,6 +386,9 @@ class StreamPoller:
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
         self._live_post_updater = live_post_updater or LivePostUpdater(bot, db)
         self._preview_observer = preview_observer
+        self._telegram_channel_username_cache = (
+            telegram_channel_username_cache or TelegramChannelUsernameCache()
+        )
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -366,6 +398,11 @@ class StreamPoller:
 
     def set_preview_observer(self, observer: PreviewObserver | None) -> None:
         self._preview_observer = observer
+
+    def set_telegram_channel_username_cache(
+        self, cache: TelegramChannelUsernameCache
+    ) -> None:
+        self._telegram_channel_username_cache = cache
 
     def health_snapshot(self, now: float | None = None) -> dict[str, object]:
         snapshot_at = time.time() if now is None else now
@@ -807,6 +844,9 @@ class StreamPoller:
             stream = live_streams.get(login)
             for chat_id in chat_ids:
                 include_track_link = chat_id in telegram_channel_ids
+                include_video_submission_link = (
+                    self._telegram_channel_username_cache.get(chat_id) == "papapavertv"
+                )
                 (
                     was_live,
                     last_stream_id,
@@ -929,6 +969,7 @@ class StreamPoller:
                             title, stream.viewer_count,
                             game_name, return_note,
                             include_track_link=include_track_link,
+                            include_video_submission_link=include_video_submission_link,
                         )
                         if update_result is LivePostUpdateResult.STALE_TARGET:
                             continue
@@ -951,6 +992,7 @@ class StreamPoller:
                                 game_name,
                                 return_note,
                                 include_track_link=include_track_link,
+                                include_video_submission_link=include_video_submission_link,
                             )
                             message_kind = "text"
                     elif continuing_session:
@@ -960,6 +1002,7 @@ class StreamPoller:
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             silent=True,
                             include_track_link=include_track_link,
+                            include_video_submission_link=include_video_submission_link,
                         )
                         message_kind = "text"
                     else:
@@ -1003,6 +1046,7 @@ class StreamPoller:
                         message_id = await self._notify(
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             include_track_link=include_track_link,
+                            include_video_submission_link=include_video_submission_link,
                         )
                         message_kind = "text"
 
@@ -1824,6 +1868,7 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool = False,
+        include_video_submission_link: bool = False,
         is_channel: bool = False,
     ) -> str:
         clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
@@ -1872,6 +1917,11 @@ class StreamPoller:
                 f'\n\n🔔 <a href="{subscribe_url}">'
                 "Подключить уведомления</a>"
             )
+        if include_video_submission_link and is_channel:
+            text += (
+                '\n🎬 <a href="https://t.me/paver_video_bot">'
+                "Предложить видео</a>"
+            )
         return text
 
     async def _notify(
@@ -1885,11 +1935,13 @@ class StreamPoller:
         *,
         silent: bool = False,
         include_track_link: bool = False,
+        include_video_submission_link: bool = False,
     ) -> int | None:
         text = await self._build_live_text(
             login, title, game_name, viewer_count, return_note,
             include_track_link=include_track_link,
             is_channel=include_track_link,
+            include_video_submission_link=include_video_submission_link,
         )
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
@@ -1918,6 +1970,7 @@ class StreamPoller:
         return_note: str | None = None,
         *,
         include_track_link: bool = False,
+        include_video_submission_link: bool = False,
     ) -> LivePostUpdateResult:
         """Обновляет current post и сохраняет типизированную lifecycle-семантику."""
         return await self._live_post_updater.update_content(
@@ -1934,6 +1987,7 @@ class StreamPoller:
                 viewer_count,
                 return_note,
                 include_track_link=include_track_link,
+                include_video_submission_link=include_video_submission_link,
             ),
         )
 
@@ -1946,6 +2000,7 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool,
+        include_video_submission_link: bool = False,
     ) -> LivePostContent:
         return LivePostContent(
             html=await self._build_live_text(
@@ -1956,6 +2011,7 @@ class StreamPoller:
                 return_note,
                 include_track_link=include_track_link,
                 is_channel=include_track_link,
+                include_video_submission_link=include_video_submission_link,
             ),
             reply_markup=await self._build_keyboard(login),
         )
@@ -1972,6 +2028,10 @@ class StreamPoller:
             observation.viewer_count,
             _build_return_note(destination.last_stream_ended_at),
             include_track_link=destination.include_track_link,
+            include_video_submission_link=(
+                self._telegram_channel_username_cache.get(destination.chat_id)
+                == "papapavertv"
+            ),
         )
 
     async def _replace_live_post_if_current(
@@ -1986,6 +2046,7 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool,
+        include_video_submission_link: bool = False,
     ) -> int | None:
         async with self._live_post_updater.serialized(chat_id, message_id):
             state = await self._db.get_live_post_state(chat_id, login)
@@ -2012,4 +2073,5 @@ class StreamPoller:
                 return_note,
                 silent=True,
                 include_track_link=include_track_link,
+                include_video_submission_link=include_video_submission_link,
             )

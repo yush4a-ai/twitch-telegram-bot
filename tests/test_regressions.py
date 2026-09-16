@@ -86,6 +86,7 @@ from bot.handlers.streams import (
     cmd_report,
     cmd_start_link,
     cmd_track,
+    on_bot_membership_changed,
 )
 from bot.oauth import (
     HEALTH_PATH,
@@ -103,6 +104,8 @@ from bot.poller import (
     OFFLINE_GRACE_SECONDS,
     RESTART_MERGE_GRACE_SECONDS,
     StreamPoller,
+    TelegramChannelUsernameCache,
+    normalize_telegram_channel_username,
     _FAILED,
 )
 from bot.report_delivery import validate_report_destination
@@ -5162,7 +5165,7 @@ class TestIsolationTests(unittest.TestCase):
             "await db.connect()",
             "await db.invalidate_live_follow_counts_after_restart()",
             "await db.invalidate_live_chat_stats_after_restart()",
-            "lambda: _reconcile_telegram_channels(bot, db)",
+            "lambda: _reconcile_telegram_channels(bot, db, channel_username_cache)",
             "follow_listener_task = asyncio.create_task(follow_listener.run())",
             "await follow_listener.wait_initial_ready()",
             "poller_task = asyncio.create_task(poller.run())",
@@ -7725,6 +7728,135 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         added = set(await self.db.list_channels(101)) & {"raceone", "racetwo"}
         self.assertEqual(len(added), 1)
         self.assertIn("добавил каналов: 1", message.edit_text.await_args.args[0])
+
+
+class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
+    VIDEO_LINK = '🎬 <a href="https://t.me/paver_video_bot">Предложить видео</a>'
+
+    async def asyncSetUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.db = Database(os.path.join(self.directory.name, "video-link.db"))
+        await self.db.connect()
+        self.telegram = SimpleNamespace(
+            send_message=AsyncMock(return_value=SimpleNamespace(message_id=901)),
+            edit_message_text=AsyncMock(),
+        )
+        self.twitch = SimpleNamespace(get_live_streams=AsyncMock())
+        self.poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+
+    async def asyncTearDown(self) -> None:
+        await self.db.close()
+        self.directory.cleanup()
+
+    async def test_normalizes_channel_username(self) -> None:
+        self.assertEqual(normalize_telegram_channel_username("@PapaPaverTV"), "papapavertv")
+        self.assertEqual(normalize_telegram_channel_username("PAPAPAVERTV"), "papapavertv")
+        self.assertIsNone(normalize_telegram_channel_username(None))
+
+    async def test_startup_reconciliation_populates_cache_and_fail_closed(self) -> None:
+        await self.db.register_telegram_channel(-1001, "PapaPaver")
+        await self.db.register_telegram_channel(-1002, "Other")
+        await self.db.register_telegram_channel(-1003, "Unknown")
+        async def get_chat(chat_id: int):
+            if chat_id == -1001:
+                return SimpleNamespace(type=ChatType.CHANNEL, username="@PapaPaverTV")
+            if chat_id == -1002:
+                return SimpleNamespace(type=ChatType.CHANNEL, username="otherchannel")
+            raise RuntimeError("temporary")
+
+        bot = SimpleNamespace(
+            id=99,
+            get_chat=AsyncMock(side_effect=get_chat),
+            get_chat_member=AsyncMock(return_value=SimpleNamespace(status="administrator")),
+        )
+        cache = TelegramChannelUsernameCache()
+
+        await main_module._reconcile_telegram_channels(bot, self.db, cache)
+
+        self.assertTrue(cache.include_video_submission_link(-1001))
+        self.assertFalse(cache.include_video_submission_link(-1002))
+        self.assertFalse(cache.include_video_submission_link(-1003))
+
+    async def test_membership_event_updates_cache_without_second_lookup(self) -> None:
+        cache = TelegramChannelUsernameCache()
+        event = SimpleNamespace(
+            chat=SimpleNamespace(id=-1004, type=ChatType.CHANNEL, title="PapaPaver", username="@PAPAPAVERTV"),
+            new_chat_member=SimpleNamespace(status="administrator"),
+        )
+
+        await on_bot_membership_changed(event, self.db, cache)
+
+        self.assertTrue(cache.include_video_submission_link(-1004))
+
+    async def test_papapaver_channel_initial_text_has_static_video_link(self) -> None:
+        await self.db.add_channel(-1005, "paverpapa")
+        await self.db.register_telegram_channel(-1005, "PapaPaver")
+        cache = TelegramChannelUsernameCache()
+        cache.update(-1005, "@papapavertv")
+        self.poller.set_telegram_channel_username_cache(cache)
+        self.twitch.get_live_streams.return_value = {
+            "paverpapa": StreamInfo("paverpapa", "stream-1", "Title", "Game", 10, "2026-01-01T00:00:00Z")
+        }
+
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+
+        text = self.telegram.send_message.await_args.args[1]
+        self.assertIn(self.VIDEO_LINK, text)
+        self.assertIn("Подключить уведомления</a>", text)
+        self.assertLess(text.index("Подключить уведомления"), text.index("Предложить видео"))
+        self.assertNotIn("paverpapa</a>", text)
+
+    async def test_other_channel_streamer_and_private_group_are_unchanged(self) -> None:
+        cache = TelegramChannelUsernameCache()
+        cache.update(-1006, "otherchannel")
+        self.poller.set_telegram_channel_username_cache(cache)
+        for chat_id in (-1006, 1007, -1008):
+            await self.db.add_channel(chat_id, "paverpapa")
+        await self.db.register_telegram_channel(-1006, "Other")
+        self.twitch.get_live_streams.return_value = {
+            "paverpapa": StreamInfo("paverpapa", "stream-1", "Title", "Game", 10, "2026-01-01T00:00:00Z")
+        }
+
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+
+        for sent in self.telegram.send_message.await_args_list:
+            self.assertNotIn("Предложить видео", sent.args[1])
+
+    async def test_video_caption_and_subsequent_update_use_same_builder(self) -> None:
+        cache = TelegramChannelUsernameCache()
+        cache.update(-1009, "papapavertv")
+        self.poller.set_telegram_channel_username_cache(cache)
+        observation = SimpleNamespace(
+            twitch_login="paverpapa", title="Title", game_name="Game", viewer_count=10
+        )
+        destination = SimpleNamespace(
+            chat_id=-1009,
+            last_stream_ended_at=None,
+            include_track_link=True,
+        )
+
+        content = await self.poller.build_preview_content(observation, destination)
+        self.assertIn(self.VIDEO_LINK, content.html)
+        self.assertIn("Подключить уведомления", content.html)
+
+        updated = await self.poller._build_live_text(
+            "paverpapa", "Updated", "Game", 42, None,
+            include_track_link=True,
+            include_video_submission_link=True,
+            is_channel=True,
+        )
+        self.assertIn(self.VIDEO_LINK, updated)
+
+    async def test_caption_limit_remains_safe_with_video_link(self) -> None:
+        text = await self.poller._build_live_text(
+            "paverpapa", "x" * 2000, "Game", 42, None,
+            include_track_link=True,
+            include_video_submission_link=True,
+            is_channel=True,
+        )
+        self.assertLessEqual(len(text.encode("utf-16-le")) // 2, 1024)
 
 
 if __name__ == "__main__":

@@ -44,6 +44,7 @@ from ..oauth import (
 )
 from ..poller import (
     StreamPoller,
+    TelegramChannelUsernameCache,
     _is_within_quiet_hours,
     _split_twitch_mentions,
     _strip_links,
@@ -767,7 +768,11 @@ async def cmd_help(message: Message) -> None:
 
 
 @router.my_chat_member()
-async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> None:
+async def on_bot_membership_changed(
+    event: ChatMemberUpdated,
+    db: Database,
+    channel_username_cache: TelegramChannelUsernameCache | None = None,
+) -> None:
     """В Telegram-канале нет способа узнать о боте иначе: читатели канала не могут
     писать боту сообщения, поэтому /start там никогда не сработает. Единственный
     сигнал о том, что бота добавили (или сняли) как админа — это my_chat_member."""
@@ -776,10 +781,16 @@ async def on_bot_membership_changed(event: ChatMemberUpdated, db: Database) -> N
     if event.chat.type == ChatType.CHANNEL:
         if new_status == "administrator":
             await db.register_telegram_channel(event.chat.id, event.chat.title or str(event.chat.id))
+            if channel_username_cache is not None:
+                channel_username_cache.update(
+                    event.chat.id, getattr(event.chat, "username", None)
+                )
         elif new_status in ("left", "kicked", "member"):
             # "member" — бота понизили из админов, без прав постить он бесполезен для канала
             removed = await db.remove_all_channels(event.chat.id)
             if removed:
+                if channel_username_cache is not None:
+                    channel_username_cache.discard(event.chat.id)
                 logger.info(
                     "Бот удалён/понижен в Telegram-канале %s — снято с отслеживания: %s",
                     mask_chat_id(event.chat.id),

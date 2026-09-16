@@ -41,7 +41,7 @@ from bot.oauth import (
     OAuthCallbackServer,
     evaluate_runtime_health,
 )
-from bot.poller import StreamPoller
+from bot.poller import StreamPoller, TelegramChannelUsernameCache
 from bot.preview_analysis import HighlightAnalyzer
 from bot.preview_capture import CaptureService, CaptureSettings
 from bot.preview_render import PreviewRenderer
@@ -382,7 +382,11 @@ async def _apply_auto_track(db: Database, config) -> None:
             )
 
 
-async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
+async def _reconcile_telegram_channels(
+    bot: Bot,
+    db: Database,
+    channel_username_cache: TelegramChannelUsernameCache | None = None,
+) -> None:
     """Удаляет stale-регистрации каналов, недоступных боту после рестарта."""
     for chat_id, _title in await db.all_telegram_channels():
         try:
@@ -404,6 +408,8 @@ async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
             continue
         else:
             if chat.type == ChatType.CHANNEL and member.status == "administrator":
+                if channel_username_cache is not None:
+                    channel_username_cache.update(chat_id, getattr(chat, "username", None))
                 continue
             logger.warning(
                 "Чат %s больше не является доступным Telegram-каналом; "
@@ -412,6 +418,8 @@ async def _reconcile_telegram_channels(bot: Bot, db: Database) -> None:
             )
 
         removed = await db.remove_all_channels(chat_id)
+        if channel_username_cache is not None:
+            channel_username_cache.discard(chat_id)
         logger.info(
             "Stale Telegram-канал %s очищен; снято Twitch-подписок: %s",
             mask_chat_id(chat_id),
@@ -440,11 +448,13 @@ async def main() -> None:
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
         live_post_updater = LivePostUpdater(bot, db)
+        channel_username_cache = TelegramChannelUsernameCache()
         await _with_startup_retry(
-            lambda: _reconcile_telegram_channels(bot, db),
+            lambda: _reconcile_telegram_channels(bot, db, channel_username_cache),
             "Проверка Telegram-каналов",
         )
         dp = Dispatcher()
+        dp["channel_username_cache"] = channel_username_cache
         setup_middlewares(dp)
         register_all_handlers(dp)
 
@@ -555,6 +565,7 @@ async def main() -> None:
                     owner_chat_id=config.owner_chat_id,
                     live_post_updater=live_post_updater,
                     preview_observer=preview_manager,
+                    telegram_channel_username_cache=channel_username_cache,
                 )
                 dp["poller"] = poller
                 dp["preview_manager"] = preview_manager
