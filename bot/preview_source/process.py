@@ -215,7 +215,9 @@ class ResolverProcessExecutor:
             await controller.finish_io()
             stdout_bytes, stdout_overflowed = await stdout_task
             failure_code = (
-                _classify_streamlink_failure(controller.stderr_tail.bytes)
+                _classify_streamlink_failure(
+                    stdout_bytes + b"\n" + controller.stderr_tail.bytes
+                )
                 if exit_code != 0
                 else None
             )

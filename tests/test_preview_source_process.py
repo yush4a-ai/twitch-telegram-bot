@@ -347,9 +347,9 @@ class BoundedExecutionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
-    async def _run(self, stderr: bytes):
+    async def _run(self, stderr: bytes = b"", stdout: bytes = b""):
         process_module = _process_module()
-        process = FakeProcess(stderr=stderr, returncode=1)
+        process = FakeProcess(stdout=stdout, stderr=stderr, returncode=1)
         result = await process_module.ResolverProcessExecutor(
             runner=QueueRunner(process), timeout=0.1
         ).run(("streamlink", "resolve"))
@@ -365,7 +365,7 @@ class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_playable_streams_is_classified_without_url(self) -> None:
         result = await self._run(
-            b"error: No playable streams found on this URL: https://www.twitch.tv/private_login"
+            stdout=b"error: No playable streams found on this URL: https://www.twitch.tv/private_login"
         )
         self.assertEqual(result.failure_code, "no_playable_streams")
         self.assertNotIn("private_login", repr(result))
