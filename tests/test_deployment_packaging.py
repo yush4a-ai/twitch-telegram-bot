@@ -82,6 +82,16 @@ class DeploymentPackagingTests(unittest.TestCase):
 
         self.assertEqual(streamlink_requirements, ["streamlink==8.5.0"])
 
+    def test_streamlink_urllib3_compatibility_is_pinned(self) -> None:
+        requirements = REQUIREMENTS_PATH.read_text(encoding="utf-8").splitlines()
+        urllib3_requirements = [
+            line.strip()
+            for line in requirements
+            if line.strip().lower().startswith("urllib3")
+        ]
+
+        self.assertEqual(urllib3_requirements, ["urllib3==2.7.0"])
+
     def test_railpack_does_not_install_streamlink_a_second_time(self) -> None:
         serialized = json.dumps(self._config(), sort_keys=True).lower()
 
