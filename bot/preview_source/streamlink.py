@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 import unicodedata
@@ -23,6 +24,8 @@ from .process import (
     StreamlinkProcessRunner,
 )
 
+
+LOGGER = logging.getLogger(__name__)
 
 PROBE_TIMEOUT_SECONDS = 5.0
 RESOLVE_TIMEOUT_SECONDS = 20.0
@@ -282,11 +285,13 @@ class TwitchPlaybackResolver:
                 diagnostic_code="resolver_internal_error",
             )
         if execution.exit_code != 0:
+            diagnostic_code = execution.failure_code or "process_failed"
+            LOGGER.warning("Streamlink resolver failed: reason=%s", diagnostic_code)
             return PlaybackResolveResult(
                 status=PlaybackResolveStatus.PROCESS_FAILED,
                 retry_disposition=RetryDisposition.RETRYABLE,
                 exit_code=execution.exit_code,
-                diagnostic_code="process_failed",
+                diagnostic_code=diagnostic_code,
             )
         if execution.stdout_overflowed:
             playback = None

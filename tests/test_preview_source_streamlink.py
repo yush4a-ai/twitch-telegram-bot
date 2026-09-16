@@ -267,14 +267,38 @@ class PlaybackResolverTests(unittest.IsolatedAsyncioTestCase):
             _available_capability(), runner=QueueRunner(process), timeout=0.1
         )
 
-        with self.assertNoLogs("bot.preview_source", level="DEBUG"):
+        with self.assertLogs("bot.preview_source", level="WARNING") as captured:
             result = await resolver.resolve("valid_login")
 
         self.assertEqual(result.status, source.PlaybackResolveStatus.PROCESS_FAILED)
         self.assertEqual(result.retry_disposition, source.RetryDisposition.RETRYABLE)
         self.assertEqual(result.exit_code, 1)
+        self.assertEqual(result.diagnostic_code, "process_failed")
+        rendered = "\n".join(captured.output)
+        self.assertIn("reason=process_failed", rendered)
         self.assertNotIn("private_login", repr(result))
         self.assertNotIn("stderr-secret", repr(result))
+        self.assertNotIn("private_login", rendered)
+        self.assertNotIn("stderr-secret", rendered)
+
+    async def test_nonzero_exit_uses_safe_stderr_classification(self) -> None:
+        source = _source_module()
+        process = FakeProcess(
+            stderr=b"error: Failed acquiring client-integrity token token=secret-value",
+            returncode=1,
+        )
+        resolver = source.TwitchPlaybackResolver(
+            _available_capability(), runner=QueueRunner(process), timeout=0.1
+        )
+
+        with self.assertLogs("bot.preview_source", level="WARNING") as captured:
+            result = await resolver.resolve("valid_login")
+
+        self.assertEqual(result.status, source.PlaybackResolveStatus.PROCESS_FAILED)
+        self.assertEqual(result.diagnostic_code, "client_integrity")
+        rendered = "\n".join(captured.output)
+        self.assertIn("reason=client_integrity", rendered)
+        self.assertNotIn("secret-value", rendered)
 
     async def test_timeout_is_retryable_and_reaped(self) -> None:
         source = _source_module()

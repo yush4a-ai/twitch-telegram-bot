@@ -346,5 +346,49 @@ class BoundedExecutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(second.wait_calls, 1)
 
 
+class StreamlinkFailureClassificationTests(unittest.IsolatedAsyncioTestCase):
+    async def _run(self, stderr: bytes):
+        process_module = _process_module()
+        process = FakeProcess(stderr=stderr, returncode=1)
+        result = await process_module.ResolverProcessExecutor(
+            runner=QueueRunner(process), timeout=0.1
+        ).run(("streamlink", "resolve"))
+        self.assertNotIn("stderr", result.__dataclass_fields__)
+        return result
+
+    async def test_client_integrity_error_is_classified_without_raw_stderr(self) -> None:
+        result = await self._run(
+            b"error: Failed acquiring client-integrity token token=secret-value"
+        )
+        self.assertEqual(result.failure_code, "client_integrity")
+        self.assertNotIn("secret-value", repr(result))
+
+    async def test_no_playable_streams_is_classified_without_url(self) -> None:
+        result = await self._run(
+            b"error: No playable streams found on this URL: https://www.twitch.tv/private_login"
+        )
+        self.assertEqual(result.failure_code, "no_playable_streams")
+        self.assertNotIn("private_login", repr(result))
+
+
+    async def test_http_and_network_errors_are_fixed_categories(self) -> None:
+        cases = (
+            (b"error: HTTP 403 Forbidden", "http_403"),
+            (b"error: HTTP 429 Too Many Requests", "http_429"),
+            (b"error: Temporary failure in name resolution", "dns_error"),
+            (b"error: certificate verify failed", "tls_error"),
+            (b"error: connection reset by peer", "network_error"),
+        )
+        for stderr, expected in cases:
+            with self.subTest(stderr=stderr):
+                result = await self._run(stderr)
+                self.assertEqual(result.failure_code, expected)
+
+    async def test_unknown_error_falls_back_to_process_failed(self) -> None:
+        result = await self._run(b"opaque internal failure token=secret-value")
+        self.assertEqual(result.failure_code, "process_failed")
+        self.assertNotIn("secret-value", repr(result))
+
+
 if __name__ == "__main__":
     unittest.main()

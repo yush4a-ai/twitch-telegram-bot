@@ -14,6 +14,29 @@ STDOUT_MAX_BYTES = 16 * 1024
 PIPE_EOF_TIMEOUT_SECONDS = 0.25
 
 
+def _classify_streamlink_failure(stderr_bytes: bytes) -> str:
+    """Reduce bounded stderr to a fixed, non-secret diagnostic category."""
+    text = stderr_bytes.lower()
+    checks = (
+        ("client_integrity", (b"client-integrity", b"client integrity", b"integrity token", b"integrity check")),
+        ("webbrowser_unavailable", (b"webbrowser", b"web browser", b"chromium")),
+        ("no_playable_streams", (b"no playable streams found", b"no streams found")),
+        ("stream_selection", (b"specified stream(s)", b"could not be found")),
+        ("http_429", (b" 429", b"429 ", b"too many requests")),
+        ("http_403", (b" 403", b"403 ", b"forbidden")),
+        ("http_401", (b" 401", b"401 ", b"unauthorized")),
+        ("dns_error", (b"name resolution", b"name or service not known", b"nodename nor servname", b"getaddrinfo failed")),
+        ("tls_error", (b"certificate verify failed", b"ssl error", b"tls error")),
+        ("network_error", (b"connection reset", b"connection refused", b"network is unreachable", b"max retries exceeded", b"unable to open url")),
+        ("no_plugin", (b"no plugin can handle url",)),
+        ("twitch_api_error", (b"streaming access token", b"access token", b"gql.twitch.tv")),
+    )
+    for code, needles in checks:
+        if any(needle in text for needle in needles):
+            return code
+    return "process_failed"
+
+
 class ResolverProcessTimeout(TimeoutError):
     pass
 
@@ -106,12 +129,14 @@ class ResolverExecutionResult:
     exit_code: int
     stdout_bytes: bytes
     stdout_overflowed: bool
+    failure_code: str | None = None
 
     def __repr__(self) -> str:
         return (
             "ResolverExecutionResult("
             f"exit_code={self.exit_code}, "
-            f"stdout_overflowed={self.stdout_overflowed})"
+            f"stdout_overflowed={self.stdout_overflowed}, "
+            f"failure_code={self.failure_code!r})"
         )
 
 
@@ -189,10 +214,16 @@ class ResolverProcessExecutor:
                 raise ResolverProcessTimeout() from error
             await controller.finish_io()
             stdout_bytes, stdout_overflowed = await stdout_task
+            failure_code = (
+                _classify_streamlink_failure(controller.stderr_tail.bytes)
+                if exit_code != 0
+                else None
+            )
             return ResolverExecutionResult(
                 exit_code=exit_code,
                 stdout_bytes=stdout_bytes,
                 stdout_overflowed=stdout_overflowed,
+                failure_code=failure_code,
             )
         except asyncio.CancelledError:
             cleanup_task = asyncio.create_task(
