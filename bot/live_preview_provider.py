@@ -36,15 +36,22 @@ _CAPTURE_RESET_RENDER_DIAGNOSTICS = frozenset({"source_file_missing"})
 _RECOVER_CAPTURE = object()
 
 
+_PROVIDER_ERROR_PHASES = frozenset({
+    "source_open", "capture_state", "snapshot", "analysis", "render",
+    "artifact", "request", "session_close", "capture_recovery", "provider",
+})
+
+
 class LivePreviewProviderError(RuntimeError):
     """A sanitized orchestration failure safe to expose to runtime logs."""
 
-    def __init__(self) -> None:
+    def __init__(self, phase: str = "provider") -> None:
+        self.phase = phase if phase in _PROVIDER_ERROR_PHASES else "provider"
         super().__init__("live preview artifact provider failed")
 
 
-def _provider_error() -> NoReturn:
-    raise LivePreviewProviderError() from None
+def _provider_error(phase: str = "provider") -> NoReturn:
+    raise LivePreviewProviderError(phase) from None
 
 
 class LivePreviewArtifactProvider:
@@ -66,9 +73,9 @@ class LivePreviewArtifactProvider:
         except asyncio.CancelledError:
             raise
         except Exception:
-            _provider_error()
+            _provider_error("source_open")
         if not _started(result):
-            _provider_error()
+            _provider_error("source_open")
         return _LivePreviewArtifactSession(
             source=self._source,
             analyzer=self._analyzer,
@@ -115,21 +122,21 @@ class _LivePreviewArtifactSession:
             await self._open_deferred_capture()
         handle = self._handle
         if handle is None:
-            _provider_error()
+            _provider_error("capture_state")
 
         outcome = getattr(handle, "outcome", None)
         if outcome is not None:
             if not isinstance(outcome, CaptureOutcome):
-                _provider_error()
+                _provider_error("capture_state")
             await self._recover_capture(capture_retry_action(outcome))
-            _provider_error()
+            _provider_error("capture_recovery")
 
         try:
             acquired = handle.acquire_snapshot(_SNAPSHOT_WINDOW_SECONDS)
         except Exception:
-            _provider_error()
+            _provider_error("snapshot")
         if not isinstance(acquired, SnapshotAcquireResult):
-            _provider_error()
+            _provider_error("snapshot")
         if acquired.status is SnapshotStatus.EMPTY:
             return None
         if acquired.status is SnapshotStatus.CLOSING:
@@ -138,13 +145,13 @@ class _LivePreviewArtifactSession:
             except asyncio.CancelledError:
                 raise
             except Exception:
-                _provider_error()
+                _provider_error("capture_state")
             if not isinstance(outcome, CaptureOutcome):
-                _provider_error()
+                _provider_error("capture_state")
             await self._recover_capture(capture_retry_action(outcome))
-            _provider_error()
+            _provider_error("capture_recovery")
         if acquired.status is not SnapshotStatus.READY or acquired.snapshot is None:
-            _provider_error()
+            _provider_error("snapshot")
 
         snapshot = acquired.snapshot
         try:
@@ -158,7 +165,7 @@ class _LivePreviewArtifactSession:
             try:
                 snapshot.release()
             except Exception:
-                _provider_error()
+                _provider_error("snapshot")
             raise
         try:
             snapshot.release()
@@ -169,12 +176,12 @@ class _LivePreviewArtifactSession:
         except Exception:
             if result is not None and result is not _RECOVER_CAPTURE:
                 self._release_owner(result)
-            _provider_error()
+            _provider_error("snapshot")
         if result is _RECOVER_CAPTURE:
             await self._recover_capture(
                 CaptureRetryAction.FRESH_RESOLVE_IF_ACTIVE
             )
-            _provider_error()
+            _provider_error("capture_recovery")
         if result is None:
             return None
         return self._transfer_rendered_preview(result)
@@ -189,9 +196,9 @@ class _LivePreviewArtifactSession:
         except asyncio.CancelledError:
             raise
         except Exception:
-            _provider_error()
+            _provider_error("analysis")
         if not isinstance(analysis, AnalysisResult):
-            _provider_error()
+            _provider_error("analysis")
         if analysis.status is AnalysisStatus.SNAPSHOT_TOO_SHORT:
             return None
         if analysis.status is AnalysisStatus.NO_SELECTION:
@@ -210,16 +217,16 @@ class _LivePreviewArtifactSession:
                 )
             ):
                 return _RECOVER_CAPTURE
-            _provider_error()
+            _provider_error("analysis")
 
         try:
             rendered = await self._renderer.render(snapshot, selection)
         except asyncio.CancelledError:
             raise
         except Exception:
-            _provider_error()
+            _provider_error("render")
         if not isinstance(rendered, RenderResult):
-            _provider_error()
+            _provider_error("render")
         if rendered.status is not RenderStatus.SUCCESS:
             if (
                 rendered.status is RenderStatus.SNAPSHOT_INVALIDATED
@@ -230,13 +237,13 @@ class _LivePreviewArtifactSession:
                 )
             ):
                 return _RECOVER_CAPTURE
-            _provider_error()
+            _provider_error("render")
         return rendered.artifact
 
     def _transfer_rendered_preview(self, rendered: Any) -> PreviewArtifact:
         release = getattr(rendered, "release", None)
         if not callable(release):
-            _provider_error()
+            _provider_error("artifact")
         try:
             artifact = LocalVideo(rendered.path, "preview.mp4")
             self._leases[id(artifact)] = (artifact, rendered)
@@ -246,7 +253,7 @@ class _LivePreviewArtifactSession:
             raise
         except Exception:
             self._release_owner(rendered)
-            _provider_error()
+            _provider_error("artifact")
 
     async def release_artifact(self, artifact: PreviewArtifact) -> None:
         lease = self._leases.get(id(artifact))

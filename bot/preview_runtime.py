@@ -21,6 +21,11 @@ from .live_post import (
 
 logger = logging.getLogger(__name__)
 
+_PROVIDER_FAILURE_PHASES = frozenset({
+    "source_open", "capture_state", "snapshot", "analysis", "render",
+    "artifact", "request", "session_close", "capture_recovery", "provider",
+})
+
 PreviewArtifact: TypeAlias = LocalVideo | TelegramVideo
 
 
@@ -720,7 +725,17 @@ class PreviewManager:
         self._refresh_provider_failures()
         self._last_error = type(error).__name__
         record.state = PreviewSessionState.BACKOFF
-        logger.warning("Preview provider временно недоступен: %s", type(error).__name__)
+        phase = getattr(error, "phase", None)
+        if phase in _PROVIDER_FAILURE_PHASES:
+            logger.warning(
+                "Preview provider временно недоступен: %s phase=%s",
+                type(error).__name__,
+                phase,
+            )
+        else:
+            logger.warning(
+                "Preview provider временно недоступен: %s", type(error).__name__
+            )
         delay = min(60 * (2 ** (record.consecutive_failures - 1)), self._interval)
         await self._sleep(delay)
 

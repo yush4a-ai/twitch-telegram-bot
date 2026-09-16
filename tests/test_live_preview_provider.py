@@ -1196,3 +1196,41 @@ class SessionBoundaryTests(ProviderTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProviderDiagnosticPhaseTests(ProviderTestCase):
+    async def test_source_open_failure_exposes_only_safe_phase(self) -> None:
+        provider = LivePreviewArtifactProvider(
+            FakeSource(RuntimeError("https://secret.example/token")),
+            FakeAnalyzer(),
+            FakeRenderer(),
+        )
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await provider.open_session(self.key)
+        self.assertEqual(raised.exception.phase, "source_open")
+        self.assertEqual(str(raised.exception), "live preview artifact provider failed")
+
+    async def test_analysis_failure_exposes_only_safe_phase(self) -> None:
+        snapshot = FakeSnapshot()
+        handle = FakeCaptureHandle(SnapshotAcquireResult(SnapshotStatus.READY, snapshot))
+        session, _source, _analyzer, _renderer = await self._session(
+            handle, FakeAnalyzer(RuntimeError("C:/secret/input.ts"))
+        )
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await session.create_artifact(self.request)
+        self.assertEqual(raised.exception.phase, "analysis")
+        self.assertEqual(snapshot.release_calls, 1)
+
+
+    async def test_render_failure_exposes_only_safe_phase(self) -> None:
+        snapshot = FakeSnapshot()
+        handle = FakeCaptureHandle(SnapshotAcquireResult(SnapshotStatus.READY, snapshot))
+        session, _source, _analyzer, _renderer = await self._session(
+            handle,
+            FakeAnalyzer(AnalysisResult(AnalysisStatus.SUCCESS, selection=_selection())),
+            FakeRenderer(RuntimeError("C:/secret/render.mp4")),
+        )
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await session.create_artifact(self.request)
+        self.assertEqual(raised.exception.phase, "render")
+        self.assertEqual(snapshot.release_calls, 1)

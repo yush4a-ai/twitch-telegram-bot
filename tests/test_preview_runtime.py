@@ -1883,3 +1883,37 @@ class PreviewConfigTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProviderDiagnosticLoggingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_failure_logs_allowlisted_phase_without_message(self) -> None:
+        preview = _preview_module()
+
+        class PhaseError(RuntimeError):
+            phase = "analysis"
+
+        async def no_sleep(_delay: float) -> None:
+            return None
+
+        manager = preview.PreviewManager(
+            object(), object(), object(), enabled=True,
+            initial_delay_seconds=0, interval_seconds=300,
+            max_concurrent_jobs=1, job_timeout_seconds=1,
+            poll_interval_seconds=60, build_content=lambda *_args: None,
+            sleep=no_sleep,
+        )
+
+        key = preview.PreviewSessionKey("channel", "physical-A")
+        token = preview.PreviewGeneration("channel", "physical-A", 1)
+        record = preview._ManagedSession(key, token)
+        manager._sessions["channel"] = record
+
+        with self.assertLogs("bot.preview_runtime", level="WARNING") as captured:
+            await manager._provider_failed(
+                record, PhaseError("https://secret.example/token")
+            )
+
+        rendered = "\n".join(captured.output)
+        self.assertIn("phase=analysis", rendered)
+        self.assertNotIn("secret.example", rendered)
+        self.assertEqual(manager.health_snapshot()["last_error"], "PhaseError")
