@@ -160,7 +160,7 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
 
 def _channels_keyboard(
     target_chat_id: int,
-    channels: list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool]],
+    channels: list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool, bool]],
     chat_default_recipient: int | None,
     *,
     back_callback: str = "menu:home",
@@ -175,6 +175,7 @@ def _channels_keyboard(
     for (
         login, notify_enabled, _preview_enabled, post_recipient, report_format,
         raid_detection_enabled, _quiet_hours_exempt, channel_report_enabled,
+        auto_report_enabled,
         is_live,
     ) in channels:
         bell = "🔔" if notify_enabled else "🔕"
@@ -182,6 +183,8 @@ def _channels_keyboard(
         if is_telegram_channel:
             status_icons += " 📊" if channel_report_enabled else " 🚫"
         else:
+            if auto_report_enabled:
+                status_icons += " 📊"
             if show_recipient_toggle:
                 effective = post_recipient or chat_default_recipient
                 status_icons += " 📩" if effective is not None and effective > 0 else " ⚠️"
@@ -219,6 +222,7 @@ def _channel_card_keyboard(
     back_callback: str,
     show_recipient_toggle: bool,
     preview_enabled: bool = False,
+    auto_report_enabled: bool = False,
     is_telegram_channel: bool = False,
     show_quiet_hours_toggle: bool = False,
 ) -> InlineKeyboardMarkup:
@@ -272,6 +276,19 @@ def _channel_card_keyboard(
         )
         rows.append([InlineKeyboardButton(text="⬅️ Назад к списку", callback_data=back_callback)])
         return InlineKeyboardMarkup(inline_keyboard=rows)
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=(
+                    "📊 Автоотчёт после стрима: ✅ вкл"
+                    if auto_report_enabled
+                    else "📊 Автоотчёт после стрима: ❌ выкл"
+                ),
+                callback_data=f"toggleautoreport:{target_chat_id}:{login}",
+            )
+        ]
+    )
 
     if show_recipient_toggle:
         effective = post_recipient or chat_default_recipient
@@ -1429,6 +1446,7 @@ async def _render_channel_card(
     (
         _, notify_enabled, preview_enabled, post_recipient, report_format,
         raid_detection_enabled, quiet_hours_exempt, channel_report_enabled,
+        auto_report_enabled,
         _is_live,
     ) = match
 
@@ -1459,7 +1477,9 @@ async def _render_channel_card(
     else:
         lines = [
             f"📡 <b>{login}</b>\n",
-            "🔔/🔕 — присылать ли живой пост, когда канал выходит в эфир",
+            "Уведомление о начале и автоматический итоговый отчёт управляются независимо.",
+            "🔔/🔕 — оповещение о начале стрима",
+            "📊 — автоматический итог после стрима",
         ]
         if not is_private:
             lines.append("📩 — итоговый отчёт отправляется только в привязанную личку")
@@ -1481,6 +1501,7 @@ async def _render_channel_card(
         back_callback=f"channellist:{target_chat_id}:{list_back_callback}",
         show_recipient_toggle=not is_private,
         preview_enabled=preview_enabled,
+        auto_report_enabled=auto_report_enabled,
         is_telegram_channel=is_telegram_channel,
         show_quiet_hours_toggle=show_quiet_hours_toggle,
     )
@@ -1677,6 +1698,36 @@ async def cb_toggle_channel_report(callback: CallbackQuery, db: Database) -> Non
         "Итоговый отчёт в канал выключен"
         if currently_enabled
         else "Итоговый отчёт в канал включён"
+    )
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("toggleautoreport:"))
+async def cb_toggle_auto_report(callback: CallbackQuery, db: Database) -> None:
+    parsed = _parse_chat_and_login(callback.data)
+    if parsed is None:
+        await callback.answer()
+        return
+    target_chat_id, login = parsed
+
+    if not await _check_manage_permission(callback, target_chat_id):
+        await callback.answer(
+            "Только админы этого чата могут менять настройки.", show_alert=True
+        )
+        return
+    if await db.is_telegram_channel(target_chat_id):
+        await callback.answer(
+            "Для Telegram-канала используй отдельную настройку публичного отчёта.",
+            show_alert=True,
+        )
+        return
+
+    currently_enabled = await db.get_auto_report_enabled(target_chat_id, login)
+    await db.set_auto_report_enabled(target_chat_id, login, not currently_enabled)
+    await _refresh_channel_card(callback, db, target_chat_id, login)
+    await callback.answer(
+        "Автоотчёт после стрима выключен"
+        if currently_enabled
+        else "Автоотчёт после стрима включён"
     )
 
 

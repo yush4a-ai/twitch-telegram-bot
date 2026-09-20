@@ -1774,6 +1774,10 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                 await db.register_telegram_channel(channel_id, "News")
                 await db.add_channel(channel_id, "channel")
                 await db.set_channel_report_enabled(channel_id, "channel", True)
+                await db.set_report_format(channel_id, "channel", "full")
+                self.assertFalse(
+                    await db.get_auto_report_enabled(channel_id, "channel")
+                )
                 await db.set_live_state(
                     channel_id,
                     "channel",
@@ -2040,6 +2044,8 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                 ]
             ),
             get_report_delivery_for_stream=AsyncMock(return_value=None),
+            is_telegram_channel=AsyncMock(return_value=False),
+            get_auto_report_enabled=AsyncMock(return_value=True),
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
@@ -2067,6 +2073,8 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
                 ]
             ),
             get_report_delivery_for_stream=AsyncMock(return_value=None),
+            is_telegram_channel=AsyncMock(return_value=False),
+            get_auto_report_enabled=AsyncMock(return_value=True),
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
@@ -2404,6 +2412,7 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
                         False,
                         True,
                         True,
+                        False,
                         False,
                     )
                 ],
@@ -2974,6 +2983,7 @@ class LivePostMediaReadyTests(unittest.IsolatedAsyncioTestCase):
 class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
     async def _seed_group_session(self, db: Database, group_id: int) -> None:
         await db.add_channel(group_id, "channel")
+        await db.set_auto_report_enabled(group_id, "channel", True)
         await db.set_live_state(
             group_id,
             "channel",
@@ -3039,6 +3049,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
                 group_id = -100123
                 await self._seed_group_session(db, group_id)
                 await db.set_post_recipient(group_id, "channel", 42)
+                await db.set_report_format(group_id, "channel", "full")
                 bot = SimpleNamespace(
                     send_message=AsyncMock(
                         return_value=SimpleNamespace(message_id=1)
@@ -3077,6 +3088,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
             ),
             get_report_delivery_for_stream=AsyncMock(return_value=None),
             is_telegram_channel=AsyncMock(return_value=False),
+            get_auto_report_enabled=AsyncMock(return_value=True),
             resolve_post_recipient=AsyncMock(return_value=None),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             mark_stats_sent=AsyncMock(),
@@ -3161,6 +3173,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
             try:
                 group_id = -100123
                 await db.add_channel(group_id, "channel")
+                await db.set_auto_report_enabled(group_id, "channel", True)
                 await db.set_post_recipient(group_id, "channel", 42)
                 await db.add_deferred_report(
                     42, group_id, "channel", "stream-1", 1.0
@@ -3193,6 +3206,10 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
         if telegram_channel:
             await db.register_telegram_channel(source_chat_id, "News")
         await db.add_channel(source_chat_id, "channel")
+        if telegram_channel:
+            await db.set_channel_report_enabled(source_chat_id, "channel", True)
+        else:
+            await db.set_auto_report_enabled(source_chat_id, "channel", True)
         if recipient_chat_id is not None and recipient_chat_id != source_chat_id:
             await db.set_post_recipient(
                 source_chat_id, "channel", recipient_chat_id
@@ -3929,6 +3946,8 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
             db = Database(os.path.join(directory, "test.db"))
             await db.connect()
             try:
+                await db.add_channel(1, "channel")
+                await db.set_auto_report_enabled(1, "channel", True)
                 delivery = await db.create_report_delivery(
                     1, "channel", "stream-1", 1, "brief", "text", None, 1.0
                 )
@@ -3958,6 +3977,8 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
             db = Database(os.path.join(directory, "test.db"))
             await db.connect()
             try:
+                await db.add_channel(1, "channel")
+                await db.set_auto_report_enabled(1, "channel", True)
                 delivery = await db.create_report_delivery(
                     1, "channel", "stream-1", 1, "brief", "text", None, 1.0
                 )
@@ -4190,6 +4211,7 @@ class ManualReportTests(unittest.IsolatedAsyncioTestCase):
             await db.connect()
             try:
                 await self._seed_history(db, group_id)
+                await db.set_report_format(group_id, "channel", "full")
                 await db.mark_known_private_user(42)
                 bot = SimpleNamespace(
                     send_message=AsyncMock(), send_document=AsyncMock()
@@ -4218,6 +4240,7 @@ class ManualReportTests(unittest.IsolatedAsyncioTestCase):
             try:
                 await db.register_telegram_channel(channel_id, "News")
                 await self._seed_history(db, channel_id)
+                await db.set_report_format(channel_id, "channel", "full")
                 await db.set_channel_report_enabled(
                     channel_id, "channel", True
                 )
@@ -4318,6 +4341,7 @@ class ManualReportTests(unittest.IsolatedAsyncioTestCase):
 class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
     async def _seed_offline_group(self, db: Database, group_id: int) -> None:
         await db.add_channel(group_id, "channel")
+        await db.set_auto_report_enabled(group_id, "channel", True)
         await db.set_live_state(
             group_id,
             "channel",
@@ -4446,6 +4470,7 @@ class FinalReportGuardTests(unittest.IsolatedAsyncioTestCase):
                 group_id = -100123
                 private_id = 42
                 await db.add_channel(group_id, "channel")
+                await db.set_auto_report_enabled(group_id, "channel", True)
                 await db.set_post_recipient(group_id, "channel", private_id)
                 await db.add_deferred_report(
                     group_id, group_id, "channel", "stream-1", 1.0
@@ -4620,6 +4645,7 @@ class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
         viewers: int = 100,
     ) -> None:
         await self.db.add_channel(chat_id, "channel")
+        await self.db.set_auto_report_enabled(chat_id, "channel", True)
         await self.db.set_live_state(
             chat_id,
             "channel",
@@ -6033,6 +6059,8 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
             db = Database(os.path.join(directory, "test.db"))
             await db.connect()
             try:
+                await db.add_channel(1, "channel")
+                await db.set_auto_report_enabled(1, "channel", True)
                 delivery = await db.create_report_delivery(
                     1, "channel", "stream", 1, "brief", "text", None, 1.0
                 )
@@ -7857,6 +7885,318 @@ class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
             is_channel=True,
         )
         self.assertLessEqual(len(text.encode("utf-16-le")) // 2, 1024)
+
+
+class AutoReportOptInTests(unittest.IsolatedAsyncioTestCase):
+    async def test_channel_card_toggles_auto_report_and_format_independently(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            text, keyboard = await streams_module._render_channel_card(
+                1, "channel", db, list_back_callback="menu:list"
+            )
+            labels = [row[0].text for row in keyboard.inline_keyboard]
+            callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
+            self.assertIn("📊 Автоотчёт после стрима: ❌ выкл", labels)
+            self.assertIn("Формат отчёта: 📄 Кратко", labels)
+            self.assertIn("toggleautoreport:1:channel", callbacks)
+            self.assertIn("управляются независимо", text)
+            self.assertLess(
+                labels.index("🎞 Живое превью: ❌ выкл"),
+                labels.index("📊 Автоотчёт после стрима: ❌ выкл"),
+            )
+            self.assertLess(
+                labels.index("📊 Автоотчёт после стрима: ❌ выкл"),
+                labels.index("Формат отчёта: 📄 Кратко"),
+            )
+
+            callback = SimpleNamespace(
+                data="toggleautoreport:1:channel",
+                from_user=SimpleNamespace(id=1),
+                message=SimpleNamespace(
+                    chat=SimpleNamespace(id=1), edit_text=AsyncMock()
+                ),
+                answer=AsyncMock(),
+            )
+            await streams_module.cb_toggle_auto_report(callback, db)
+            self.assertTrue(await db.get_auto_report_enabled(1, "channel"))
+            on_labels = [
+                row[0].text for row in
+                callback.message.edit_text.await_args.kwargs["reply_markup"].inline_keyboard
+            ]
+            self.assertIn("📊 Автоотчёт после стрима: ✅ вкл", on_labels)
+
+            await streams_module.cb_toggle_auto_report(callback, db)
+            self.assertFalse(await db.get_auto_report_enabled(1, "channel"))
+            callback.data = "toggleformat:1:channel"
+            await streams_module.cb_toggle_format(callback, db)
+            self.assertEqual(await db.get_report_format(1, "channel"), "full")
+        finally:
+            await db.close()
+
+    async def test_new_tracking_defaults_to_brief_without_automatic_report(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            self.assertFalse(await db.get_auto_report_enabled(1, "channel"))
+            self.assertFalse(await db.get_auto_report_enabled(1, "missing"))
+            self.assertEqual(await db.get_report_format(1, "channel"), "brief")
+            cursor = await db.conn.execute("PRAGMA table_info(tracked_channels)")
+            columns = {row[1]: row for row in await cursor.fetchall()}
+            self.assertEqual(columns["auto_report_enabled"][4], "0")
+            self.assertEqual(columns["report_format"][4], "'brief'")
+        finally:
+            await db.close()
+
+    async def test_legacy_migration_is_one_time_and_cancels_pending_auto_delivery(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "legacy.db")
+            legacy = Database(path)
+            await legacy.connect()
+            try:
+                await legacy.add_channel(1, "channel")
+                await legacy.register_telegram_channel(-100456, "News")
+                await legacy.add_channel(-100456, "channel")
+                await legacy.set_report_format(1, "channel", "full")
+                await legacy.set_channel_report_enabled(-100456, "channel", True)
+                await legacy.create_report_delivery(
+                    1, "channel", "stream-1", 1, "full", "text", "html", 1000.0
+                )
+                complete = await legacy.create_report_delivery(
+                    1, "channel", "stream-3", 1, "brief", "sent", None, 1000.0
+                )
+                await legacy.mark_report_text_sent(complete, 1001.0)
+                await legacy.add_deferred_report(
+                    1, 1, "channel", "stream-2", 1000.0
+                )
+                await legacy.conn.execute(
+                    "INSERT INTO stream_history (chat_id, twitch_login, stream_id, "
+                    "ended_at, duration_seconds, peak_viewers, avg_viewers) "
+                    "VALUES (1, 'channel', 'stream-1', 1000, 60, 10, 8)"
+                )
+                await legacy.conn.commit()
+            finally:
+                await legacy.close()
+
+            # Simulate the previous release's schema while preserving all data.
+            connection = sqlite3.connect(path)
+            try:
+                columns = {
+                    row[1] for row in connection.execute(
+                        "PRAGMA table_info(tracked_channels)"
+                    )
+                }
+                if "auto_report_enabled" in columns:
+                    connection.execute(
+                        "ALTER TABLE tracked_channels DROP COLUMN auto_report_enabled"
+                    )
+                connection.execute(
+                    "ALTER TABLE tracked_channels DROP COLUMN report_format"
+                )
+                connection.execute(
+                    "ALTER TABLE tracked_channels ADD COLUMN report_format "
+                    "TEXT NOT NULL DEFAULT 'full'"
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            migrated = Database(path)
+            await migrated.connect()
+            try:
+                self.assertFalse(await migrated.get_auto_report_enabled(1, "channel"))
+                self.assertEqual(await migrated.get_report_format(1, "channel"), "brief")
+                self.assertFalse(
+                    await migrated.get_channel_report_enabled(-100456, "channel")
+                )
+                delivery = await migrated.get_report_delivery_for_stream(
+                    1, "channel", "stream-1"
+                )
+                self.assertTrue(delivery.terminal_failed)
+                self.assertEqual(delivery.terminal_reason, "auto_report_rollout_disabled")
+                self.assertEqual(await migrated.pending_report_deliveries(), [])
+                completed = await migrated.get_report_delivery_for_stream(
+                    1, "channel", "stream-3"
+                )
+                self.assertTrue(completed.complete)
+                self.assertFalse(completed.terminal_failed)
+                self.assertFalse(await migrated.has_deferred_reports(1))
+                self.assertIsNotNone(
+                    await migrated.get_finished_stream(1, "channel", "stream-1")
+                )
+                await migrated.set_auto_report_enabled(1, "channel", True)
+                await migrated.set_report_format(1, "channel", "full")
+                await migrated.set_channel_report_enabled(-100456, "channel", True)
+                await migrated.add_channel(2, "fresh")
+                self.assertEqual(await migrated.get_report_format(2, "fresh"), "brief")
+            finally:
+                await migrated.close()
+
+            reopened = Database(path)
+            await reopened.connect()
+            try:
+                self.assertTrue(await reopened.get_auto_report_enabled(1, "channel"))
+                self.assertEqual(await reopened.get_report_format(1, "channel"), "full")
+                self.assertTrue(
+                    await reopened.get_channel_report_enabled(-100456, "channel")
+                )
+            finally:
+                await reopened.close()
+
+    async def test_automatic_report_off_saves_history_and_finishes_without_delivery(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            await db.set_live_state(
+                1, "channel", False, "stream-1", title="Stream",
+                offline_since=1000.0,
+                stream_started_at="2026-01-01T00:00:00Z",
+                peak_viewers=10,
+            )
+            bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+            poller = StreamPoller(
+                bot, db, SimpleNamespace(get_user_id=AsyncMock(return_value=None)), 60
+            )
+            poller._fetch_top_clips = AsyncMock(return_value=[])
+            poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+            with patch("bot.poller.time.time", return_value=2801.0):
+                await poller._send_pending_stats()
+                await poller._send_pending_stats()
+
+            bot.send_message.assert_not_awaited()
+            bot.send_document.assert_not_awaited()
+            self.assertIsNotNone(await db.get_finished_stream(1, "channel", "stream-1"))
+            self.assertEqual(await db.pending_report_deliveries(), [])
+            self.assertFalse(await db.has_deferred_reports(1))
+            self.assertEqual(await db.pending_stats(), [])
+            self.assertEqual(
+                await db.get_live_state(1, "channel"),
+                (False, None, None, None, None, None, None),
+            )
+        finally:
+            await db.close()
+
+    async def test_automatic_report_on_keeps_brief_delivery(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            await db.set_auto_report_enabled(1, "channel", True)
+            await db.set_live_state(
+                1, "channel", False, "stream-1", title="Stream",
+                offline_since=1000.0,
+                stream_started_at="2026-01-01T00:00:00Z",
+                peak_viewers=10,
+            )
+            bot = SimpleNamespace(
+                send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)),
+                send_document=AsyncMock(),
+            )
+            poller = StreamPoller(
+                bot, db, SimpleNamespace(get_user_id=AsyncMock(return_value=None)), 60
+            )
+            poller._fetch_top_clips = AsyncMock(return_value=[])
+            poller._fetch_and_save_vod = AsyncMock(return_value=None)
+
+            with patch("bot.poller.time.time", return_value=2801.0):
+                await poller._send_pending_stats()
+
+            bot.send_message.assert_awaited_once()
+            bot.send_document.assert_not_awaited()
+            delivery = await db.get_report_delivery_for_stream(1, "channel", "stream-1")
+            self.assertTrue(delivery.complete)
+            self.assertEqual(delivery.report_format, "brief")
+        finally:
+            await db.close()
+
+    async def test_disabling_auto_report_cancels_existing_pending_delivery(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            await db.set_auto_report_enabled(1, "channel", True)
+            await db.add_stream_history(
+                1, "channel", "stream-1", 1000.0, 60, 10, 8, None
+            )
+            await db.create_report_delivery(
+                1, "channel", "stream-1", 1, "brief", "text", None, 1000.0
+            )
+            await db.set_auto_report_enabled(1, "channel", False)
+            bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+            poller = StreamPoller(bot, db, SimpleNamespace(), 60)
+
+            await poller._send_pending_stats()
+
+            bot.send_message.assert_not_awaited()
+            bot.send_document.assert_not_awaited()
+            delivery = await db.get_report_delivery_for_stream(1, "channel", "stream-1")
+            self.assertTrue(delivery.terminal_failed)
+            self.assertEqual(delivery.terminal_reason, "auto_report_disabled")
+            self.assertIsNotNone(await db.get_finished_stream(1, "channel", "stream-1"))
+        finally:
+            await db.close()
+
+    async def test_quiet_hours_queue_requires_auto_report_opt_in(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+            poller = StreamPoller(
+                bot, db, SimpleNamespace(get_user_id=AsyncMock(return_value=None)), 60
+            )
+            poller._fetch_top_clips = AsyncMock(return_value=[])
+            poller._fetch_and_save_vod = AsyncMock(return_value=None)
+            poller._is_recipient_in_quiet_hours = AsyncMock(return_value=True)
+            await db.set_live_state(
+                1, "channel", False, "stream-1", title="Stream",
+                offline_since=1000.0,
+                stream_started_at="2026-01-01T00:00:00Z",
+                peak_viewers=10,
+            )
+            with patch("bot.poller.time.time", return_value=2801.0):
+                await poller._send_pending_stats()
+            poller._is_recipient_in_quiet_hours.assert_not_awaited()
+            self.assertFalse(await db.has_deferred_reports(1))
+
+            await db.set_auto_report_enabled(1, "channel", True)
+            await db.set_live_state(
+                1, "channel", False, "stream-2", title="Stream",
+                offline_since=1000.0,
+                stream_started_at="2026-01-01T00:00:00Z",
+                peak_viewers=10,
+            )
+            with patch("bot.poller.time.time", return_value=2801.0):
+                await poller._send_pending_stats()
+            poller._is_recipient_in_quiet_hours.assert_awaited_once_with(1)
+            self.assertTrue(await db.has_deferred_reports(1))
+            self.assertIsNotNone(await db.get_finished_stream(1, "channel", "stream-2"))
+            bot.send_message.assert_not_awaited()
+        finally:
+            await db.close()
+
+    async def test_manual_report_remains_available_when_auto_is_off(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            await db.add_channel(1, "channel")
+            await db.add_stream_history(
+                1, "channel", "stream-1", time.time(), 60, 10, 8, None
+            )
+            self.assertFalse(await db.get_auto_report_enabled(1, "channel"))
+            bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+            message = SimpleNamespace(chat=SimpleNamespace(id=1), bot=bot)
+
+            self.assertTrue(await _deliver_report(message, 1, "channel", db))
+
+            bot.send_message.assert_awaited_once()
+            bot.send_document.assert_not_awaited()
+        finally:
+            await db.close()
 
 
 if __name__ == "__main__":

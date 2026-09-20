@@ -181,9 +181,10 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     followers_at_start INTEGER,
     notify_enabled INTEGER NOT NULL DEFAULT 1,
     preview_enabled INTEGER NOT NULL DEFAULT 0,
+    auto_report_enabled INTEGER NOT NULL DEFAULT 0,
     channel_report_enabled INTEGER NOT NULL DEFAULT 0,
     post_recipient_chat_id INTEGER,
-    report_format TEXT NOT NULL DEFAULT 'full',
+    report_format TEXT NOT NULL DEFAULT 'brief',
     raid_detection_enabled INTEGER NOT NULL DEFAULT 1,
     quiet_hours_exempt INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, twitch_login)
@@ -486,6 +487,9 @@ class Database:
     async def _migrate(self) -> None:
         """Добавляет колонки, появившиеся в схеме уже после первого релиза
         (CREATE TABLE IF NOT EXISTS не меняет существующие таблицы)."""
+        cursor = await self.conn.execute("PRAGMA table_info(tracked_channels)")
+        tracked_columns = {row[1] for row in await cursor.fetchall()}
+        first_auto_report_migration = "auto_report_enabled" not in tracked_columns
         await self._add_missing_columns(
             "stream_history",
             {
@@ -505,11 +509,12 @@ class Database:
             {
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "preview_enabled": "INTEGER NOT NULL DEFAULT 0",
+                "auto_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
                 "media_transition_pending": "INTEGER NOT NULL DEFAULT 0",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
-                "report_format": "TEXT NOT NULL DEFAULT 'full'",
+                "report_format": "TEXT NOT NULL DEFAULT 'brief'",
                 "raid_detection_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "quiet_hours_exempt": "INTEGER NOT NULL DEFAULT 0",
                 "last_stream_ended_at": "REAL",
@@ -529,6 +534,31 @@ class Database:
         )
         await self._migrate_user_tokens_encryption()
         await self._migrate_deferred_reports_key()
+        if first_auto_report_migration:
+            # SQLite не поддерживает смену DEFAULT существующей колонки. Все
+            # старые значения format намеренно сбрасываются в brief один раз;
+            # после этого новые подписки тоже получают brief на уровне схемы.
+            if "report_format" in tracked_columns:
+                await self.conn.execute(
+                    "ALTER TABLE tracked_channels DROP COLUMN report_format"
+                )
+                await self.conn.execute(
+                    "ALTER TABLE tracked_channels ADD COLUMN report_format "
+                    "TEXT NOT NULL DEFAULT 'brief'"
+                )
+            await self.conn.execute(
+                "UPDATE tracked_channels SET auto_report_enabled = 0, "
+                "report_format = 'brief', channel_report_enabled = 0"
+            )
+            await self.conn.execute(
+                "UPDATE report_deliveries SET terminal_failed = 1, "
+                "terminal_reason = 'auto_report_rollout_disabled', updated_at = ? "
+                "WHERE terminal_failed = 0 AND "
+                "(text_sent = 0 OR (report_format = 'full' AND html_sent = 0))",
+                (time.time(),),
+            )
+            await self.conn.execute("DELETE FROM deferred_reports")
+            await self.conn.execute("DELETE FROM quiet_hours_digest_sent")
         # Старые БД проходят пересоздание deferred_reports внутри миграции, поэтому
         # индекс health-агрегата гарантируем уже после возможной замены таблицы.
         await self.conn.execute(
@@ -794,22 +824,24 @@ class Database:
 
     async def list_channels_with_routing(
         self, chat_id: int
-    ) -> list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool]]:
+    ) -> list[tuple[str, bool, bool, int | None, str, bool, bool, bool, bool, bool]]:
         """(twitch_login, notify_enabled, preview_enabled,
         post_recipient_chat_id, report_format, raid_detection_enabled,
-        quiet_hours_exempt, channel_report_enabled, is_live) для всех каналов чата."""
+        quiet_hours_exempt, channel_report_enabled, auto_report_enabled,
+        is_live) для всех каналов чата."""
         cursor = await self.conn.execute(
             "SELECT twitch_login, notify_enabled, preview_enabled, "
             "post_recipient_chat_id, report_format, raid_detection_enabled, "
-            "quiet_hours_exempt, channel_report_enabled, is_live FROM tracked_channels "
+            "quiet_hours_exempt, channel_report_enabled, auto_report_enabled, "
+            "is_live FROM tracked_channels "
             "WHERE chat_id = ? ORDER BY twitch_login",
             (chat_id,),
         )
         rows = await cursor.fetchall()
         return [
             (
-                row[0], bool(row[1]), bool(row[2]), row[3], row[4] or "full",
-                bool(row[5]), bool(row[6]), bool(row[7]), bool(row[8]),
+                row[0], bool(row[1]), bool(row[2]), row[3], row[4] or "brief",
+                bool(row[5]), bool(row[6]), bool(row[7]), bool(row[8]), bool(row[9]),
             )
             for row in rows
         ]
@@ -844,6 +876,26 @@ class Database:
     async def get_preview_enabled(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
             "SELECT preview_enabled FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return bool(row[0]) if row else False
+
+    @_serialized
+    async def set_auto_report_enabled(
+        self, chat_id: int, twitch_login: str, enabled: bool
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE tracked_channels SET auto_report_enabled = ? "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (int(enabled), chat_id, twitch_login),
+        )
+        await self.conn.commit()
+
+    async def get_auto_report_enabled(self, chat_id: int, twitch_login: str) -> bool:
+        cursor = await self.conn.execute(
+            "SELECT auto_report_enabled FROM tracked_channels "
             "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -886,13 +938,13 @@ class Database:
         await self.conn.commit()
 
     async def get_report_format(self, chat_id: int, twitch_login: str) -> str:
-        """'full' (текст + HTML-отчёт) или 'brief' (только текст). По умолчанию 'full'."""
+        """'full' (текст + HTML-отчёт) или 'brief' (только текст). По умолчанию 'brief'."""
         cursor = await self.conn.execute(
             "SELECT report_format FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
         row = await cursor.fetchone()
-        return row[0] if row and row[0] else "full"
+        return row[0] if row and row[0] else "brief"
 
     @_serialized
     async def set_raid_detection_enabled(self, chat_id: int, twitch_login: str, enabled: bool) -> None:

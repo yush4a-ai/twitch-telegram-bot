@@ -667,6 +667,11 @@ class StreamPoller:
         """Не даёт старому получателю увидеть отчёт после перепривязки маршрута."""
         entries = await self._db.peek_deferred_reports(chat_id)
         for source_chat_id, login, stream_id, ended_at in entries:
+            if not await self._automatic_report_enabled(source_chat_id, login):
+                await self._db.delete_deferred_report(
+                    chat_id, source_chat_id, login, stream_id
+                )
+                continue
             current_recipient = await self._db.resolve_post_recipient(source_chat_id, login)
             if current_recipient == chat_id:
                 continue
@@ -1352,6 +1357,17 @@ class StreamPoller:
                     await self._db.clear_finished_session(chat_id, login)
                 continue
 
+            if not await self._automatic_report_enabled(chat_id, login):
+                saved = await self._send_stats(
+                    chat_id, login, stream_id, title, started_at,
+                    peak_viewers, viewer_sum, viewer_samples, followers_at_start,
+                    deliver=False, ended_at=offline_since,
+                )
+                if saved:
+                    await self._db.mark_stats_sent(chat_id, login)
+                    await self._db.clear_finished_session(chat_id, login)
+                continue
+
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
             is_exempt = await self._db.get_quiet_hours_exempt(chat_id, login)
             if (
@@ -1413,6 +1429,11 @@ class StreamPoller:
                 await self._db.mark_stats_sent(chat_id, login)
                 await self._db.clear_finished_session(chat_id, login)
 
+    async def _automatic_report_enabled(self, chat_id: int, login: str) -> bool:
+        if await self._db.is_telegram_channel(chat_id):
+            return await self._db.get_channel_report_enabled(chat_id, login)
+        return await self._db.get_auto_report_enabled(chat_id, login)
+
     async def _is_recipient_in_quiet_hours(self, chat_id: int) -> bool:
         # Специальный режим Telegram-канала не использует пользовательские тихие
         # часы: итог публикуется в сам канал сразу после финализации.
@@ -1438,10 +1459,9 @@ class StreamPoller:
         deliver: bool = True,
         ended_at: float | None = None,
     ) -> bool:
-        """deliver=False — посчитать итоги стрима и записать их в историю, но ничего
-        не отправлять. Нужно для тихих часов: раньше отложенный отчёт просто помечался
-        как отправленный, минуя запись истории, и стрим пропадал бесследно — ни сводка
-        по окончании тихих часов, ни /report его потом не находили."""
+        """deliver=False — сохранить итоги без автоматической отправки.
+        Используется при выключенном автоотчёте и во время тихих часов;
+        история остаётся доступной для ручного /report."""
         if deliver and stream_id is not None:
             existing_delivery = await self._db.get_report_delivery_for_stream(
                 chat_id, login, stream_id
@@ -1554,7 +1574,8 @@ class StreamPoller:
             )
 
         if not deliver:
-            # итоги посчитаны и сохранены — отправит их сводка по окончании тихих часов
+            # Итоги сохранены; при тихих часах их покажет отложенная сводка,
+            # при выключенном автоотчёте они доступны только через /report.
             if history_record is not None:
                 await self._db.add_stream_history_record(history_record)
                 await self._db.delete_stream_chat_meta(chat_id, login, stream_id)
@@ -1640,6 +1661,24 @@ class StreamPoller:
         """
         if delivery.terminal_failed or delivery.complete:
             return True
+        if not await validate_report_destination(
+            self._db,
+            delivery.recipient_chat_id,
+            source_chat_id=delivery.source_chat_id,
+            telegram_channel_login=delivery.twitch_login,
+            operation=f"Итоговый отчёт {delivery.twitch_login}",
+        ):
+            await self._db.mark_report_delivery_terminal(
+                delivery, "destination_rejected", time.time()
+            )
+            return True
+        if not await self._automatic_report_enabled(
+            delivery.source_chat_id, delivery.twitch_login
+        ):
+            await self._db.mark_report_delivery_terminal(
+                delivery, "auto_report_disabled", time.time()
+            )
+            return True
 
         if not delivery.text_sent:
             if not await validate_report_destination(
@@ -1692,6 +1731,13 @@ class StreamPoller:
         ):
             await self._db.mark_report_delivery_terminal(
                 delivery, "destination_rejected", time.time()
+            )
+            return True
+        if not await self._automatic_report_enabled(
+            delivery.source_chat_id, delivery.twitch_login
+        ):
+            await self._db.mark_report_delivery_terminal(
+                delivery, "auto_report_disabled", time.time()
             )
             return True
         file = BufferedInputFile(
