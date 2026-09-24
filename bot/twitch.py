@@ -211,6 +211,7 @@ class StreamInfo:
     game_name: str
     viewer_count: int
     started_at: str
+    thumbnail_url: str | None = None
 
 
 @dataclass
@@ -330,6 +331,7 @@ class TwitchClient:
                     game_name=item.get("game_name", "—"),
                     viewer_count=item.get("viewer_count", 0),
                     started_at=item.get("started_at", ""),
+                    thumbnail_url=item.get("thumbnail_url") or None,
                 )
         return result
 

@@ -1064,7 +1064,7 @@ class StreamPollerP2BTests(unittest.IsolatedAsyncioTestCase):
         self.telegram.send_message.assert_not_awaited()
         self.assertEqual(await self._state(), (701, "video", 0))
 
-    async def test_video_offline_cleanup_deletes_same_id_and_resets_media_state(self) -> None:
+    async def test_video_offline_cleanup_edits_same_id_and_keeps_media_state(self) -> None:
         await self._mark_video()
         await self.db.set_live_state(
             101,
@@ -1082,8 +1082,16 @@ class StreamPollerP2BTests(unittest.IsolatedAsyncioTestCase):
         ):
             await self.poller._cleanup_offline_posts()
 
-        self.telegram.delete_message.assert_awaited_once_with(101, 701)
-        self.assertEqual(await self._state(), (None, "text", 0))
+        self.telegram.delete_message.assert_not_awaited()
+        self.telegram.edit_message_caption.assert_awaited_once_with(
+            chat_id=101,
+            message_id=701,
+            caption=self.telegram.edit_message_caption.await_args.kwargs["caption"],
+            parse_mode="HTML",
+            reply_markup=self.telegram.edit_message_caption.await_args.kwargs["reply_markup"],
+        )
+        self.assertIn("завершил эфир", self.telegram.edit_message_caption.await_args.kwargs["caption"])
+        self.assertEqual(await self._state(), (701, "video", 0))
 
     async def test_deleted_video_gets_one_silent_text_replacement_and_old_artifact_is_stale(self) -> None:
         await self._mark_video()

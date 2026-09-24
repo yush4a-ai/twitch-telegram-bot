@@ -37,11 +37,11 @@ async def _settle(turns: int = 12) -> None:
         await asyncio.sleep(0)
 
 
-async def _wait_until(predicate, *, turns: int = 100) -> None:
+async def _wait_until(predicate, *, turns: int = 1000) -> None:
     for _ in range(turns):
         if predicate():
             return
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.001)
     raise AssertionError("condition was not reached")
 
 
@@ -537,9 +537,13 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.start_online(manager)
         self.assertEqual(self.provider.open_times, [1000.0])
         self.assertEqual(self.provider.create_calls, [])
+        await _wait_until(
+            lambda: any(deadline == 1075.0 for deadline, _future in self.clock.sleeps)
+        )
         await self.clock.advance(74)
         self.assertEqual(self.provider.create_calls, [])
         await self.clock.advance(1)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
         self.assertEqual(len(self.provider.create_calls), 1)
 
     async def test_normal_interval_is_measured_from_attempt_completion(self) -> None:
@@ -624,6 +628,10 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager.observe_cycle((self.observation(),))
         await _settle()
         await self.clock.advance(1)
+        await _wait_until(lambda: len(self.provider.create_calls) == 3)
+        await _wait_until(
+            lambda: manager.health_snapshot()["consecutive_provider_failures"] == 0
+        )
         self.assertEqual(len(self.provider.create_calls), 3)
         self.assertEqual(manager.health_snapshot()["consecutive_provider_failures"], 0)
         self.assertNotIn("provider-secret", str(manager.health_snapshot()))
@@ -1394,9 +1402,9 @@ class PreviewPollerIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(text.startswith("🔴 Стрим «"))
         self.assertNotIn("🔴 channel", text)
 
-    async def test_unregistered_group_chat_keeps_old_layout_end_to_end(self) -> None:
-        # chat 101 from asyncSetUp is a plain tracked chat, never registered as a
-        # Telegram channel — it must keep receiving the pre-existing layout.
+    async def test_unregistered_private_chat_uses_private_layout_end_to_end(self) -> None:
+        # Positive Telegram chat ids represent private chats. Channel registration
+        # is intentionally absent, so the compact private layout is used.
         poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
         poller._maybe_snapshot_followers = AsyncMock()
 
@@ -1409,8 +1417,8 @@ class PreviewPollerIntegrationTests(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertEqual(len(calls), 1)
         text = calls[0].args[1]
-        self.assertTrue(text.startswith("🔴 <b>channel</b>"))
-        self.assertNotIn("Стрим «", text)
+        self.assertTrue(text.startswith("<b>channel</b> «<a href="))
+        self.assertIn("в эфире", text)
 
     async def test_empty_authoritative_cycle_prunes_previous_login(self) -> None:
         batches: list[tuple] = []
@@ -1646,12 +1654,12 @@ class ChannelLayoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(opens, closes)
         self.assertIn("</a>» уже идёт!", content.html)
 
-    async def test_private_chat_layout_unchanged(self) -> None:
+    async def test_private_chat_uses_compact_layout(self) -> None:
         content = await self.poller.build_preview_content(
             self._observation(), self._destination(555555, include_track_link=False)
         )
         self.assertNotIn("Стрим «", content.html)
-        self.assertIn("👁 Сейчас смотрят:", content.html)
+        self.assertIn("👁 977 зрителей", content.html)
         self.assertIn("🎮 Just Chatting", content.html)
         self.assertNotIn("🔔 <a href=", content.html)
 

@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     last_message_id INTEGER,
     last_message_kind TEXT NOT NULL DEFAULT 'text',
     media_transition_pending INTEGER NOT NULL DEFAULT 0,
+    live_post_ended INTEGER NOT NULL DEFAULT 0,
     last_title TEXT,
     offline_since REAL,
     stream_started_at TEXT,
@@ -512,6 +513,7 @@ class Database:
                 "auto_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
                 "media_transition_pending": "INTEGER NOT NULL DEFAULT 0",
+                "live_post_ended": "INTEGER NOT NULL DEFAULT 0",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
                 "report_format": "TEXT NOT NULL DEFAULT 'brief'",
@@ -1387,6 +1389,55 @@ class Database:
             notify_enabled=bool(row[5]),
         )
 
+    async def get_live_post_ended(self, chat_id: int, twitch_login: str) -> bool:
+        cursor = await self.conn.execute(
+            "SELECT live_post_ended FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return bool(row[0]) if row is not None else False
+
+    async def get_live_post_details(
+        self, chat_id: int, twitch_login: str
+    ) -> tuple[str | None, str | None]:
+        """Возвращает заголовок и последнюю категорию текущего live-post."""
+        cursor = await self.conn.execute(
+            "SELECT last_title, last_stream_id FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ?",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None, None
+        title, stream_id = row
+        game_cursor = await self.conn.execute(
+            "SELECT game_name FROM stream_samples "
+            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "ORDER BY sampled_at DESC LIMIT 1",
+            (chat_id, twitch_login, stream_id),
+        )
+        game_row = await game_cursor.fetchone()
+        game_name = game_row[0] if game_row and game_row[0] not in (None, "—") else None
+        return title, game_name
+
+    @_serialized
+    async def mark_live_post_ended_if_current(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET live_post_ended = 1 "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+            "AND last_message_id = ? AND is_live = 0",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
     async def list_preview_destination_states(
         self, twitch_login: str
     ) -> list[PreviewDestinationState]:
@@ -1493,7 +1544,7 @@ class Database:
         message_kind: str,
         media_transition_pending: bool,
     ) -> bool:
-        if message_kind not in {"text", "video"}:
+        if message_kind not in {"text", "photo", "video"}:
             raise ValueError(f"Unsupported live message kind: {message_kind!r}")
         cursor = await self.conn.execute(
             "UPDATE tracked_channels SET last_message_kind = ?, "
@@ -1541,7 +1592,8 @@ class Database:
     ) -> bool:
         cursor = await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, "
-            "last_message_kind = 'text', media_transition_pending = 0 "
+            "last_message_kind = 'text', media_transition_pending = 0, "
+            "live_post_ended = 0 "
             "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
             "AND last_message_id = ?",
             (chat_id, twitch_login, logical_stream_id, message_id),
@@ -1596,7 +1648,8 @@ class Database:
             "viewer_samples = CASE WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) "
             "    THEN 0 ELSE viewer_samples END, "
             "followers_at_start = CASE WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) "
-            "    THEN NULL ELSE followers_at_start END "
+            "    THEN NULL ELSE followers_at_start END, "
+            "live_post_ended = CASE WHEN ? THEN 0 ELSE live_post_ended END "
             "WHERE chat_id = ? AND twitch_login = ?",
             (
                 int(is_live), stream_id,
@@ -1608,6 +1661,7 @@ class Database:
                 int(is_live),
                 int(is_live), stream_id, int(is_live), stream_id,
                 int(is_live), stream_id,
+                int(is_live),
                 chat_id, twitch_login,
             ),
         )
@@ -1626,10 +1680,10 @@ class Database:
         await self.conn.commit()
 
     async def pending_offline_posts(self) -> list[tuple[int, str, int, float, bool]]:
-        """Live-посты офлайн-каналов, ожидающие удаления.
+        """Live-посты офлайн-каналов, ожидающие удаления или финального редактирования.
 
-        Удаление Telegram-сообщения не зависит от готовности итогового отчёта:
-        ``stats_sent`` возвращается только для выбора между очисткой ссылки на пост
+        Для публичных чатов пост удаляется, для лички переводится в ended-карточку.
+        ``stats_sent`` возвращается для выбора между сохранением ссылки до отчёта
         и окончательной очисткой уже финализированной сессии.
         """
         cursor = await self.conn.execute(
@@ -1929,7 +1983,7 @@ class Database:
         """Забывает только Telegram live-пост, сохраняя логическую Twitch-сессию."""
         await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, last_message_kind = 'text', "
-            "media_transition_pending = 0 "
+            "media_transition_pending = 0, live_post_ended = 0 "
             "WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1945,12 +1999,14 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
-            "peak_viewers = NULL, last_message_kind = 'text', "
+            "peak_viewers = NULL, last_message_id = NULL, last_message_kind = 'text', "
             "media_transition_pending = 0, "
+            "live_post_ended = 0, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
             "WHERE chat_id = ? AND twitch_login = ? "
-            "AND is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL",
+            "AND is_live = 0 AND stats_sent = 1 "
+            "AND (last_message_id IS NULL OR live_post_ended = 1)",
             (chat_id, twitch_login),
         )
         await self.conn.commit()
@@ -1965,11 +2021,13 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
-            "peak_viewers = NULL, last_message_kind = 'text', "
+            "peak_viewers = NULL, last_message_id = NULL, last_message_kind = 'text', "
             "media_transition_pending = 0, "
+            "live_post_ended = 0, "
             "stats_sent = 0, viewer_sum = 0, viewer_samples = 0, "
             "followers_at_start = NULL "
-            "WHERE is_live = 0 AND stats_sent = 1 AND last_message_id IS NULL"
+            "WHERE is_live = 0 AND stats_sent = 1 "
+            "AND (last_message_id IS NULL OR live_post_ended = 1)"
         )
         await self.conn.commit()
 
@@ -1978,6 +2036,7 @@ class Database:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_message_id = NULL, "
             "last_message_kind = 'text', media_transition_pending = 0, last_title = NULL, "
+            "live_post_ended = 0, "
             "last_stream_id = NULL, offline_since = NULL, "
             "stream_started_at = NULL, last_seen_live_at = NULL, peak_viewers = NULL, "
             "stats_sent = 0, "

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import html
@@ -28,6 +28,7 @@ from .deep_links import build_track_deep_link
 from .logging_utils import mask_chat_id
 from .live_post import (
     LivePostContent,
+    LivePostMediaStatus,
     LivePostTarget,
     LivePostUpdater,
     LivePostUpdateResult,
@@ -35,6 +36,7 @@ from .live_post import (
 from .report import build_report_html
 from .report_delivery import validate_report_destination
 from .preview_runtime import PreviewObservation, PreviewObserver
+from . import stream_thumbnail
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, TwitchClient
@@ -384,6 +386,7 @@ class StreamPoller:
         self._last_cycle_error: str | None = None
         self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
+        self._thumbnail_refresh: dict[str, tuple[str, float]] = {}
         self._live_post_updater = live_post_updater or LivePostUpdater(bot, db)
         self._preview_observer = preview_observer
         self._telegram_channel_username_cache = (
@@ -847,6 +850,22 @@ class StreamPoller:
         for login in logins:
             chat_ids = chats_by_login[login]
             stream = live_streams.get(login)
+            if stream is None:
+                self._thumbnail_refresh.pop(login, None)
+                thumbnail_url = None
+                thumbnail_refresh_due = False
+            else:
+                refresh_bucket = int(now // stream_thumbnail.REFRESH_SECONDS)
+                thumbnail_url = stream_thumbnail.build_url(
+                    stream.thumbnail_url, refresh_bucket
+                )
+                previous_refresh = self._thumbnail_refresh.get(login)
+                thumbnail_refresh_due = bool(thumbnail_url) and (
+                    previous_refresh is None
+                    or previous_refresh[0] != stream.stream_id
+                    or now - previous_refresh[1] >= stream_thumbnail.REFRESH_SECONDS
+                )
+            thumbnail_attempted = False
             for chat_id in chat_ids:
                 include_track_link = chat_id in telegram_channel_ids
                 include_video_submission_link = (
@@ -984,6 +1003,26 @@ class StreamPoller:
                         ):
                             message_id = last_message_id
                             message_kind = last_message_kind
+                            if (
+                                chat_id > 0
+                                and thumbnail_refresh_due
+                                and thumbnail_url is not None
+                                and message_kind != "video"
+                            ):
+                                thumbnail_attempted = True
+                                photo_result = await self._refresh_thumbnail(
+                                    chat_id,
+                                    message_id,
+                                    login,
+                                    last_stream_id or stream.stream_id,
+                                    title,
+                                    stream.viewer_count,
+                                    game_name,
+                                    return_note,
+                                    thumbnail_url,
+                                )
+                                if photo_result.status is LivePostMediaStatus.APPLIED:
+                                    message_kind = "photo"
                         else:
                             # старый пост — фото (до перехода на текстовые сообщения),
                             # его нельзя отредактировать в текст; пересоздаём как текст
@@ -1012,42 +1051,72 @@ class StreamPoller:
                         message_kind = "text"
                     else:
                         if last_message_id is not None:
-                            # стрим прервался надолго, потом начался заново (новый
-                            # stream_id) — без этого старый пост о прошлом запуске
-                            # остаётся висеть навсегда, потому что is_live уже снова
-                            # стало True и он больше не подпадает под условие
-                            # pending_offline_posts()
-                            async with self._live_post_updater.serialized(
-                                chat_id, last_message_id
-                            ):
-                                current = await self._db.get_live_post_state(
-                                    chat_id, login
-                                )
-                                if (
-                                    current is None
-                                    or current.message_id != last_message_id
-                                    or current.logical_stream_id != last_stream_id
+                            if chat_id > 0 and hasattr(self._db, "get_live_post_state"):
+                                # Завершённый личный пост никогда не удаляем при
+                                # переходе к следующей session. Если cleanup ещё не
+                                # успел отредактировать его, делаем это сейчас, затем
+                                # освобождаем указатель (старое сообщение остаётся в
+                                # истории, новый эфир получит новый message_id).
+                                if not await self._db.get_live_post_ended(chat_id, login):
+                                    details = await self._db.get_live_post_details(chat_id, login)
+                                    ended = await self._edit_private_ended(
+                                        chat_id,
+                                        last_message_id,
+                                        login,
+                                        last_stream_id or stream.stream_id,
+                                        details[0] or last_title or "(без названия)",
+                                        details[1],
+                                    )
+                                    if ended is not LivePostUpdateResult.UPDATED:
+                                        continue
+                                    await self._db.mark_live_post_ended_if_current(
+                                        chat_id,
+                                        login,
+                                        last_stream_id or stream.stream_id,
+                                        last_message_id,
+                                    )
+                                if stats_sent:
+                                    await self._db.clear_finished_session(chat_id, login)
+                                else:
+                                    continue
+                                last_message_id = None
+                            else:
+                                # стрим прервался надолго, потом начался заново (новый
+                                # stream_id) — без этого старый пост о прошлом запуске
+                                # остаётся висеть навсегда, потому что is_live уже снова
+                                # стало True и он больше не подпадает под условие
+                                # pending_offline_posts().
+                                async with self._live_post_updater.serialized(
+                                    chat_id, last_message_id
                                 ):
-                                    continue
-                                deleted = await self._tg_call(
-                                    lambda: self._bot.delete_message(
-                                        chat_id, last_message_id
-                                    ),
-                                    f"Удаление прошлого поста {last_message_id} "
-                                    f"в {mask_chat_id(chat_id)}",
-                                    permanent_failure_is_success=True,
-                                )
-                                if deleted is _FAILED:
-                                    # Не затираем идентификатор недоступного старого поста:
-                                    # повторим переход к новой сессии в следующем poll.
-                                    continue
-                                if not await self._db.clear_live_message_if_current(
-                                    chat_id,
-                                    login,
-                                    last_stream_id,
-                                    last_message_id,
-                                ):
-                                    continue
+                                    current = await self._db.get_live_post_state(
+                                        chat_id, login
+                                    )
+                                    if (
+                                        current is None
+                                        or current.message_id != last_message_id
+                                        or current.logical_stream_id != last_stream_id
+                                    ):
+                                        continue
+                                    deleted = await self._tg_call(
+                                        lambda: self._bot.delete_message(
+                                            chat_id, last_message_id
+                                        ),
+                                        f"Удаление прошлого поста {last_message_id} "
+                                        f"в {mask_chat_id(chat_id)}",
+                                        permanent_failure_is_success=True,
+                                    )
+                                    if deleted is _FAILED:
+                                        # Не затираем идентификатор недоступного старого поста:
+                                        # повторим переход к новой сессии в следующем poll.
+                                        continue
+                                    if not await self._db.clear_live_message_if_current(
+                                        chat_id,
+                                        login,
+                                        last_stream_id,
+                                        last_message_id,
+                                    ):
+                                        continue
                         message_id = await self._notify(
                             chat_id, login, title, stream.viewer_count, game_name, return_note,
                             include_track_link=include_track_link,
@@ -1077,6 +1146,28 @@ class StreamPoller:
                         last_seen_live_at=now,
                         message_kind=message_kind,
                     )
+                    if (
+                        chat_id > 0
+                        and notify_enabled
+                        and message_id is not None
+                        and thumbnail_refresh_due
+                        and thumbnail_url is not None
+                        and message_kind == "text"
+                    ):
+                        thumbnail_attempted = True
+                        photo_result = await self._refresh_thumbnail(
+                            chat_id,
+                            message_id,
+                            login,
+                            effective_stream_id,
+                            title,
+                            stream.viewer_count,
+                            game_name,
+                            return_note,
+                            thumbnail_url,
+                        )
+                        if photo_result.status is LivePostMediaStatus.APPLIED:
+                            message_kind = "photo"
                     if (
                         self._follow_listener is not None
                         and self._follow_listener.is_configured(login)
@@ -1126,6 +1217,13 @@ class StreamPoller:
                             peak_viewers=_peak_viewers,
                             message_kind=last_message_kind,
                         )
+
+            if (
+                stream is not None
+                and thumbnail_refresh_due
+                and thumbnail_attempted
+            ):
+                self._thumbnail_refresh[login] = (stream.stream_id, now)
 
         self._publish_preview_observations(
             tuple(
@@ -1236,6 +1334,46 @@ class StreamPoller:
             chat_id, login, message_id, offline_since, stats_sent,
         ) in await self._db.pending_offline_posts():
             if now - offline_since < OFFLINE_GRACE_SECONDS:
+                continue
+            # Личные сообщения остаются в истории: после grace-period редактируем
+            # ту же карточку в состояние «эфир завершён». Публичные чаты сохраняют
+            # прежнее удаление без изменения шаблонов и report routing.
+            if (
+                chat_id > 0
+                and hasattr(self._db, "get_live_post_state")
+            ):
+                if (
+                    hasattr(self._db, "get_live_post_ended")
+                    and await self._db.get_live_post_ended(chat_id, login)
+                ):
+                    continue
+                state = await self._db.get_live_post_state(chat_id, login)
+                if state is None or state.logical_stream_id is None:
+                    continue
+                details = await self._db.get_live_post_details(chat_id, login)
+                title, game_name = details
+                title = title or "(без названия)"
+                state = await self._db.get_live_post_state(chat_id, login)
+                if (
+                    state is None
+                    or state.message_id != message_id
+                    or state.logical_stream_id is None
+                ):
+                    continue
+                updated = await self._edit_private_ended(
+                    chat_id,
+                    message_id,
+                    login,
+                    state.logical_stream_id,
+                    title,
+                    game_name,
+                )
+                if updated is LivePostUpdateResult.UPDATED:
+                    await self._db.mark_live_post_ended_if_current(
+                        chat_id, login, state.logical_stream_id, message_id
+                    )
+                    if stats_sent:
+                        await self._db.clear_finished_session(chat_id, login)
                 continue
             if not hasattr(self._db, "get_live_post_state"):
                 deleted = await self._tg_call(
@@ -1894,10 +2032,15 @@ class StreamPoller:
             return f"{hours} ч {minutes} мин"
         return f"{minutes} мин"
 
-    async def _build_keyboard(self, login: str) -> InlineKeyboardMarkup:
+    async def _build_keyboard(
+        self, login: str, *, ended: bool = False
+    ) -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="Смотреть на Twitch", url=f"https://twitch.tv/{login}")]
+                [InlineKeyboardButton(
+                    text="Открыть Twitch" if ended else "Смотреть на Twitch",
+                    url=f"https://twitch.tv/{login}",
+                )]
             ]
         )
 
@@ -1970,6 +2113,40 @@ class StreamPoller:
             )
         return text
 
+    async def _build_private_live_text(
+        self,
+        login: str,
+        title: str,
+        game_name: str | None,
+        viewer_count: int,
+        return_note: str | None = None,
+        *,
+        ended: bool = False,
+    ) -> str:
+        """Компактная карточка для лички; публичные шаблоны не затрагивает."""
+        clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
+        clean_title = clean_title or "(без названия)"
+        escaped_title = _truncate_escaped_utf16(
+            clean_title, _CHANNEL_TITLE_MAX_CODE_UNITS
+        )
+        twitch_url = html.escape(f"https://www.twitch.tv/{login}", quote=True)
+        title_html = f'<a href="{twitch_url}">{escaped_title}</a>'
+        channel_name = html.escape(await self._channel_display_name(login))
+        text = f"<b>{channel_name}</b> «{title_html}» " \
+            f"{'завершил эфир' if ended else 'в эфире'}"
+        if collab_logins:
+            # В личной карточке кликабельным остаётся только название стрима;
+            # коллабы показываем обычным безопасным текстом.
+            collab_names = " × ".join(html.escape(collab) for collab in collab_logins)
+            text += f"\n🤝 Вместе с: {collab_names}"
+        if game_name:
+            text += f"\n\n🎮 {html.escape(game_name)}"
+        if not ended:
+            text += f"\n👁 {viewer_count} зрителей"
+        if return_note:
+            text += f"\n\n{return_note}"
+        return text
+
     async def _notify(
         self,
         chat_id: int,
@@ -1983,12 +2160,24 @@ class StreamPoller:
         include_track_link: bool = False,
         include_video_submission_link: bool = False,
     ) -> int | None:
-        text = await self._build_live_text(
-            login, title, game_name, viewer_count, return_note,
-            include_track_link=include_track_link,
-            is_channel=include_track_link,
-            include_video_submission_link=include_video_submission_link,
-        )
+        if not include_track_link:
+            if chat_id > 0:
+                text = await self._build_private_live_text(
+                    login, title, game_name, viewer_count, return_note
+                )
+            else:
+                text = await self._build_live_text(
+                    login, title, game_name, viewer_count, return_note,
+                    include_track_link=False,
+                    is_channel=False,
+                )
+        else:
+            text = await self._build_live_text(
+                login, title, game_name, viewer_count, return_note,
+                include_track_link=include_track_link,
+                is_channel=include_track_link,
+                include_video_submission_link=include_video_submission_link,
+            )
         keyboard = await self._build_keyboard(login)
         message = await self._tg_call(
             lambda: self._bot.send_message(
@@ -2003,6 +2192,64 @@ class StreamPoller:
         if message is _FAILED or message is None:
             return None
         return message.message_id
+
+    async def _edit_private_ended(
+        self,
+        chat_id: int,
+        message_id: int,
+        login: str,
+        logical_stream_id: str,
+        title: str,
+        game_name: str | None,
+    ) -> LivePostUpdateResult:
+        async def build_content() -> LivePostContent:
+            return LivePostContent(
+                html=await self._build_private_live_text(
+                    login, title, game_name, 0, ended=True
+                ),
+                reply_markup=await self._build_keyboard(login, ended=True),
+            )
+
+        return await self._live_post_updater.update_content(
+            target=LivePostTarget(
+                chat_id=chat_id,
+                twitch_login=login,
+                logical_stream_id=logical_stream_id,
+                message_id=message_id,
+            ),
+            build_content=build_content,
+        )
+
+    async def _refresh_thumbnail(
+        self,
+        chat_id: int,
+        message_id: int,
+        login: str,
+        logical_stream_id: str,
+        title: str,
+        viewer_count: int,
+        game_name: str | None,
+        return_note: str | None,
+        image_url: str,
+    ):
+        return await self._live_post_updater.apply_photo(
+            target=LivePostTarget(
+                chat_id=chat_id,
+                twitch_login=login,
+                logical_stream_id=logical_stream_id,
+                message_id=message_id,
+            ),
+            photo_url=image_url,
+            build_content=lambda: self._live_post_content(
+                login,
+                title,
+                game_name,
+                viewer_count,
+                return_note,
+                include_track_link=False,
+                private_chat=True,
+            ),
+        )
 
     async def _edit(
         self,
@@ -2034,6 +2281,7 @@ class StreamPoller:
                 return_note,
                 include_track_link=include_track_link,
                 include_video_submission_link=include_video_submission_link,
+                private_chat=chat_id > 0,
             ),
         )
 
@@ -2047,7 +2295,15 @@ class StreamPoller:
         *,
         include_track_link: bool,
         include_video_submission_link: bool = False,
+        private_chat: bool = False,
     ) -> LivePostContent:
+        if private_chat:
+            return LivePostContent(
+                html=await self._build_private_live_text(
+                    login, title, game_name, viewer_count, return_note
+                ),
+                reply_markup=await self._build_keyboard(login),
+            )
         return LivePostContent(
             html=await self._build_live_text(
                 login,
@@ -2078,6 +2334,7 @@ class StreamPoller:
                 self._telegram_channel_username_cache.get(destination.chat_id)
                 == "papapavertv"
             ),
+            private_chat=(destination.chat_id > 0 and not destination.include_track_link),
         )
 
     async def _replace_live_post_if_current(

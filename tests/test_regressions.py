@@ -2830,7 +2830,7 @@ class LivePostMediaReadyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(edited.kwargs["message_id"], 701)
         self.assertIn("Updated title", edited.args[0])
         self.assertIn("Updated game", edited.args[0])
-        self.assertIn("9️⃣9️⃣", edited.args[0])
+        self.assertIn("99 зрителей", edited.args[0])
         keyboard = edited.kwargs["reply_markup"]
         self.assertEqual(len(keyboard.inline_keyboard), 1)
         self.assertEqual(len(keyboard.inline_keyboard[0]), 1)
@@ -2917,9 +2917,143 @@ class LivePostMediaReadyTests(unittest.IsolatedAsyncioTestCase):
         with patch("bot.poller.time.time", return_value=1361.0):
             await self.poller._cleanup_offline_posts()
 
-        self.telegram.delete_message.assert_awaited_once_with(101, 701)
-        self.assertIsNone((await self.db.get_live_state(101, "channel"))[2])
+        self.telegram.delete_message.assert_not_awaited()
+        self.telegram.edit_message_text.assert_awaited_once()
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[2], 701)
         self.assertEqual(await self._stored_message_kind(101), "text")
+
+    async def test_private_live_card_uses_linked_title_and_plain_viewers(self) -> None:
+        await self._track(101)
+        await self.db.set_display_name("channel", "Dobriy_Yura")
+
+        await self.poller._notify(
+            101,
+            "channel",
+            'РАСТ <до утра> & "стрим"',
+            70,
+            "Rust",
+        )
+
+        text = self.telegram.send_message.await_args.args[1]
+        self.assertEqual(
+            text,
+            '<b>Dobriy_Yura</b> «<a href="https://www.twitch.tv/channel">'
+            "РАСТ &lt;до утра&gt; &amp; &quot;стрим&quot;</a>» в эфире\n\n"
+            "🎮 Rust\n"
+            "👁 70 зрителей",
+        )
+        self.assertEqual(
+            self.telegram.send_message.await_args.kwargs["reply_markup"]
+            .inline_keyboard[0][0].text,
+            "Смотреть на Twitch",
+        )
+
+    async def test_private_live_card_omits_category_when_game_is_missing(self) -> None:
+        await self._track(101)
+        await self.poller._notify(101, "channel", "No game", 3, None)
+        text = self.telegram.send_message.await_args.args[1]
+        self.assertNotIn("🎮", text)
+        self.assertIn("👁 3 зрителей", text)
+
+    async def test_private_title_is_the_only_clickable_stream_reference(self) -> None:
+        await self._track(101)
+        await self.poller._notify(101, "channel", "Co-op with @friend", 8, "Game")
+        text = self.telegram.send_message.await_args.args[1]
+        self.assertEqual(text.count("<a href="), 1)
+        self.assertIn("🤝 Вместе с: friend", text)
+
+    async def test_private_offline_card_edits_message_and_keeps_pointer_until_finalize(self) -> None:
+        await self._track(101)
+        await self.db.set_display_name("channel", "Dobriy_Yura")
+        await self._poll_live(101, now=1000.0)
+        self.telegram.send_message.reset_mock()
+        self.telegram.edit_message_text.reset_mock()
+        self.telegram.delete_message.reset_mock()
+
+        await self._poll_offline(now=1060.0)
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+
+        self.telegram.delete_message.assert_not_awaited()
+        self.telegram.edit_message_text.assert_awaited_once()
+        edited = self.telegram.edit_message_text.await_args
+        self.assertEqual(edited.kwargs["message_id"], 701)
+        self.assertIn(
+            '<b>Dobriy_Yura</b> «<a href="https://www.twitch.tv/channel">'
+            "Test stream</a>» завершил эфир",
+            edited.args[0],
+        )
+        self.assertNotIn("Сейчас смотрят", edited.args[0])
+        self.assertEqual(
+            edited.kwargs["reply_markup"].inline_keyboard[0][0].text,
+            "Открыть Twitch",
+        )
+        self.assertEqual((await self.db.get_live_state(101, "channel"))[2], 701)
+
+    async def test_private_reconnect_edits_ended_card_back_to_live(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+        self.telegram.edit_message_text.reset_mock()
+        self.telegram.send_message.reset_mock()
+
+        await self._poll_live(101, stream=self._live(title="Back"), now=1400.0)
+
+        self.telegram.send_message.assert_not_awaited()
+        self.assertTrue(self.telegram.edit_message_text.await_count >= 1)
+        latest = self.telegram.edit_message_text.await_args
+        self.assertIn("» в эфире", latest.args[0])
+        self.assertEqual(
+            latest.kwargs["reply_markup"].inline_keyboard[0][0].text,
+            "Смотреть на Twitch",
+        )
+
+    async def test_private_finalization_clears_pointer_and_next_stream_sends_new_post(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+        await self.db.mark_stats_sent(101, "channel")
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+        self.assertIsNone((await self.db.get_live_state(101, "channel"))[2])
+        self.telegram.send_message.reset_mock()
+
+        await self._poll_live(101, stream=self._live("stream-2"), now=2000.0)
+        self.telegram.send_message.assert_awaited_once()
+
+    async def test_private_video_post_uses_caption_edit_for_ended_card(self) -> None:
+        self.telegram.edit_message_caption = AsyncMock()
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self.db.set_live_message_kind_if_current(
+            101, "channel", "stream-1", 701, "video", False
+        )
+        await self._poll_offline(now=1060.0)
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+
+        self.telegram.edit_message_text.assert_not_awaited()
+        self.telegram.edit_message_caption.assert_awaited_once()
+        self.assertIn("завершил эфир", self.telegram.edit_message_caption.await_args.kwargs["caption"])
+
+    async def test_private_ended_marker_survives_restart_and_prevents_repeat_edit(self) -> None:
+        await self._track(101)
+        await self._poll_live(101, now=1000.0)
+        await self._poll_offline(now=1060.0)
+        with patch("bot.poller.time.time", return_value=1361.0):
+            await self.poller._cleanup_offline_posts()
+        self.assertTrue(await self.db.get_live_post_ended(101, "channel"))
+
+        await self.db.close()
+        self.db = Database(self.db._path)
+        await self.db.connect()
+        self.poller = StreamPoller(self.telegram, self.db, self.twitch, 60)
+        self.telegram.edit_message_text.reset_mock()
+        with patch("bot.poller.time.time", return_value=1400.0):
+            await self.poller._cleanup_offline_posts()
+        self.telegram.edit_message_text.assert_not_awaited()
 
     async def test_telegram_channel_keeps_deep_link_and_single_twitch_button(self) -> None:
         channel_id = -100500
@@ -4663,6 +4797,8 @@ class RestartLifecycleTests(unittest.IsolatedAsyncioTestCase):
         bot = SimpleNamespace(
             send_message=AsyncMock(return_value=SimpleNamespace(message_id=99)),
             send_document=AsyncMock(return_value=SimpleNamespace(message_id=100)),
+            edit_message_text=AsyncMock(),
+            edit_message_caption=AsyncMock(),
             delete_message=AsyncMock(),
         )
         twitch = SimpleNamespace(

@@ -16,7 +16,7 @@ from aiogram.exceptions import (
     TelegramNetworkError,
     TelegramRetryAfter,
 )
-from aiogram.types import FSInputFile, InlineKeyboardMarkup, InputMediaVideo
+from aiogram.types import FSInputFile, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
 
 from .database import Database, LivePostState
 from .logging_utils import mask_chat_id
@@ -206,7 +206,7 @@ class LivePostUpdater:
                 return await self._reconcile_pending_locked(target, content)
             if state.message_kind == "text":
                 outcome = await self._edit_text(target, content)
-            elif state.message_kind == "video":
+            elif state.message_kind in {"photo", "video"}:
                 if not _caption_fits(content.html):
                     return LivePostUpdateResult.CONTENT_TOO_LONG
                 outcome = await self._edit_caption(target, content)
@@ -218,6 +218,67 @@ class LivePostUpdater:
                 )
                 return LivePostUpdateResult.KEEP_EXISTING
             return self._update_result(outcome)
+
+    async def apply_photo(
+        self,
+        *,
+        target: LivePostTarget,
+        photo_url: str,
+        build_content: ContentFactory,
+    ) -> LivePostMediaResult:
+        # Lightweight private thumbnail path; never starts capture/render work.
+        db = self._require_db()
+        async with self.serialized(target.chat_id, target.message_id):
+            state = await db.get_live_post_state(target.chat_id, target.twitch_login)
+            if not self._is_current(state, target):
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
+                return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+
+            content = await self._build_content(build_content)
+            if not _caption_fits(content.html):
+                return LivePostMediaResult(LivePostMediaStatus.CAPTION_TOO_LONG)
+            state = await db.get_live_post_state(target.chat_id, target.twitch_login)
+            if not self._is_current(state, target):
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
+                return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+
+            media = InputMediaPhoto(
+                media=photo_url, caption=content.html, parse_mode="HTML"
+            )
+            try:
+                await self._bot.edit_message_media(
+                    chat_id=target.chat_id,
+                    message_id=target.message_id,
+                    media=media,
+                    reply_markup=content.reply_markup,
+                )
+            except (TelegramRetryAfter, TelegramNetworkError):
+                return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+            except TelegramBadRequest as error:
+                if not _is_not_modified(error):
+                    if _is_missing(error):
+                        return LivePostMediaResult(LivePostMediaStatus.MESSAGE_MISSING)
+                    if _is_invalid_media(error):
+                        return LivePostMediaResult(LivePostMediaStatus.INVALID_MEDIA)
+                    return LivePostMediaResult(LivePostMediaStatus.REJECTED)
+            except TelegramForbiddenError:
+                return LivePostMediaResult(LivePostMediaStatus.REJECTED)
+
+            updated = await db.set_live_message_kind_if_current(
+                target.chat_id,
+                target.twitch_login,
+                target.logical_stream_id,
+                target.message_id,
+                "photo",
+                False,
+            )
+            return LivePostMediaResult(
+                LivePostMediaStatus.APPLIED
+                if updated
+                else LivePostMediaStatus.STATE_CONFLICT
+            )
 
     async def apply_video(
         self,
