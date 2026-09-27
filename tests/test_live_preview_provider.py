@@ -1236,6 +1236,29 @@ class ProviderDiagnosticPhaseTests(ProviderTestCase):
         self.assertEqual(raised.exception.phase, "render")
         self.assertEqual(snapshot.release_calls, 1)
 
+    async def test_render_result_exposes_allowlisted_status_and_reason(self) -> None:
+        snapshot = FakeSnapshot()
+        handle = FakeCaptureHandle(SnapshotAcquireResult(SnapshotStatus.READY, snapshot))
+        session, _source, _analyzer, _renderer = await self._session(
+            handle,
+            FakeAnalyzer(AnalysisResult(AnalysisStatus.SUCCESS, selection=_selection())),
+            FakeRenderer(
+                RenderResult(
+                    RenderStatus.VALIDATION_FAILED,
+                    diagnostic_code="source_fps_unreliable",
+                )
+            ),
+        )
+
+        with self.assertRaises(LivePreviewProviderError) as raised:
+            await session.create_artifact(self.request)
+
+        self.assertEqual(raised.exception.phase, "render")
+        self.assertEqual(raised.exception.status, "validation_failed")
+        self.assertEqual(raised.exception.reason, "source_fps_unreliable")
+        self.assertNotIn("source_fps_unreliable", str(raised.exception))
+        self.assertEqual(snapshot.release_calls, 1)
+
 
 class ProviderSourceFailureDetailTests(ProviderTestCase):
     async def test_resolve_timeout_exposes_safe_specific_phase(self) -> None:

@@ -1925,3 +1925,37 @@ class ProviderDiagnosticLoggingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("phase=analysis", rendered)
         self.assertNotIn("secret.example", rendered)
         self.assertEqual(manager.health_snapshot()["last_error"], "PhaseError")
+
+    async def test_render_failure_logs_allowlisted_status_and_reason(self) -> None:
+        preview = _preview_module()
+
+        class RenderError(RuntimeError):
+            phase = "render"
+            status = "validation_failed"
+            reason = "source_fps_unreliable"
+
+        async def no_sleep(_delay: float) -> None:
+            return None
+
+        manager = preview.PreviewManager(
+            object(), object(), object(), enabled=True,
+            initial_delay_seconds=0, interval_seconds=300,
+            max_concurrent_jobs=1, job_timeout_seconds=1,
+            poll_interval_seconds=60, build_content=lambda *_args: None,
+            sleep=no_sleep,
+        )
+        key = preview.PreviewSessionKey("channel", "physical-A")
+        token = preview.PreviewGeneration("channel", "physical-A", 1)
+        record = preview._ManagedSession(key, token)
+        manager._sessions["channel"] = record
+
+        with self.assertLogs("bot.preview_runtime", level="WARNING") as captured:
+            await manager._provider_failed(
+                record, RenderError("C:/secret/render.mp4")
+            )
+
+        rendered = "\n".join(captured.output)
+        self.assertIn("phase=render", rendered)
+        self.assertIn("status=validation_failed", rendered)
+        self.assertIn("reason=source_fps_unreliable", rendered)
+        self.assertNotIn("secret", rendered)

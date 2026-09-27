@@ -35,6 +35,18 @@ _PROVIDER_FAILURE_PHASES = frozenset({
     "render", "artifact", "request", "session_close",
     "capture_recovery", "provider",
 })
+_PROVIDER_RENDER_STATUSES = frozenset({
+    "invalid_selection", "snapshot_invalidated", "capability_unavailable",
+    "process_failed", "timeout", "output_too_large", "validation_failed",
+    "internal_error",
+})
+_PROVIDER_RENDER_REASONS = frozenset({
+    "invalid_selection", "invalid_snapshot", "source_file_missing",
+    "capability_unavailable", "ffmpeg_missing", "ffmpeg_exit",
+    "source_probe_failed", "source_fps_unreliable", "source_unsupported",
+    "render_timeout", "output_too_large", "invalid_output",
+    "storage_unavailable", "unexpected_error",
+})
 
 PreviewArtifact: TypeAlias = LocalVideo | TelegramVideo
 
@@ -736,7 +748,22 @@ class PreviewManager:
         self._last_error = type(error).__name__
         record.state = PreviewSessionState.BACKOFF
         phase = getattr(error, "phase", None)
-        if phase in _PROVIDER_FAILURE_PHASES:
+        status = getattr(error, "status", None)
+        reason = getattr(error, "reason", None)
+        if (
+            phase == "render"
+            and status in _PROVIDER_RENDER_STATUSES
+            and reason in _PROVIDER_RENDER_REASONS
+        ):
+            logger.warning(
+                "Preview provider temporarily unavailable: "
+                "%s phase=%s status=%s reason=%s",
+                type(error).__name__,
+                phase,
+                status,
+                reason,
+            )
+        elif phase in _PROVIDER_FAILURE_PHASES:
             logger.warning(
                 "Preview provider временно недоступен: %s phase=%s",
                 type(error).__name__,

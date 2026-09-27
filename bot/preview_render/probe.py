@@ -255,7 +255,9 @@ def _valid_sar(value: object) -> bool:
         return False
 
 
-def parse_source_probe(payload: bytes) -> SourceVideoInfo:
+def _parse_source_probe_details(
+    payload: bytes,
+) -> tuple[SourceVideoInfo, Fraction]:
     try:
         document = _decode_json(payload)
         streams = document["streams"]
@@ -275,8 +277,6 @@ def parse_source_probe(payload: bytes) -> SourceVideoInfo:
         raise
     except (KeyError, TypeError, ValueError, OverflowError) as exc:
         raise SourceProbeError("source_fps_unreliable") from exc
-    if not _rates_compatible(average, nominal):
-        raise SourceProbeError("source_fps_unreliable")
 
     try:
         width = stream.get("width")
@@ -299,7 +299,14 @@ def parse_source_probe(payload: bytes) -> SourceVideoInfo:
         raise SourceProbeError("source_unsupported") from exc
     if unsupported:
         raise SourceProbeError("source_unsupported")
-    return SourceVideoInfo(average, width, height, pixel_format)
+    return SourceVideoInfo(average, width, height, pixel_format), nominal
+
+
+def parse_source_probe(payload: bytes) -> SourceVideoInfo:
+    info, nominal = _parse_source_probe_details(payload)
+    if not _rates_compatible(info.fps, nominal):
+        raise SourceProbeError("source_fps_unreliable")
+    return info
 
 
 def resolve_common_fps(infos: tuple[SourceVideoInfo, ...]) -> Fraction:
@@ -336,7 +343,7 @@ def build_cadence_probe_argv(
     )
 
 
-def confirm_high_fps_cadence(payload: bytes, declared_fps: Fraction) -> None:
+def _observed_frame_cadence(payload: bytes) -> Fraction:
     try:
         document = _decode_json(payload)
         frames = document["frames"]
@@ -356,9 +363,7 @@ def confirm_high_fps_cadence(payload: bytes, declared_fps: Fraction) -> None:
         if any(interval <= 0 for interval in intervals):
             raise ValueError("frame timestamps are not increasing")
         observed = Fraction(len(intervals), 1) / (timestamps[-1] - timestamps[0])
-        if not _rates_compatible(observed, declared_fps):
-            raise ValueError("observed cadence differs")
-        expected_interval = Fraction(1, 1) / declared_fps
+        expected_interval = Fraction(1, 1) / observed
         interval_tolerance = max(0.002, float(expected_interval) * 0.25)
         if any(
             abs(float(interval - expected_interval)) > interval_tolerance
@@ -367,6 +372,27 @@ def confirm_high_fps_cadence(payload: bytes, declared_fps: Fraction) -> None:
             raise ValueError("frame cadence varies")
     except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
         raise SourceProbeError("source_fps_unreliable") from exc
+    return observed
+
+
+def confirm_high_fps_cadence(payload: bytes, declared_fps: Fraction) -> None:
+    observed = _observed_frame_cadence(payload)
+    if not _rates_compatible(observed, declared_fps):
+        raise SourceProbeError("source_fps_unreliable")
+
+
+def _resolve_conflicting_fps(
+    payload: bytes,
+    average: Fraction,
+    nominal: Fraction,
+) -> Fraction:
+    observed = _observed_frame_cadence(payload)
+    candidates = tuple(
+        rate for rate in (average, nominal) if _rates_compatible(observed, rate)
+    )
+    if not candidates:
+        raise SourceProbeError("source_fps_unreliable")
+    return min(candidates, key=lambda rate: abs(float(observed - rate)))
 
 
 async def probe_source(
@@ -383,8 +409,9 @@ async def probe_source(
     )
     if result is None or result[0] != 0:
         raise SourceProbeError("source_probe_failed")
-    info = parse_source_probe(result[1])
-    if info.fps > 60:
+    info, nominal = _parse_source_probe_details(result[1])
+    rates_disagree = not _rates_compatible(info.fps, nominal)
+    if rates_disagree or info.fps > 60:
         cadence = await _bounded_command(
             runner,
             build_cadence_probe_argv(ffprobe_executable, manifest_path),
@@ -392,7 +419,18 @@ async def probe_source(
         )
         if cadence is None or cadence[0] != 0:
             raise SourceProbeError("source_probe_failed")
-        confirm_high_fps_cadence(cadence[1], info.fps)
+        if rates_disagree:
+            resolved_fps = _resolve_conflicting_fps(
+                cadence[1], info.fps, nominal
+            )
+            info = SourceVideoInfo(
+                resolved_fps,
+                info.width,
+                info.height,
+                info.pixel_format,
+            )
+        else:
+            confirm_high_fps_cadence(cadence[1], info.fps)
     return info
 
 

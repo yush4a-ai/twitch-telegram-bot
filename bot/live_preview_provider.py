@@ -17,6 +17,7 @@ from bot.preview_capture import (
     SnapshotStatus,
 )
 from bot.preview_render import PreviewRenderer, RenderResult, RenderStatus
+from bot.preview_render.models import DIAGNOSTIC_CODES
 from bot.preview_runtime import (
     PreviewArtifact,
     PreviewArtifactRequest,
@@ -59,18 +60,44 @@ _PROVIDER_ERROR_PHASES = (
     | _SOURCE_RESOLVE_PHASES
     | _SOURCE_CAPTURE_PHASES
 )
+_RENDER_FAILURE_STATUSES = frozenset(
+    status.value for status in RenderStatus if status is not RenderStatus.SUCCESS
+)
 
 
 class LivePreviewProviderError(RuntimeError):
     """A sanitized orchestration failure safe to expose to runtime logs."""
 
-    def __init__(self, phase: str = "provider") -> None:
+    def __init__(
+        self,
+        phase: str = "provider",
+        *,
+        status: str | None = None,
+        reason: str | None = None,
+    ) -> None:
         self.phase = phase if phase in _PROVIDER_ERROR_PHASES else "provider"
+        self.status = (
+            status
+            if self.phase == "render" and status in _RENDER_FAILURE_STATUSES
+            else None
+        )
+        self.reason = (
+            reason
+            if self.status is not None and reason in DIAGNOSTIC_CODES
+            else None
+        )
         super().__init__("live preview artifact provider failed")
 
 
-def _provider_error(phase: str = "provider") -> NoReturn:
-    raise LivePreviewProviderError(phase) from None
+def _provider_error(
+    phase: str = "provider",
+    *,
+    status: str | None = None,
+    reason: str | None = None,
+) -> NoReturn:
+    raise LivePreviewProviderError(
+        phase, status=status, reason=reason
+    ) from None
 
 
 class LivePreviewArtifactProvider:
@@ -282,7 +309,11 @@ class _LivePreviewArtifactSession:
                 )
             ):
                 return _RECOVER_CAPTURE
-            _provider_error("render")
+            _provider_error(
+                "render",
+                status=rendered.status.value,
+                reason=rendered.diagnostic_code,
+            )
         return rendered.artifact
 
     def _transfer_rendered_preview(self, rendered: Any) -> PreviewArtifact:

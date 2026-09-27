@@ -4,6 +4,7 @@ import importlib
 import json
 import unittest
 from fractions import Fraction
+from pathlib import Path
 
 
 def _probe():
@@ -243,6 +244,74 @@ class SourceProbeTests(unittest.TestCase):
         with self.assertRaises(probe.SourceProbeError) as caught:
             probe.parse_source_probe(_source_payload(sar="4:3"))
         self.assertEqual(caught.exception.diagnostic_code, "source_unsupported")
+
+
+class SourceCadenceProbeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_metadata_disagreement_uses_observed_frame_cadence(self) -> None:
+        probe = _probe()
+        timestamps = [index / 50 for index in range(51)]
+        cadence_payload = json.dumps(
+            {
+                "frames": [
+                    {"best_effort_timestamp_time": format(value, ".9f")}
+                    for value in timestamps
+                ]
+            }
+        ).encode()
+
+        class Runner:
+            def __init__(self) -> None:
+                self.outputs = [
+                    (0, _source_payload(avg="60/1", nominal="50/1")),
+                    (0, cadence_payload),
+                ]
+
+            async def run_command(self, _argv, *, timeout: float, max_output: int):
+                return self.outputs.pop(0)
+
+        info = await probe.probe_source(
+            "ffprobe",
+            Path("window.ffconcat"),
+            runner=Runner(),
+            timeout=5.0,
+        )
+
+        self.assertEqual(info.fps, Fraction(50, 1))
+
+    async def test_metadata_disagreement_rejects_unreliable_observed_cadence(self) -> None:
+        probe = _probe()
+        timestamps = [Fraction(0, 1)]
+        for index in range(60):
+            interval = Fraction(1, 80) if index % 2 == 0 else Fraction(1, 40)
+            timestamps.append(timestamps[-1] + interval)
+        cadence_payload = json.dumps(
+            {
+                "frames": [
+                    {"best_effort_timestamp_time": str(float(value))}
+                    for value in timestamps
+                ]
+            }
+        ).encode()
+
+        class Runner:
+            def __init__(self) -> None:
+                self.outputs = [
+                    (0, _source_payload(avg="60/1", nominal="50/1")),
+                    (0, cadence_payload),
+                ]
+
+            async def run_command(self, _argv, *, timeout: float, max_output: int):
+                return self.outputs.pop(0)
+
+        with self.assertRaises(probe.SourceProbeError) as caught:
+            await probe.probe_source(
+                "ffprobe",
+                Path("window.ffconcat"),
+                runner=Runner(),
+                timeout=5.0,
+            )
+
+        self.assertEqual(caught.exception.diagnostic_code, "source_fps_unreliable")
 
 
 class OutputProbeTests(unittest.TestCase):
