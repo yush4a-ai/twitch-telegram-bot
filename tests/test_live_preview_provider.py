@@ -5,7 +5,9 @@ import inspect
 import traceback
 import unittest
 from collections import deque
+from fractions import Fraction
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from bot.live_post import LocalVideo, TelegramVideo
@@ -93,9 +95,19 @@ def _not_started(outcome: CaptureOutcome) -> TwitchCaptureStartResult:
 
 
 class FakeSnapshot:
-    def __init__(self, release_error: BaseException | None = None) -> None:
+    def __init__(
+        self,
+        release_error: BaseException | None = None,
+        *,
+        sequence: int | None = None,
+    ) -> None:
         self.release_calls = 0
         self.release_error = release_error
+        if sequence is not None:
+            self.records = (
+                SimpleNamespace(sequence=sequence, duration_seconds=90.0),
+            )
+            self.actual_duration_seconds = 90.0
 
     def release(self) -> None:
         self.release_calls += 1
@@ -183,6 +195,7 @@ class FakeRenderer:
     def __init__(self, *results: object) -> None:
         self.results = deque(results)
         self.calls: list[tuple[object, HighlightSelection]] = []
+        self.cumulative_calls: list[tuple[FakeRenderedPreview, ...]] = []
 
     async def render(self, snapshot: object, selection: HighlightSelection):
         self.calls.append((snapshot, selection))
@@ -193,16 +206,67 @@ class FakeRenderer:
             raise result
         return result
 
+    async def render_cumulative(self, snippets: tuple[FakeRenderedPreview, ...]):
+        self.cumulative_calls.append(snippets)
+        duration = sum(item.duration_seconds for item in snippets)
+        return RenderResult(
+            RenderStatus.SUCCESS,
+            artifact=FakeRenderedPreview(duration_seconds=duration),
+        )
+
+
+class CycleRenderer:
+    def __init__(self, *cumulative_results: object) -> None:
+        self.calls: list[tuple[object, HighlightSelection]] = []
+        self.cumulative_calls: list[tuple[FakeRenderedPreview, ...]] = []
+        self.snippets: list[FakeRenderedPreview] = []
+        self.outputs: dict[Path, FakeRenderedPreview] = {}
+        self.cumulative_results = deque(cumulative_results)
+        self._counter = 0
+
+    def _artifact(self, duration_seconds: float) -> FakeRenderedPreview:
+        self._counter += 1
+        artifact = FakeRenderedPreview(
+            f"C:/private/cycle-{self._counter}.mp4",
+            duration_seconds=duration_seconds,
+        )
+        self.outputs[artifact.path] = artifact
+        return artifact
+
+    async def render(self, snapshot: object, selection: HighlightSelection):
+        self.calls.append((snapshot, selection))
+        duration = sum(window.duration_seconds for window in selection.windows)
+        artifact = self._artifact(duration)
+        self.snippets.append(artifact)
+        return RenderResult(RenderStatus.SUCCESS, artifact=artifact)
+
+    async def render_cumulative(self, snippets: tuple[FakeRenderedPreview, ...]):
+        self.cumulative_calls.append(snippets)
+        if self.cumulative_results:
+            result = self.cumulative_results.popleft()
+            if isinstance(result, BaseException):
+                raise result
+            return result
+        artifact = self._artifact(sum(item.duration_seconds for item in snippets))
+        return RenderResult(RenderStatus.SUCCESS, artifact=artifact)
+
 
 class FakeRenderedPreview:
     def __init__(
         self,
         path: Path | str = "C:/private/preview.mp4",
         release_error: Exception | None = None,
+        *,
+        duration_seconds: float = 6.0,
     ) -> None:
         self.path = Path(path)
         self.release_calls = 0
         self.release_error = release_error
+        self.duration_seconds = duration_seconds
+        self.width = 854
+        self.height = 480
+        self.fps = Fraction(30, 1)
+        self.size_bytes = 1024
 
     def release(self) -> bool:
         self.release_calls += 1
@@ -475,7 +539,7 @@ class ArtifactOwnershipTests(ProviderTestCase):
         artifact = await session.create_artifact(self.request)
         return session, handle, snapshot, rendered, artifact
 
-    async def test_release_artifact_releases_owner_exactly_once(self) -> None:
+    async def test_release_artifact_keeps_session_owned_snippet_until_close(self) -> None:
         session, _handle, _snapshot, rendered, artifact = (
             await self._owned_artifact()
         )
@@ -483,6 +547,8 @@ class ArtifactOwnershipTests(ProviderTestCase):
         await session.release_artifact(artifact)
         await session.release_artifact(artifact)
 
+        self.assertEqual(rendered.release_calls, 0)
+        await session.close()
         self.assertEqual(rendered.release_calls, 1)
 
     async def test_equal_valued_local_video_cannot_release_owned_lease(self) -> None:
@@ -497,6 +563,8 @@ class ArtifactOwnershipTests(ProviderTestCase):
 
         self.assertEqual(rendered.release_calls, 0)
         await session.release_artifact(artifact)
+        self.assertEqual(rendered.release_calls, 0)
+        await session.close()
         self.assertEqual(rendered.release_calls, 1)
 
     async def test_foreign_local_and_telegram_artifacts_are_safe_noops(self) -> None:
@@ -1193,6 +1261,170 @@ class SessionBoundaryTests(ProviderTestCase):
             public_types,
             {"LivePreviewArtifactProvider", "LivePreviewProviderError"},
         )
+
+
+class CumulativePreviewCycleTests(ProviderTestCase):
+    @staticmethod
+    def _success() -> AnalysisResult:
+        return AnalysisResult(
+            AnalysisStatus.SUCCESS,
+            HighlightSelection((HighlightWindow(10.0, 6.0, 0.9),)),
+        )
+
+    async def _cycle_session(self, analyses: tuple[AnalysisResult, ...]):
+        snapshots = tuple(
+            FakeSnapshot(sequence=100 + index) for index in range(len(analyses))
+        )
+        handle = FakeCaptureHandle(
+            *(
+                SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+                for snapshot in snapshots
+            )
+        )
+        renderer = CycleRenderer()
+        session, _source, analyzer, _renderer = await self._session(
+            handle, FakeAnalyzer(*analyses), renderer
+        )
+        return session, snapshots, analyzer, renderer
+
+    async def test_cycle_advances_to_thirty_then_next_success_restarts_at_six(self) -> None:
+        session, _snapshots, _analyzer, renderer = await self._cycle_session(
+            tuple(self._success() for _ in range(6))
+        )
+
+        durations = []
+        for _ in range(6):
+            artifact = await session.create_artifact(self.request)
+            self.assertIsInstance(artifact, LocalVideo)
+            durations.append(renderer.outputs[artifact.path].duration_seconds)
+            await session.release_artifact(artifact)
+
+        self.assertEqual(durations, [6.0, 12.0, 18.0, 24.0, 30.0, 6.0])
+        self.assertEqual(
+            [len(items) for items in renderer.cumulative_calls], [2, 3, 4, 5]
+        )
+
+    async def test_no_new_highlight_does_not_advance_or_reset_full_cycle(self) -> None:
+        analyses = (
+            *(self._success() for _ in range(5)),
+            AnalysisResult(AnalysisStatus.NO_SELECTION),
+            self._success(),
+        )
+        session, _snapshots, _analyzer, renderer = await self._cycle_session(analyses)
+        durations = []
+        for _ in range(5):
+            artifact = await session.create_artifact(self.request)
+            durations.append(renderer.outputs[artifact.path].duration_seconds)
+            await session.release_artifact(artifact)
+
+        self.assertIsNone(await session.create_artifact(self.request))
+        self.assertEqual(len(renderer.calls), 5)
+
+        restarted = await session.create_artifact(self.request)
+        self.assertEqual(renderer.outputs[restarted.path].duration_seconds, 6.0)
+        self.assertEqual(durations[-1], 30.0)
+
+    async def test_same_captured_moment_is_not_reused(self) -> None:
+        snapshots = (FakeSnapshot(sequence=100), FakeSnapshot(sequence=100))
+        handle = FakeCaptureHandle(
+            *(SnapshotAcquireResult(SnapshotStatus.READY, item) for item in snapshots)
+        )
+        renderer = CycleRenderer()
+        session, _source, _analyzer, _renderer = await self._session(
+            handle,
+            FakeAnalyzer(self._success(), self._success()),
+            renderer,
+        )
+
+        first = await session.create_artifact(self.request)
+        await session.release_artifact(first)
+        repeated = await session.create_artifact(self.request)
+
+        self.assertIsNone(repeated)
+        self.assertEqual(len(renderer.calls), 1)
+
+    async def test_release_keeps_cycle_snippets_until_reset_and_close_cleans_them(self) -> None:
+        session, _snapshots, _analyzer, renderer = await self._cycle_session(
+            tuple(self._success() for _ in range(6))
+        )
+        for _ in range(5):
+            artifact = await session.create_artifact(self.request)
+            await session.release_artifact(artifact)
+
+        old_cycle = tuple(renderer.snippets)
+        self.assertEqual(tuple(item.release_calls for item in old_cycle), (0,) * 5)
+
+        restarted = await session.create_artifact(self.request)
+        await session.release_artifact(restarted)
+        self.assertEqual(tuple(item.release_calls for item in old_cycle), (1,) * 5)
+        self.assertEqual(renderer.snippets[-1].release_calls, 0)
+
+        await session.close()
+        self.assertEqual(renderer.snippets[-1].release_calls, 1)
+
+    async def test_session_close_resets_partial_accumulator(self) -> None:
+        session, _snapshots, _analyzer, renderer = await self._cycle_session(
+            (self._success(), self._success())
+        )
+        for _ in range(2):
+            artifact = await session.create_artifact(self.request)
+            await session.release_artifact(artifact)
+
+        await session.close()
+
+        self.assertEqual(tuple(item.release_calls for item in renderer.snippets), (1, 1))
+
+    async def test_cumulative_failure_does_not_advance_and_releases_new_snippet(self) -> None:
+        snapshots = (FakeSnapshot(sequence=100), FakeSnapshot(sequence=101))
+        handle = FakeCaptureHandle(
+            *(SnapshotAcquireResult(SnapshotStatus.READY, item) for item in snapshots)
+        )
+        renderer = CycleRenderer(
+            RenderResult(
+                RenderStatus.OUTPUT_TOO_LARGE,
+                diagnostic_code="output_too_large",
+            )
+        )
+        session, _source, _analyzer, _renderer = await self._session(
+            handle,
+            FakeAnalyzer(self._success(), self._success()),
+            renderer,
+        )
+        first = await session.create_artifact(self.request)
+        await session.release_artifact(first)
+
+        with self.assertRaises(LivePreviewProviderError):
+            await session.create_artifact(self.request)
+
+        self.assertEqual(
+            tuple(item.release_calls for item in renderer.snippets), (0, 1)
+        )
+        await session.close()
+        self.assertEqual(renderer.snippets[0].release_calls, 1)
+
+    async def test_cumulative_cancellation_releases_only_tentative_snippet(self) -> None:
+        snapshots = (FakeSnapshot(sequence=100), FakeSnapshot(sequence=101))
+        handle = FakeCaptureHandle(
+            *(SnapshotAcquireResult(SnapshotStatus.READY, item) for item in snapshots)
+        )
+        renderer = CycleRenderer(asyncio.CancelledError())
+        session, _source, _analyzer, _renderer = await self._session(
+            handle,
+            FakeAnalyzer(self._success(), self._success()),
+            renderer,
+        )
+        first = await session.create_artifact(self.request)
+        await session.release_artifact(first)
+
+        with self.assertRaises(asyncio.CancelledError):
+            await session.create_artifact(self.request)
+
+        self.assertEqual(
+            tuple(item.release_calls for item in renderer.snippets), (0, 1)
+        )
+        self.assertEqual(tuple(item.release_calls for item in snapshots), (1, 1))
+        await session.close()
+        self.assertEqual(renderer.snippets[0].release_calls, 1)
 
 
 if __name__ == "__main__":

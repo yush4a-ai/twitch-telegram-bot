@@ -99,7 +99,7 @@ class AnalysisModelTests(unittest.TestCase):
         config = models.AnalysisConfig()
         self.assertEqual((config.analysis_fps, config.analysis_width, config.analysis_height), (10, 320, 180))
         self.assertEqual((config.fingerprint_width, config.fingerprint_height), (16, 9))
-        self.assertEqual((config.candidate_duration, config.candidate_step), (3, 1))
+        self.assertEqual((config.candidate_duration, config.candidate_step), (6, 1))
         self.assertEqual((config.pass_timeout, config.overall_timeout), (45.0, 60.0))
         self.assertEqual(config.minimum_score, 0.34)
         self.assertEqual(config.temporal_nms_seconds, 12.0)

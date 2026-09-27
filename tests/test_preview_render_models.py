@@ -19,6 +19,7 @@ class RenderModelTests(unittest.TestCase):
         config = models.RenderConfig()
         self.assertEqual((config.width, config.height), (854, 480))
         self.assertEqual(config.max_output_bytes, 16 * 1024 * 1024)
+        self.assertEqual(config.max_video_bitrate, 3_500_000)
         self.assertEqual(config.capability_timeout, 5.0)
         self.assertEqual(config.source_probe_timeout, 15.0)
         self.assertEqual(config.encode_timeout, 60.0)
@@ -33,6 +34,8 @@ class RenderModelTests(unittest.TestCase):
             {"width": 0},
             {"height": -1},
             {"max_output_bytes": 0},
+            {"max_video_bitrate": 0},
+            {"max_video_bitrate": 3_500_001},
             {"encode_timeout": float("nan")},
             {"output_poll_seconds": 0.01},
             {"output_poll_seconds": 0.5},

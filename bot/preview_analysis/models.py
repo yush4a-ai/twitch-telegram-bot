@@ -89,7 +89,7 @@ class AnalysisConfig:
     fingerprint_width: int = 16
     fingerprint_height: int = 9
     fingerprint_size_tolerance: int = 144
-    candidate_duration: int = 3
+    candidate_duration: int = 6
     candidate_step: int = 1
     pass_timeout: float = 45.0
     overall_timeout: float = 60.0

@@ -52,6 +52,7 @@ class RenderConfig:
     width: int = 854
     height: int = 480
     max_output_bytes: int = 16 * 1024 * 1024
+    max_video_bitrate: int = 3_500_000
     capability_timeout: float = 5.0
     source_probe_timeout: float = 15.0
     encode_timeout: float = 60.0
@@ -70,6 +71,11 @@ class RenderConfig:
             or not 0 < self.max_output_bytes <= 16 * 1024 * 1024
         ):
             raise ValueError("render output cap is invalid")
+        if (
+            type(self.max_video_bitrate) is not int
+            or not 0 < self.max_video_bitrate <= 3_500_000
+        ):
+            raise ValueError("render bitrate cap is invalid")
         timeouts = (
             self.capability_timeout,
             self.source_probe_timeout,

@@ -222,11 +222,11 @@ class SafeFallbackTests(unittest.TestCase):
         window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
         self.assertIsNotNone(window)
 
-    def test_fallback_duration_is_exactly_five_seconds(self) -> None:
+    def test_fallback_duration_is_exactly_six_seconds(self) -> None:
         models, selector = _modules()
         bins = _timeline(models, 40)
         window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
-        self.assertEqual(window.duration_seconds, 5.0)
+        self.assertEqual(window.duration_seconds, 6.0)
 
     def test_fallback_is_one_continuous_window(self) -> None:
         models, selector = _modules()
@@ -239,7 +239,7 @@ class SafeFallbackTests(unittest.TestCase):
     def test_fallback_avoids_black_interval(self) -> None:
         models, selector = _modules()
         bins = _timeline(models, 40)
-        bins = _replace(models, bins, 0, 35, black_ratio=1.0)
+        bins = _replace(models, bins, 0, 34, black_ratio=1.0)
         window = selector.select_safe_fallback(bins, 40.0, models.AnalysisConfig())
         self.assertIsNotNone(window)
         for offset in range(int(window.duration_seconds)):

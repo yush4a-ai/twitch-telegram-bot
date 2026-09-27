@@ -297,8 +297,105 @@ class FiltergraphTests(unittest.TestCase):
         self.assertNotIn("minterpolate", joined)
         self.assertEqual(argv.count("-i"), 2)
 
+    def test_thirty_second_cycle_has_bounded_bitrate_under_existing_size_cap(self) -> None:
+        models = _models()
+        config = models.RenderConfig()
+
+        self.assertLessEqual(
+            config.max_video_bitrate * 30 / 8,
+            config.max_output_bytes * 0.85,
+        )
+
+    def test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder(self) -> None:
+        renderer = _renderer()
+        models = _models()
+        config = models.RenderConfig()
+        artifacts = tuple(
+            type(
+                "Artifact",
+                (),
+                {
+                    "path": Path(f"snippet-{index}.mp4"),
+                    "duration_seconds": 6.0,
+                    "fps": rate,
+                },
+            )()
+            for index, rate in enumerate((Fraction(60), Fraction(30)))
+        )
+
+        argv = renderer.build_cumulative_argv(
+            "ffmpeg", artifacts, Path("preview.tmp.mp4"), config
+        )
+        joined = " ".join(argv)
+
+        self.assertEqual(argv.count("-i"), 2)
+        self.assertIn("fps=30", joined)
+        self.assertIn(f"-maxrate {config.max_video_bitrate}", joined)
+        self.assertIn("concat=n=2:v=1:a=0", joined)
+
 
 class RendererLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def _retained_preview(root: Path, index: int):
+        storage = _storage()
+        models = _models()
+        job = storage.RenderStorage(root=root).create_job()
+        job.final_path.write_bytes(bytes([index]) * 8)
+        return storage.RenderedPreview.from_job(
+            job,
+            models.RenderedPreviewMetadata(
+                duration_seconds=6.0,
+                width=854,
+                height=480,
+                fps=Fraction(30, 1),
+                size_bytes=8,
+            ),
+        )
+
+    async def test_cumulative_success_and_oversize_are_typed_and_clean(self) -> None:
+        renderer_module = _renderer()
+        models = _models()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            snippets = tuple(
+                self._retained_preview(root / "retained", index)
+                for index in (1, 2)
+            )
+            success_runner = ScriptedRunner(
+                output_duration=12.0, output_size=1024
+            )
+            success = renderer_module.PreviewRenderer.create(
+                ffmpeg_executable="ffmpeg",
+                ffprobe_executable="ffprobe",
+                temp_root=root / "success",
+                runner=success_runner,
+            )
+
+            rendered = await success.render_cumulative(snippets)
+
+            self.assertEqual(rendered.status, models.RenderStatus.SUCCESS)
+            self.assertEqual(rendered.artifact.duration_seconds, 12.0)
+            self.assertLessEqual(
+                rendered.artifact.size_bytes, models.RenderConfig().max_output_bytes
+            )
+            rendered.artifact.release()
+
+            oversize = renderer_module.PreviewRenderer.create(
+                ffmpeg_executable="ffmpeg",
+                ffprobe_executable="ffprobe",
+                config=models.RenderConfig(max_output_bytes=16),
+                temp_root=root / "oversize",
+                runner=ScriptedRunner(output_duration=12.0, output_size=17),
+            )
+            failed = await oversize.render_cumulative(snippets)
+
+            self.assertEqual(failed.status, models.RenderStatus.OUTPUT_TOO_LARGE)
+            self.assertIsNone(failed.artifact)
+            self.assertFalse(tuple((root / "oversize").glob("render-*")))
+            for snippet in snippets:
+                self.assertTrue(snippet.path.is_file())
+                snippet.release()
+
     async def test_success_publishes_only_after_validation_and_release_preserves_source(self) -> None:
         renderer_module = _renderer()
         models = _models()

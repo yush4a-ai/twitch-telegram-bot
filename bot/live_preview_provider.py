@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import math
+from dataclasses import dataclass
 from typing import Any, NoReturn
 
 from bot.live_post import LocalVideo
@@ -41,6 +43,29 @@ _CAPTURE_RESET_ANALYSIS_DIAGNOSTICS = frozenset(
 )
 _CAPTURE_RESET_RENDER_DIAGNOSTICS = frozenset({"source_file_missing"})
 _RECOVER_CAPTURE = object()
+_MAX_CYCLE_SNIPPETS = 5
+_CYCLE_COMPLETE_SECONDS = 29.0
+
+
+@dataclass
+class _PendingCycle:
+    snippet: Any
+    output: Any
+    snippets: tuple[Any, ...]
+    obsolete: tuple[Any, ...]
+    cutoff: tuple[int, float] | None
+
+    def release(self) -> None:
+        released: set[int] = set()
+        for owner in (self.output, self.snippet):
+            identity = id(owner)
+            if identity in released:
+                continue
+            released.add(identity)
+            try:
+                owner.release()
+            except BaseException:
+                continue
 
 
 _SOURCE_RESOLVE_PHASES = frozenset(
@@ -182,7 +207,9 @@ class _LivePreviewArtifactSession:
         self._handle: Any | None = handle
         self._closed = False
         self._terminal = False
-        self._leases: dict[int, tuple[PreviewArtifact, Any]] = {}
+        self._leases: dict[int, tuple[PreviewArtifact, Any | None]] = {}
+        self._cycle_snippets: tuple[Any, ...] = ()
+        self._capture_cutoff: tuple[int, float] | None = None
 
     async def create_artifact(
         self, request: PreviewArtifactRequest
@@ -256,11 +283,11 @@ class _LivePreviewArtifactSession:
             _provider_error("capture_recovery")
         if result is None:
             return None
-        return self._transfer_rendered_preview(result)
+        return self._commit_cycle(result)
 
     async def _create_from_snapshot(
         self, snapshot: Any, is_first_preview: bool
-    ) -> object | None:
+    ) -> _PendingCycle | object | None:
         try:
             analysis = await self._analyzer.analyze(
                 snapshot, include_fallback=is_first_preview
@@ -291,6 +318,11 @@ class _LivePreviewArtifactSession:
                 return _RECOVER_CAPTURE
             _provider_error("analysis")
 
+        window = self._select_new_window(snapshot, selection)
+        if window is None:
+            return None
+        selection = HighlightSelection((window,))
+
         try:
             rendered = await self._renderer.render(snapshot, selection)
         except asyncio.CancelledError:
@@ -314,29 +346,80 @@ class _LivePreviewArtifactSession:
                 status=rendered.status.value,
                 reason=rendered.diagnostic_code,
             )
-        return rendered.artifact
+        snippet = rendered.artifact
+        prospective = (
+            (snippet,)
+            if self._cycle_complete()
+            else self._cycle_snippets + (snippet,)
+        )
+        obsolete = self._cycle_snippets if len(prospective) == 1 else ()
+        if len(prospective) == 1:
+            output = snippet
+        else:
+            try:
+                cumulative = await self._renderer.render_cumulative(prospective)
+            except asyncio.CancelledError:
+                self._release_during_cancellation(snippet)
+                raise
+            except Exception:
+                self._release_owner(snippet)
+                _provider_error("render")
+            if not isinstance(cumulative, RenderResult):
+                self._release_owner(snippet)
+                _provider_error("render")
+            if cumulative.status is not RenderStatus.SUCCESS:
+                self._release_owner(snippet)
+                if (
+                    cumulative.status is RenderStatus.PROCESS_FAILED
+                    and cumulative.diagnostic_code == "source_file_missing"
+                ):
+                    self._clear_cycle()
+                _provider_error(
+                    "render",
+                    status=cumulative.status.value,
+                    reason=cumulative.diagnostic_code,
+                )
+            output = cumulative.artifact
+        return _PendingCycle(
+            snippet=snippet,
+            output=output,
+            snippets=prospective,
+            obsolete=obsolete,
+            cutoff=self._snapshot_tail(snapshot),
+        )
 
-    def _transfer_rendered_preview(self, rendered: Any) -> PreviewArtifact:
-        release = getattr(rendered, "release", None)
+    def _commit_cycle(self, pending: _PendingCycle) -> PreviewArtifact:
+        release = getattr(pending.output, "release", None)
         if not callable(release):
+            pending.release()
             _provider_error("artifact")
         try:
-            artifact = LocalVideo(rendered.path, "preview.mp4")
-            self._leases[id(artifact)] = (artifact, rendered)
-            return artifact
+            artifact = LocalVideo(pending.output.path, "preview.mp4")
         except asyncio.CancelledError:
-            self._release_during_cancellation(rendered)
+            self._release_during_cancellation(pending)
             raise
         except Exception:
-            self._release_owner(rendered)
+            pending.release()
             _provider_error("artifact")
+        for owner in pending.obsolete:
+            try:
+                owner.release()
+            except Exception:
+                pending.release()
+                _provider_error("artifact")
+        self._cycle_snippets = pending.snippets
+        self._capture_cutoff = pending.cutoff
+        lease_owner = None if pending.output is pending.snippet else pending.output
+        self._leases[id(artifact)] = (artifact, lease_owner)
+        return artifact
 
     async def release_artifact(self, artifact: PreviewArtifact) -> None:
         lease = self._leases.get(id(artifact))
         if lease is None or lease[0] is not artifact:
             return
         del self._leases[id(artifact)]
-        self._release_owner(lease[1])
+        if lease[1] is not None:
+            self._release_owner(lease[1])
 
     async def close(self) -> None:
         if self._closed:
@@ -347,6 +430,16 @@ class _LivePreviewArtifactSession:
         leases = tuple(self._leases.values())
         self._leases.clear()
         for _artifact, owner in leases:
+            if owner is None:
+                continue
+            try:
+                owner.release()
+            except Exception:
+                failure = True
+        snippets = self._cycle_snippets
+        self._cycle_snippets = ()
+        self._capture_cutoff = None
+        for owner in snippets:
             try:
                 owner.release()
             except Exception:
@@ -401,6 +494,7 @@ class _LivePreviewArtifactSession:
     async def _recover_capture(self, action: CaptureRetryAction) -> None:
         handle = self._handle
         self._handle = None
+        self._capture_cutoff = None
         if handle is not None:
             try:
                 await handle.close()
@@ -410,11 +504,13 @@ class _LivePreviewArtifactSession:
                 _provider_error()
         if action is CaptureRetryAction.STOP:
             self._terminal = True
+            self._clear_cycle()
             return
         if action is CaptureRetryAction.WAIT_FOR_RESOURCE_IF_ACTIVE:
             return
         if action is not CaptureRetryAction.FRESH_RESOLVE_IF_ACTIVE:
             self._terminal = True
+            self._clear_cycle()
             return
         try:
             result = await self._source.open(
@@ -449,6 +545,80 @@ class _LivePreviewArtifactSession:
             raise
         except Exception:
             _provider_error()
+
+    def _cycle_complete(self) -> bool:
+        if len(self._cycle_snippets) >= _MAX_CYCLE_SNIPPETS:
+            return True
+        try:
+            duration = math.fsum(
+                float(item.duration_seconds) for item in self._cycle_snippets
+            )
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return True
+        return duration >= _CYCLE_COMPLETE_SECONDS
+
+    def _clear_cycle(self) -> None:
+        snippets = self._cycle_snippets
+        self._cycle_snippets = ()
+        for owner in snippets:
+            try:
+                owner.release()
+            except BaseException:
+                continue
+
+    def _select_new_window(
+        self, snapshot: Any, selection: HighlightSelection
+    ) -> Any | None:
+        candidates = []
+        for window in selection.windows:
+            position = self._snapshot_position(snapshot, window.start_seconds)
+            if (
+                self._capture_cutoff is not None
+                and position is not None
+                and position <= self._capture_cutoff
+            ):
+                continue
+            candidates.append(window)
+        if not candidates:
+            return None
+        return max(
+            candidates,
+            key=lambda item: (float(item.score), float(item.start_seconds)),
+        )
+
+    @staticmethod
+    def _snapshot_position(
+        snapshot: Any, offset_seconds: float
+    ) -> tuple[int, float] | None:
+        try:
+            records = tuple(snapshot.records)
+            offset = float(offset_seconds)
+            if not records or not math.isfinite(offset) or offset < 0:
+                return None
+            elapsed = 0.0
+            for record in records:
+                duration = float(record.duration_seconds)
+                sequence = record.sequence
+                if type(sequence) is not int or not math.isfinite(duration) or duration <= 0:
+                    return None
+                if offset < elapsed + duration:
+                    return sequence, round(offset - elapsed, 6)
+                elapsed = math.fsum((elapsed, duration))
+            last = records[-1]
+            if math.isclose(offset, elapsed, abs_tol=1e-6):
+                return last.sequence, round(float(last.duration_seconds), 6)
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return None
+        return None
+
+    @classmethod
+    def _snapshot_tail(cls, snapshot: Any) -> tuple[int, float] | None:
+        try:
+            return cls._snapshot_position(
+                snapshot, float(snapshot.actual_duration_seconds)
+            )
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return None
 
     @staticmethod
     def _release_during_cancellation(owner: Any) -> None:

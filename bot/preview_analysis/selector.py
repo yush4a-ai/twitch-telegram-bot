@@ -18,10 +18,11 @@ class _Candidate:
     duration_seconds: float
     score: float
     fingerprint: bytes
+    event_seconds: float
 
     @property
     def center_seconds(self) -> float:
-        return self.start_seconds + self.duration_seconds / 2.0
+        return self.event_seconds + 1.5
 
 
 def _clamp(value: float) -> float:
@@ -92,7 +93,10 @@ def _is_safe_window(
         return False
     if sum(item.static_seconds for item in selected) >= config.static_overlap_limit:
         return False
-    cut_count = sum(item.scene_cut_count for item in selected)
+    cut_count = max(
+        sum(item.scene_cut_count for item in selected[start : start + 3])
+        for start in range(max(1, len(selected) - 2))
+    )
     if cut_count >= config.cut_count_limit:
         return False
     if any(item.visual_coverage < config.visual_min_coverage for item in selected):
@@ -103,14 +107,23 @@ def _is_safe_window(
 def _candidate(
     bins: tuple[AnalysisBin, ...], start: int, config: AnalysisConfig
 ) -> _Candidate | None:
-    selected = _windowed(bins, start, config.candidate_duration)
+    scoring_duration = min(3, config.candidate_duration)
+    scoring_bins = _windowed(bins, start, scoring_duration)
+    if scoring_bins is None:
+        return None
+    leading = (config.candidate_duration - scoring_duration) // 2
+    output_start = min(
+        max(1, start - leading),
+        len(bins) - config.candidate_duration,
+    )
+    selected = _windowed(bins, output_start, config.candidate_duration)
     if selected is None:
         return None
     if not _is_safe_window(selected, config):
         return None
-    cut_count = sum(item.scene_cut_count for item in selected)
+    cut_count = sum(item.scene_cut_count for item in scoring_bins)
 
-    motions = [item.motion for item in selected]
+    motions = [item.motion for item in scoring_bins]
     motion = 0.7 * statistics.fmean(motions) + 0.3 * max(motions)
     audio = max(item.audio_spike for item in selected)
     scene = max(item.scene_score for item in selected)
@@ -131,18 +144,24 @@ def _candidate(
     if score < config.minimum_score:
         return None
     fingerprint = _median_fingerprint(
-        tuple(item.fingerprint for item in selected if item.fingerprint is not None)
+        tuple(item.fingerprint for item in scoring_bins if item.fingerprint is not None)
     )
-    return _Candidate(float(start), float(config.candidate_duration), score, fingerprint)
+    return _Candidate(
+        float(output_start),
+        float(config.candidate_duration),
+        score,
+        fingerprint,
+        float(start),
+    )
 
 
 def _collapse_events(candidates: list[_Candidate]) -> list[_Candidate]:
     if not candidates:
         return []
-    chronological = sorted(candidates, key=lambda item: item.start_seconds)
+    chronological = sorted(candidates, key=lambda item: item.event_seconds)
     events: list[list[_Candidate]] = [[chronological[0]]]
     for candidate in chronological[1:]:
-        if candidate.start_seconds - events[-1][-1].start_seconds >= 3.0:
+        if candidate.event_seconds - events[-1][-1].event_seconds >= 3.0:
             events.append([candidate])
         else:
             events[-1].append(candidate)
@@ -214,7 +233,7 @@ def select_highlights(
     return HighlightSelection(windows)
 
 
-FALLBACK_DURATION_SECONDS = 5
+FALLBACK_DURATION_SECONDS = 6
 
 
 def select_safe_fallback(

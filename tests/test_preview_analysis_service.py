@@ -324,7 +324,7 @@ class HighlightAnalyzerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, analysis.AnalysisStatus.NO_SELECTION)
         self.assertEqual(result.selection.windows, ())
         self.assertIsNotNone(result.fallback)
-        self.assertEqual(result.fallback.duration_seconds, 5.0)
+        self.assertEqual(result.fallback.duration_seconds, 6.0)
 
     async def test_validity_is_checked_at_every_phase_boundary(self) -> None:
         analysis, metrics, _ = _modules()

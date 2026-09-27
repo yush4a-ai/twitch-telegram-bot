@@ -39,6 +39,14 @@ from .process import (
 from .storage import RenderJob, RenderStorage, RenderedPreview
 
 
+_MAX_CUMULATIVE_SNIPPETS = 5
+_MAX_CUMULATIVE_SECONDS = 31.0
+
+
+class CumulativeValidationError(ValueError):
+    pass
+
+
 def _number(value: float) -> str:
     return format(value, ".15g")
 
@@ -149,6 +157,79 @@ def build_render_argv(
     return tuple(command)
 
 
+def build_cumulative_argv(
+    ffmpeg_executable: str,
+    artifacts: Sequence[Any],
+    output_path: Path,
+    config: RenderConfig,
+) -> tuple[str, ...]:
+    if not 2 <= len(artifacts) <= _MAX_CUMULATIVE_SNIPPETS:
+        raise ValueError("cumulative input count is invalid")
+    try:
+        rates = tuple(Fraction(item.fps) for item in artifacts)
+        paths = tuple(Path(item.path) for item in artifacts)
+    except (AttributeError, TypeError, ValueError, ZeroDivisionError) as exc:
+        raise ValueError("cumulative inputs are invalid") from exc
+    if any(rate <= 0 for rate in rates):
+        raise ValueError("cumulative cadence is invalid")
+    target_fps = min(min(rates), Fraction(60, 1))
+    fps_expression = f"{target_fps.numerator}/{target_fps.denominator}"
+    command: list[str] = [
+        ffmpeg_executable,
+        "-nostdin",
+        "-hide_banner",
+        "-nostats",
+        "-loglevel",
+        "warning",
+        "-y",
+    ]
+    for path in paths:
+        command.extend(("-i", str(path)))
+    branches = [
+        f"[{index}:v:0]settb=AVTB,setpts=PTS-STARTPTS,"
+        f"fps={fps_expression},scale={config.width}:{config.height}:"
+        "force_original_aspect_ratio=decrease:force_divisible_by=2,"
+        f"pad={config.width}:{config.height}:(ow-iw)/2:(oh-ih)/2,"
+        f"setsar=1,format=yuv420p[v{index}]"
+        for index in range(len(paths))
+    ]
+    labels = "".join(f"[v{index}]" for index in range(len(paths)))
+    branches.append(f"{labels}concat=n={len(paths)}:v=1:a=0[outv]")
+    command.extend(
+        (
+            "-filter_complex",
+            ";".join(branches),
+            "-map",
+            "[outv]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-b:v",
+            str(config.max_video_bitrate),
+            "-maxrate",
+            str(config.max_video_bitrate),
+            "-bufsize",
+            str(config.max_video_bitrate),
+            "-pix_fmt",
+            "yuv420p",
+            "-an",
+            "-sn",
+            "-dn",
+            "-map_metadata",
+            "-1",
+            "-map_chapters",
+            "-1",
+            "-movflags",
+            "+faststart",
+            "-f",
+            "mp4",
+            str(output_path),
+        )
+    )
+    return tuple(command)
+
+
 class PreviewRenderer:
     def __init__(
         self,
@@ -234,6 +315,182 @@ class PreviewRenderer:
             raise
         except TimeoutError:
             return RenderResult(RenderStatus.TIMEOUT, diagnostic_code="render_timeout")
+
+    async def render_cumulative(
+        self, artifacts: Sequence[RenderedPreview]
+    ) -> RenderResult:
+        try:
+            return await asyncio.wait_for(
+                self._render_cumulative(tuple(artifacts)),
+                timeout=self._config.overall_timeout,
+            )
+        except asyncio.CancelledError:
+            raise
+        except TimeoutError:
+            return RenderResult(RenderStatus.TIMEOUT, diagnostic_code="render_timeout")
+
+    @staticmethod
+    def _validate_cumulative_artifacts(
+        artifacts: tuple[RenderedPreview, ...],
+    ) -> tuple[float, Fraction]:
+        if not 2 <= len(artifacts) <= _MAX_CUMULATIVE_SNIPPETS:
+            raise CumulativeValidationError("cumulative input count is invalid")
+        durations: list[float] = []
+        rates: list[Fraction] = []
+        for artifact in artifacts:
+            if not isinstance(artifact, RenderedPreview):
+                raise CumulativeValidationError("cumulative input is not owned")
+            try:
+                duration = float(artifact.duration_seconds)
+                rate = Fraction(artifact.fps)
+                info = artifact.path.lstat()
+            except (AttributeError, OSError, TypeError, ValueError, ZeroDivisionError) as exc:
+                raise CumulativeValidationError("cumulative input is unavailable") from exc
+            if (
+                not math.isfinite(duration)
+                or duration <= 0
+                or rate <= 0
+                or artifact.width != 854
+                or artifact.height != 480
+                or info.st_size != artifact.size_bytes
+                or artifact.path.is_symlink()
+            ):
+                raise CumulativeValidationError("cumulative input contract failed")
+            durations.append(duration)
+            rates.append(rate)
+        total = math.fsum(durations)
+        if total > _MAX_CUMULATIVE_SECONDS:
+            raise CumulativeValidationError("cumulative duration exceeded")
+        return total, min(min(rates), Fraction(60, 1))
+
+    @staticmethod
+    def _cumulative_artifacts_available(
+        artifacts: tuple[RenderedPreview, ...],
+    ) -> bool:
+        try:
+            return all(
+                artifact.path.is_file()
+                and not artifact.path.is_symlink()
+                and artifact.path.stat().st_size == artifact.size_bytes
+                for artifact in artifacts
+            )
+        except (AttributeError, OSError):
+            return False
+
+    async def _render_cumulative(
+        self, artifacts: tuple[RenderedPreview, ...]
+    ) -> RenderResult:
+        job: RenderJob | None = None
+        keep_job = False
+        try:
+            expected_duration, target_fps = self._validate_cumulative_artifacts(
+                artifacts
+            )
+            available = await self.capability()
+            if not available.available:
+                diagnostic = (
+                    "ffmpeg_missing"
+                    if available.reason is not None
+                    and available.reason.value == "missing_executable"
+                    else "capability_unavailable"
+                )
+                return RenderResult(
+                    RenderStatus.CAPABILITY_UNAVAILABLE,
+                    diagnostic_code=diagnostic,
+                )
+            if not self._cumulative_artifacts_available(artifacts):
+                raise SnapshotFileMissing("retained snippet is unavailable")
+            self._storage.cleanup_orphans()
+            job = self._storage.create_job()
+            job.touch()
+            argv = build_cumulative_argv(
+                self._ffmpeg_executable,
+                artifacts,
+                job.temporary_path,
+                self._config,
+            )
+            await self._executor.run(
+                argv,
+                cwd=job.path,
+                output_path=job.temporary_path,
+                max_output_bytes=self._config.max_output_bytes,
+                is_valid=lambda: self._cumulative_artifacts_available(artifacts),
+                timeout=self._config.encode_timeout,
+            )
+            if not self._cumulative_artifacts_available(artifacts):
+                raise SnapshotFileMissing("retained snippet disappeared")
+            actual_size = job.temporary_path.stat().st_size
+            if actual_size > self._config.max_output_bytes:
+                raise RenderOutputTooLarge("render output exceeded limit")
+            payload = await probe_output(
+                self._ffprobe_executable,
+                job.temporary_path,
+                runner=self._runner,
+                timeout=self._config.output_probe_timeout,
+            )
+            metadata = validate_output_probe(
+                payload,
+                expected_duration=expected_duration,
+                source_fps=target_fps,
+                config=self._config,
+                actual_size=actual_size,
+                window_count=len(artifacts),
+            )
+            os.replace(job.temporary_path, job.final_path)
+            artifact = RenderedPreview.from_job(job, metadata)
+            keep_job = True
+            return RenderResult(RenderStatus.SUCCESS, artifact=artifact)
+        except CumulativeValidationError:
+            return RenderResult(
+                RenderStatus.INVALID_SELECTION, diagnostic_code="invalid_selection"
+            )
+        except SnapshotFileMissing:
+            return RenderResult(
+                RenderStatus.PROCESS_FAILED, diagnostic_code="source_file_missing"
+            )
+        except ProbeTimeoutError:
+            return RenderResult(RenderStatus.TIMEOUT, diagnostic_code="render_timeout")
+        except OutputProbeError:
+            return RenderResult(
+                RenderStatus.VALIDATION_FAILED, diagnostic_code="invalid_output"
+            )
+        except RenderSnapshotInvalidated:
+            return RenderResult(
+                RenderStatus.PROCESS_FAILED, diagnostic_code="source_file_missing"
+            )
+        except RenderOutputTooLarge:
+            return RenderResult(
+                RenderStatus.OUTPUT_TOO_LARGE, diagnostic_code="output_too_large"
+            )
+        except RenderProcessTimeout:
+            return RenderResult(RenderStatus.TIMEOUT, diagnostic_code="render_timeout")
+        except RenderProcessFailure as exc:
+            if not self._cumulative_artifacts_available(artifacts):
+                return RenderResult(
+                    RenderStatus.PROCESS_FAILED,
+                    diagnostic_code="source_file_missing",
+                )
+            diagnostic = (
+                exc.diagnostic_code
+                if exc.diagnostic_code in {"ffmpeg_missing", "ffmpeg_exit"}
+                else "ffmpeg_exit"
+            )
+            return RenderResult(
+                RenderStatus.PROCESS_FAILED, diagnostic_code=diagnostic
+            )
+        except asyncio.CancelledError:
+            raise
+        except (OSError, PermissionError):
+            return RenderResult(
+                RenderStatus.INTERNAL_ERROR, diagnostic_code="storage_unavailable"
+            )
+        except Exception:
+            return RenderResult(
+                RenderStatus.INTERNAL_ERROR, diagnostic_code="unexpected_error"
+            )
+        finally:
+            if job is not None and not keep_job:
+                job.cleanup()
 
     async def _render(self, snapshot: Any, selection: Any) -> RenderResult:
         job: RenderJob | None = None
