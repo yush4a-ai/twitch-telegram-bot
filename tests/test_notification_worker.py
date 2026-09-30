@@ -31,12 +31,14 @@ class NotificationWorkerTests(unittest.IsolatedAsyncioTestCase):
             "go_live", chat_id, "alpha", "s1", version, due_at=10.0, now=1.0
         )
 
-    def _worker(self, send, *, concurrency=2, spacing=0.0, lease=60.0, monotonic_clock=None):
+    def _worker(self, send, *, concurrency=2, spacing=0.0, lease=60.0,
+                monotonic_clock=None, global_interval=0.0, group_interval=0.0):
         options = {"monotonic_clock": monotonic_clock} if monotonic_clock is not None else {}
         return NotificationWorker(
             self.queue, send, max_concurrency=concurrency,
             per_chat_interval=spacing, lease_seconds=lease,
             send_timeout=5.0, clock=lambda: self.now[0], idle_interval=0.01,
+            global_interval=global_interval, group_chat_interval=group_interval,
             **options,
         )
 
@@ -98,6 +100,26 @@ class NotificationWorkerTests(unittest.IsolatedAsyncioTestCase):
 
         await self._worker(send, spacing=0.05).run_once()
         self.assertEqual(len(started), 2)
+        self.assertGreaterEqual(started[1] - started[0], 0.045)
+
+    async def test_different_chats_obey_global_start_interval(self):
+        await self._enqueue(1)
+        await self._enqueue(2)
+        started = []
+        async def send(_job):
+            started.append(time.monotonic())
+            return NotificationOutcome.SENT
+        await self._worker(send, global_interval=0.05).run_once()
+        self.assertGreaterEqual(started[1] - started[0], 0.045)
+
+    async def test_group_chat_uses_stricter_interval(self):
+        await self._enqueue(-100, 1)
+        await self._enqueue(-100, 2)
+        started = []
+        async def send(_job):
+            started.append(time.monotonic())
+            return NotificationOutcome.SENT
+        await self._worker(send, group_interval=0.05).run_once()
         self.assertGreaterEqual(started[1] - started[0], 0.045)
 
     async def test_retry_after_moves_due_time_without_sleeping_poll(self):

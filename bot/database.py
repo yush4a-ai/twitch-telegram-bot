@@ -656,6 +656,12 @@ class Database:
             "ON notification_jobs (status, updated_at)"
         )
         await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notification_jobs_active_go_live "
+            "ON notification_jobs (chat_id, twitch_login, logical_stream_id) "
+            "WHERE kind = 'go_live' AND payload_version = 1 "
+            "AND status IN ('pending', 'leased', 'failed')"
+        )
+        await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
             "VALUES ('r3_002_notification_jobs', ?)", (time.time(),)
         )
@@ -1736,23 +1742,28 @@ class Database:
         peak_viewers: int | None = None,
         last_seen_live_at: float | None = None,
         message_kind: str = "text",
+        queued_go_live: bool = False,
+        preserve_live_message: bool = False,
     ) -> None:
         # при старте нового стрима (is_live=True и меняется stream_id) обнуляем накопленную
         # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе.
         # peak_viewers обновляется, только если явно передан (не None) — иначе, при вызове
         # без этого параметра на каждой итерации опроса, он бы затирался в NULL прямо перед
         # тем, как record_viewer_sample успевает честно накопить в нём максимум за стрим.
-        await self.conn.execute(
+        cursor = await self.conn.execute(
             "UPDATE tracked_channels SET is_live = ?, last_stream_id = ?, "
             "last_message_kind = CASE "
+            "    WHEN ? AND last_message_id IS NOT NULL THEN last_message_kind "
             "    WHEN ? IS NULL THEN 'text' "
             "    WHEN last_message_id = ? THEN last_message_kind "
             "    ELSE 'text' END, "
             "media_transition_pending = CASE "
+            "    WHEN ? AND last_message_id IS NOT NULL THEN media_transition_pending "
             "    WHEN ? IS NULL THEN 0 "
             "    WHEN last_message_id = ? THEN media_transition_pending "
             "    ELSE 0 END, "
-            "last_message_id = ?, "
+            "last_message_id = CASE WHEN ? AND last_message_id IS NOT NULL "
+            "THEN last_message_id ELSE ? END, "
             "last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
             "last_seen_live_at = CASE "
@@ -1774,7 +1785,9 @@ class Database:
             "WHERE chat_id = ? AND twitch_login = ?",
             (
                 int(is_live), stream_id,
-                message_id, message_id, message_id, message_id, message_id,
+                int(preserve_live_message), message_id, message_id,
+                int(preserve_live_message), message_id, message_id,
+                int(preserve_live_message), message_id,
                 title, offline_since,
                 stream_started_at,
                 last_seen_live_at, last_seen_live_at, int(is_live), stream_id,
@@ -1786,7 +1799,42 @@ class Database:
                 chat_id, twitch_login,
             ),
         )
+        if queued_go_live and cursor.rowcount > 0:
+            if not is_live or stream_id is None or message_id is not None:
+                raise ValueError("queued go-live requires live state without a message")
+            queued_at = last_seen_live_at if last_seen_live_at is not None else time.time()
+            await self.conn.execute(
+                "INSERT INTO notification_jobs "
+                "(kind, chat_id, twitch_login, logical_stream_id, payload_version, "
+                "due_at, status, attempt_count, lease_until, created_at, updated_at) "
+                "VALUES ('go_live', ?, ?, ?, 1, ?, 'pending', 0, NULL, ?, ?) "
+                "ON CONFLICT (kind, chat_id, twitch_login, logical_stream_id, payload_version) "
+                "DO NOTHING",
+                (chat_id, twitch_login, stream_id, queued_at, queued_at, queued_at),
+            )
         await self.conn.commit()
+
+    async def snapshot_queued_live_starts(self) -> set[tuple[int, str, str]]:
+        cursor = await self.conn.execute(
+            "SELECT chat_id, twitch_login, logical_stream_id FROM notification_jobs "
+            "INDEXED BY idx_notification_jobs_active_go_live "
+            "WHERE kind = 'go_live' AND payload_version = 1 "
+            "AND status IN ('pending', 'leased', 'failed')"
+        )
+        return set(await cursor.fetchall())
+
+    @_serialized
+    async def set_live_message_if_current(
+        self, chat_id: int, twitch_login: str, stream_id: str, message_id: int
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET last_message_id = ?, last_message_kind = 'text' "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+            "AND is_live = 1 AND notify_enabled = 1 AND last_message_id IS NULL",
+            (message_id, chat_id, twitch_login, stream_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
 
     @_serialized
     async def record_viewer_sample(self, chat_id: int, twitch_login: str, viewer_count: int) -> None:

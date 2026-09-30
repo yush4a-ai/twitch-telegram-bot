@@ -40,6 +40,8 @@ class NotificationWorker:
         *,
         max_concurrency: int,
         per_chat_interval: float,
+        group_chat_interval: float = 3.1,
+        global_interval: float = 0.04,
         lease_seconds: float = 180.0,
         send_timeout: float = 30.0,
         clock: Callable[[], float] = time.time,
@@ -50,10 +52,13 @@ class NotificationWorker:
             raise ValueError("max_concurrency must be 1..16")
         if (
             not math.isfinite(per_chat_interval) or per_chat_interval < 0
+            or not math.isfinite(group_chat_interval) or group_chat_interval < 0
+            or not math.isfinite(global_interval) or global_interval < 0
             or not math.isfinite(send_timeout) or send_timeout <= 0
             or not math.isfinite(lease_seconds)
             or lease_seconds <= max_concurrency * send_timeout
-            + per_chat_interval * (max_concurrency - 1)
+            + (max(per_chat_interval, group_chat_interval) + global_interval)
+            * (max_concurrency - 1)
             or not math.isfinite(idle_interval) or idle_interval <= 0
         ):
             raise ValueError("invalid worker timing bounds")
@@ -61,6 +66,8 @@ class NotificationWorker:
         self._send_job = send_job
         self._max_concurrency = max_concurrency
         self._per_chat_interval = per_chat_interval
+        self._group_chat_interval = group_chat_interval
+        self._global_interval = global_interval
         self._lease_seconds = lease_seconds
         self._send_timeout = send_timeout
         self._clock = clock
@@ -70,13 +77,17 @@ class NotificationWorker:
         self._task: asyncio.Task | None = None
         self._chat_locks: dict[int, asyncio.Lock] = {}
         self._chat_next_start: dict[int, float] = {}
+        self._global_lock = asyncio.Lock()
+        self._global_next_start = 0.0
 
     @property
     def tracked_chat_count(self) -> int:
         return len(self._chat_next_start)
 
     def _prune_chat_timing(self) -> None:
-        cutoff = self._monotonic() - max(60.0, self._per_chat_interval * 2)
+        cutoff = self._monotonic() - max(
+            60.0, self._per_chat_interval * 2, self._group_chat_interval * 2
+        )
         for chat_id, next_start in list(self._chat_next_start.items()):
             lock = self._chat_locks.get(chat_id)
             if next_start < cutoff and (lock is None or not lock.locked()):
@@ -131,11 +142,20 @@ class NotificationWorker:
     async def _process(self, job: NotificationJob) -> None:
         lock = self._chat_locks.setdefault(job.chat_id, asyncio.Lock())
         async with lock:
-            start_at = self._monotonic()
-            due_at = self._chat_next_start.get(job.chat_id, start_at)
-            if due_at > start_at:
-                await asyncio.sleep(due_at - start_at)
-            self._chat_next_start[job.chat_id] = self._monotonic() + self._per_chat_interval
+            async with self._global_lock:
+                start_at = self._monotonic()
+                due_at = max(
+                    self._chat_next_start.get(job.chat_id, start_at),
+                    self._global_next_start,
+                )
+                if due_at > start_at:
+                    await asyncio.sleep(due_at - start_at)
+                started_at = self._monotonic()
+                chat_interval = (
+                    self._group_chat_interval if job.chat_id < 0 else self._per_chat_interval
+                )
+                self._chat_next_start[job.chat_id] = started_at + chat_interval
+                self._global_next_start = started_at + self._global_interval
             try:
                 outcome = await asyncio.wait_for(self._send_job(job), self._send_timeout)
             except (NotificationRetryAfter, TelegramRetryAfter) as error:

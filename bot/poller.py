@@ -40,6 +40,8 @@ from . import stream_thumbnail
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, StreamInfo, TwitchClient
+from .notification_queue import NotificationJob
+from .notification_worker import NotificationOutcome
 
 logger = logging.getLogger(__name__)
 
@@ -368,6 +370,7 @@ class StreamPoller:
         live_post_updater: LivePostUpdater | None = None,
         preview_observer: PreviewObserver | None = None,
         telegram_channel_username_cache: TelegramChannelUsernameCache | None = None,
+        notification_queue_enabled: bool = False,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -392,6 +395,7 @@ class StreamPoller:
         self._telegram_channel_username_cache = (
             telegram_channel_username_cache or TelegramChannelUsernameCache()
         )
+        self._notification_queue_enabled = notification_queue_enabled
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -868,6 +872,10 @@ class StreamPoller:
         if not chats_by_login:
             self._publish_preview_observations(())
             return
+        queued_starts = (
+            await self._db.snapshot_queued_live_starts()
+            if self._notification_queue_enabled else set()
+        )
         telegram_channel_ids = await self._db.telegram_channel_ids()
         last_stream_ends = await self._db.snapshot_last_stream_ends()
         logins = list(chats_by_login)
@@ -957,6 +965,8 @@ class StreamPoller:
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
                             message_kind=last_message_kind,
+                            **({"preserve_live_message": True}
+                               if self._notification_queue_enabled and last_message_id is None else {}),
                         )
                         continue
 
@@ -1010,6 +1020,8 @@ class StreamPoller:
                     # поэтому пометку можно пересчитывать на каждой итерации — она
                     # остаётся стабильной до конца текущего эфира
                     return_note = _build_return_note(last_stream_ends.get((chat_id, login)))
+                    queue_go_live = False
+                    queue_waiting = False
 
                     if not notify_enabled:
                         # уведомления выключены для этого канала в этом чате — статистика
@@ -1070,16 +1082,45 @@ class StreamPoller:
                                 include_video_submission_link=include_video_submission_link,
                             )
                             message_kind = "text"
+                    elif (
+                        continuing_session
+                        and self._notification_queue_enabled
+                        and last_message_id is None
+                        and last_stream_id is not None
+                        and (chat_id, login, last_stream_id) in queued_starts
+                    ):
+                        # Job ещё ждёт worker или уже завершился без поста; poll не
+                        # должен создавать параллельный Telegram sender.
+                        message_id = None
+                        message_kind = "text"
+                        queue_waiting = True
                     elif continuing_session:
                         # Пост уже штатно удалён после 5 минут offline. Возвращаем карточку,
                         # но без звука: для пользователя это не новый старт стрима.
-                        message_id = await self._notify(
-                            chat_id, login, title, stream.viewer_count, game_name, return_note,
-                            silent=True,
-                            include_track_link=include_track_link,
-                            include_video_submission_link=include_video_submission_link,
+                        # Worker мог сохранить message ID между снимком tracked
+                        # state и снимком jobs. В этом случае новый send создал бы
+                        # дубль, поэтому перед legacy resume читаем актуальный ID.
+                        fresh_post = (
+                            await self._db.get_live_post_state(chat_id, login)
+                            if self._notification_queue_enabled and last_message_id is None
+                            else None
                         )
-                        message_kind = "text"
+                        if (
+                            fresh_post is not None
+                            and fresh_post.logical_stream_id == last_stream_id
+                            and fresh_post.message_id is not None
+                        ):
+                            message_id = fresh_post.message_id
+                            message_kind = fresh_post.message_kind
+                            queue_waiting = True
+                        else:
+                            message_id = await self._notify(
+                                chat_id, login, title, stream.viewer_count, game_name, return_note,
+                                silent=True,
+                                include_track_link=include_track_link,
+                                include_video_submission_link=include_video_submission_link,
+                            )
+                            message_kind = "text"
                     else:
                         if last_message_id is not None:
                             if chat_id > 0 and hasattr(self._db, "get_live_post_state"):
@@ -1148,11 +1189,15 @@ class StreamPoller:
                                         last_message_id,
                                     ):
                                         continue
-                        message_id = await self._notify(
-                            chat_id, login, title, stream.viewer_count, game_name, return_note,
-                            include_track_link=include_track_link,
-                            include_video_submission_link=include_video_submission_link,
-                        )
+                        if self._notification_queue_enabled:
+                            message_id = None
+                            queue_go_live = True
+                        else:
+                            message_id = await self._notify(
+                                chat_id, login, title, stream.viewer_count, game_name, return_note,
+                                include_track_link=include_track_link,
+                                include_video_submission_link=include_video_submission_link,
+                            )
                         message_kind = "text"
 
                     # при reconnect держим прежний stream_id как идентификатор
@@ -1176,6 +1221,8 @@ class StreamPoller:
                         stream_started_at=effective_started_at,
                         last_seen_live_at=now,
                         message_kind=message_kind,
+                        **({"queued_go_live": True} if queue_go_live else {}),
+                        **({"preserve_live_message": True} if queue_waiting else {}),
                     )
                     if (
                         chat_id > 0
@@ -1239,6 +1286,8 @@ class StreamPoller:
                             stream_started_at=_stream_started_at,
                             peak_viewers=_peak_viewers,
                             message_kind=last_message_kind,
+                            **({"preserve_live_message": True}
+                               if self._notification_queue_enabled and last_message_id is None else {}),
                         )
 
             await self._flush_sample_batches(pending_samples)
@@ -2172,6 +2221,50 @@ class StreamPoller:
             text += f"\n\n{return_note}"
         return text
 
+    async def send_queued_job(self, job: NotificationJob) -> NotificationOutcome:
+        if job.kind != "go_live":
+            return NotificationOutcome.STALE
+        state = await self._db.get_live_post_state(job.chat_id, job.twitch_login)
+        live = await self._db.get_live_state(job.chat_id, job.twitch_login)
+        if (
+            state is None or not state.notify_enabled or state.message_id is not None
+            or not live[0] or live[1] != job.logical_stream_id
+        ):
+            return NotificationOutcome.STALE
+        current = next(
+            (row for row in await self._db.list_live_channels(job.chat_id)
+             if row[0] == job.twitch_login),
+            None,
+        )
+        if current is None:
+            return NotificationOutcome.STALE
+        _login, title, viewers, game_name = current
+        if viewers is None:
+            raise RuntimeError("queued live sample is not ready")
+        include_track_link = job.chat_id in await self._db.telegram_channel_ids()
+        include_video_submission_link = (
+            self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
+        )
+        last_end = await self._db.get_last_stream_end(job.chat_id, job.twitch_login)
+        message_id = await self._notify(
+            job.chat_id, job.twitch_login, title, viewers, game_name,
+            _build_return_note(last_end),
+            include_track_link=include_track_link,
+            include_video_submission_link=include_video_submission_link,
+            direct=True,
+        )
+        if message_id is None:
+            raise RuntimeError("queued Telegram send returned no message")
+        if not await self._db.set_live_message_if_current(
+            job.chat_id, job.twitch_login, job.logical_stream_id, message_id
+        ):
+            try:
+                await self._bot.delete_message(job.chat_id, message_id)
+            except Exception as error:
+                logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
+            return NotificationOutcome.STALE
+        return NotificationOutcome.SENT
+
     async def _notify(
         self,
         chat_id: int,
@@ -2184,6 +2277,7 @@ class StreamPoller:
         silent: bool = False,
         include_track_link: bool = False,
         include_video_submission_link: bool = False,
+        direct: bool = False,
     ) -> int | None:
         if not include_track_link:
             if chat_id > 0:
@@ -2204,15 +2298,17 @@ class StreamPoller:
                 include_video_submission_link=include_video_submission_link,
             )
         keyboard = await self._build_keyboard(login)
-        message = await self._tg_call(
-            lambda: self._bot.send_message(
+        send = lambda: self._bot.send_message(
                 chat_id,
                 text,
                 reply_markup=keyboard,
                 disable_web_page_preview=True,
                 disable_notification=silent,
-            ),
-            f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}",
+            )
+        message = (
+            await send() if direct else await self._tg_call(
+                send, f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}"
+            )
         )
         if message is _FAILED or message is None:
             return None

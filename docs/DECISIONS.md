@@ -105,3 +105,11 @@
 - **Причина:** deployment `8d44e632-ceca-42ba-8cf1-1711b830cb46` достиг `SUCCESS`, DB версии/`integrity_check` проверены, но новый формат меняет семантику чтения отчётов. На момент smoke shared observations = 0; позже они могут появиться при live.
 - **Последствие:** до проверенного offline maintenance path автоматический code-only revert R3 не применять. Backup/export и ограничение записаны в `docs/audits/2026-09-30-r3-staging-migration.md`.
 - **Пересмотр:** после теста обратной материализации и offline rollback drill на staging.
+
+## D-014 — go-live cutover включается только на pinned staging
+
+- **Дата:** 2026-09-30.
+- **Решение:** `NOTIFICATION_QUEUE_ENABLED=1` допустим локально и только при совпадении Railway project, environment и service ID с `scripts/staging_target.json`. При нём новый go-live transition и job записываются одной SQLite транзакцией; отдельный worker отправляет пост. Ожидающий job не запускает legacy sender в повторном poll. После завершённого stale job повторное включение уведомлений может воспользоваться прежним resume путём.
+- **Причина:** тесты проверили атомарность при DB ошибке, retry/terminal/stale, гонки worker CAS с live/offline poll, позднюю отмену подписки и отсутствие per-destination query к очереди. При завершении job между двумя снимками poller перечитывает текущий message ID перед legacy resume, чтобы не создать дубль. Worker ждёт первого sample, чтобы не публиковать ошибочные 0 зрителей. По [Telegram Bot FAQ](https://core.telegram.org/bots/faq) старт отправок worker ограничен до 25/с глобально, 1/с в личном чате и интервалом 3,1 с в группе; остальные пути отправки пока не разделяют этот бюджет.
+- **Последствие:** production config отвергает флаг даже при ошибочно заданном имени окружения; staging флаг пока 0 до полного gate и отдельного deploy/smoke. Обновления уже существующих live-постов и offline cleanup остаются прежними до следующего пакета.
+- **Пересмотр:** после staging Telegram E2E и измерений backlog/latency.

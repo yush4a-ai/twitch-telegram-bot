@@ -1,7 +1,9 @@
 import os
+import json
 import posixpath
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
@@ -261,6 +263,7 @@ class Config:
     preview_capture: PreviewCaptureConfig
     admin_panel_access_key: str | None = None
     admin_telegram_bot_username: str = ""
+    notification_queue_enabled: bool = False
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -307,6 +310,25 @@ def load_config() -> Config:
         admin_telegram_bot_username = ""
     if admin_panel_access_key is not None and len(admin_panel_access_key) < 32:
         raise ConfigError("ADMIN_PANEL_ACCESS_KEY должен содержать не менее 32 символов")
+    queue_flag = os.getenv("NOTIFICATION_QUEUE_ENABLED", "0").strip()
+    if queue_flag not in {"0", "1"}:
+        raise ConfigError("NOTIFICATION_QUEUE_ENABLED должен быть 0 или 1")
+    notification_queue_enabled = queue_flag == "1"
+    if notification_queue_enabled and railway:
+        try:
+            target = json.loads(
+                (Path(__file__).resolve().parents[1] / "scripts" / "staging_target.json")
+                .read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError) as error:
+            raise ConfigError("Не удалось проверить staging target для очереди") from error
+        if (
+            os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging"
+            or os.getenv("RAILWAY_PROJECT_ID") != target.get("project_id")
+            or os.getenv("RAILWAY_ENVIRONMENT_ID") != target.get("staging_environment_id")
+            or os.getenv("RAILWAY_SERVICE_ID") != target.get("service_id")
+        ):
+            raise ConfigError("NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging")
     return Config(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
         twitch_client_id=_require("TWITCH_CLIENT_ID"),
@@ -323,4 +345,5 @@ def load_config() -> Config:
         preview_capture=_preview_capture_config(),
         admin_panel_access_key=admin_panel_access_key,
         admin_telegram_bot_username=admin_telegram_bot_username,
+        notification_queue_enabled=notification_queue_enabled,
     )

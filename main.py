@@ -45,6 +45,8 @@ from bot.oauth import (
     evaluate_runtime_health,
 )
 from bot.poller import StreamPoller, TelegramChannelUsernameCache
+from bot.notification_queue import NotificationQueue
+from bot.notification_worker import NotificationWorker
 from bot.preview_analysis import HighlightAnalyzer
 from bot.preview_capture import CaptureService, CaptureSettings
 from bot.preview_render import PreviewRenderer
@@ -443,6 +445,15 @@ async def _reconcile_telegram_channels(
         )
 
 
+def _make_notification_worker(config, db, poller: StreamPoller) -> NotificationWorker | None:
+    if not getattr(config, "notification_queue_enabled", False):
+        return None
+    return NotificationWorker(
+        NotificationQueue(db), poller.send_queued_job,
+        max_concurrency=4, per_chat_interval=1.0,
+    )
+
+
 async def main() -> None:
     config = load_config()
 
@@ -550,6 +561,7 @@ async def main() -> None:
             preview_capture_service = None
             poller_task: asyncio.Task | None = None
             polling_task: asyncio.Task | None = None
+            notification_worker: NotificationWorker | None = None
             try:
                 await oauth_server.start()
 
@@ -598,7 +610,9 @@ async def main() -> None:
                     live_post_updater=live_post_updater,
                     preview_observer=preview_manager,
                     telegram_channel_username_cache=channel_username_cache,
+                    notification_queue_enabled=getattr(config, "notification_queue_enabled", False),
                 )
+                notification_worker = _make_notification_worker(config, db, poller)
                 dp["poller"] = poller
                 dp["preview_manager"] = preview_manager
                 started_preview_manager, preview_capture_service = (
@@ -610,6 +624,8 @@ async def main() -> None:
                     preview_manager = started_preview_manager
                     poller.set_preview_observer(preview_manager)
                     dp["preview_manager"] = preview_manager
+                if notification_worker is not None:
+                    notification_worker.start()
                 poller_task = asyncio.create_task(poller.run())
 
                 # Только теперь runtime собран целиком, и /healthz может отвечать
@@ -669,6 +685,8 @@ async def main() -> None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")
                 await _cancel_task(poller_task, "StreamPoller")
+                if notification_worker is not None:
+                    await _safe_cleanup("Notification worker", notification_worker.stop())
                 await _shutdown_preview_runtime(
                     preview_manager, preview_capture_service
                 )

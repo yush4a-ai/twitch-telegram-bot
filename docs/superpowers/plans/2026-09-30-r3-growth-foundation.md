@@ -83,7 +83,7 @@
 - [x] Write failing tests for slow fake Telegram not delaying `_check_streams()`, bound concurrency, per-chat spacing, RetryAfter scheduling, transient/terminal errors, stale jobs and no duplicate normal retry.
 - [x] Run focused RED; implement independent bounded worker with lease-safe timing, per-chat spacing and idle-state pruning.
 - [x] Test send-before-ack crash boundary explicitly: expired lease retries and can duplicate external send.
-- [ ] Implement new go-live cutover behind staging-only flag with atomic tracked-state/queue transition.
+- [x] Implement new go-live cutover behind a pinned staging-only flag with atomic tracked-state/queue transition; preserve worker message ID during concurrent live/offline polls.
 - [ ] Extend queue cutover to live post updates and offline cleanup only after go-live tests pass; preserve media CAS and preview file-id reuse.
 - [ ] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
 
