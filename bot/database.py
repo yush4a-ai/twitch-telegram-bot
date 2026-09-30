@@ -652,6 +652,10 @@ class Database:
             "ON notification_jobs (status, lease_until, id)"
         )
         await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notification_jobs_retention "
+            "ON notification_jobs (status, updated_at)"
+        )
+        await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
             "VALUES ('r3_002_notification_jobs', ?)", (time.time(),)
         )
@@ -2551,6 +2555,11 @@ class Database:
             (older_than_ts,),
         )
         await self.conn.execute(
+            "DELETE FROM notification_jobs WHERE status IN ('done', 'failed') "
+            "AND updated_at < ?",
+            (older_than_ts,),
+        )
+        await self.conn.execute(
             "DELETE FROM follow_event_counts WHERE created_at < ? AND NOT EXISTS ("
             "SELECT 1 FROM tracked_channels tc "
             "WHERE tc.chat_id = follow_event_counts.chat_id "
@@ -3023,6 +3032,9 @@ class Database:
         )
         deferred_count, oldest_deferred_at = await deferred_cursor.fetchone()
 
+        from .notification_queue import NotificationQueue
+        notification_jobs = await NotificationQueue(self).depth_snapshot(snapshot_at)
+
         token_cursor = await self.conn.execute(
             "SELECT COUNT(*) FROM twitch_user_tokens"
         )
@@ -3056,6 +3068,7 @@ class Database:
             missing=0,
         )
         return {
+            **notification_jobs,
             "pending_deliveries": int(pending_count),
             "oldest_pending_age_seconds": (
                 max(0.0, snapshot_at - float(oldest_pending_at))

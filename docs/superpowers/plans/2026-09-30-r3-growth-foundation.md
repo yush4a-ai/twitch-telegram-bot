@@ -65,14 +65,14 @@
 
 ### Task 4: Durable job model
 
-**Files:** Create `bot/notification_queue.py`, `tests/test_notification_queue.py`; modify `bot/database.py`, `bot/admin_metrics.py`.
+**Files:** Create `bot/notification_queue.py`, `tests/test_notification_queue.py`; modify `bot/database.py` owner health projection.
 
-**Interfaces:** `NotificationQueue.enqueue(...)`, `claim_due(now, limit, lease_seconds)`, `ack(job_id)`, `defer(job_id, due_at, error_class)`, `fail(job_id, error_class)`, `depth_snapshot(now)` use `notification_jobs`. Unique `(kind, chat_id, twitch_login, logical_stream_id, payload_version)` is the idempotency key. Leases expire and are reclaimable.
+**Interfaces:** `NotificationQueue.enqueue(...)`, `claim_due(now, limit, lease_seconds)`, `ack(job_id, attempt_count)`, `defer(job_id, attempt_count, due_at, error_class)`, `fail(job_id, attempt_count, error_class)`, `depth_snapshot(now)` use `notification_jobs`. Unique `(kind, chat_id, twitch_login, logical_stream_id, payload_version)` is the idempotency key. Leases expire and are reclaimable; attempt count fences late workers.
 
-- [ ] Write failing tests for duplicate enqueue, ordered claims, concurrent claimers, lease expiry/restart, retry, terminal failure and depth/age metrics.
-- [ ] Run focused RED; implement short SQL transactions and bounded result sets.
-- [ ] Run focused GREEN and owner snapshot tests; inspect query plans and absence of secrets/PII in metrics.
-- [ ] Commit independently testable queue package.
+- [x] Write failing tests for duplicate enqueue, ordered claims, concurrent claimers, lease expiry/restart, retry, terminal failure and depth/age metrics.
+- [x] Run focused RED; implement short SQL transactions and bounded result sets.
+- [x] Run focused GREEN and owner snapshot tests; inspect query plans and absence of secrets/PII in metrics.
+- [x] Commit independently testable queue package.
 
 ### Task 5: Bounded Telegram worker and staged cutover
 

@@ -89,3 +89,11 @@
 - **Причина:** интервал first/last включал бы sample пропущенного poll в чужой отчёт. Тесты проверили позднее подключение, пропуск poll, legacy stream, rollback при ошибке записи и retention. Парный локальный synthetic профиль на 10 000 назначений дал 39.348 → 19.846 с и 4 595 712 → 3 395 584 байта DB, при WAL 4 144 752 → 4 486 712 байт; см. `docs/audits/2026-09-30-r3-shared-observations.md`.
 - **Последствие:** staging migration остаётся additive и выполняется только после полного gate и проверки target; реальная Telegram нагрузка, preview и решение SQLite/PostgreSQL ещё требуют R3/R9 измерений.
 - **Пересмотр:** после staging fan-out/retention smoke и синтетических 20k/30k/40k профилей.
+
+## D-012 — очередь уведомлений использует аренду с номером попытки
+
+- **Дата:** 2026-09-30.
+- **Решение:** `notification_jobs` выдаёт due jobs ограниченными пакетами под короткий lease; уникальный ключ делает повторное enqueue идемпотентным. `ack`, `defer` и `fail` принимают `attempt_count` текущей выдачи и не меняют job после повторного claim. Повторно доступный просроченный lease виден в backlog метриках.
+- **Причина:** локальные тесты подтвердили restart recovery, конкурентные claim на одном и двух SQLite соединениях, старое acknowledgement, retry и terminal failure. Запросы счётчиков используют индексы status/due/lease и не раскрывают chat ID, login или текст ошибки в owner health.
+- **Последствие:** модель очереди локально готова, но Telegram worker и staging cutover ещё не включены; текущая доставка остаётся прежней до отдельных TDD и полного staging gate. Retention удаляет только старые terminal jobs; незавершённые сохраняются для recovery.
+- **Пересмотр:** после измерений worker latency, Telegram rate limits и восстановления на staging.

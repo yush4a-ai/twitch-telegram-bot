@@ -450,6 +450,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                     {
                         "idx_stream_samples_retention",
                         "idx_stream_observations_retention",
+                        "idx_notification_jobs_retention",
                         "idx_chat_activity_retention",
                         "idx_chat_unique_nicks_retention",
                         "idx_stream_chatters_retention",
