@@ -2,7 +2,7 @@ import asyncio
 import time
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from bot.database import Database
 from bot.notification_queue import NotificationQueue
@@ -111,6 +111,27 @@ class NotificationWorkerTests(unittest.IsolatedAsyncioTestCase):
             return NotificationOutcome.SENT
         await self._worker(send, global_interval=0.05).run_once()
         self.assertGreaterEqual(started[1] - started[0], 0.045)
+
+    async def test_global_interval_survives_early_asyncio_wakeup(self):
+        await self._enqueue(1)
+        await self._enqueue(2)
+        clock = [0.0]
+        started = []
+        real_sleep = asyncio.sleep
+
+        async def early_sleep(delay):
+            clock[0] += min(delay, 0.03)
+            await real_sleep(0)
+
+        async def send(_job):
+            started.append(clock[0])
+            return NotificationOutcome.SENT
+
+        worker = self._worker(send, monotonic_clock=lambda: clock[0], global_interval=0.05)
+        with patch("bot.notification_worker.asyncio.sleep", side_effect=early_sleep):
+            await worker.run_once()
+        self.assertEqual(len(started), 2)
+        self.assertGreaterEqual(started[1] - started[0], 0.05)
 
     async def test_group_chat_uses_stricter_interval(self):
         await self._enqueue(-100, 1)

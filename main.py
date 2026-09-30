@@ -563,9 +563,9 @@ async def main() -> None:
                         public_base_url=config.oauth_public_base_url,
                         secure_cookie=config.oauth_public_base_url.startswith("https://"),
                     )
-                    if config.streamer_plus_enabled else None
+                    if getattr(config, "streamer_plus_enabled", False) else None
                 ),
-                streamer_db=db if config.streamer_plus_enabled else None,
+                streamer_db=db if getattr(config, "streamer_plus_enabled", False) else None,
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None

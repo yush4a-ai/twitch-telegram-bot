@@ -148,8 +148,11 @@ class NotificationWorker:
                     self._chat_next_start.get(job.chat_id, start_at),
                     self._global_next_start,
                 )
-                if due_at > start_at:
-                    await asyncio.sleep(due_at - start_at)
+                while True:
+                    remaining = due_at - self._monotonic()
+                    if remaining <= 0:
+                        break
+                    await asyncio.sleep(remaining)
                 started_at = self._monotonic()
                 chat_interval = (
                     self._group_chat_interval if job.chat_id < 0 else self._per_chat_interval
