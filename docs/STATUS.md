@@ -8,7 +8,7 @@
 | R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
 | R2 Owner Admin Panel v1 | реализация и staging smoke выполнены; реальный Telegram Login E2E ожидает BotFather domain | deployment `26ab6e4a-6548-4b29-9f07-60f6e75f0815` из `2faa74f` terminal `SUCCESS`; gate 942 passed, 2 skipped, 259 subtests; signed owner/non-owner staging проверки и браузерный 390/1440 smoke |
 | R3 Growth Foundation | staging engineering acceptance с ограничениями реальной нагрузки | deployment `822ef65f-2fa6-437e-90cb-6357c0e5b405` из `e36b6d4` `SUCCESS`; gate 1026 passed, 2 skipped, 268 subtests; поздний локальный gate 1030 passed, 2 skipped, 268 subtests; lease recovery и 1k/5k mixed-load на временной staging DB; offline rollback copy проверена; `docs/audits/2026-10-01-r3-recovery-rollback.md` |
-| R4 Streamer Plus | начат: проектирование | scope в `docs/ROADMAP.md`; только staging и тестовые entitlements |
+| R4 Streamer Plus | в работе: identity, test grant и отдельный signed кабинет на staging; сообщества/конструктор/статистика впереди | deployment `3fd52fb1-ec2b-4276-a2ae-c136df7d2aed` из `86a2fe3` `SUCCESS`; gate 1045 passed, 2 skipped, 271 subtests; `r4_001` и `integrity=ok`; `/streamer/api/profile` без сессии 401; `docs/audits/2026-10-01-r4-foundation-staging.md` |
 | R5–R9 | не начаты | production и реальные деньги запрещены |
 
 ## Проверенное в R1
@@ -23,7 +23,7 @@
 ## Открытые ограничения
 
 - Нельзя push/merge `main`: он является источником production deployment.
-- В staging теперь задан подтверждённый владельцем `OWNER_CHAT_ID=425785231`; `getMe` вернул `TwitchSignalTestbot`. `getMyCommands` подтвердил: общие private и group команды без `/admin`, в scope личного чата владельца команда есть. Фактический Telegram-клиент владельца и исходящее E2E-сообщение пока не проверены. Preview в панели сейчас `unknown` без зафиксированного успешного capture; `/healthz` его не подтверждает.
+- В staging задан подтверждённый владельцем `OWNER_CHAT_ID=425785231`; `getMe` вернул `TwitchSignalTestbot`. `getMyCommands` ранее подтвердил: общие private и group команды без `/admin`, в scope личного чата владельца команда есть. Фактический Telegram-клиент владельца и исходящее E2E-сообщение пока не проверены. Preview в панели сейчас `unknown` без зафиксированного успешного capture; `/healthz` его не подтверждает.
 - R2 signed auth на staging проверен с синтетическими Telegram-подписями, вычисленными внутри staging контейнера: non-owner WebApp/Login 403, owner 303 и API 200. Это проверка серверной валидации, не прохождение реального Telegram UI. Browser widget показывает `Bot domain invalid`: домен `https://worker-staging-2f74.up.railway.app` ещё не разрешён для `@TwitchSignalTestbot` в BotFather. Аварийный `ADMIN_PANEL_ACCESS_KEY` скрыт от обычного UI и сохранён до реального E2E.
 - Перед существенной migration требуется внешний staging snapshot/export. Инструмент R3 создаёт отдельную проверенную копию с legacy samples; безопасная замена активной staging DB при остановленных writers ещё не автоматизирована.
 - Railway Config as Code (`railway.json`) устаревает 2026-12-01; нужен переход на Infrastructure as Code после отдельной проверки staging/production границы.
@@ -31,7 +31,7 @@
 
 ## Следующий шаг
 
-Продолжать R4: spec, plan, TDD entitlement/access model и кабинета стримера, затем staging acceptance. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
+Продолжать R4: защищённое подключение Telegram-сообществ, безопасный live-post template, статистика, тестовая выдача и end-to-end staging acceptance. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
 
 ## Проверенное в R2
 

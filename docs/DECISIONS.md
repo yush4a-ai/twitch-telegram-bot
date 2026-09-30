@@ -152,3 +152,17 @@
 - **Решение:** после terminal `SUCCESS` staging guard повторяет временно неудачный read `railway status --json` до подтверждения active target либо timeout. Ошибка target mismatch не превращается в успех.
 - **Основание:** при deployment `822ef65f-2fa6-437e-90cb-6357c0e5b405` CLI status read завершился GraphQL ошибкой после terminal `SUCCESS`, но независимая проверка вернула `active_target_ok=true`, `errors=[]`; RED/GREEN тест и полный gate подтвердили исправление в `7e4e8e4`.
 - **Последствие:** guard fix включится в следующий staging commit snapshot; сам по себе он не требует отдельного deploy.
+
+## D-020 — Streamer Plus привязан к подтверждённой паре Telegram/Twitch
+
+- **Дата:** 2026-10-01.
+- **Решение:** старый `twitch_user_tokens` не даёт право на Streamer Plus. Новая one-to-one связь появляется только после `/streamer_connect` в личном Telegram-чате и проверки Twitch OAuth `helix/users`; конфликт не перезаписывает другую связь или token. Тестовый grant привязан к broadcaster ID, имеет idempotency key, сроки, отзыв и audit events. R4 работает только локально и на pinned staging.
+- **Основание:** TDD `tests/test_streamer_access.py`, миграция snapshot, deployment `3fd52fb1-ec2b-4276-a2ae-c136df7d2aed`; полный gate 1045 passed, 2 skipped, 271 subtests.
+- **Граница:** реальный `/streamer_connect` с пользовательским Twitch OAuth на staging ещё не проходили; подписанный кабинет проверен локально синтетическими Telegram-подписями, staging API проверен без сессии. Test grant не является оплатой.
+
+## D-021 — кабинет стримера изолирован от owner-панели
+
+- **Дата:** 2026-10-01.
+- **Решение:** `/streamer` использует отдельные подписанные Telegram WebApp/Login проверки, session cookie и profile API; R2 owner cookie/key не даёт streamer доступ. Сервер выводит Twitch account только из DB-связи после проверки Telegram ID. В Railway маршруты монтируются только при точном совпадении pinned staging ID.
+- **Основание:** отрицательные/положительные локальные HTTP тесты и staging smoke: `/streamer/api/profile` 401 без session, `/admin/api/snapshot` 401, `/streamer` только login без админ-метки.
+- **Граница:** реальный Telegram Login Widget на staging по-прежнему зависит от BotFather domain; тест с подписью не заменяет реальный UI E2E. Кабинет пока без сообществ и конструктора — это следующие пакеты R4.
