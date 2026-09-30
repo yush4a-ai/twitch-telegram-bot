@@ -97,3 +97,11 @@
 - **Причина:** локальные тесты подтвердили restart recovery, конкурентные claim на одном и двух SQLite соединениях, старое acknowledgement, retry и terminal failure. Запросы счётчиков используют индексы status/due/lease и не раскрывают chat ID, login или текст ошибки в owner health.
 - **Последствие:** модель очереди локально готова, но Telegram worker и staging cutover ещё не включены; текущая доставка остаётся прежней до отдельных TDD и полного staging gate. Retention удаляет только старые terminal jobs; незавершённые сохраняются для recovery.
 - **Пересмотр:** после измерений worker latency, Telegram rate limits и восстановления на staging.
+
+## D-013 — rollback R3 должен учитывать формат samples
+
+- **Дата:** 2026-09-30.
+- **Решение:** staging R3 схема и writer допущены после полного gate и внешнего backup. Возврат только старого R2 кода после появления `stream_observations` не считать безопасным откатом: его reader видит лишь `stream_samples`. Для rollback требуется остановить staging запись и материализовать shared rows в legacy формат с проверкой количества и целостности до запуска старого кода.
+- **Причина:** deployment `8d44e632-ceca-42ba-8cf1-1711b830cb46` достиг `SUCCESS`, DB версии/`integrity_check` проверены, но новый формат меняет семантику чтения отчётов. На момент smoke shared observations = 0; позже они могут появиться при live.
+- **Последствие:** до проверенного offline maintenance path автоматический code-only revert R3 не применять. Backup/export и ограничение записаны в `docs/audits/2026-09-30-r3-staging-migration.md`.
+- **Пересмотр:** после теста обратной материализации и offline rollback drill на staging.
