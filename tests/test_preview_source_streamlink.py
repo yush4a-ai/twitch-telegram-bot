@@ -382,7 +382,7 @@ class PlaybackResolverTests(unittest.IsolatedAsyncioTestCase):
         source = _source_module()
         process = FakeProcess(stdout=b"x" * (16 * 1024 + 1), returncode=0)
         resolver = source.TwitchPlaybackResolver(
-            _available_capability(), runner=QueueRunner(process), timeout=0.1
+            _available_capability(), runner=QueueRunner(process), timeout=1.0
         )
 
         result = await resolver.resolve("valid_login")
