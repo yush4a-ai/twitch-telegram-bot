@@ -8,13 +8,16 @@
 
 ## Один проверяемый сценарий
 
-Владелец открывает `/admin`, входит с отдельным staging access key, видит dashboard и обновляет его. Без правильного ключа HTML-страница панели и JSON недоступны. После выхода сессия недействительна. Пустая БД, отключённый preview и временная ошибка чтения имеют самостоятельные сообщения, а не фиктивные нули или `OK`.
+Владелец открывает панель из личного чата тестового бота или через Telegram Login в браузере, после проверки подписанного Telegram ID видит dashboard и обновляет его. Чужой ID, неподписанные данные и прямой URL не открывают данные панели. После выхода сессия недействительна. Пустая БД, отключённый preview и временная ошибка чтения имеют самостоятельные сообщения, а не фиктивные нули или `OK`.
 
 ## Доступ
 
-- Панель включена только при явно заданном `ADMIN_PANEL_ACCESS_KEY` длиной не менее 32 символов и только в локальном окружении или Railway `staging`. В остальных Railway environment маршруты `/admin*` возвращают 404. Секрет никогда не выводится в логи, HTML, JSON и тестовые отчёты.
-- `POST /admin/login` сравнивает ключ через `hmac.compare_digest` и ограничивает попытки по IP. Успех создаёт случайную серверную сессию на 12 часов; cookie `HttpOnly`, `Secure` на HTTPS, `SameSite=Strict`, путь `/admin`. Сессии теряются при перезапуске. Ключ передаётся в body, не в URL.
-- Все маршруты данных и статических ресурсов самой панели требуют серверной сессии. Публичный `/admin/login.css` оформляет только форму входа и не содержит данных. Неавторизованный `/admin/api/snapshot` отвечает 401 JSON без данных. `POST /admin/logout` удаляет сессию. `GET /admin` до входа показывает только форму без операционных данных.
+- Панель включена только в локальном окружении или Railway `staging` при заданном `OWNER_CHAT_ID` и staging `ADMIN_PANEL_ACCESS_KEY` длиной не менее 32 символов. В остальных Railway environment маршруты `/admin*` возвращают 404. Секрет никогда не выводится в логи, HTML, JSON и тестовые отчёты.
+- `/admin` из личного чата открывается WebApp-кнопкой только для `message.from_user.id == OWNER_CHAT_ID`; команда `/admin` регистрируется только в scope личного чата владельца. Общие private/group/channel/community-admin команды, меню и Viewer Mini App не содержат админ-вход. Проверка самого URL всегда серверная.
+- `POST /admin/telegram-webapp` принимает только сырой `Telegram.WebApp.initData`, проверяет HMAC-SHA256 по правилам Telegram, свежесть `auth_date` и `user.id == OWNER_CHAT_ID`. `GET /admin/telegram-login` принимает Telegram Login Widget callback, проверяет HMAC-SHA256 по правилам виджета, свежесть `auth_date`, CSRF state и тот же owner ID. Дубли полей, неверные подписи, устаревшие и будущие даты отвергаются. Неподтверждённая личность не создаёт сессию.
+- Обычный браузер показывает Telegram Login Widget; его домен должен быть привязан к `@TwitchSignalTestbot` через BotFather до реального E2E. `ADMIN_PANEL_ACCESS_KEY` — скрытый аварийный fallback на `/admin/emergency` и `POST /admin/emergency/login` с ограничением попыток по IP. На обычной странице формы ключа и ссылки на неё нет. Fallback сохраняется до проверки Telegram auth на staging.
+- Успех любого проверенного входа создаёт случайную серверную сессию на 12 часов; cookie `HttpOnly`, `Secure` на HTTPS, `SameSite=Strict`, путь `/admin`. Сессии теряются при перезапуске. Ключ fallback передаётся в body, не в URL.
+- Все маршруты данных и статических ресурсов самой панели требуют серверной сессии. Публичные login CSS/JS не содержат данных. Неавторизованный `/admin/api/snapshot` отвечает 401 JSON без данных. `POST /admin/logout` удаляет сессию. `GET /admin` до входа показывает только Telegram Login без операционных данных.
 - Ответы панели имеют `Cache-Control: no-store`, CSP, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`. Cookie/сессия не дают доступ к Twitch OAuth callback.
 - На staging отдельный случайно созданный ключ задаётся только как staging variable после локального gate. Если ключ не удаётся установить безопасно, deployed auth отмечается непроверенным, но локальные fixture и отрицательный staging smoke обязательны.
 
@@ -45,12 +48,12 @@
 
 ## Проверка и критерии приёмки
 
-1. TDD: auth отказ/успех/истечение/logout/rate limit, staging-only gating, secret leakage, security headers; снимки для healthy/degraded/disabled/unknown/ошибки DB; live query с дублирующимися назначениями и пустой БД.
+1. TDD: owner-only private entry, отсутствие общего admin меню/команды, signed Mini App и Login положительный и отрицательный путь, отказ прямому URL, истечение/logout/rate limit, staging-only gating, secret leakage, security headers; снимки для healthy/degraded/disabled/unknown/ошибки DB; live query с дублирующимися назначениями и пустой БД.
 2. Полный pytest suite на точном commit перед staging deploy, review diff и security/UX review.
 3. Локальный browser journey: вход, обновление, выход, отказ, пустое/ошибочное/устаревшее состояние; скриншоты 360/390/768/1440, dark/light, отсутствие переполнения и keyboard focus.
-4. Staging deploy только через проверенный guard R1, затем новый deployment ID/SHA, `getMe=TwitchSignalTestbot`, `/healthz`, 401 без cookie, успешный login с staging-only key без вывода key, API и браузерный smoke. Если live данные отсутствуют, это честное пустое состояние.
+4. Staging deploy только через проверенный guard R1, затем новый deployment ID/SHA, `getMe=TwitchSignalTestbot`, `/healthz`, 401 без cookie, успешный подписанный owner login и отказ чужому ID, API и браузерный smoke. Аварийный key проверяется отдельно без вывода key. Если BotFather domain не настроен, browser Telegram Login отмечается непроверенным.
 5. `docs/STATUS.md` и `docs/DECISIONS.md` фиксируют факты и непроверенное: Telegram outbound E2E, preview capture при отсутствии тестового live и native iOS/Android UI.
 
 ## Самопроверка спецификации
 
-Нет новых production или денежных действий. Read-only UI не обещает Telegram delivery и preview success без наблюдений. Access key — временный staging механизм, дальнейшая owner identity может быть заменена после отдельного проектирования; тестовый ключ не является Twitch или Telegram credential. Все показатели имеют источник и формулировку, соответствующую источнику.
+Нет новых production или денежных действий. Read-only UI не обещает Telegram delivery и preview success без наблюдений. Owner ID на staging подтверждён владельцем: `425785231`; Telegram ID не является секретом, но не выводится в dashboard. Подпись Telegram обязательна для нормального входа, а аварийный key остаётся отдельным временным механизмом. Все показатели имеют источник и формулировку, соответствующую источнику.

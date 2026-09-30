@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Staging/local only with `ADMIN_PANEL_ACCESS_KEY` of at least 32 characters; production routes return 404.
+- Staging/local only with configured `OWNER_CHAT_ID` and emergency `ADMIN_PANEL_ACCESS_KEY` of at least 32 characters; production routes return 404.
 - No secrets, chat IDs, OAuth states, DB paths or raw errors in responses/logs.
 - Read-only snapshot; `/healthz` remains in-memory and preview-independent.
 - Unknown delivery/preview observations remain unknown; no invented success.
@@ -64,6 +64,15 @@
 - [x] Implement UI to `DESIGN.md` and craft floor; use textContent for all dynamic values, responsive live rows, focus states, dark/light and reduced motion.
 - [x] Run route tests, Playwright at 360/390/768/1440 and screenshot/keyboard/overflow checks in one batch. Correct observed defects and recheck.
 - [x] Commit tested package.
+
+### Task 3a: Owner identity and private entry (approved refinement before acceptance)
+
+**Files:** Modify `bot/admin_auth.py`, `bot/admin_web.py`, `bot/handlers/streams.py`, `main.py`, `bot/config.py`, `tests/test_admin_web.py`, menu tests and login assets.
+
+- [ ] RED: non-owner sees no admin command/button and signed non-owner cannot enter direct `/admin`; owner private entry appears and signed owner reaches API.
+- [ ] Implement Telegram Mini App initData and Telegram Login Widget HMAC validation, bounded `auth_date`, duplicate-field rejection and CSRF state for browser callback.
+- [ ] Put access-key fallback behind hidden `/admin/emergency`; keep rate limit, session revocation and staging gate. No normal UI link to fallback.
+- [ ] Focused tests, security review, full suite, staging deploy and browser/Telegram smoke; preserve fallback until normal auth is verified on staging.
 
 ### Task 4: Staging evidence and documentation
 
