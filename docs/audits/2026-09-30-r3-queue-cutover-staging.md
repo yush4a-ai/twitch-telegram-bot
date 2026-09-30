@@ -1,0 +1,9 @@
+# R3 staging: go-live queue cutover
+
+Дата: 2026-09-30. Commit `2282087f58b7` из ветки `autonomous/twitchsignal-roadmap` загружен в pinned Railway staging project `14282646-e318-4b80-b35d-4369270de255`, environment `7a873177-8ada-4b78-8732-a0bfdc1d519b`, service `45e46f2a-dba3-4b18-bc5f-b6fafa260055`. Production source `main` не менялся. Перед загрузкой guard проверил цель; `NOTIFICATION_QUEUE_ENABLED=1` записан только в staging с `--skip-deploys`; deploy guard повторил полный suite и перепроверил цель. Deployment `db6f6316-c3c3-4871-8e0a-112f7858ce65` достиг terminal `SUCCESS`. Gate: 992 passed, 2 skipped, 261 subtests за 323,51 с.
+
+После deploy: `/healthz` → 200 `{"status":"ok"}`; staging runtime: `RAILWAY_ENVIRONMENT_NAME=staging`, `NOTIFICATION_QUEUE_ENABLED=1`, SQLite `integrity_check=ok`, `idx_notification_jobs_active_go_live` присутствует. Telegram `getMe` → `TwitchSignalTestbot`. Неавторизованный `/admin/api/snapshot` → 401.
+
+Синтетический job `staging_smoke` для фиктивного chat ID `-987654321` прошёл `pending` → `done`, `attempt_count=1` через запущенный worker. Для этого kind `send_queued_job` возвращает `STALE`, поэтому Telegram сообщение не отправлялось. Тестовая строка удалена по точному ID/kind/status: 1 запись. На момент проверки других jobs не было. Это подтверждает claim/ack worker в контейнере, но не реальную доставку go-live через тестового бота. Последнюю надо проверить на контролируемом live переходе; не подменять её этим smoke.
+
+Режим доставки `go_live` включён только на staging. Worker ограничивает одновременно четыре отправки, интервалы 40 мс глобально, 1 с в личке и 3,1 с в группе. Отдельные legacy send/update/report пути пока не входят в его общий бюджет. Внешний Telegram send остаётся at-least-once при crash между send и DB ack. Code-only rollback к R2 после shared observations не безопасен без обратной материализации; порядок описан в `docs/audits/2026-09-30-r3-staging-migration.md`.

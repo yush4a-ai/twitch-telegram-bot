@@ -7,7 +7,7 @@
 | R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
 | R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
 | R2 Owner Admin Panel v1 | реализация и staging smoke выполнены; реальный Telegram Login E2E ожидает BotFather domain | deployment `26ab6e4a-6548-4b29-9f07-60f6e75f0815` из `2faa74f` terminal `SUCCESS`; gate 942 passed, 2 skipped, 259 subtests; signed owner/non-owner staging проверки и браузерный 390/1440 smoke |
-| R3 Growth Foundation | в работе: shared samples и queue model на staging; go-live cutover реализован локально, staging flag пока 0 | deployment `8d44e632-ceca-42ba-8cf1-1711b830cb46` из `e0aa61e` `SUCCESS`; полный gate 967 passed, 2 skipped, 261 subtests; schema integrity/versions, `/healthz`, `getMe`, отрицательный owner API smoke; 512 профильных regression/preview тестов до последних cutover cases, финальный gate впереди; `docs/audits/2026-09-30-r3-staging-migration.md` |
+| R3 Growth Foundation | в работе: shared samples и go-live queue cutover на staging; дальнейшие update/cleanup, preview/load validation впереди | deployment `db6f6316-c3c3-4871-8e0a-112f7858ce65` из `2282087` `SUCCESS`; gate 992 passed, 2 skipped, 261 subtests; `/healthz` 200, `getMe=TwitchSignalTestbot`, DB integrity/index, синтетический worker job `done` за одну попытку и удалён; `docs/audits/2026-09-30-r3-queue-cutover-staging.md` |
 | R4–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
 ## Проверенное в R1
@@ -30,7 +30,7 @@
 
 ## Следующий шаг
 
-Продолжать R3 с отдельным ограниченным Telegram worker и cutover только через staging feature flag; затем измерить fan-out/preview и проверить откат shared данных. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
+Продолжать R3: вывести backlog/latency очереди в read-only панель, проверить изоляцию preview и staged update/cleanup; затем измерить fan-out/preview и проверить откат shared данных. Контролируемый реальный go-live через testbot ещё не подтверждён. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
 
 ## Проверенное в R2
 
