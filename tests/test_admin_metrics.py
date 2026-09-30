@@ -28,6 +28,23 @@ class AdminLiveQueryTests(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(db.close)
         self.assertEqual(await db.get_admin_live_streams(), [])
 
+    async def test_live_query_uses_chat_scoped_sample_index(self):
+        db = Database(":memory:")
+        await db.connect()
+        self.addAsyncCleanup(db.close)
+        await db.conn.execute(
+            "INSERT INTO tracked_channels (chat_id, twitch_login, is_live, last_stream_id) VALUES (1, 'alpha', 1, 's1')"
+        )
+        statements = []
+        await db.conn.set_trace_callback(statements.append)
+        await db.get_admin_live_streams()
+        await db.conn.set_trace_callback(None)
+        actual_sql = next(sql for sql in statements if "FROM tracked_channels tc" in sql)
+        cursor = await db.conn.execute("EXPLAIN QUERY PLAN " + actual_sql)
+        details = " ".join(str(row[3]) for row in await cursor.fetchall())
+        self.assertIn("idx_stream_samples_lookup", details)
+        self.assertNotIn("SCAN ss USING INDEX idx_stream_samples_retention", details)
+
 
 class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -38,7 +55,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.poller = Mock(health_snapshot=Mock(return_value={"running": True, "stopping": False, "last_successful_cycle_age_seconds": 2.0, "stale_after_seconds": 180.0, "last_cycle_duration_seconds": 0.8, "last_cycle_error": None}))
         self.eventsub = Mock(health_snapshot=Mock(return_value={"running": True, "configured_logins": 1, "ready_logins": 1, "last_error": None}))
         self.tokens = Mock(health_snapshot=Mock(return_value={"auth_blocked_logins": 0}))
-        self.preview = Mock(health_snapshot=Mock(return_value={"enabled": True, "manager_running": True, "active_sessions": 1, "active_jobs": 0, "last_success_age_seconds": None, "latest_observation_age_seconds": 3.0, "last_error": None, "disabled_reason": None}))
+        self.preview = Mock(health_snapshot=Mock(return_value={"enabled": True, "manager_running": True, "active_sessions": 1, "active_jobs": 0, "last_success_age_seconds": 10.0, "latest_observation_age_seconds": 3.0, "last_error": None, "disabled_reason": None}))
 
     def build(self, *, polling=True, preview=True):
         return AdminSnapshot(
@@ -54,7 +71,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["telegram"]["delivery_verified"], "unknown")
         self.assertEqual(result["twitch"]["state"], "ok")
         self.assertEqual(result["preview"]["state"], "ok")
-        self.assertIsNone(result["preview"]["last_success_age_seconds"])
+        self.assertEqual(result["preview"]["last_success_age_seconds"], 10.0)
         self.assertEqual(result["audience"]["private_users"], 3)
         self.assertEqual(result["live"][0]["login"], "alpha")
         self.assertEqual(result["queues"]["pending_deliveries"], 1)
@@ -76,6 +93,19 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         result = await self.build().collect()
         self.assertIsNone(result["errors"]["eventsub"])
         self.assertNotIn("secret", str(result))
+
+    async def test_token_health_failure_cannot_report_twitch_ok(self):
+        self.tokens.health_snapshot.side_effect = RuntimeError("sensitive")
+        result = await self.build().collect()
+        self.assertEqual(result["twitch"]["state"], "unknown")
+        self.assertIsNone(result["twitch"]["auth_blocked_logins"])
+
+    async def test_preview_without_observation_or_success_is_unknown(self):
+        self.preview.health_snapshot.return_value["last_success_age_seconds"] = None
+        self.preview.health_snapshot.return_value["latest_observation_age_seconds"] = None
+        self.preview.health_snapshot.return_value["active_sessions"] = 0
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["state"], "unknown")
 
     async def test_absent_preview_and_db_failure_do_not_hide_runtime(self):
         self.db.get_bot_stats.side_effect = RuntimeError("secret /data/bot.db")

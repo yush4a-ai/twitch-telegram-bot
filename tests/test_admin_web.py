@@ -88,6 +88,18 @@ class AdminWebTests(unittest.IsolatedAsyncioTestCase):
         async with session.post(base + "/admin/login", data={"access_key": KEY}) as response:
             self.assertEqual(response.status, 429)
 
+    async def test_unicode_login_attempt_returns_denial_not_server_error(self):
+        session, base = await self.start_server(AdminAccess(KEY, enabled=True, secure_cookie=False))
+        async with session.post(base + "/admin/login", data={"access_key": "неверный-ключ"}) as response:
+            self.assertEqual(response.status, 401)
+            self.assertIn("Неверный ключ", await response.text())
+
+    async def test_unicode_configured_key_can_login(self):
+        unicode_key = "длинный-ключ-для-тестовой-панели-владельца"
+        session, base = await self.start_server(AdminAccess(unicode_key, enabled=True, secure_cookie=False))
+        async with session.post(base + "/admin/login", data={"access_key": unicode_key}, allow_redirects=False) as response:
+            self.assertEqual(response.status, 303)
+
 
 class AdminConfigTests(unittest.TestCase):
     def test_admin_key_is_enabled_only_on_staging_railway(self):

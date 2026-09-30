@@ -32,7 +32,9 @@ class AdminAccess:
         if len(failures) >= 5:
             self._failures[remote] = failures
             return None, True
-        if not self.enabled or not hmac.compare_digest(candidate, self._key):
+        if not self.enabled or not hmac.compare_digest(
+            candidate.encode("utf-8"), self._key.encode("utf-8")
+        ):
             failures.append(now)
             self._failures[remote] = failures
             return None, False

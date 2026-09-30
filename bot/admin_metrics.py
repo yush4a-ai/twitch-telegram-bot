@@ -80,7 +80,7 @@ class AdminSnapshot:
         try:
             tokens = self._tokens.health_snapshot()
         except Exception:
-            tokens = {}
+            tokens = None
         try:
             preview = self._preview.health_snapshot(now) if self._preview is not None else None
         except Exception:
@@ -92,7 +92,7 @@ class AdminSnapshot:
 
         success_age = poller.get("last_successful_cycle_age_seconds")
         stale_after = poller.get("stale_after_seconds")
-        if not poller or success_age is None or stale_after is None:
+        if not poller or success_age is None or stale_after is None or tokens is None:
             twitch_state = "unknown"
         elif (
             not poller.get("running") or poller.get("stopping")
@@ -111,6 +111,8 @@ class AdminSnapshot:
             preview_state = "disabled"
         elif not preview.get("manager_running") or preview.get("last_error"):
             preview_state = "degraded"
+        elif preview.get("last_success_age_seconds") is None:
+            preview_state = "unknown"
         else:
             preview_state = "ok"
 
@@ -152,7 +154,7 @@ class AdminSnapshot:
                 "eventsub_running": eventsub.get("running"),
                 "eventsub_ready": eventsub.get("ready_logins"),
                 "eventsub_configured": eventsub.get("configured_logins"),
-                "auth_blocked_logins": tokens.get("auth_blocked_logins"),
+                "auth_blocked_logins": tokens.get("auth_blocked_logins") if tokens else None,
             },
             "preview": {
                 "state": preview_state,

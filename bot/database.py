@@ -2812,15 +2812,22 @@ class Database:
     async def get_admin_live_streams(self, limit: int = 20) -> list[dict]:
         """Unique live Twitch channels; no chat IDs in the owner projection."""
         cursor = await self.conn.execute(
-            "SELECT tc.twitch_login, COUNT(*), MAX(tc.last_seen_live_at), "
-            "(SELECT ss.viewer_count FROM stream_samples ss "
-            " WHERE ss.twitch_login = tc.twitch_login AND ss.stream_id IN "
-            " (SELECT last_stream_id FROM tracked_channels "
-            "  WHERE twitch_login = tc.twitch_login AND is_live = 1) "
-            " ORDER BY ss.sampled_at DESC LIMIT 1) "
-            "FROM tracked_channels tc WHERE tc.is_live = 1 "
-            "GROUP BY tc.twitch_login ORDER BY MAX(tc.last_seen_live_at) DESC "
-            "LIMIT ?",
+            "SELECT twitch_login, destinations, observed_at, viewer_count FROM ("
+            " SELECT tc.twitch_login, "
+            " COUNT(*) OVER (PARTITION BY tc.twitch_login) AS destinations, "
+            " MAX(tc.last_seen_live_at) OVER (PARTITION BY tc.twitch_login) AS observed_at, "
+            " ss.viewer_count, "
+            " ROW_NUMBER() OVER (PARTITION BY tc.twitch_login "
+            " ORDER BY ss.sampled_at DESC, tc.chat_id) AS rn "
+            " FROM tracked_channels tc "
+            " LEFT JOIN stream_samples ss ON ss.rowid = ("
+            "  SELECT sample.rowid FROM stream_samples sample "
+            "  WHERE sample.chat_id = tc.chat_id "
+            "  AND sample.twitch_login = tc.twitch_login "
+            "  AND sample.stream_id = tc.last_stream_id "
+            "  ORDER BY sample.sampled_at DESC LIMIT 1) "
+            " WHERE tc.is_live = 1) "
+            "WHERE rn = 1 ORDER BY observed_at DESC LIMIT ?",
             (max(1, min(limit, 100)),),
         )
         return [
