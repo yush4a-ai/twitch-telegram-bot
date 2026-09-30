@@ -111,8 +111,8 @@
 - **Дата:** 2026-09-30.
 - **Решение:** `NOTIFICATION_QUEUE_ENABLED=1` допустим локально и только при совпадении Railway project, environment и service ID с `scripts/staging_target.json`. При нём новый go-live transition и job записываются одной SQLite транзакцией; отдельный worker отправляет пост. Ожидающий job не запускает legacy sender в повторном poll. После завершённого stale job повторное включение уведомлений может воспользоваться прежним resume путём.
 - **Причина:** тесты проверили атомарность при DB ошибке, retry/terminal/stale, гонки worker CAS с live/offline poll, позднюю отмену подписки и отсутствие per-destination query к очереди. При завершении job между двумя снимками poller перечитывает текущий message ID перед legacy resume, чтобы не создать дубль. Worker ждёт первого sample, чтобы не публиковать ошибочные 0 зрителей. По [Telegram Bot FAQ](https://core.telegram.org/bots/faq) старт отправок worker ограничен до 25/с глобально, 1/с в личном чате и интервалом 3,1 с в группе; остальные пути отправки пока не разделяют этот бюджет.
-- **Последствие:** production config отвергает флаг даже при ошибочно заданном имени окружения; на pinned staging флаг 1 после gate 992 passed и deployment `db6f6316-c3c3-4871-8e0a-112f7858ce65` (`SUCCESS`). Синтетический job прошёл worker claim/ack; фактическая Telegram go-live доставка ещё не проверена. Обновления уже существующих live-постов и offline cleanup остаются прежними до следующего пакета.
-- **Пересмотр:** после staging Telegram E2E и измерений backlog/latency.
+- **Последствие:** production config отвергает флаг даже при ошибочно заданном имени окружения; на pinned staging флаг 1 после gate и deployment `e757b5e5-ba83-4be7-a4cb-cd1d5737b0db` (`SUCCESS`). Synthetic worker claim/ack и один настоящий testbot go-live send на временной DB прошли: job `done` за одну попытку, пост удалён. Обновления уже существующих live-постов и offline cleanup остаются прежними до следующего пакета.
+- **Пересмотр:** после staging mixed-load, lease recovery и измерений backlog/latency.
 
 ## D-015 — SQLite остаётся на staging до полного R9 load/recovery evidence
 
