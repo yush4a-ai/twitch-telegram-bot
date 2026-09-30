@@ -12,6 +12,13 @@ import sys
 
 EXPECTED_BRANCH = "autonomous/twitchsignal-roadmap"
 TARGET_FILE = Path(__file__).with_name("staging_target.json")
+BOOTSTRAP_CONFIG_FILE = Path(__file__).resolve().parent.parent / "railway.json"
+BOOTSTRAP_DEPLOY = {
+    "healthcheckPath": "/healthz",
+    "healthcheckTimeout": 300,
+    "drainingSeconds": 30,
+    "overlapSeconds": 0,
+}
 
 
 def _nodes(container: dict, key: str) -> list[dict]:
@@ -111,6 +118,32 @@ def validate_git(branch: str, porcelain: str) -> list[str]:
     return errors
 
 
+def validate_bootstrap_config(config: dict) -> list[str]:
+    """Allow a one-time bootstrap only with a staging-only deployment override."""
+    schema = config.get("$schema")
+    if set(config) - {"$schema", "environments"} or (schema is not None and schema != "https://railway.com/railway.schema.json"):
+        return ["railway.json содержит общие или неизвестные настройки"]
+    environments = config.get("environments")
+    if not isinstance(environments, dict) or set(environments) != {"staging"}:
+        return ["railway.json должен настраивать только staging"]
+    staging = environments["staging"]
+    if not isinstance(staging, dict) or set(staging) != {"deploy"} or staging["deploy"] != BOOTSTRAP_DEPLOY:
+        return ["railway.json staging deploy не совпадает с проверенным bootstrap"]
+    return []
+
+
+def validate_bootstrap_target(status: dict, target: dict) -> list[str]:
+    errors = validate_target(status, target, require_health=False)
+    stage = next((e for e in _nodes(status, "environments") if e.get("name") == "staging"), None)
+    instance = _instance(stage, target["service_id"]) if stage else None
+    deployments = instance.get("activeDeployments", []) if instance else []
+    if len(deployments) == 1:
+        settings = ((deployments[0].get("meta") or {}).get("serviceManifest") or {}).get("deploy") or {}
+        if any(settings.get(key) is not None for key in BOOTSTRAP_DEPLOY):
+            errors.append("bootstrap допустим только до первой настройки staging health/drain")
+    return errors
+
+
 def build_deploy_command(target: dict, commit: str) -> list[str]:
     return [
         "railway", "up", ".",
@@ -146,9 +179,9 @@ def _stream(argv: list[str]) -> int:
     return subprocess.run(_resolve_executable(argv), check=False).returncode
 
 
-def _status(target: dict, require_health: bool) -> list[str]:
+def _status(target: dict, require_health: bool, bootstrap: bool = False) -> list[str]:
     status = json.loads(_capture(["railway", "status", "--json"]))
-    return validate_target(status, target, require_health=require_health)
+    return validate_bootstrap_target(status, target) if bootstrap else validate_target(status, target, require_health=require_health)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -157,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--check", action="store_true", help="полная проверка без deploy")
     mode.add_argument("--check-target-only", action="store_true", help="проверка target до настройки healthcheck")
     mode.add_argument("--deploy", action="store_true", help="тесты и staging deploy")
+    mode.add_argument("--bootstrap-deploy", action="store_true", help="однократный staging deploy для настройки healthcheck")
     args = parser.parse_args(argv)
     try:
         target = _load_target()
@@ -168,13 +202,15 @@ def main(argv: list[str] | None = None) -> int:
                 print(error, file=sys.stderr)
             return 2
         commit = _capture(["git", "rev-parse", "HEAD"])
-        errors = _status(target, require_health=not args.check_target_only)
+        bootstrap = args.bootstrap_deploy
+        errors += validate_bootstrap_config(json.loads(BOOTSTRAP_CONFIG_FILE.read_text(encoding="utf-8")))
+        errors += _status(target, require_health=not args.check_target_only, bootstrap=bootstrap)
         if errors:
             for error in errors:
                 print(error, file=sys.stderr)
             return 2
         print(f"Staging target проверен; commit={commit[:12]}")
-        if not args.deploy:
+        if not (args.deploy or bootstrap):
             return 0
         test_code = _stream([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"])
         if test_code != 0:
@@ -184,7 +220,8 @@ def main(argv: list[str] | None = None) -> int:
         errors = validate_git(
             _capture(["git", "branch", "--show-current"]),
             _capture(["git", "status", "--porcelain", "--untracked-files=normal"]),
-        ) + _status(target, require_health=True)
+        ) + _status(target, require_health=not bootstrap, bootstrap=bootstrap)
+        errors += validate_bootstrap_config(json.loads(BOOTSTRAP_CONFIG_FILE.read_text(encoding="utf-8")))
         if errors:
             for error in errors:
                 print(error, file=sys.stderr)

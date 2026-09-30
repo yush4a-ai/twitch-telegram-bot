@@ -188,3 +188,32 @@ def test_main_refuses_dirty_tree_before_railway_upload(monkeypatch):
 def test_railway_command_uses_windows_cmd_shim(monkeypatch):
     monkeypatch.setattr(deploy.shutil, "which", lambda name: "C:/tools/railway.CMD")
     assert deploy._resolve_executable(["railway", "status", "--json"])[0] == "C:/tools/railway.CMD"
+
+
+def test_bootstrap_config_is_staging_only_and_exact():
+    expected = {
+        "environments": {
+            "staging": {
+                "deploy": {
+                    "healthcheckPath": "/healthz",
+                    "healthcheckTimeout": 300,
+                    "drainingSeconds": 30,
+                    "overlapSeconds": 0,
+                }
+            }
+        }
+    }
+    assert deploy.validate_bootstrap_config(expected) == []
+    assert deploy.validate_bootstrap_config({**expected, "deploy": {"healthcheckPath": "/healthz"}})
+    assert deploy.validate_bootstrap_config({"environments": {"production": expected["environments"]["staging"]}})
+    wrong = {"environments": {"staging": {"deploy": {**expected["environments"]["staging"]["deploy"], "overlapSeconds": 15}}}}
+    assert deploy.validate_bootstrap_config(wrong)
+
+
+def test_bootstrap_requires_exact_legacy_missing_health_state():
+    status = _status()
+    settings = status["environments"]["edges"][0]["node"]["serviceInstances"]["edges"][0]["node"]["activeDeployments"][0]["meta"]["serviceManifest"]["deploy"]
+    settings.update(healthcheckPath=None, healthcheckTimeout=None, drainingSeconds=None, overlapSeconds=None)
+    assert deploy.validate_bootstrap_target(status, TARGET) == []
+    settings["healthcheckPath"] = "/wrong"
+    assert deploy.validate_bootstrap_target(status, TARGET)

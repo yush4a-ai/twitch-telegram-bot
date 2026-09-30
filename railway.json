@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "environments": {
+    "staging": {
+      "deploy": {
+        "healthcheckPath": "/healthz",
+        "healthcheckTimeout": 300,
+        "drainingSeconds": 30,
+        "overlapSeconds": 0
+      }
+    }
+  }
+}

@@ -62,11 +62,11 @@
 
 ## Task 3 — staging settings, deploy и smoke
 
-**Файлы:** создать `docs/runbooks/staging-deploy.md`, `docs/runbooks/staging-backup-rollback.md`; обновить `docs/STATUS.md`, `docs/DECISIONS.md`.
+**Файлы:** создать `railway.json`, `docs/runbooks/staging-deploy.md`, `docs/runbooks/staging-backup-rollback.md`; обновить `scripts/staging_deploy.py`, его тесты, `docs/STATUS.md`, `docs/DECISIONS.md`.
 
 - [ ] Проверить `git diff`, полный suite и Railway project/environment/service/Volume metadata перед изменением конфигурации.
-- [ ] Установить только staging healthcheck `/healthz`, timeout 300 с, draining 30 с и overlap 0; прочитать обратно settings.
-- [ ] Запустить `scripts/staging_deploy.py --check`, затем `--deploy` из чистого commit; записать SHA и Railway deployment ID.
+- [ ] После подтверждённого `No changes to apply` от CLI включить только staging healthcheck `/healthz`, timeout 300 с, draining 30 с и overlap 0 через `railway.json`; пройти `--bootstrap-deploy` из чистого commit и прочитать обратно metadata.
+- [ ] Запустить обычный `scripts/staging_deploy.py --check` после bootstrap; записать SHA и Railway deployment ID.
 - [ ] Проверить staging `/healthz`, Railway terminal status, Telegram `getMe` из staging container без вывода токена и доступный preview health signal.
 - [ ] Выполнить staging backup/verify через Railway SSH и записать только технические результаты без строк пользователей.
 - [ ] Заполнить runbooks/STATUS/DECISIONS фактическим результатом, отметить неисполненные E2E отдельно.
