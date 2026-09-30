@@ -1,0 +1,11 @@
+{
+  "project_id": "14282646-e318-4b80-b35d-4369270de255",
+  "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+  "staging_environment_id": "7a873177-8ada-4b78-8732-a0bfdc1d519b",
+  "production_environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+  "staging_volume_instance_id": "f1e0d4c5-c190-4989-ae34-29a61f9010bb",
+  "production_volume_instance_id": "eded4a6e-c2c1-44ab-a238-b3c860632cee",
+  "staging_domain": "worker-staging-2f74.up.railway.app",
+  "expected_production_repo": "yush4a-ai/twitch-telegram-bot",
+  "expected_production_branch": "main"
+}
