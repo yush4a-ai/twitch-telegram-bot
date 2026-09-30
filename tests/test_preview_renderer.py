@@ -297,14 +297,12 @@ class FiltergraphTests(unittest.TestCase):
         self.assertNotIn("minterpolate", joined)
         self.assertEqual(argv.count("-i"), 2)
 
-    def test_thirty_second_cycle_has_bounded_bitrate_under_existing_size_cap(self) -> None:
+    def test_animation_quality_contract_keeps_existing_bitrate_and_general_size_cap(self) -> None:
         models = _models()
         config = models.RenderConfig()
 
-        self.assertLessEqual(
-            config.max_video_bitrate * 30 / 8,
-            config.max_output_bytes * 0.85,
-        )
+        self.assertEqual(config.max_video_bitrate, 3_500_000)
+        self.assertEqual(config.max_output_bytes, 16 * 1024 * 1024)
 
     def test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder(self) -> None:
         renderer = _renderer()

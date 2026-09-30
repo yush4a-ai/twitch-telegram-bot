@@ -43,8 +43,9 @@ _CAPTURE_RESET_ANALYSIS_DIAGNOSTICS = frozenset(
 )
 _CAPTURE_RESET_RENDER_DIAGNOSTICS = frozenset({"source_file_missing"})
 _RECOVER_CAPTURE = object()
-_MAX_CYCLE_SNIPPETS = 5
-_CYCLE_COMPLETE_SECONDS = 29.0
+_MAX_CYCLE_SNIPPETS = 4
+_CYCLE_COMPLETE_SECONDS = 23.0
+_TELEGRAM_ANIMATION_MAX_BYTES = 10 * 1024 * 1024
 
 
 @dataclass
@@ -347,6 +348,10 @@ class _LivePreviewArtifactSession:
                 reason=rendered.diagnostic_code,
             )
         snippet = rendered.artifact
+        if not self._fits_telegram_animation_budget(snippet):
+            self._release_owner(snippet)
+            self._capture_cutoff = self._snapshot_tail(snapshot)
+            return None
         prospective = (
             (snippet,)
             if self._cycle_complete()
@@ -380,6 +385,13 @@ class _LivePreviewArtifactSession:
                     reason=cumulative.diagnostic_code,
                 )
             output = cumulative.artifact
+            if not self._fits_telegram_animation_budget(output):
+                self._release_owner(output)
+                if output is not snippet:
+                    self._release_owner(snippet)
+                self._clear_cycle()
+                self._capture_cutoff = self._snapshot_tail(snapshot)
+                return None
         return _PendingCycle(
             snippet=snippet,
             output=output,
@@ -549,6 +561,17 @@ class _LivePreviewArtifactSession:
             raise
         except Exception:
             _provider_error()
+
+    @staticmethod
+    def _fits_telegram_animation_budget(artifact: Any) -> bool:
+        try:
+            size_bytes = artifact.size_bytes
+        except AttributeError:
+            return False
+        return (
+            type(size_bytes) is int
+            and 0 < size_bytes <= _TELEGRAM_ANIMATION_MAX_BYTES
+        )
 
     def _cycle_complete(self) -> bool:
         if len(self._cycle_snippets) >= _MAX_CYCLE_SNIPPETS:
