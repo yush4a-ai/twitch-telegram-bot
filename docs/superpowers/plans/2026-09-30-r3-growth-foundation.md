@@ -95,7 +95,7 @@
 
 - [x] Verify with an integration test that blocked preview capture does not block poll or normal notification worker; preserve existing preview concurrency bounds. Add owner panel fields for pending/leased/due/failed jobs and oldest due age after a failing UI route test.
 - [x] Add reproducible TEMP-only synthetic shared 20k/30k/40k, preview 1/2/4 and queue 1k/5k/10k profiles; record p50/p95/p99, DB/WAL and process RSS with explicit no-network/no-FFmpeg limits.
-- [ ] Run full suite and exact staging target review for the latest fan-out lookup/harness package; deploy only committed snapshot with R1 guard.
+- [x] Run full suite and exact staging target review for the fan-out lookup/harness package; deploy only committed snapshot with R1 guard. First gate stopped on one 100-ms legacy Streamlink test timeout; focused 20 repeats and full rerun passed before staging `SUCCESS`.
 - [ ] Run `getMe`, `/healthz`, queue/recovery staging smoke and controlled testbot go-live E2E; record real latency and any delivery gap.
 - [x] Record provisional SQLite vs PostgreSQL decision and limits in STATUS/DECISIONS/audit; revisit at R9 mixed load and recovery.
 
