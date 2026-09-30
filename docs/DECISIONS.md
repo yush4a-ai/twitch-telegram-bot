@@ -129,3 +129,11 @@
 - **Основание:** TDD тесты grace, идемпотентности, stale target, private/public путей, retry и батчевой постановки; gate 1011 passed, 2 skipped, 265 subtests. Deployment `d05d8d5d-56c9-4c51-abff-0fb804cd0431` terminal `SUCCESS`; staging testbot E2E: go-live и cleanup jobs `done`, карточка `ended`, тестовый пост удалён.
 - **Ограничение:** это одиночный тестовый lifecycle; mixed-load fan-out, общий Telegram budget для старых путей и code/data rollback ещё не проверены.
 - **Пересмотр:** после R3 live update coalescing, staging mixed-load и recovery.
+
+## D-017 — live post refresh объединяется по текущему message ID
+
+- **Дата:** 2026-10-01.
+- **Решение:** только при staging queue flag poller сохраняет stream sample и увеличивает revision одного `live_update` job для текущего `(chat, login, logical stream, message ID)`. Worker берёт свежий sample, редактирует content через существующий post lock и CAS, затем при необходимости применяет thumbnail. Revision, изменившаяся во время lease, переводит тот же job обратно в pending; Telegram `RetryAfter` задаёт due без сна poller. Для flag 0 прежний direct path сохранён.
+- **Основание:** TDD на coalescing, fenced ack/terminal, stale reconnect/offline, photo/animation, latest sample и RetryAfter; полный gate 1024 passed, 2 skipped, 265 subtests. Внешний staging snapshot и локальный migration/restore drill прошли; deployment `8a701528-dd3a-4252-b4cd-8b61b6c110fc` terminal `SUCCESS`; temp-DB testbot E2E подтвердил go-live, live edit и ended edit.
+- **Ограничение:** один live update job может сделать content edit и thumbnail edit в пределах одного worker слота; Telegram `RetryAfter` защищает фактический лимит, но общий rate budget с legacy/report/preview путями ещё не объединён. При crash после Telegram edit до ack возможен повторный edit. Mixed-load latency и lease recovery на staging остаются открытыми.
+- **Пересмотр:** после R3 mixed-load/rollback и R9 synthetic 20k/30k/40k validation.

@@ -1,0 +1,11 @@
+# R3 staging: coalesced live update
+
+Дата: 2026-10-01. Работа только в `autonomous/twitchsignal-roadmap`; production source `main` и production данные/variables/deployment не менялись.
+
+Перед additive migration создан online backup staging Volume `/data/backups/2026-10-01-r3-pre-live-update-0159631.db`: `integrity=ok`, 548 864 байт, restore drill 25 таблиц. Внешняя копия вне Git: `%LOCALAPPDATA%\TwitchSignalBot\staging-backups\2026-10-01-r3-pre-live-update-0159631.db`. SHA-256 локальной и volume копий совпал: `f97704651d7eb74ddba3d45714b95abfff673ad5231b11c8cf7b610582deea82`. Локальный restore внешней копии: `integrity=ok`, 25 таблиц. На временной копии staging snapshot новая миграция добавила `revision`/`media_url`, зарегистрировала `r3_003_live_update_revision`, сохранила количество queue rows и `integrity=ok`. Production DB не читалась и не копировалась.
+
+Queue/schema commit `4df25f5`, poller/worker commit `2663ba1`. Reviewed diff без whitespace errors. Guard подтвердил pinned Railway project `14282646-e318-4b80-b35d-4369270de255`, environment `7a873177-8ada-4b78-8732-a0bfdc1d519b`, service `45e46f2a-dba3-4b18-bc5f-b6fafa260055` и чистую ветку; полный gate 1024 passed, 2 skipped, 265 subtests. Deployment `8a701528-dd3a-4252-b4cd-8b61b6c110fc` достиг terminal `SUCCESS`.
+
+После deploy: основная staging DB `PRAGMA integrity_check=ok`; versions `r3_001_observations`, `r3_002_notification_jobs`, `r3_003_live_update_revision`; columns `revision`, `media_url`; synthetic tracked rows 0. `/healthz` → 200 `{"status":"ok"}`; `/admin/api/snapshot` без сессии → 401. Защищённый `scripts/staging_go_live_e2e.py` через pinned staging SSH проверил точные runtime IDs, `OWNER_CHAT_ID=425785231` и `getMe=TwitchSignalTestbot`, затем на временной DB провёл один реальный Telegram post через `go_live`, edit с 99 зрителями через `live_update`, ended edit через `offline_cleanup` и удалил сообщение. Все три jobs `done`, go-live `attempt_count=1`, `post_ended=True`, `message_deleted=True`.
+
+Этот smoke доказывает одиночный lifecycle и новую staging schema; он не доказывает 20k–40k latency, общий Telegram rate budget, preview capture или реальный Telegram Login Widget. Следующие R3 проверки: staging lease recovery, controlled mixed-load, offline rollback shared samples.
