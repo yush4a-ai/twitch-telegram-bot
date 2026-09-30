@@ -37,11 +37,11 @@
 - `build_deploy_command(target: dict, commit: str) -> list[str]` создаёт точную CLI команду с тремя ID.
 - `main(argv: list[str] | None = None) -> int`: `--check` только читает, `--deploy` запускает полный suite, повторяет target check и выполняет attached upload.
 
-- [ ] Написать тесты положительного status, ошибок target, Git gate и команды deploy.
-- [ ] Выполнить `\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests/test_staging_deploy.py`; увидеть ожидаемый red.
-- [ ] Реализовать минимальные pure functions и CLI без fallback на default target.
-- [ ] Повторить targeted tests до green; выполнить полный suite.
-- [ ] Просмотреть diff, commit `feat: guard staging deploy target`.
+- [x] Написать тесты положительного status, ошибок target, Git gate и команды deploy.
+- [x] Выполнить `\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider tests/test_staging_deploy.py`; увидеть ожидаемый red.
+- [x] Реализовать минимальные pure functions и CLI без fallback на default target.
+- [x] Повторить targeted tests до green; выполнить полный suite.
+- [x] Просмотреть diff, commit `feat: guard staging deploy target`.
 
 ## Task 2 — SQLite online backup и restore drill
 
@@ -54,24 +54,24 @@
 - `verify_backup(path: Path) -> dict[str, object]` проверяет source и копию, восстановленную в новый временный файл.
 - `main(argv: list[str] | None = None) -> int`: команды `backup --db --out` и `verify --backup`, вывод только безопасных метрик.
 
-- [ ] Написать тесты WAL snapshot, существующего destination, повреждённой DB, `/data` guard и restore drill.
-- [ ] Выполнить targeted tests и увидеть red по отсутствующим функциям.
-- [ ] Реализовать SQLite backup API, integrity gate, cleanup временных файлов и CLI.
-- [ ] Повторить targeted tests до green; выполнить полный suite.
-- [ ] Просмотреть diff, commit `feat: add staging sqlite backup drill`.
+- [x] Написать тесты WAL snapshot, существующего destination, повреждённой DB, `/data` guard и restore drill.
+- [x] Выполнить targeted tests и увидеть red по отсутствующим функциям.
+- [x] Реализовать SQLite backup API, integrity gate, cleanup временных файлов и CLI.
+- [x] Повторить targeted tests до green; выполнить полный suite.
+- [x] Просмотреть diff, commit `feat: add staging sqlite backup drill`.
 
 ## Task 3 — staging settings, deploy и smoke
 
 **Файлы:** создать `railway.json`, `docs/runbooks/staging-deploy.md`, `docs/runbooks/staging-backup-rollback.md`; обновить `scripts/staging_deploy.py`, его тесты, `docs/STATUS.md`, `docs/DECISIONS.md`.
 
-- [ ] Проверить `git diff`, полный suite и Railway project/environment/service/Volume metadata перед изменением конфигурации.
-- [ ] После подтверждённого `No changes to apply` от CLI включить только staging healthcheck `/healthz`, timeout 300 с, draining 30 с и overlap 0 через `railway.json`; пройти `--bootstrap-deploy` из чистого commit и прочитать обратно metadata.
-- [ ] Загрузить только `git archive` проверенного commit через `--path-as-root`: рабочая директория вызвала локальные ошибки индексации; подтвердить отсутствие ignored/untracked файлов в тесте и архиве.
-- [ ] Запустить обычный `scripts/staging_deploy.py --check` после bootstrap; записать SHA и Railway deployment ID.
-- [ ] Проверить staging `/healthz`, Railway terminal status, Telegram `getMe` из staging container без вывода токена и доступный preview health signal.
-- [ ] Выполнить staging backup/verify через Railway SSH и записать только технические результаты без строк пользователей.
-- [ ] Заполнить runbooks/STATUS/DECISIONS фактическим результатом, отметить неисполненные E2E отдельно.
-- [ ] Провести финальный code review, `git diff --check`, targeted/full tests и документальный commit.
+- [x] Проверить `git diff`, полный suite и Railway project/environment/service/Volume metadata перед изменением конфигурации.
+- [x] После подтверждённого `No changes to apply` от CLI включить только staging healthcheck `/healthz`, timeout 300 с, draining 30 с и overlap 0 через `railway.json`; пройти `--bootstrap-deploy` из чистого commit и прочитать обратно metadata.
+- [x] Загрузить только `git archive` проверенного commit через `--path-as-root`: рабочая директория вызвала локальные ошибки индексации; подтвердить отсутствие ignored/untracked файлов в тесте и архиве.
+- [x] Запустить обычный `scripts/staging_deploy.py --check` после bootstrap; записать SHA и Railway deployment ID.
+- [x] Проверить staging `/healthz`, Railway terminal status, Telegram `getMe` из staging container без вывода токена; preview health signal недоступен без `OWNER_CHAT_ID` и отмечен как `unknown`.
+- [x] Выполнить staging backup/verify через Railway SSH и записать только технические результаты без строк пользователей.
+- [x] Заполнить runbooks/STATUS/DECISIONS фактическим результатом, отметить неисполненные E2E отдельно.
+- [x] Провести финальный code review, `git diff --check`, targeted/full tests и документальный commit.
 
 ## Самопроверка плана
 

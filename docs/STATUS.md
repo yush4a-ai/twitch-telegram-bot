@@ -5,7 +5,7 @@
 | Этап | Состояние | Evidence |
 | --- | --- | --- |
 | R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
-| R1 Safe Development/Staging Workflow | staging deploy и smoke выполнены; локальный guard приведён к реальной metadata | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
+| R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
 | R2 Owner Admin Panel v1 | следующий этап | по утверждённому workflow нужна адаптивная браузерная owner-панель; отдельная spec/plan, безопасный вход и staging проверка ещё нужны |
 | R3–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
@@ -28,4 +28,4 @@
 
 ## Следующий шаг
 
-Завершить проверку локального R1 guard и документации, затем перейти к R2: spec и plan для адаптивной браузерной owner-панели с отдельным Telegram/Twitch/preview health, аудиторией, очередью и ресурсами. Все новые функции проверять только в staging.
+Начать R2: spec и plan для адаптивной браузерной owner-панели с отдельным Telegram/Twitch/preview health, аудиторией, очередью и ресурсами. Все новые функции проверять только в staging.
