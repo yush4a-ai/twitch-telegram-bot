@@ -82,7 +82,9 @@ class AdminSnapshot:
         except Exception:
             tokens = None
         try:
-            preview = self._preview.health_snapshot(now) if self._preview is not None else None
+            # PreviewManager uses a monotonic clock; the wall-clock timestamp
+            # used by poller/EventSub would turn a recent capture into decades.
+            preview = self._preview.health_snapshot() if self._preview is not None else None
         except Exception:
             preview = None
         try:

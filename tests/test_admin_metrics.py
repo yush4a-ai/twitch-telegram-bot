@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 from bot.admin_metrics import AdminSnapshot
 from bot.database import Database
+from bot.preview_runtime import PreviewManager
 
 
 class AdminLiveQueryTests(unittest.IsolatedAsyncioTestCase):
@@ -106,6 +107,20 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.preview.health_snapshot.return_value["active_sessions"] = 0
         result = await self.build().collect()
         self.assertEqual(result["preview"]["state"], "unknown")
+
+    async def test_preview_age_uses_manager_monotonic_clock(self):
+        manager = PreviewManager(
+            Mock(), Mock(), Mock(), enabled=True,
+            initial_delay_seconds=0, interval_seconds=60,
+            max_concurrent_jobs=1, job_timeout_seconds=30,
+            poll_interval_seconds=60, build_content=Mock(),
+            clock=lambda: 505.0,
+        )
+        manager._running = True
+        manager._last_success_at = 500.0
+        self.preview = manager
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["last_success_age_seconds"], 5.0)
 
     async def test_absent_preview_and_db_failure_do_not_hide_runtime(self):
         self.db.get_bot_stats.side_effect = RuntimeError("secret /data/bot.db")
