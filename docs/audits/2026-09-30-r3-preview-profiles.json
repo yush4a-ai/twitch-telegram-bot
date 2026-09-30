@@ -1,0 +1,70 @@
+{
+  "synthetic": true,
+  "runtime": {
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "os": "Windows"
+  },
+  "profiles": [
+    {
+      "synthetic": true,
+      "profile": "preview",
+      "streams": 4,
+      "capture_concurrency": 1,
+      "fake_capture_delay_ms": 200.0,
+      "fake_send_delay_ms": 5.0,
+      "completed_previews": 4,
+      "max_active_captures": 1,
+      "max_pending_capture_jobs": 3,
+      "latency_ms": {
+        "count": 4,
+        "p50_ms": 381.4266,
+        "p95_ms": 752.2295,
+        "p99_ms": 752.2295,
+        "max_ms": 752.2295
+      },
+      "elapsed_seconds": 0.7523,
+      "peak_process_rss_bytes": 169578496
+    },
+    {
+      "synthetic": true,
+      "profile": "preview",
+      "streams": 4,
+      "capture_concurrency": 2,
+      "fake_capture_delay_ms": 200.0,
+      "fake_send_delay_ms": 5.0,
+      "completed_previews": 4,
+      "max_active_captures": 2,
+      "max_pending_capture_jobs": 2,
+      "latency_ms": {
+        "count": 4,
+        "p50_ms": 189.0205,
+        "p95_ms": 391.2098,
+        "p99_ms": 391.2098,
+        "max_ms": 391.2098
+      },
+      "elapsed_seconds": 0.3913,
+      "peak_process_rss_bytes": 169848832
+    },
+    {
+      "synthetic": true,
+      "profile": "preview",
+      "streams": 4,
+      "capture_concurrency": 4,
+      "fake_capture_delay_ms": 200.0,
+      "fake_send_delay_ms": 5.0,
+      "completed_previews": 4,
+      "max_active_captures": 4,
+      "max_pending_capture_jobs": 1,
+      "latency_ms": {
+        "count": 4,
+        "p50_ms": 189.5951,
+        "p95_ms": 203.7284,
+        "p99_ms": 203.7284,
+        "max_ms": 203.7284
+      },
+      "elapsed_seconds": 0.2038,
+      "peak_process_rss_bytes": 169893888
+    }
+  ]
+}

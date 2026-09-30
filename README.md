@@ -133,6 +133,13 @@ Telegram Login Widget и совпадение user ID с `OWNER_CHAT_ID`.
 поста, а смена stream ID или отключение уведомлений делает job устаревшим.
 Текущий статус staging-флага и проверок — в `docs/STATUS.md`.
 
+Локальный нагрузочный инструмент `python -m scripts.load_harness` поддерживает
+`--destinations 20000 30000 40000 --sample-mode shared`,
+`--preview-concurrency 1 2 4` и `--queue-jobs 1000 5000 10000` (для каждого
+запуска нужен новый путь `--output`). Он создаёт временные SQLite базы и
+использует только фальшивые media/Telegram операции; измерения и границы
+интерпретации записаны в `docs/audits/2026-09-30-r3-results.md`.
+
 ## Команды бота
 
 - `/start` — главное меню

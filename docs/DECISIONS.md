@@ -113,3 +113,11 @@
 - **Причина:** тесты проверили атомарность при DB ошибке, retry/terminal/stale, гонки worker CAS с live/offline poll, позднюю отмену подписки и отсутствие per-destination query к очереди. При завершении job между двумя снимками poller перечитывает текущий message ID перед legacy resume, чтобы не создать дубль. Worker ждёт первого sample, чтобы не публиковать ошибочные 0 зрителей. По [Telegram Bot FAQ](https://core.telegram.org/bots/faq) старт отправок worker ограничен до 25/с глобально, 1/с в личном чате и интервалом 3,1 с в группе; остальные пути отправки пока не разделяют этот бюджет.
 - **Последствие:** production config отвергает флаг даже при ошибочно заданном имени окружения; на pinned staging флаг 1 после gate 992 passed и deployment `db6f6316-c3c3-4871-8e0a-112f7858ce65` (`SUCCESS`). Синтетический job прошёл worker claim/ack; фактическая Telegram go-live доставка ещё не проверена. Обновления уже существующих live-постов и offline cleanup остаются прежними до следующего пакета.
 - **Пересмотр:** после staging Telegram E2E и измерений backlog/latency.
+
+## D-015 — SQLite остаётся на staging до полного R9 load/recovery evidence
+
+- **Дата:** 2026-09-30.
+- **Решение:** не мигрировать на PostgreSQL сейчас. Сохранить одну сериализованную SQLite запись и одну staging replica с Volume; продолжить измерения и проверку восстановления.
+- **Основание:** локальные синтетические профили в `docs/audits/2026-09-30-r3-results.md`: shared sample path на 20k/30k/40k, fake preview 1/2/4 и durable queue до 10k jobs без сети. 10k jobs завершились без потерь; DB-only drain 28,96 с, но установленный Telegram budget 25 стартов/с задаёт минимум 400 с для 10k одновременных sends. PostgreSQL сам по себе не снимет этот внешний предел.
+- **Ограничение:** это один прогон каждого локального профиля без FFmpeg, Telegram, настоящего poller и одновременных mixed workloads. Вывод не подтверждает SLA 40k пользователей, безопасность горизонтального scaling или отсутствие будущего DB bottleneck.
+- **Пересмотр:** R9 full mixed load, WAL/lock/CPU/RAM/disk, recovery и staging testbot delivery; перейти к PostgreSQL по измеренному DB bottleneck, а не по числу пользователей в одиночку.

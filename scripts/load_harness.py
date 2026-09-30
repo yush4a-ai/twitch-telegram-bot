@@ -20,6 +20,10 @@ import tempfile
 import time
 
 from bot.database import Database
+from bot.live_post import LivePostContent, LivePostMediaResult, LivePostMediaStatus, LocalAnimation
+from bot.notification_queue import NotificationQueue
+from bot.notification_worker import NotificationOutcome, NotificationWorker
+from bot.preview_runtime import PreviewManager, PreviewObservation
 
 
 def _latency_summary(samples: list[float]) -> dict[str, float | int]:
@@ -182,9 +186,180 @@ async def run_profile(
         await database.close()
 
 
+async def run_preview_profile(
+    concurrency: int, *, stream_count: int = 4,
+    capture_delay: float = 0.2, send_delay: float = 0.005,
+) -> dict:
+    """Exercise the real preview coordinator with fake capture and Telegram I/O."""
+    if (
+        concurrency not in (1, 2, 4) or not 1 <= stream_count <= 16
+        or not 0 < capture_delay <= 0.5 or not 0 <= send_delay <= 0.5
+    ):
+        raise ValueError("Unsupported synthetic preview profile")
+
+    completed = asyncio.Event()
+    active_captures = 0
+    max_active_captures = 0
+    completion_ms: list[float] = []
+    started = time.perf_counter()
+
+    class Session:
+        async def create_artifact(self, _request):
+            nonlocal active_captures, max_active_captures
+            active_captures += 1
+            max_active_captures = max(max_active_captures, active_captures)
+            try:
+                await asyncio.sleep(capture_delay)
+                return LocalAnimation("synthetic-not-created.mp4", duration_seconds=6.0)
+            finally:
+                active_captures -= 1
+
+        async def release_artifact(self, _artifact):
+            return None
+
+        async def close(self):
+            return None
+
+    class Provider:
+        async def open_session(self, _key):
+            return Session()
+
+    class Updater:
+        async def apply_animation(self, **_kwargs):
+            await asyncio.sleep(send_delay)
+            completion_ms.append((time.perf_counter() - started) * 1000)
+            if len(completion_ms) == stream_count:
+                completed.set()
+            return LivePostMediaResult(LivePostMediaStatus.APPLIED, "synthetic-file-id")
+
+    with tempfile.TemporaryDirectory(prefix="twitchsignal-preview-load-") as directory:
+        database = Database(str(Path(directory) / "synthetic.db"))
+        await database.connect()
+        manager = PreviewManager(
+            database, Updater(), Provider(), enabled=True,
+            initial_delay_seconds=0, interval_seconds=3600,
+            max_concurrent_jobs=concurrency, job_timeout_seconds=10,
+            poll_interval_seconds=60,
+            build_content=lambda *_: LivePostContent("synthetic", None),
+        )
+        monitor: asyncio.Task | None = None
+        max_pending = 0
+
+        async def observe_pending():
+            nonlocal max_pending
+            while not completed.is_set():
+                active_jobs = int(manager.health_snapshot()["active_jobs"])
+                max_pending = max(max_pending, max(0, active_jobs - active_captures))
+                await asyncio.sleep(0.001)
+
+        try:
+            observations = []
+            for index in range(stream_count):
+                login = f"synthetic_preview_{index}"
+                await database.add_channel(1_000_000 + index, login)
+                await database.set_preview_enabled(1_000_000 + index, login, True)
+                await database.set_live_state(
+                    1_000_000 + index, login, True, f"synthetic-{index}",
+                    2_000_000 + index, "Synthetic", last_seen_live_at=time.time(),
+                )
+                observations.append(PreviewObservation(
+                    login, True, f"synthetic-{index}", "Synthetic", "Synthetic", 42,
+                    "2026-01-01T00:00:00Z",
+                ))
+            started = time.perf_counter()
+            monitor = asyncio.create_task(observe_pending())
+            manager.start()
+            manager.observe_cycle(observations)
+            await asyncio.wait_for(completed.wait(), timeout=10.0)
+            return {
+                "synthetic": True,
+                "profile": "preview",
+                "streams": stream_count,
+                "capture_concurrency": concurrency,
+                "fake_capture_delay_ms": round(capture_delay * 1000, 2),
+                "fake_send_delay_ms": round(send_delay * 1000, 2),
+                "completed_previews": len(completion_ms),
+                "max_active_captures": max_active_captures,
+                "max_pending_capture_jobs": max_pending,
+                "latency_ms": _latency_summary(completion_ms),
+                "elapsed_seconds": round(time.perf_counter() - started, 4),
+                "peak_process_rss_bytes": _peak_rss_bytes(),
+            }
+        finally:
+            if monitor is not None:
+                monitor.cancel()
+                await asyncio.gather(monitor, return_exceptions=True)
+            await manager.shutdown()
+            await database.close()
+
+
+async def run_queue_profile(jobs: int) -> dict:
+    """Drain synthetic durable jobs with a fake sender and no rate wait/network."""
+    if not isinstance(jobs, int) or isinstance(jobs, bool) or not 1 <= jobs <= 40000:
+        raise ValueError("Unsupported synthetic queue profile")
+    with tempfile.TemporaryDirectory(prefix="twitchsignal-queue-load-") as directory:
+        path = Path(directory) / "synthetic.db"
+        database = Database(str(path))
+        await database.connect()
+        queue = NotificationQueue(database)
+        try:
+            enqueue_started = time.perf_counter()
+            for index in range(jobs):
+                await queue.enqueue(
+                    "synthetic", 1_000_000 + index, "synthetic_streamer",
+                    "synthetic-stream", 1, due_at=1.0, now=0.0,
+                )
+            enqueue_seconds = time.perf_counter() - enqueue_started
+            initial_depth = await queue.depth_snapshot(1.0)
+            completed_at_ms: list[float] = []
+            drain_started = time.perf_counter()
+
+            async def fake_send(_job):
+                await asyncio.sleep(0)
+                completed_at_ms.append((time.perf_counter() - drain_started) * 1000)
+                return NotificationOutcome.SENT
+
+            worker = NotificationWorker(
+                queue, fake_send, max_concurrency=4,
+                per_chat_interval=0, group_chat_interval=0,
+                global_interval=0, clock=lambda: 1.0,
+            )
+            while await worker.run_once():
+                pass
+            drain_seconds = time.perf_counter() - drain_started
+            final_depth = await queue.depth_snapshot(1.0)
+            cursor = await database.conn.execute(
+                "SELECT COUNT(*) FROM notification_jobs WHERE status = 'done'"
+            )
+            completed_jobs = int((await cursor.fetchone())[0])
+            if completed_jobs != jobs or final_depth["pending_jobs"] or final_depth["leased_jobs"]:
+                raise RuntimeError("Synthetic queue delivery gap")
+            wal_path = Path(str(path) + "-wal")
+            return {
+                "synthetic": True,
+                "profile": "queue",
+                "network_requests": 0,
+                "enqueued_jobs": jobs,
+                "completed_jobs": completed_jobs,
+                "remaining_jobs": int(final_depth["pending_jobs"] + final_depth["leased_jobs"]),
+                "initial_due_jobs": initial_depth["due_jobs"],
+                "enqueue_seconds": round(enqueue_seconds, 4),
+                "drain_seconds": round(drain_seconds, 4),
+                "latency_ms": _latency_summary(completed_at_ms),
+                "db_bytes": path.stat().st_size,
+                "wal_bytes": wal_path.stat().st_size if wal_path.exists() else 0,
+                "peak_process_rss_bytes": _peak_rss_bytes(),
+            }
+        finally:
+            await database.close()
+
+
 async def _main() -> None:
     parser = argparse.ArgumentParser(description="Synthetic local SQLite growth baseline")
-    parser.add_argument("--destinations", type=int, nargs="+", required=True)
+    profiles_group = parser.add_mutually_exclusive_group(required=True)
+    profiles_group.add_argument("--destinations", type=int, nargs="+")
+    profiles_group.add_argument("--preview-concurrency", type=int, nargs="+")
+    profiles_group.add_argument("--queue-jobs", type=int, nargs="+")
     parser.add_argument("--rounds", type=int, default=1)
     parser.add_argument("--seed", type=int, default=20260930)
     parser.add_argument("--sample-mode", choices=("legacy", "shared"), default="legacy")
@@ -193,12 +368,19 @@ async def _main() -> None:
     if args.output.exists() or not args.output.parent.is_dir():
         parser.error("--output must be a new file in an existing directory")
     profiles = []
-    for destinations in args.destinations:
-        with tempfile.TemporaryDirectory(prefix="twitchsignal-load-") as directory:
-            profiles.append(await run_profile(
-                destinations, seed=args.seed, rounds=args.rounds,
-                db_path=str(Path(directory) / "synthetic.db"), sample_mode=args.sample_mode,
-            ))
+    if args.destinations:
+        for destinations in args.destinations:
+            with tempfile.TemporaryDirectory(prefix="twitchsignal-load-") as directory:
+                profiles.append(await run_profile(
+                    destinations, seed=args.seed, rounds=args.rounds,
+                    db_path=str(Path(directory) / "synthetic.db"), sample_mode=args.sample_mode,
+                ))
+    elif args.preview_concurrency:
+        for concurrency in args.preview_concurrency:
+            profiles.append(await run_preview_profile(concurrency))
+    else:
+        for jobs in args.queue_jobs:
+            profiles.append(await run_queue_profile(jobs))
     with args.output.open("x", encoding="utf-8") as output:
         json.dump({
             "synthetic": True,
@@ -211,11 +393,24 @@ async def _main() -> None:
         }, output, ensure_ascii=False, indent=2)
         output.write("\n")
     for profile in profiles:
-        print(
-            f"{profile['destinations']} destinations: sample p95="
-            f"{profile['operations']['sample_insert']['p95_ms']} ms, "
-            f"duplication={profile['sample_duplication_factor']}x"
-        )
+        if profile.get("profile") == "preview":
+            print(
+                f"preview concurrency={profile['capture_concurrency']}: "
+                f"p95={profile['latency_ms']['p95_ms']} ms, "
+                f"max_active={profile['max_active_captures']}"
+            )
+        elif profile.get("profile") == "queue":
+            print(
+                f"queue jobs={profile['enqueued_jobs']}: "
+                f"completed={profile['completed_jobs']}, "
+                f"p95={profile['latency_ms']['p95_ms']} ms"
+            )
+        else:
+            print(
+                f"{profile['destinations']} destinations: sample p95="
+                f"{profile['operations']['sample_insert']['p95_ms']} ms, "
+                f"duplication={profile['sample_duplication_factor']}x"
+            )
 
 
 if __name__ == "__main__":

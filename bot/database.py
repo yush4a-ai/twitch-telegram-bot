@@ -875,10 +875,12 @@ class Database:
         rows = await cursor.fetchall()
         return [(row[0], bool(row[1]), bool(row[2])) for row in rows]
 
-    async def list_live_channels(self, chat_id: int) -> list[tuple[str, str, int | None, str | None]]:
+    async def list_live_channels(
+        self, chat_id: int, *, twitch_login: str | None = None
+    ) -> list[tuple[str, str, int | None, str | None]]:
         """(twitch_login, title, viewer_count, game_name) для каналов чата, которые сейчас
         в эфире. viewer_count/game_name — из последнего опроса, None если сэмплов ещё не было."""
-        cursor = await self.conn.execute(
+        query = (
             "SELECT tc.twitch_login, tc.last_title, "
             "COALESCE(ss.viewer_count, obs.viewer_count) AS viewer_count, "
             "COALESCE(ss.game_name, obs.game_name) AS game_name "
@@ -898,9 +900,13 @@ class Database:
             "LEFT JOIN stream_observations obs ON obs.twitch_login = m.twitch_login "
             "AND obs.stream_id = m.stream_id AND obs.sampled_at = m.sampled_at "
             "WHERE tc.chat_id = ? AND tc.is_live = 1 "
-            "ORDER BY tc.twitch_login",
-            (chat_id,),
         )
+        params: tuple[int] | tuple[int, str] = (chat_id,)
+        if twitch_login is not None:
+            query += "AND tc.twitch_login = ? "
+            params = (chat_id, twitch_login)
+        query += "ORDER BY tc.twitch_login"
+        cursor = await self.conn.execute(query, params)
         rows = await cursor.fetchall()
         return [(row[0], row[1] or "", row[2], row[3] if row[3] != "—" else None) for row in rows]
 

@@ -52,6 +52,21 @@ class NotificationCutoverTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.poller._notify.await_args.kwargs["direct"])
         self.assertEqual((await self.db.get_live_post_state(1, "alpha")).message_id, 321)
 
+    async def test_worker_checks_channel_membership_by_chat_id_without_full_scan(self):
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+        job = (await NotificationQueue(self.db).claim_due(
+            1000.0, limit=1, lease_seconds=60.0
+        ))[0]
+        self.db.is_telegram_channel = AsyncMock(return_value=False)
+        self.db.telegram_channel_ids = AsyncMock(
+            side_effect=AssertionError("worker must not scan all Telegram channels")
+        )
+        self.db.list_live_channels = AsyncMock(wraps=self.db.list_live_channels)
+        self.assertEqual(await self.poller.send_queued_job(job), NotificationOutcome.SENT)
+        self.db.is_telegram_channel.assert_awaited_once_with(1)
+        self.db.list_live_channels.assert_awaited_once_with(1, twitch_login="alpha")
+
     async def test_worker_waits_for_first_sample_before_sending_post(self):
         await self.db.set_live_state(
             1, "alpha", True, "s1", title="Live", last_seen_live_at=1000.0,

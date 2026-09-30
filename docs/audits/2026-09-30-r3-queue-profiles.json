@@ -1,0 +1,73 @@
+{
+  "synthetic": true,
+  "runtime": {
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "os": "Windows"
+  },
+  "profiles": [
+    {
+      "synthetic": true,
+      "profile": "queue",
+      "network_requests": 0,
+      "enqueued_jobs": 1000,
+      "completed_jobs": 1000,
+      "remaining_jobs": 0,
+      "initial_due_jobs": 1000,
+      "enqueue_seconds": 2.1057,
+      "drain_seconds": 2.5754,
+      "latency_ms": {
+        "count": 1000,
+        "p50_ms": 1293.3426,
+        "p95_ms": 2448.3059,
+        "p99_ms": 2546.9818,
+        "max_ms": 2567.1635
+      },
+      "db_bytes": 487424,
+      "wal_bytes": 4140632,
+      "peak_process_rss_bytes": 170475520
+    },
+    {
+      "synthetic": true,
+      "profile": "queue",
+      "network_requests": 0,
+      "enqueued_jobs": 5000,
+      "completed_jobs": 5000,
+      "remaining_jobs": 0,
+      "initial_due_jobs": 5000,
+      "enqueue_seconds": 10.6781,
+      "drain_seconds": 13.4062,
+      "latency_ms": {
+        "count": 5000,
+        "p50_ms": 6753.5567,
+        "p95_ms": 12741.5445,
+        "p99_ms": 13271.1927,
+        "max_ms": 13397.7911
+      },
+      "db_bytes": 1294336,
+      "wal_bytes": 4157112,
+      "peak_process_rss_bytes": 173105152
+    },
+    {
+      "synthetic": true,
+      "profile": "queue",
+      "network_requests": 0,
+      "enqueued_jobs": 10000,
+      "completed_jobs": 10000,
+      "remaining_jobs": 0,
+      "initial_due_jobs": 10000,
+      "enqueue_seconds": 21.2484,
+      "drain_seconds": 28.961,
+      "latency_ms": {
+        "count": 10000,
+        "p50_ms": 14606.4288,
+        "p95_ms": 27544.5681,
+        "p99_ms": 28677.3009,
+        "max_ms": 28950.8605
+      },
+      "db_bytes": 2301952,
+      "wal_bytes": 4161232,
+      "peak_process_rss_bytes": 175722496
+    }
+  ]
+}

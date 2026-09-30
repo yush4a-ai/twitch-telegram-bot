@@ -2232,7 +2232,9 @@ class StreamPoller:
         ):
             return NotificationOutcome.STALE
         current = next(
-            (row for row in await self._db.list_live_channels(job.chat_id)
+            (row for row in await self._db.list_live_channels(
+                job.chat_id, twitch_login=job.twitch_login
+            )
              if row[0] == job.twitch_login),
             None,
         )
@@ -2241,7 +2243,7 @@ class StreamPoller:
         _login, title, viewers, game_name = current
         if viewers is None:
             raise RuntimeError("queued live sample is not ready")
-        include_track_link = job.chat_id in await self._db.telegram_channel_ids()
+        include_track_link = await self._db.is_telegram_channel(job.chat_id)
         include_video_submission_link = (
             self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
         )

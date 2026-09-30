@@ -2,10 +2,42 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.load_harness import run_profile
+from scripts.load_harness import run_preview_profile, run_profile, run_queue_profile
 
 
 class LoadHarnessTests(unittest.IsolatedAsyncioTestCase):
+    async def test_preview_profiles_use_real_manager_bound_with_fake_media(self):
+        serial = await run_preview_profile(
+            1, stream_count=4, capture_delay=0.2, send_delay=0.005
+        )
+        parallel = await run_preview_profile(
+            4, stream_count=4, capture_delay=0.2, send_delay=0.005
+        )
+        self.assertEqual(serial["completed_previews"], 4)
+        self.assertEqual(parallel["completed_previews"], 4)
+        self.assertEqual(serial["max_active_captures"], 1)
+        self.assertGreaterEqual(parallel["max_active_captures"], 2)
+        self.assertLessEqual(parallel["max_active_captures"], 4)
+        self.assertGreaterEqual(serial["max_pending_capture_jobs"], 2)
+        self.assertTrue(serial["synthetic"])
+        self.assertEqual(serial["latency_ms"]["count"], 4)
+
+    async def test_preview_profile_rejects_unbounded_concurrency(self):
+        with self.assertRaises(ValueError):
+            await run_preview_profile(40)
+
+    async def test_queue_profile_drains_every_synthetic_job_without_network(self):
+        profile = await run_queue_profile(40)
+        self.assertEqual(profile["enqueued_jobs"], 40)
+        self.assertEqual(profile["completed_jobs"], 40)
+        self.assertEqual(profile["remaining_jobs"], 0)
+        self.assertEqual(profile["latency_ms"]["count"], 40)
+        self.assertTrue(profile["synthetic"])
+
+    async def test_queue_profile_rejects_unbounded_jobs(self):
+        with self.assertRaises(ValueError):
+            await run_queue_profile(40001)
+
     async def test_small_profile_is_synthetic_reproducible_and_measured(self):
         with tempfile.TemporaryDirectory() as directory:
             first = await run_profile(100, seed=17, db_path=str(Path(directory) / "first.db"), rounds=2)

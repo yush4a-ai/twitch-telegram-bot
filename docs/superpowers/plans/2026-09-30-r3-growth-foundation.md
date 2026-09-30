@@ -94,9 +94,10 @@
 **Interfaces:** Harness adds preview 1/2/4 concurrency profiles with fake renderer/sender and queue depth/lag metrics; staging panel reports pending/leased/failed job counts and oldest due age.
 
 - [x] Verify with an integration test that blocked preview capture does not block poll or normal notification worker; preserve existing preview concurrency bounds. Add owner panel fields for pending/leased/due/failed jobs and oldest due age after a failing UI route test.
-- [ ] Run focused GREEN and full suite; review exact staging target, deploy only committed snapshot with R1 guard.
-- [ ] Run `getMe`, `/healthz`, queue/recovery staging smoke, testbot E2E and synthetic load; record p50/p95/p99, CPU/RAM/disk, WAL growth and any delivery gap.
-- [ ] Decide SQLite vs PostgreSQL from measured data; record decision and limitations, update STATUS/DECISIONS and commit documents.
+- [x] Add reproducible TEMP-only synthetic shared 20k/30k/40k, preview 1/2/4 and queue 1k/5k/10k profiles; record p50/p95/p99, DB/WAL and process RSS with explicit no-network/no-FFmpeg limits.
+- [ ] Run full suite and exact staging target review for the latest fan-out lookup/harness package; deploy only committed snapshot with R1 guard.
+- [ ] Run `getMe`, `/healthz`, queue/recovery staging smoke and controlled testbot go-live E2E; record real latency and any delivery gap.
+- [x] Record provisional SQLite vs PostgreSQL decision and limits in STATUS/DECISIONS/audit; revisit at R9 mixed load and recovery.
 
 ## Self-review
 
