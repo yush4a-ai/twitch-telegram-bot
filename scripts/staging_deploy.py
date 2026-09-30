@@ -146,7 +146,7 @@ def validate_bootstrap_target(status: dict, target: dict) -> list[str]:
 
 def build_deploy_command(target: dict, commit: str) -> list[str]:
     return [
-        "railway", "up", ".",
+        "railway", "up",
         "--project", target["project_id"],
         "--environment", target["staging_environment_id"],
         "--service", target["service_id"],

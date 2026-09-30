@@ -160,7 +160,8 @@ def test_git_gate_rejects_dirty_and_main():
 
 def test_deploy_command_pins_all_three_ids_and_commit():
     command = build_deploy_command(TARGET, "a" * 40)
-    assert command[:3] == ["railway", "up", "."]
+    assert command[:2] == ["railway", "up"]
+    assert "." not in command
     assert command[command.index("--project") + 1] == "project-1"
     assert command[command.index("--environment") + 1] == "staging-1"
     assert command[command.index("--service") + 1] == "service-1"
