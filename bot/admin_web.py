@@ -35,8 +35,8 @@ def _login_page(error: str = "") -> str:
         '<form action="/admin/login" method="post">'
         '<label for="access_key">Ключ доступа</label>'
         '<input id="access_key" name="access_key" type="password" autocomplete="current-password" required>'
-        '<button type="submit">Войти</button></form>'
-        f'{error_html}<p class="fine">TwitchSignalBot · staging</p></main></body></html>'
+        f'{error_html}<button type="submit">Войти</button></form>'
+        '<p class="fine">TwitchSignalBot · staging</p></main></body></html>'
     )
 
 

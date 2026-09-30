@@ -24,21 +24,24 @@ function put(id, text) { $(id).textContent = text; }
 function renderLive(rows) {
   const list = $('live-list');
   list.replaceChildren();
-  if (rows === null) { const p = document.createElement('p'); p.className='empty'; p.textContent='Список эфиров временно недоступен'; list.append(p); return; }
-  if (!rows.length) { const p = document.createElement('p'); p.className='empty'; p.textContent='Сейчас нет зафиксированных эфиров'; list.append(p); return; }
+  if (rows === null || !rows.length) {
+    const tr=document.createElement('tr'); tr.className='empty-row';
+    const td=document.createElement('td'); td.colSpan=4;
+    td.textContent=rows === null ? 'Список эфиров временно недоступен' : 'Сейчас нет зафиксированных эфиров';
+    tr.append(td); list.append(tr); return;
+  }
   for (const row of rows) {
-    const article = document.createElement('div'); article.className='live-row';
+    const tr = document.createElement('tr');
     for (const [label, content, cls] of [
       ['Канал', row.login || 'Нет данных', 'live-login'],
       ['Назначений', value(row.destinations), ''],
       ['Зрителей', value(row.viewers), ''],
       ['Наблюдение', row.observed_at ? new Date(row.observed_at * 1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : 'Нет данных', '']
     ]) {
-      const span=document.createElement('span'); if (cls) span.className=cls;
-      const small=document.createElement('small'); small.textContent=label;
-      span.append(small,document.createTextNode(content)); article.append(span);
+      const td=document.createElement('td'); if (cls) td.className=cls;
+      td.dataset.label=label; td.textContent=content; tr.append(td);
     }
-    list.append(article);
+    list.append(tr);
   }
 }
 function render(data) {

@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0B1020" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F3F3FA" media="(prefers-color-scheme: light)">
   <title>Панель владельца · TwitchSignalBot</title>
   <link rel="stylesheet" href="/admin/panel.css">
   <script src="/admin/panel.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">К содержанию</a>
   <div class="shell">
     <header class="topbar">
       <div class="brand" aria-label="TwitchSignalBot"><span class="brand-mark" aria-hidden="true"></span><span>TwitchSignal<span class="brand-bot">Bot</span></span></div>
@@ -19,7 +22,7 @@
       </div>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       <div class="page-intro">
         <div><h1>Состояние бота</h1><p>Тестовый контур · данные обновляются каждые 30 секунд</p></div>
         <div class="update-meta" role="status" aria-live="polite"><span id="updated-at">Загрузка…</span><span class="freshness" id="freshness">Ожидание данных</span></div>
@@ -42,7 +45,7 @@
       </section>
 
       <div class="lower-grid">
-        <section class="live-section" aria-labelledby="live-heading"><div class="section-head"><h2 id="live-heading">Сейчас в эфире</h2><p>По последнему состоянию poller</p></div><div class="live-header" aria-hidden="true"><span>Канал</span><span>Назначений</span><span>Зрителей</span><span>Наблюдение</span></div><div id="live-list" class="live-list"><p class="empty">Загрузка…</p></div></section>
+        <section class="live-section" aria-labelledby="live-heading"><div class="section-head"><h2 id="live-heading">Сейчас в эфире</h2><p>По последнему состоянию poller</p></div><table class="live-table"><thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead><tbody id="live-list"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody></table></section>
         <section class="operations-section" aria-labelledby="operations-heading"><div class="section-head"><h2 id="operations-heading">Операции</h2><p>Очереди, ошибки, ресурсы процесса</p></div><div class="operation-group"><h3>Очереди отчётов</h3><dl><div><dt>Ожидают отправки</dt><dd id="queue-pending">—</dd></div><div><dt>Старейший элемент</dt><dd id="queue-age">—</dd></div><div><dt>Отложены на тихие часы</dt><dd id="queue-deferred">—</dd></div></dl></div><div class="operation-group"><h3>Ошибки</h3><dl><div><dt>Poller</dt><dd id="error-poller">—</dd></div><div><dt>EventSub</dt><dd id="error-eventsub">—</dd></div><div><dt>Preview</dt><dd id="error-preview">—</dd></div><div><dt>База данных</dt><dd id="error-database">—</dd></div></dl></div><div class="operation-group"><h3>Ресурсы</h3><dl><div><dt>CPU процесса</dt><dd id="resource-cpu">—</dd></div><div><dt>RAM процесса</dt><dd id="resource-ram">—</dd></div><div><dt>Свободно на томе DB</dt><dd id="resource-disk">—</dd></div><div><dt>SQLite DB / WAL</dt><dd id="resource-db">—</dd></div></dl></div></section>
       </div>
     </main>

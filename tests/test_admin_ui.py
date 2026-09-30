@@ -44,6 +44,8 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 200)
             self.assertIn('id="health-grid"', body)
             self.assertIn('id="live-list"', body)
+            self.assertIn('<table', body)
+            self.assertIn('href="#main-content"', body)
             self.assertIn('src="/admin/panel.js"', body)
         async with self.session.get(self.base + "/admin/panel.css") as response:
             self.assertEqual(response.status, 200)
