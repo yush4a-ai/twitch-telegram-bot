@@ -85,7 +85,9 @@
 - [x] Test send-before-ack crash boundary explicitly: expired lease retries and can duplicate external send.
 - [x] Implement new go-live cutover behind a pinned staging-only flag with atomic tracked-state/queue transition; preserve worker message ID during concurrent live/offline polls.
 - [x] Offline cleanup TDD package: failing tests for grace/no Telegram in poll, unique post identity, private ended, public delete, reconnect/new message stale and transient retry; enqueue due posts in one indexed SQL statement and dispatch in worker. Keep private media CAS and public post lock. Staging testbot E2E confirmed private ended edit.
-- [ ] Live update coalescing design and TDD package: one pending destination job with revision fencing, newest shared sample, media CAS/preview file-id reuse, restart/retry/terminal semantics; then staging cutover.
+- [ ] Live update queue schema/revision package: TDD one job per current message, revision while leased/done, stale target and fenced ack; additive migration, local backup/restore test and clean commit.
+- [ ] Poller/worker cutover package: TDD current sample content, no Telegram content edit in poll, retry/terminal/restart, reconnect/new message stale and media CAS for photo/animation; extend temporary-DB testbot E2E to live edit then offline ended; commit.
+- [ ] Fresh external staging snapshot and restore verification; full gate, exact target diff, staging deploy, `/healthz`, owner auth denial, testbot E2E and queue depth evidence.
 - [ ] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
 
 ### Task 6: Preview isolation, staging validation and decision
