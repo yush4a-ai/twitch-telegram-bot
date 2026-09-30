@@ -591,7 +591,72 @@ class Database:
             "SELECT 1 FROM telegram_channels c "
             "WHERE c.chat_id = quiet_hours_digest_sent.chat_id)"
         )
+        await self._migrate_growth_schema()
         await self.conn.commit()
+
+    async def _migrate_growth_schema(self) -> None:
+        """Add R3 tables inside the caller's BEGIN IMMEDIATE boundary."""
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_migrations ("
+            "version TEXT PRIMARY KEY, applied_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS stream_observations ("
+            "twitch_login TEXT NOT NULL, stream_id TEXT NOT NULL, "
+            "sampled_at REAL NOT NULL, viewer_count INTEGER NOT NULL, "
+            "title TEXT NOT NULL, game_name TEXT NOT NULL, "
+            "PRIMARY KEY (twitch_login, stream_id, sampled_at))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_stream_observations_retention "
+            "ON stream_observations (sampled_at)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS stream_observation_destinations ("
+            "chat_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "stream_id TEXT NOT NULL, first_sampled_at REAL NOT NULL, "
+            "last_sampled_at REAL NOT NULL, "
+            "CHECK (first_sampled_at <= last_sampled_at), "
+            "PRIMARY KEY (chat_id, twitch_login, stream_id))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_stream_observation_destinations_stream "
+            "ON stream_observation_destinations (twitch_login, stream_id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
+            "VALUES ('r3_001_observations', ?)", (time.time(),)
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS notification_jobs ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "kind TEXT NOT NULL, chat_id INTEGER NOT NULL, "
+            "twitch_login TEXT NOT NULL, logical_stream_id TEXT NOT NULL, "
+            "payload_version INTEGER NOT NULL, due_at REAL NOT NULL, "
+            "status TEXT NOT NULL CHECK (status IN ('pending', 'leased', 'done', 'failed')), "
+            "attempt_count INTEGER NOT NULL DEFAULT 0, lease_until REAL, "
+            "created_at REAL NOT NULL, updated_at REAL NOT NULL, "
+            "last_error_class TEXT, "
+            "UNIQUE (kind, chat_id, twitch_login, logical_stream_id, payload_version))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notification_jobs_due "
+            "ON notification_jobs (status, due_at, id)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notification_jobs_lease "
+            "ON notification_jobs (status, lease_until, id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
+            "VALUES ('r3_002_notification_jobs', ?)", (time.time(),)
+        )
+
+    async def schema_versions(self) -> list[str]:
+        cursor = await self.conn.execute(
+            "SELECT version FROM schema_migrations ORDER BY version"
+        )
+        return [row[0] for row in await cursor.fetchall()]
 
     def _encrypt_token(self, value: str) -> str:
         if self._token_cipher is None or value.startswith(_ENCRYPTED_TOKEN_PREFIX):

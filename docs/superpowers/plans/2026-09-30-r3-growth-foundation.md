@@ -46,10 +46,10 @@
 
 **Interfaces:** `schema_migrations`, `stream_observations`, `stream_observation_destinations`, `notification_jobs` are created idempotently by `Database.connect()`; `Database.schema_versions() -> list[str]` exposes applied named versions for local/staging checks.
 
-- [ ] Write failing tests for fresh DB, old DB migration, second startup idempotence, unique keys and rollback on injected migration failure.
-- [ ] Run focused RED; add tables/indexes and explicit version ledger in the existing `BEGIN IMMEDIATE` migration boundary.
-- [ ] Run focused GREEN and existing migration/retention tests; review `EXPLAIN QUERY PLAN` on claim and sample reads.
-- [ ] Before staging schema deploy, complete external staging snapshot/export and online backup/restore drill; record paths and integrity without exposing tokens/user data.
+- [x] Write failing tests for fresh DB, old DB migration, second startup idempotence, unique keys and rollback on injected migration failure.
+- [x] Run focused RED; add tables/indexes and explicit version ledger in the existing `BEGIN IMMEDIATE` migration boundary.
+- [x] Run focused GREEN and existing migration/retention tests; review `EXPLAIN QUERY PLAN` on claim. Shared-sample query plan follows Task 3 writer/reader.
+- [x] Before staging schema deploy, complete external staging snapshot/export and online backup/restore drill; record paths and integrity without exposing tokens/user data.
 - [ ] Commit schema package; do not deploy until Task 3 reader/writer path and Task 4 queue model are tested together.
 
 ### Task 3: Shared observations and legacy report compatibility
