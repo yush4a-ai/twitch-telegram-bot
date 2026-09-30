@@ -180,6 +180,7 @@ class OAuthCallbackServer:
         admin_access: AdminAccess | None = None,
         streamer_access: StreamerAccess | None = None,
         streamer_db: Database | None = None,
+        streamer_bot=None,
     ) -> None:
         self.redirect_uri = redirect_uri
         self._host = host
@@ -192,6 +193,7 @@ class OAuthCallbackServer:
         self._admin_access = admin_access
         self._streamer_access = streamer_access
         self._streamer_db = streamer_db
+        self._streamer_bot = streamer_bot
         self._admin_snapshot_provider: SnapshotProvider | None = None
 
     def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
@@ -219,7 +221,7 @@ class OAuthCallbackServer:
 
             install_admin_routes(app, self._admin_access, _snapshot)
         if self._streamer_access is not None and self._streamer_db is not None:
-            install_streamer_routes(app, self._streamer_access, self._streamer_db)
+            install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)

@@ -566,6 +566,7 @@ async def main() -> None:
                     if getattr(config, "streamer_plus_enabled", False) else None
                 ),
                 streamer_db=db if getattr(config, "streamer_plus_enabled", False) else None,
+                streamer_bot=bot if getattr(config, "streamer_plus_enabled", False) else None,
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None

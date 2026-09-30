@@ -27,9 +27,16 @@
         <p id="plus-expiry">—</p>
       </section>
       <section class="card wide" aria-labelledby="next-title">
-        <p class="label">Следующий шаг</p>
-        <h2 id="next-title">Подключение сообщества</h2>
-        <p>Публикация в сообществе появится после проверки твоих прав и прав бота. Базовые уведомления продолжают работать.</p>
+        <p class="label">Сообщества</p>
+        <h2 id="next-title">Подключить сообщество</h2>
+        <p>Добавь бота администратором группы или канала. Для канала разреши ему публиковать и редактировать сообщения. Твои права бот проверит перед подключением.</p>
+        <form id="community-form" class="community-form">
+          <label for="chat-id">Числовой ID группы или канала</label>
+          <div class="form-row"><input id="chat-id" name="chat_id" inputmode="numeric" placeholder="−100…" required><button type="submit">Подключить</button></div>
+          <small>В группе ID можно узнать командой /myid. Базовые уведомления продолжают работать.</small>
+        </form>
+        <p id="community-message" role="status">Проверяем доступные сообщества…</p>
+        <ul id="community-list" class="community-list"></ul>
       </section>
     </div>
     <button class="refresh" id="refresh" type="button">Обновить</button>

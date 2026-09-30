@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 from html import escape
 from pathlib import Path
 
@@ -10,6 +12,7 @@ from aiohttp import web
 from .admin_web import SECURITY_HEADERS
 from .database import Database
 from .streamer_auth import StreamerAccess
+from .streamer_community import verify_community_permission
 
 _UI_DIR = Path(__file__).with_name("streamer_ui")
 
@@ -37,7 +40,7 @@ def _login_page(username: str, callback_url: str) -> str:
     )
 
 
-def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Database) -> None:
+def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Database, bot=None) -> None:
     if not access.enabled:
         return
 
@@ -155,9 +158,69 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             "plus_expires_at": expiry,
         })
 
+    async def communities(request: web.Request) -> web.Response:
+        user_id = _user(request)
+        if user_id is None:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        if bot is None:
+            return web.json_response({"error": "unavailable"}, status=503)
+        if await db.get_streamer_identity(user_id) is None:
+            return web.json_response({"error": "not_linked"}, status=403)
+        stored = await db.list_streamer_communities(user_id)
+        semaphore = asyncio.Semaphore(3)
+
+        async def check(row):
+            async with semaphore:
+                return await verify_community_permission(bot, row[0], user_id)
+
+        checked = await asyncio.gather(*(check(row) for row in stored))
+        return web.json_response({"communities": [
+            {"chat_id": item.chat_id, "title": item.title, "chat_type": item.chat_type}
+            for item in checked if item is not None
+        ]})
+
+    async def connect_community(request: web.Request) -> web.Response:
+        user_id = _user(request)
+        if user_id is None:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        if bot is None:
+            return web.json_response({"error": "unavailable"}, status=503)
+        origin = request.headers.get("Origin")
+        if origin and origin.rstrip("/") != (access.public_base_url or str(request.url.origin())):
+            return web.json_response({"error": "origin_denied"}, status=403)
+        if await db.get_streamer_identity(user_id) is None or not await db.has_streamer_plus(user_id):
+            return web.json_response({"error": "plus_required"}, status=403)
+        try:
+            body = await request.read()
+            if len(body) > 2048:
+                return web.json_response({"error": "invalid_request"}, status=413)
+            payload = json.loads(body)
+            chat_id = payload.get("chat_id") if isinstance(payload, dict) else None
+            if type(chat_id) is not int or chat_id >= 0:
+                return web.json_response({"error": "invalid_chat"}, status=400)
+        except (ValueError, UnicodeError):
+            return web.json_response({"error": "invalid_request"}, status=400)
+        verified = await verify_community_permission(bot, chat_id, user_id)
+        if verified is None:
+            return web.json_response({"error": "permission_denied"}, status=403)
+        try:
+            saved = await db.add_streamer_community(
+                user_id, verified.chat_id, verified.title, verified.chat_type,
+            )
+        except ValueError:
+            return web.json_response({"error": "community_limit"}, status=400)
+        if not saved:
+            return web.json_response({"error": "plus_required"}, status=403)
+        return web.json_response({
+            "chat_id": verified.chat_id, "title": verified.title,
+            "chat_type": verified.chat_type,
+        }, status=201)
+
     app.router.add_get("/streamer", index)
     app.router.add_get("/streamer/{name:login\\.css|login\\.js|panel\\.css|panel\\.js}", asset)
     app.router.add_post("/streamer/telegram-webapp", webapp_login)
     app.router.add_get("/streamer/telegram-login", widget_login)
     app.router.add_post("/streamer/logout", logout)
     app.router.add_get("/streamer/api/profile", profile)
+    app.router.add_get("/streamer/api/communities", communities)
+    app.router.add_post("/streamer/api/communities", connect_community)

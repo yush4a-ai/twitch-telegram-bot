@@ -2,8 +2,9 @@ import os
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
 from urllib.parse import urlencode
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 
@@ -21,9 +22,19 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
         await self.db.connect()
         await self.db.link_streamer_identity(101, "11", "alpha", verified_at=100)
         self.access = StreamerAccess(BOT_TOKEN, bot_username="TwitchSignalTestbot", secure_cookie=False)
+        self.user_admin = True
+        async def member(_chat_id, user_id):
+            return SimpleNamespace(
+                status="administrator" if user_id != 101 or self.user_admin else "member"
+            )
+        self.bot = SimpleNamespace(
+            id=999,
+            get_chat=AsyncMock(return_value=SimpleNamespace(type="supergroup", title="Group")),
+            get_chat_member=AsyncMock(side_effect=member),
+        )
         self.server = OAuthCallbackServer(
             "https://example.test/twitch/callback", "127.0.0.1", 0,
-            streamer_access=self.access, streamer_db=self.db,
+            streamer_access=self.access, streamer_db=self.db, streamer_bot=self.bot,
         )
         await self.server.start()
         self.session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
@@ -96,6 +107,7 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
             allow_redirects=False,
         ) as response:
             self.assertEqual(response.status, 403)
+
         async with self.session.get(
             self.base + "/streamer/telegram-login?" + urlencode({**signed_login(202), "state": state}),
             allow_redirects=False,
@@ -113,6 +125,34 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
             allow_redirects=False,
         ) as response:
             self.assertEqual(response.status, 403)
+
+    async def test_community_connect_requires_signed_linked_plus_and_fresh_telegram_rights(self):
+        async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
+            self.assertEqual(response.status, 401)
+        async with self.session.post(
+            self.base + "/streamer/telegram-webapp",
+            data={"init_data": signed_webapp(101)}, allow_redirects=False,
+        ) as response:
+            self.assertEqual(response.status, 303)
+        async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
+            self.assertEqual(response.status, 403)
+        await self.db.issue_test_streamer_plus(
+            "11", "grant-communities", starts_at=time.time() - 5,
+            expires_at=time.time() + 600, issued_by=425785231,
+        )
+        async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": 101}) as response:
+            self.assertEqual(response.status, 400)
+        self.user_admin = False
+        async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
+            self.assertEqual(response.status, 403)
+        self.user_admin = True
+        async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
+            self.assertEqual(response.status, 201)
+        async with self.session.get(self.base + "/streamer/api/communities") as response:
+            self.assertEqual((await response.json())["communities"], [{"chat_id": -1001, "title": "Group", "chat_type": "supergroup"}])
+        self.user_admin = False
+        async with self.session.get(self.base + "/streamer/api/communities") as response:
+            self.assertEqual((await response.json())["communities"], [])
 
 
 class StreamerRuntimeGateTests(unittest.TestCase):

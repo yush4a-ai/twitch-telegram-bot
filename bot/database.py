@@ -613,6 +613,7 @@ class Database:
         )
         await self._migrate_growth_schema()
         await self._migrate_streamer_schema()
+        await self._migrate_streamer_communities_schema()
         await self.conn.commit()
 
     async def _migrate_growth_schema(self) -> None:
@@ -737,6 +738,22 @@ class Database:
             "VALUES ('r4_001_streamer_access', ?)", (time.time(),)
         )
 
+    async def _migrate_streamer_communities_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_communities ("
+            "broadcaster_id TEXT NOT NULL, chat_id INTEGER NOT NULL, "
+            "title TEXT NOT NULL, chat_type TEXT NOT NULL, verified_at REAL NOT NULL, "
+            "PRIMARY KEY(broadcaster_id, chat_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_streamer_communities_chat "
+            "ON streamer_communities(chat_id, broadcaster_id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r4_002_streamer_communities', ?)", (time.time(),)
+        )
+
     @_serialized
     async def link_streamer_identity(
         self, telegram_user_id: int, broadcaster_id: str, twitch_login: str,
@@ -775,6 +792,60 @@ class Database:
         )
         row = await cursor.fetchone()
         return (row[0], row[1]) if row else None
+
+    @_serialized
+    async def add_streamer_community(
+        self, telegram_user_id: int, chat_id: int, title: str,
+        chat_type: str, *, now: float | None = None,
+    ) -> bool:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0 or type(chat_id) is not int or chat_id >= 0:
+            raise ValueError("invalid community identity")
+        if not isinstance(title, str) or not title.strip() or len(title) > 100:
+            raise ValueError("invalid community title")
+        if chat_type not in {"group", "supergroup", "channel"}:
+            raise ValueError("invalid community type")
+        at = time.time() if now is None else now
+        if not isinstance(at, (int, float)) or not math.isfinite(at):
+            raise ValueError("invalid verification time")
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM streamer_communities c "
+            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+            "WHERE i.telegram_user_id = ?", (telegram_user_id,),
+        )
+        count = (await cursor.fetchone())[0]
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM streamer_communities c "
+            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+            "WHERE i.telegram_user_id = ? AND c.chat_id = ?",
+            (telegram_user_id, chat_id),
+        )
+        if count >= 10 and await cursor.fetchone() is None:
+            raise ValueError("community limit reached")
+        cursor = await self.conn.execute(
+            "INSERT INTO streamer_communities(broadcaster_id, chat_id, title, chat_type, verified_at) "
+            "SELECT i.broadcaster_id, ?, ?, ?, ? FROM streamer_identities i "
+            "WHERE i.telegram_user_id = ? AND EXISTS ("
+            "SELECT 1 FROM entitlement_grants g WHERE g.subject_kind = 'streamer' "
+            "AND g.subject_id = i.broadcaster_id AND g.plan = 'streamer_plus' "
+            "AND g.revoked_at IS NULL AND g.starts_at <= ? AND g.expires_at > ?) "
+            "ON CONFLICT(broadcaster_id, chat_id) DO UPDATE SET "
+            "title=excluded.title, chat_type=excluded.chat_type, verified_at=excluded.verified_at",
+            (chat_id, title.strip(), chat_type, at, telegram_user_id, at, at),
+        )
+        if cursor.rowcount != 1:
+            await self.conn.rollback()
+            return False
+        await self.conn.commit()
+        return True
+
+    async def list_streamer_communities(self, telegram_user_id: int) -> list[tuple[int, str, str]]:
+        cursor = await self.conn.execute(
+            "SELECT c.chat_id, c.title, c.chat_type FROM streamer_communities c "
+            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+            "WHERE i.telegram_user_id = ? ORDER BY c.chat_id LIMIT 10",
+            (telegram_user_id,),
+        )
+        return [tuple(row) for row in await cursor.fetchall()]
 
     @_serialized
     async def save_verified_streamer_connection(
