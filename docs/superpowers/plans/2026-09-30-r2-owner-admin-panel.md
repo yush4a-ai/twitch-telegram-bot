@@ -6,7 +6,7 @@
 
 **Architecture:** Existing aiohttp listener mounts isolated `/admin` routes. A small session gate protects a read-only snapshot service that projects existing runtime and SQLite aggregates. Static HTML/CSS/JS renders the snapshot without external dependencies.
 
-**Tech Stack:** Python 3, aiohttp 3.14.3, aiosqlite 0.22.1, pytest, vanilla HTML/CSS/JS, Playwright for browser QA.
+**Tech Stack:** Project `.venv` Python 3, aiohttp 3.14.3, aiosqlite 0.22.1, pytest, vanilla HTML/CSS/JS, Playwright for browser QA.
 
 **Spec:** `docs/superpowers/specs/2026-09-30-r2-owner-admin-panel-design.md`
 
@@ -36,7 +36,7 @@
 **Interfaces:** `AdminAccess(key: str, *, enabled: bool)` owns sessions; `install_admin_routes(app: web.Application, access: AdminAccess, snapshot_provider: Callable[[], Awaitable[dict]]) -> None` mounts routes. `OAuthCallbackServer.set_admin_panel(...)` registers provider before `start()`.
 
 - [ ] Write failing tests for disabled routes, invalid/valid login, secure cookie, expiry, logout, rate limit, security headers and unauthorized API.
-- [ ] Run `python -m pytest tests/test_admin_web.py -q` and observe expected failures.
+- [ ] Run `.venv\Scripts\python.exe -m pytest tests/test_admin_web.py -q -p no:cacheprovider` and observe expected failures.
 - [ ] Implement access/session and routes; use 404 when disabled and 401 on protected API. Configure key in `load_config()` with staging guard.
 - [ ] Run focused tests and existing OAuth health tests; review exposure of secrets and routes.
 - [ ] Commit tested package.
