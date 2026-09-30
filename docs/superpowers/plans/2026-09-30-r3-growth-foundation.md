@@ -88,7 +88,7 @@
 - [x] Live update queue schema/revision package: TDD one job per current message, revision while leased/done, stale target and fenced ack; additive migration, staging snapshot migration drill and commit `4df25f5`.
 - [x] Poller/worker cutover package: TDD current sample content, no Telegram content edit in poll, RetryAfter, reconnect/new message stale and photo/animation CAS; temporary-DB testbot E2E covers live edit then offline ended; commit `2663ba1`.
 - [x] Fresh external staging snapshot and restore verification; full gate, exact target diff, staging deploy, `/healthz`, owner auth denial and testbot E2E. Queue depth under mixed-load remains Task 6.
-- [ ] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
+- [x] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
 
 ### Task 6: Preview isolation, staging validation and decision
 
@@ -100,7 +100,7 @@
 - [x] Add reproducible TEMP-only synthetic shared 20k/30k/40k, preview 1/2/4 and queue 1k/5k/10k profiles; record p50/p95/p99, DB/WAL and process RSS with explicit no-network/no-FFmpeg limits.
 - [x] Run full suite and exact staging target review for the fan-out lookup/harness package; deploy only committed snapshot with R1 guard. First gate stopped on one 100-ms legacy Streamlink test timeout; focused 20 repeats and full rerun passed before staging `SUCCESS`.
 - [x] Run `getMe`, `/healthz`, synthetic worker claim/ack and one controlled real testbot go-live E2E on a temporary DB; verify deletion and no rows in the live staging DB.
-- [ ] Run staging lease recovery and controlled mixed-load; record real fan-out latency and any delivery gap.
+- [x] Run staging lease recovery and controlled mixed-load on temporary DB with fake sender; record queue latency and recovery in `docs/audits/2026-10-01-r3-recovery-rollback.md`. Real Telegram mass fan-out latency remains an R9 acceptance gap; no mass messages were sent.
 - [x] Record provisional SQLite vs PostgreSQL decision and limits in STATUS/DECISIONS/audit; revisit at R9 mixed load and recovery.
 
 ## Self-review

@@ -137,3 +137,18 @@
 - **Основание:** TDD на coalescing, fenced ack/terminal, stale reconnect/offline, photo/animation, latest sample и RetryAfter; полный gate 1024 passed, 2 skipped, 265 subtests. Внешний staging snapshot и локальный migration/restore drill прошли; deployment `8a701528-dd3a-4252-b4cd-8b61b6c110fc` terminal `SUCCESS`; temp-DB testbot E2E подтвердил go-live, live edit и ended edit.
 - **Ограничение:** один live update job может сделать content edit и thumbnail edit в пределах одного worker слота; Telegram `RetryAfter` защищает фактический лимит, но общий rate budget с legacy/report/preview путями ещё не объединён. При crash после Telegram edit до ack возможен повторный edit. Mixed-load latency и lease recovery на staging остаются открытыми.
 - **Пересмотр:** после R3 mixed-load/rollback и R9 synthetic 20k/30k/40k validation.
+
+## D-018 — R3 принимается на staging с измеренными границами
+
+- **Дата:** 2026-10-01.
+- **Решение:** считать R3 инженерно принятым на staging: shared observations, durable queue, ограниченный worker, preview isolation и go-live/live-update/offline lifecycle работают; SQLite и одна replica остаются до R9. Не утверждать SLA 20–40k пользователей по синтетическим тестам.
+- **Основание:** deployment `822ef65f-2fa6-437e-90cb-6357c0e5b405` terminal `SUCCESS`, независимая проверка active target и `/healthz` 200; staging lease recovery и 1k/5k job mixed-load на временной DB с fake sender; локальные 20k/30k/40k профили, тестовый Telegram lifecycle и полный локальный gate 1030 passed, 2 skipped, 268 subtests. Подробности в `docs/audits/2026-10-01-r3-recovery-rollback.md`.
+- **Граница:** массовая реальная Telegram fan-out задержка, общий rate budget остальных путей, смешанная нагрузка с FFmpeg и активная DB замена не измерены. Инструмент offline materialization делает только отдельную проверенную копию, не заменяет активную DB.
+- **Пересмотр:** R9 после расширенного mixed-load, recovery и backup/restore drill; сменить DB только при доказанном bottleneck.
+
+## D-019 — transient Railway status после SUCCESS повторяется
+
+- **Дата:** 2026-10-01.
+- **Решение:** после terminal `SUCCESS` staging guard повторяет временно неудачный read `railway status --json` до подтверждения active target либо timeout. Ошибка target mismatch не превращается в успех.
+- **Основание:** при deployment `822ef65f-2fa6-437e-90cb-6357c0e5b405` CLI status read завершился GraphQL ошибкой после terminal `SUCCESS`, но независимая проверка вернула `active_target_ok=true`, `errors=[]`; RED/GREEN тест и полный gate подтвердили исправление в `7e4e8e4`.
+- **Последствие:** guard fix включится в следующий staging commit snapshot; сам по себе он не требует отдельного deploy.
