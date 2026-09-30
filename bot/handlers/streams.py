@@ -21,6 +21,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
 import aiohttp
@@ -130,7 +131,7 @@ def _callback_chat_id(callback: CallbackQuery) -> int | None:
     return callback.message.chat.id
 
 
-def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
+def _main_menu_keyboard(chat_type: str, *, admin_url: str | None = None) -> InlineKeyboardMarkup:
     # сгруппировано по смыслу: каналы -> отчёты -> настройки чата -> справка,
     # вместо плоского списка из разнородных пунктов
     rows = [
@@ -155,7 +156,24 @@ def _main_menu_keyboard(chat_type: str) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🌙 Тихие часы", callback_data="menu:quiet_hours")]
         )
     rows.append([InlineKeyboardButton(text="ℹ️ Что умею", callback_data="menu:about")])
+    if chat_type == ChatType.PRIVATE and admin_url:
+        rows.append([InlineKeyboardButton(text="🛡️ Админ-панель", web_app=WebAppInfo(url=admin_url))])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _owner_admin_url(message: Message, config: Config | None, *, actor_id: int | None = None) -> str | None:
+    if actor_id is None:
+        actor_id = message.from_user.id if message.from_user is not None else None
+    if (
+        config is None
+        or not config.admin_panel_access_key
+        or config.owner_chat_id is None
+        or message.chat.type != ChatType.PRIVATE
+        or message.chat.id != config.owner_chat_id
+        or actor_id != config.owner_chat_id
+    ):
+        return None
+    return f"{config.oauth_public_base_url}/admin"
 
 
 def _channels_keyboard(
@@ -546,11 +564,24 @@ async def cmd_start_link(
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext, db: Database) -> None:
+async def cmd_start(message: Message, state: FSMContext, db: Database, config: Config | None = None) -> None:
     await state.clear()
     if message.chat.type == ChatType.PRIVATE:
         await db.mark_known_private_user(message.chat.id)
-    await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(message.chat.type))
+    await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(message.chat.type, admin_url=_owner_admin_url(message, config)))
+
+
+@router.message(Command("admin"))
+async def cmd_admin(message: Message, config: Config) -> None:
+    url = _owner_admin_url(message, config)
+    if url is None:
+        return
+    await message.answer(
+        "🛡️ Админ-панель тестового контура",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Открыть админ-панель", web_app=WebAppInfo(url=url))]
+        ]),
+    )
 
 
 @router.message(Command("myid"))
@@ -826,9 +857,9 @@ async def on_bot_membership_changed(
 
 
 @router.callback_query(lambda c: c.data == "menu:home")
-async def cb_menu_home(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Config | None = None) -> None:
     await state.clear()
-    await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(callback.message.chat.type))
+    await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(callback.message.chat.type, admin_url=_owner_admin_url(callback.message, config, actor_id=callback.from_user.id)))
     await callback.answer()
 
 

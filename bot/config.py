@@ -260,6 +260,7 @@ class Config:
     preview: PreviewRuntimeConfig
     preview_capture: PreviewCaptureConfig
     admin_panel_access_key: str | None = None
+    admin_telegram_bot_username: str = ""
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -300,8 +301,10 @@ def load_config() -> Config:
     if railway and token_encryption_key is None:
         raise ConfigError("На Railway обязателен TOKEN_ENCRYPTION_KEY для Twitch-токенов")
     admin_panel_access_key = os.getenv("ADMIN_PANEL_ACCESS_KEY") or None
+    admin_telegram_bot_username = os.getenv("ADMIN_TELEGRAM_BOT_USERNAME", "").lstrip("@")
     if railway and os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging":
         admin_panel_access_key = None
+        admin_telegram_bot_username = ""
     if admin_panel_access_key is not None and len(admin_panel_access_key) < 32:
         raise ConfigError("ADMIN_PANEL_ACCESS_KEY должен содержать не менее 32 символов")
     return Config(
@@ -319,4 +322,5 @@ def load_config() -> Config:
         preview=_preview_config(),
         preview_capture=_preview_capture_config(),
         admin_panel_access_key=admin_panel_access_key,
+        admin_telegram_bot_username=admin_telegram_bot_username,
     )

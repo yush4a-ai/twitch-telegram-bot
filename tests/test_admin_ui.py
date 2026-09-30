@@ -37,7 +37,7 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         for path in ("/admin/panel.css", "/admin/panel.js"):
             async with self.session.get(self.base + path) as response:
                 self.assertEqual(response.status, 401)
-        async with self.session.post(self.base + "/admin/login", data={"access_key": KEY}, allow_redirects=False):
+        async with self.session.post(self.base + "/admin/emergency/login", data={"access_key": KEY}, allow_redirects=False):
             pass
         async with self.session.get(self.base + "/admin") as response:
             body = await response.text()

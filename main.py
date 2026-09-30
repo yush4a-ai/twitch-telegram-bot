@@ -17,6 +17,7 @@ from aiogram.types import (
     BotCommand,
     BotCommandScopeAllGroupChats,
     BotCommandScopeAllPrivateChats,
+    BotCommandScopeChat,
     MenuButtonCommands,
 )
 from aiogram.utils.token import TokenValidationError
@@ -100,6 +101,19 @@ logger = logging.getLogger(__name__)
 STARTUP_NETWORK_RETRIES = 10
 STARTUP_RETRY_DELAY_SECONDS = 5
 SHUTDOWN_STEP_TIMEOUT_SECONDS = 3
+
+
+def _private_bot_commands(tracking_commands: list[BotCommand], *, owner: bool = False) -> list[BotCommand]:
+    commands = [
+        BotCommand(command="start", description="🏠 Главное меню бота"),
+        *tracking_commands,
+        BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
+        BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
+        BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
+    ]
+    if owner:
+        commands.append(BotCommand(command="admin", description="🛡️ Админ-панель"))
+    return commands
 
 
 async def _with_startup_retry(coro_factory, description: str) -> None:
@@ -474,15 +488,10 @@ async def main() -> None:
             BotCommand(command="help", description="ℹ️ Что умеет бот"),
         ]
 
+        private_commands = _private_bot_commands(tracking_commands)
         await _with_startup_retry(
             lambda: bot.set_my_commands(
-                [
-                    BotCommand(command="start", description="🏠 Главное меню бота"),
-                    *tracking_commands,
-                    BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
-                    BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
-                    BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
-                ],
+                private_commands,
                 scope=BotCommandScopeAllPrivateChats(),
             ),
             "Регистрация команд (личка)",
@@ -491,6 +500,14 @@ async def main() -> None:
             lambda: bot.set_my_commands(tracking_commands, scope=BotCommandScopeAllGroupChats()),
             "Регистрация команд (группы)",
         )
+        if config.owner_chat_id is not None and config.admin_panel_access_key:
+            await _with_startup_retry(
+                lambda: bot.set_my_commands(
+                    _private_bot_commands(tracking_commands, owner=True),
+                    scope=BotCommandScopeChat(chat_id=config.owner_chat_id),
+                ),
+                "Регистрация команд (владелец)",
+            )
         await _with_startup_retry(
             lambda: bot.set_chat_menu_button(menu_button=MenuButtonCommands()),
             "Установка кнопки меню",
@@ -518,8 +535,12 @@ async def main() -> None:
                         config.admin_panel_access_key,
                         enabled=True,
                         secure_cookie=config.oauth_public_base_url.startswith("https://"),
+                        owner_id=config.owner_chat_id,
+                        bot_token=config.telegram_bot_token,
+                        bot_username=config.admin_telegram_bot_username,
+                        public_base_url=config.oauth_public_base_url,
                     )
-                    if getattr(config, "admin_panel_access_key", None)
+                    if getattr(config, "admin_panel_access_key", None) and config.owner_chat_id is not None
                     else None
                 ),
             )
