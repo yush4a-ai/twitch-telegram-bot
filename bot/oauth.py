@@ -11,6 +11,9 @@ from urllib.parse import urlencode
 import aiohttp
 from aiohttp import web
 
+from .admin_auth import AdminAccess
+from .admin_web import SnapshotProvider, install_admin_routes
+
 from .twitch import (
     TwitchUnauthorizedError,
     TwitchUserTokenError,
@@ -171,6 +174,7 @@ class OAuthCallbackServer:
         host: str,
         port: int,
         health_provider: Callable[[], tuple[bool, str]] | None = None,
+        admin_access: AdminAccess | None = None,
     ) -> None:
         self.redirect_uri = redirect_uri
         self._host = host
@@ -180,6 +184,11 @@ class OAuthCallbackServer:
         # Синхронный provider из main(): все нужные snapshot уже лежат в памяти,
         # поэтому /healthz не ходит ни в SQLite, ни в Twitch, ни в Telegram.
         self._health_provider = health_provider
+        self._admin_access = admin_access
+        self._admin_snapshot_provider: SnapshotProvider | None = None
+
+    def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
+        self._admin_snapshot_provider = provider
 
     def set_health_provider(
         self, provider: Callable[[], tuple[bool, str]] | None
@@ -194,6 +203,14 @@ class OAuthCallbackServer:
         app = web.Application()
         app.router.add_get(REDIRECT_PATH, self._handle_callback)
         app.router.add_get(HEALTH_PATH, self._handle_health)
+        if self._admin_access is not None:
+            async def _snapshot() -> dict:
+                provider = self._admin_snapshot_provider
+                if provider is None:
+                    raise RuntimeError("Admin snapshot is not ready")
+                return await provider()
+
+            install_admin_routes(app, self._admin_access, _snapshot)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)

@@ -35,11 +35,11 @@
 
 **Interfaces:** `AdminAccess(key: str, *, enabled: bool)` owns sessions; `install_admin_routes(app: web.Application, access: AdminAccess, snapshot_provider: Callable[[], Awaitable[dict]]) -> None` mounts routes. `OAuthCallbackServer.set_admin_panel(...)` registers provider before `start()`.
 
-- [ ] Write failing tests for disabled routes, invalid/valid login, secure cookie, expiry, logout, rate limit, security headers and unauthorized API.
-- [ ] Run `.venv\Scripts\python.exe -m pytest tests/test_admin_web.py -q -p no:cacheprovider` and observe expected failures.
-- [ ] Implement access/session and routes; use 404 when disabled and 401 on protected API. Configure key in `load_config()` with staging guard.
-- [ ] Run focused tests and existing OAuth health tests; review exposure of secrets and routes.
-- [ ] Commit tested package.
+- [x] Write failing tests for disabled routes, invalid/valid login, secure cookie, expiry, logout, rate limit, security headers and unauthorized API.
+- [x] Run `.venv\Scripts\python.exe -m pytest tests/test_admin_web.py -q -p no:cacheprovider` and observe expected failures.
+- [x] Implement access/session and routes; use 404 when disabled and 401 on protected API. Configure key in `load_config()` with staging guard.
+- [x] Run focused tests and existing OAuth health tests; review exposure of secrets and routes.
+- [x] Commit tested package.
 
 ### Task 2: Read-only operational snapshot
 

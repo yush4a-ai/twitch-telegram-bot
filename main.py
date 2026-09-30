@@ -32,6 +32,7 @@ from bot.config import (
 )
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
+from bot.admin_auth import AdminAccess
 from bot.logging_utils import mask_chat_id
 from bot.live_preview_provider import LivePreviewArtifactProvider
 from bot.live_post import LivePostUpdater
@@ -511,6 +512,15 @@ async def main() -> None:
                 redirect_uri=f"{config.oauth_public_base_url}{REDIRECT_PATH}",
                 host=config.oauth_host,
                 port=config.oauth_port,
+                admin_access=(
+                    AdminAccess(
+                        config.admin_panel_access_key,
+                        enabled=True,
+                        secure_cookie=config.oauth_public_base_url.startswith("https://"),
+                    )
+                    if getattr(config, "admin_panel_access_key", None)
+                    else None
+                ),
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None
