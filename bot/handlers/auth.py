@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import time
 
 import aiohttp
 from aiogram import Router
 from aiogram.filters import Command
+from aiogram.enums import ChatType
 from aiogram.types import Message
 
 from ..config import Config
@@ -18,7 +20,8 @@ router = Router(name="auth")
 
 
 async def _run_auth_flow(
-    message: Message, db: Database, config: Config, oauth_server: OAuthCallbackServer
+    message: Message, db: Database, config: Config, oauth_server: OAuthCallbackServer,
+    *, streamer_user_id: int | None = None,
 ) -> None:
     async def send_url(url: str) -> None:
         await message.answer(
@@ -43,10 +46,19 @@ async def _run_auth_flow(
             await message.answer("Что-то пошло не так при авторизации. Попробуй ещё раз.")
             return
 
-    await db.save_user_token(
-        result.login, result.broadcaster_id, result.access_token, result.refresh_token, result.expires_at
-    )
-    await message.answer(f"Готово! Twitch-аккаунт «{result.login}» авторизован для подсчёта фолловеров.")
+    if streamer_user_id is None:
+        await db.save_user_token(
+            result.login, result.broadcaster_id, result.access_token,
+            result.refresh_token, result.expires_at,
+        )
+        await message.answer(f"Готово! Twitch-аккаунт «{result.login}» авторизован для подсчёта фолловеров.")
+        return
+    if not await db.save_verified_streamer_connection(
+        streamer_user_id, result, verified_at=time.time(),
+    ):
+        await message.answer("Этот Twitch-аккаунт или твой Telegram уже связан с другим аккаунтом. Настройки не изменены.")
+        return
+    await message.answer(f"Готово! Twitch-аккаунт «{result.login}» подключён к твоему кабинету стримера.")
 
 
 @router.message(Command("auth_twitch"))
@@ -54,3 +66,20 @@ async def cmd_auth_twitch(
     message: Message, db: Database, config: Config, oauth_server: OAuthCallbackServer
 ) -> None:
     await _run_auth_flow(message, db, config, oauth_server)
+
+
+@router.message(Command("streamer_connect"))
+async def cmd_streamer_connect(
+    message: Message, db: Database, config: Config, oauth_server: OAuthCallbackServer
+) -> None:
+    if (
+        message.chat.type != ChatType.PRIVATE
+        or message.from_user is None
+        or message.from_user.id != message.chat.id
+    ):
+        await message.answer("Подключи кабинет стримера в личном чате с ботом.")
+        return
+    telegram_user_id = message.from_user.id
+    await _run_auth_flow(
+        message, db, config, oauth_server, streamer_user_id=telegram_user_id,
+    )

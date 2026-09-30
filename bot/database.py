@@ -11,9 +11,13 @@ import sqlite3
 import time
 import uuid
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
+
+if TYPE_CHECKING:
+    from .oauth import UserTokenResult
 
 
 _ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
@@ -771,6 +775,51 @@ class Database:
         )
         row = await cursor.fetchone()
         return (row[0], row[1]) if row else None
+
+    @_serialized
+    async def save_verified_streamer_connection(
+        self, telegram_user_id: int, result: UserTokenResult, *, verified_at: float,
+    ) -> bool:
+        """Persist the just-verified Twitch result and Telegram link atomically."""
+        broadcaster_id = result.broadcaster_id
+        twitch_login = result.login
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid Telegram user ID")
+        if not broadcaster_id.isascii() or not broadcaster_id.isdecimal() or int(broadcaster_id) <= 0:
+            raise ValueError("invalid Twitch broadcaster ID")
+        if re.fullmatch(r"[A-Za-z0-9_]{2,25}", twitch_login) is None:
+            raise ValueError("invalid Twitch login")
+        if not isinstance(verified_at, (int, float)) or not math.isfinite(verified_at):
+            raise ValueError("invalid verification time")
+        cursor = await self.conn.execute(
+            "SELECT broadcaster_id, telegram_user_id FROM streamer_identities "
+            "WHERE broadcaster_id = ? OR telegram_user_id = ?",
+            (broadcaster_id, telegram_user_id),
+        )
+        if any(row != (broadcaster_id, telegram_user_id) for row in await cursor.fetchall()):
+            return False
+        await self.conn.execute(
+            "INSERT INTO streamer_identities "
+            "(broadcaster_id, telegram_user_id, twitch_login, verified_at) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT(broadcaster_id) DO UPDATE SET "
+            "twitch_login=excluded.twitch_login, verified_at=excluded.verified_at",
+            (broadcaster_id, telegram_user_id, twitch_login.lower(), verified_at),
+        )
+        await self.conn.execute(
+            "INSERT INTO twitch_user_tokens "
+            "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(twitch_login) DO UPDATE SET "
+            "broadcaster_id=excluded.broadcaster_id, "
+            "access_token=excluded.access_token, "
+            "refresh_token=excluded.refresh_token, expires_at=excluded.expires_at",
+            (
+                twitch_login.lower(), broadcaster_id,
+                self._encrypt_token(result.access_token),
+                self._encrypt_token(result.refresh_token), result.expires_at,
+            ),
+        )
+        await self.conn.commit()
+        return True
 
     @_serialized
     async def issue_test_streamer_plus(

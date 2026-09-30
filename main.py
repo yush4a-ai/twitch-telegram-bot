@@ -111,6 +111,7 @@ def _private_bot_commands(tracking_commands: list[BotCommand], *, owner: bool = 
         *tracking_commands,
         BotCommand(command="import_follows", description="📥 Импорт подписок с Twitch"),
         BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
+        BotCommand(command="streamer_connect", description="🎮 Подключить кабинет стримера"),
         BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
     ]
     if owner:
