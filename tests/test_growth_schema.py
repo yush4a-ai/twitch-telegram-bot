@@ -22,7 +22,10 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 try:
                     self.assertEqual(
                         await db.schema_versions(),
-                        ["r3_001_observations", "r3_002_notification_jobs"],
+                        [
+                            "r3_001_observations", "r3_002_notification_jobs",
+                            "r3_003_live_update_revision",
+                        ],
                     )
                     cursor = await db.conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
@@ -39,7 +42,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 reopened = Database(path)
                 await reopened.connect()
                 try:
-                    self.assertEqual(len(await reopened.schema_versions()), 2)
+                    self.assertEqual(len(await reopened.schema_versions()), 3)
                 finally:
                     await reopened.close()
 

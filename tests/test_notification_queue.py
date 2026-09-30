@@ -162,6 +162,75 @@ class NotificationQueueTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(dict(await cursor.fetchall()), {"leased": 1, "pending": 1})
 
+    async def test_live_updates_coalesce_and_requeue_revision_changed_during_lease(self):
+        await self.db.add_channel(1, "alpha")
+        await self.db.set_live_state(1, "alpha", True, "s1", 701, "Live")
+        request = [(1, "alpha", "s1", 701, None)]
+        self.assertEqual(await self.queue.request_live_updates(request, now=10.0), 1)
+        first = (await self.queue.claim_due(10.0, limit=1, lease_seconds=30.0))[0]
+        self.assertEqual((first.kind, first.revision), ("live_update", 1))
+        self.assertEqual(await self.queue.request_live_updates(
+            [(1, "alpha", "s1", 701, "https://example.test/thumb.jpg")], now=11.0,
+        ), 1)
+        self.assertEqual(await self.queue.claim_due(11.0, limit=1, lease_seconds=30.0), [])
+        self.assertTrue(await self.queue.ack(
+            first.id, first.attempt_count, now=12.0, revision=first.revision,
+        ))
+        second = (await self.queue.claim_due(12.0, limit=1, lease_seconds=30.0))[0]
+        self.assertEqual(second.id, first.id)
+        self.assertEqual(second.revision, 2)
+        self.assertEqual(second.media_url, "https://example.test/thumb.jpg")
+        self.assertTrue(await self.queue.ack(
+            second.id, second.attempt_count, now=13.0, revision=second.revision,
+            applied_media_url=second.media_url,
+        ))
+        self.assertEqual(await self.queue.claim_due(13.0, limit=1, lease_seconds=30.0), [])
+        self.assertEqual(await self.queue.request_live_updates(request, now=14.0), 1)
+        third = (await self.queue.claim_due(14.0, limit=1, lease_seconds=30.0))[0]
+        self.assertEqual((third.id, third.revision, third.media_url), (first.id, 3, None))
+        cursor = await self.db.conn.execute(
+            "SELECT COUNT(*) FROM notification_jobs WHERE kind = 'live_update'"
+        )
+        self.assertEqual((await cursor.fetchone())[0], 1)
+
+    async def test_live_update_request_ignores_stale_or_disabled_post(self):
+        await self.db.add_channel(1, "alpha")
+        await self.db.set_live_state(1, "alpha", True, "s1", 701, "Live")
+        await self.db.set_notify_enabled(1, "alpha", False)
+        self.assertEqual(await self.queue.request_live_updates(
+            [(1, "alpha", "s1", 701, None)], now=10.0,
+        ), 0)
+        await self.db.set_notify_enabled(1, "alpha", True)
+        await self.db.set_live_state(1, "alpha", False, "s1", 701, "Live", offline_since=1.0)
+        self.assertEqual(await self.queue.request_live_updates(
+            [(1, "alpha", "s1", 701, None)], now=10.0,
+        ), 0)
+        cursor = await self.db.conn.execute("SELECT COUNT(*) FROM notification_jobs")
+        self.assertEqual((await cursor.fetchone())[0], 0)
+
+    async def test_growth_migration_adds_live_update_revision_once(self):
+        cursor = await self.db.conn.execute("PRAGMA table_info(notification_jobs)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        self.assertIn("revision", columns)
+        self.assertIn("media_url", columns)
+        versions = await self.db.schema_versions()
+        self.assertEqual(versions.count("r3_003_live_update_revision"), 1)
+
+    async def test_old_revision_terminal_error_keeps_new_live_update_pending(self):
+        await self.db.add_channel(1, "alpha")
+        await self.db.set_live_state(1, "alpha", True, "s1", 701, "Live")
+        request = [(1, "alpha", "s1", 701, None)]
+        await self.queue.request_live_updates(request, now=10.0)
+        first = (await self.queue.claim_due(10.0, limit=1, lease_seconds=30.0))[0]
+        await self.queue.request_live_updates(request, now=11.0)
+        self.assertTrue(await self.queue.fail(
+            first.id, first.attempt_count,
+            error_class="TelegramBadRequest", now=12.0,
+            revision=first.revision,
+        ))
+        newer = (await self.queue.claim_due(12.0, limit=1, lease_seconds=30.0))[0]
+        self.assertEqual((newer.id, newer.revision), (first.id, 2))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,6 +25,8 @@ class NotificationJob:
     due_at: float
     attempt_count: int
     lease_until: float
+    revision: int = 0
+    media_url: str | None = None
 
 
 class NotificationQueue:
@@ -110,6 +112,54 @@ class NotificationQueue:
             )
             return cursor.rowcount
 
+    async def request_live_updates(
+        self,
+        requests: list[tuple[int, str, str, int, str | None]],
+        *,
+        now: float,
+    ) -> int:
+        """Coalesce current-post updates under one row per Telegram message."""
+        self._check_time(now)
+        if not requests:
+            return 0
+        for chat_id, login, stream_id, message_id, media_url in requests:
+            if (
+                not isinstance(chat_id, int) or isinstance(chat_id, bool) or chat_id == 0
+                or not login or not stream_id
+                or not isinstance(message_id, int) or message_id < 1
+                or (media_url is not None and (
+                    not isinstance(media_url, str) or len(media_url) > 2048
+                ))
+            ):
+                raise ValueError("invalid live update request")
+        async with self._transaction() as conn:
+            cursor = await conn.executemany(
+                "INSERT INTO notification_jobs "
+                "(kind, chat_id, twitch_login, logical_stream_id, payload_version, "
+                "due_at, status, attempt_count, lease_until, created_at, updated_at, "
+                "revision, media_url) "
+                "SELECT 'live_update', ?, ?, ?, ?, ?, 'pending', 0, NULL, ?, ?, 1, ? "
+                "FROM tracked_channels WHERE chat_id = ? AND twitch_login = ? "
+                "AND is_live = 1 AND notify_enabled = 1 "
+                "AND last_stream_id = ? AND last_message_id = ? "
+                "ON CONFLICT (kind, chat_id, twitch_login, logical_stream_id, payload_version) "
+                "DO UPDATE SET revision = notification_jobs.revision + 1, "
+                "media_url = COALESCE(excluded.media_url, notification_jobs.media_url), "
+                "status = CASE WHEN notification_jobs.status = 'leased' "
+                "THEN 'leased' ELSE 'pending' END, "
+                "due_at = CASE WHEN notification_jobs.status IN ('pending', 'leased') "
+                "THEN notification_jobs.due_at ELSE excluded.due_at END, "
+                "lease_until = CASE WHEN notification_jobs.status = 'leased' "
+                "THEN notification_jobs.lease_until ELSE NULL END, "
+                "updated_at = excluded.updated_at, last_error_class = NULL",
+                [
+                    (chat_id, login, stream_id, message_id, now, now, now,
+                     media_url, chat_id, login, stream_id, message_id)
+                    for chat_id, login, stream_id, message_id, media_url in requests
+                ],
+            )
+            return cursor.rowcount
+
     async def claim_due(
         self, now: float, *, limit: int, lease_seconds: float,
     ) -> list[NotificationJob]:
@@ -136,16 +186,40 @@ class NotificationQueue:
             placeholders = ",".join("?" for _ in ids)
             cursor = await conn.execute(
                 "SELECT id, kind, chat_id, twitch_login, logical_stream_id, "
-                "payload_version, due_at, attempt_count, lease_until "
+                "payload_version, due_at, attempt_count, lease_until, revision, media_url "
                 f"FROM notification_jobs WHERE id IN ({placeholders})",
                 ids,
             )
             claimed = {row[0]: NotificationJob(*row) for row in await cursor.fetchall()}
             return [claimed[job_id] for job_id in ids]
 
-    async def ack(self, job_id: int, attempt_count: int, *, now: float) -> bool:
+    async def ack(
+        self, job_id: int, attempt_count: int, *, now: float,
+        revision: int | None = None, applied_media_url: str | None = None,
+    ) -> bool:
         self._check_time(now)
         async with self._transaction() as conn:
+            cursor = await conn.execute(
+                "SELECT kind, revision FROM notification_jobs "
+                "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
+                (job_id, attempt_count),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                return False
+            if row[0] == "live_update":
+                if revision is None:
+                    raise ValueError("live update ack requires claimed revision")
+                changed = row[1] != revision
+                cursor = await conn.execute(
+                    "UPDATE notification_jobs SET status = ?, due_at = ?, "
+                    "lease_until = NULL, updated_at = ?, last_error_class = NULL, "
+                    "media_url = CASE WHEN media_url = ? THEN NULL ELSE media_url END "
+                    "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
+                    ("pending" if changed else "done", now, now,
+                     applied_media_url, job_id, attempt_count),
+                )
+                return cursor.rowcount == 1
             cursor = await conn.execute(
                 "UPDATE notification_jobs SET status = 'done', lease_until = NULL, "
                 "updated_at = ? WHERE id = ? AND status = 'leased' AND attempt_count = ?",
@@ -173,10 +247,27 @@ class NotificationQueue:
 
     async def fail(
         self, job_id: int, attempt_count: int, *, error_class: str, now: float,
+        revision: int | None = None,
     ) -> bool:
         self._check_error_class(error_class)
         self._check_time(now)
         async with self._transaction() as conn:
+            cursor = await conn.execute(
+                "SELECT kind, revision FROM notification_jobs "
+                "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
+                (job_id, attempt_count),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                return False
+            if row[0] == "live_update" and revision is not None and row[1] != revision:
+                cursor = await conn.execute(
+                    "UPDATE notification_jobs SET status = 'pending', due_at = ?, "
+                    "lease_until = NULL, last_error_class = ?, updated_at = ? "
+                    "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
+                    (now, error_class, now, job_id, attempt_count),
+                )
+                return cursor.rowcount == 1
             cursor = await conn.execute(
                 "UPDATE notification_jobs SET status = 'failed', lease_until = NULL, "
                 "last_error_class = ?, updated_at = ? "

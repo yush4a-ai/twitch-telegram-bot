@@ -103,6 +103,7 @@ class LivePostState:
     preview_enabled: bool
     notify_enabled: bool
     media_transition_target_kind: str
+    is_live: bool
 
 
 @dataclass(frozen=True)
@@ -674,6 +675,20 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
             "VALUES ('r3_002_notification_jobs', ?)", (time.time(),)
+        )
+        cursor = await self.conn.execute("PRAGMA table_info(notification_jobs)")
+        job_columns = {row[1] for row in await cursor.fetchall()}
+        if "revision" not in job_columns:
+            await self.conn.execute(
+                "ALTER TABLE notification_jobs ADD COLUMN revision INTEGER NOT NULL DEFAULT 0"
+            )
+        if "media_url" not in job_columns:
+            await self.conn.execute(
+                "ALTER TABLE notification_jobs ADD COLUMN media_url TEXT"
+            )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
+            "VALUES ('r3_003_live_update_revision', ?)", (time.time(),)
         )
 
     async def schema_versions(self) -> list[str]:
@@ -1478,7 +1493,7 @@ class Database:
         cursor = await self.conn.execute(
             "SELECT last_stream_id, last_message_id, last_message_kind, "
             "media_transition_pending, preview_enabled, notify_enabled, "
-            "media_transition_target_kind "
+            "media_transition_target_kind, is_live "
             "FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1495,6 +1510,7 @@ class Database:
             preview_enabled=bool(row[4]),
             notify_enabled=bool(row[5]),
             media_transition_target_kind=row[6],
+            is_live=bool(row[7]),
         )
 
     async def get_offline_cleanup_state(
