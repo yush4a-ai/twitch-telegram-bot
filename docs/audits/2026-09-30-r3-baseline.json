@@ -1,0 +1,148 @@
+{
+  "synthetic": true,
+  "runtime": {
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "os": "Windows"
+  },
+  "profiles": [
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 1000,
+      "distinct_logins": 10,
+      "rounds": 1,
+      "workload_sha256": "0fdabca34c765fa7fc2e38ff8a7e0aa1af66c5d664df75a2703dabb560ac1413",
+      "sample_rows": 1000,
+      "sample_duplication_factor": 100.0,
+      "elapsed_seconds": 3.9341,
+      "profile_sample_rows_per_second": 254.19,
+      "sample_insert_rows_per_second": 522.89,
+      "db_bytes": 544768,
+      "wal_bytes": 4128272,
+      "peak_process_rss_bytes": 33021952,
+      "operations": {
+        "track_insert": {
+          "count": 1000,
+          "p50_ms": 1.8182,
+          "p95_ms": 2.254,
+          "p99_ms": 3.2255,
+          "max_ms": 10.7018
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 1.9376,
+          "p95_ms": 1.9376,
+          "p99_ms": 1.9376,
+          "max_ms": 1.9376
+        },
+        "sample_insert": {
+          "count": 1000,
+          "p50_ms": 1.8285,
+          "p95_ms": 2.239,
+          "p99_ms": 3.2496,
+          "max_ms": 12.7703
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.1566,
+          "p95_ms": 0.22,
+          "p99_ms": 0.2483,
+          "max_ms": 0.2662
+        }
+      }
+    },
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 5000,
+      "distinct_logins": 50,
+      "rounds": 1,
+      "workload_sha256": "4cb12ec10711ca39bc1f505c3aa96966746e7b1e3d3ccfcafcd4a6fa85199bab",
+      "sample_rows": 5000,
+      "sample_duplication_factor": 100.0,
+      "elapsed_seconds": 19.4344,
+      "profile_sample_rows_per_second": 257.28,
+      "sample_insert_rows_per_second": 521.22,
+      "db_bytes": 1982464,
+      "wal_bytes": 4140632,
+      "peak_process_rss_bytes": 37347328,
+      "operations": {
+        "track_insert": {
+          "count": 5000,
+          "p50_ms": 1.8525,
+          "p95_ms": 2.2987,
+          "p99_ms": 3.4382,
+          "max_ms": 12.5983
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 9.8867,
+          "p95_ms": 9.8867,
+          "p99_ms": 9.8867,
+          "max_ms": 9.8867
+        },
+        "sample_insert": {
+          "count": 5000,
+          "p50_ms": 1.8386,
+          "p95_ms": 2.268,
+          "p99_ms": 3.2628,
+          "max_ms": 9.5569
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.1312,
+          "p95_ms": 0.22,
+          "p99_ms": 0.2694,
+          "max_ms": 0.3074
+        }
+      }
+    },
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 10000,
+      "distinct_logins": 100,
+      "rounds": 1,
+      "workload_sha256": "5a66e87b1612432568848060662c5376d1fa97e251305ff79ffc1ee0c1cdc5c8",
+      "sample_rows": 10000,
+      "sample_duplication_factor": 100.0,
+      "elapsed_seconds": 93.7577,
+      "profile_sample_rows_per_second": 106.66,
+      "sample_insert_rows_per_second": 385.65,
+      "db_bytes": 3780608,
+      "wal_bytes": 4140632,
+      "peak_process_rss_bytes": 40878080,
+      "operations": {
+        "track_insert": {
+          "count": 10000,
+          "p50_ms": 5.8277,
+          "p95_ms": 16.4296,
+          "p99_ms": 24.8654,
+          "max_ms": 159.7329
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 18.7703,
+          "p95_ms": 18.7703,
+          "p99_ms": 18.7703,
+          "max_ms": 18.7703
+        },
+        "sample_insert": {
+          "count": 10000,
+          "p50_ms": 1.875,
+          "p95_ms": 7.0862,
+          "p99_ms": 12.0076,
+          "max_ms": 51.2661
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.1305,
+          "p95_ms": 0.1934,
+          "p99_ms": 0.2376,
+          "max_ms": 0.306
+        }
+      }
+    }
+  ]
+}

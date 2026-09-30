@@ -35,10 +35,10 @@
 
 **Interfaces:** `run_profile(destinations: int, *, seed: int, db_path: str, rounds: int) -> dict` returns config, operation counts, p50/p95/p99 in milliseconds, throughput, DB/WAL bytes and process RSS. CLI accepts `--destinations`, `--rounds`, `--seed`, `--output` and rejects an existing/non-temporary DB path.
 
-- [ ] Write failing deterministic test for 100 synthetic destinations, fixed seed, metric fields and refusal to overwrite an existing DB.
-- [ ] Run focused test, verify RED; implement isolated harness using fake Twitch/Telegram and temporary SQLite.
-- [ ] Run focused test, verify GREEN; execute 1k/5k/10k baseline with the same seed, save JSON and explain measured limits without claiming 20–40k readiness.
-- [ ] Review output for personal data and commit code, test and baseline artifact.
+- [x] Write failing deterministic test for 100 synthetic destinations, fixed seed, metric fields and refusal to overwrite an existing DB.
+- [x] Run focused test, verify RED; implement isolated harness using synthetic Twitch observations, no Telegram sends and temporary SQLite.
+- [x] Run focused test, verify GREEN; execute 1k/5k/10k baseline with the same seed, save JSON and explain measured limits without claiming 20–40k readiness.
+- [x] Review output for personal data and commit code, test and baseline artifact.
 
 ### Task 2: Additive schema and migration evidence
 
