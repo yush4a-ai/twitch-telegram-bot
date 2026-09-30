@@ -85,16 +85,17 @@ Read-only панель владельца:
 - payment interfaces;
 - order/payment models;
 - idempotency;
+- интерфейс server-side проверки webhook; redirect не подтверждает оплату;
 - mock/test provider;
 - entitlement activation;
-- refund/cancel lifecycle в тестовом режиме;
+- test checkout, refund, cancel и expiry lifecycle;
 - audit log.
 
 Реальные FreeKassa / Robokassa / lava.top / Heleket или другой провайдер выбираются отдельно.
 
 ## R6 — Закрытый Streamer Plus pilot
 
-На staging и затем только после отдельного разрешения:
+В текущей автономной работе только staging simulation и acceptance:
 - 5–10 тестовых стримеров;
 - проверка подключения;
 - live-post customization;
@@ -102,7 +103,7 @@ Read-only панель владельца:
 - Plus lifecycle;
 - расходы и ошибки.
 
-Production rollout не выполнять автономно.
+Production rollout не выполнять автономно; он требует отдельного разрешения.
 
 ## R7 — Telegram Mini App + Viewer Plus
 

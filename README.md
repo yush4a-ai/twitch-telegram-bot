@@ -24,18 +24,20 @@ copy .env.example .env
 - `TWITCH_CLIENT_ID` / `TWITCH_CLIENT_SECRET` — из [dev.twitch.tv/console/apps](https://dev.twitch.tv/console/apps)
   (Redirect URL для локальной разработки: `http://localhost:8765/twitch/callback`)
 
-Preview runtime в P3 — только fail-open orchestration-каркас с no-op provider.
-Он по умолчанию выключен (`PREVIEW_RUNTIME_ENABLED=false`) и пока не захватывает,
-не кодирует и не отправляет реальное видео. Остальные `PREVIEW_*` значения задают
-warmup, интервал, глобальную конкуренцию и timeout; неверное preview-значение
-отключает только optional preview subsystem, не основной бот.
+Preview runtime по умолчанию выключен (`PREVIEW_RUNTIME_ENABLED=false`), но при
+включении собирает рабочий pipeline Streamlink → FFmpeg/HLS capture → выбор
+фрагментов → H.264 MP4 без аудио → Telegram Animation. Один цикл накапливает
+6 → 12 → 18 → 24 секунды и затем начинает новый; размер артефакта ограничен
+защитным бюджетом около 10 MiB. Если preview недоступен, основной бот продолжает
+работу. На проверенных Railway staging и production флаг сейчас включён.
 
-В P4A также присутствует изолированное ядро локального FFmpeg/HLS-захвата, но
-оно ещё не подключено к production preview runtime. Его rolling-buffer ограничен
-`PREVIEW_BUFFER_SECONDS` (по умолчанию 120, допустимо 30–240) и
-`PREVIEW_BUFFER_MAX_BYTES` (по умолчанию 150 MiB, допустимо 32–150 MiB).
-Некорректные значения fail-soft отключают только capture capability. FFmpeg не
-устанавливается Python-зависимостями и определяется отдельным capability probe.
+`PREVIEW_*` значения задают warmup, интервал, глобальную конкуренцию и timeout.
+По умолчанию одновременно обрабатывается один тяжёлый artifact job и допускаются
+два capture. Rolling-buffer ограничен `PREVIEW_BUFFER_SECONDS` (по умолчанию 120,
+допустимо 30–240) и `PREVIEW_BUFFER_MAX_BYTES` (по умолчанию 150 MiB, допустимо
+32–150 MiB). Некорректные значения fail-soft отключают optional preview.
+FFmpeg и ffprobe включены в Railpack build через `railpack.json`; локально они
+должны быть установлены отдельно для интеграционных тестов.
 
 ## Запуск (локально)
 
@@ -77,13 +79,17 @@ EventSub/IRC-слушатели и встроенный HTTP-сервер OAuth 
    Redirect URL: `<PUBLIC_URL>/twitch/callback`.
 7. Оставьте ровно `1` replica. Два экземпляра будут конкурировать за
    Telegram long polling/SQLite и дублировать Twitch listeners/уведомления.
-8. Включите restart при сбое и deployment draining не менее `30` секунд.
+8. Включите restart при сбое и настройте deployment draining не менее `30` секунд.
    Не включайте overlapping deploy: у бота нет distributed leader lock,
-   а Volume должен монтироваться к одному активному deployment.
+   а Volume должен монтироваться к одному активному deployment. На дату R0
+   draining в metadata активных Railway deployments не задан; настройку нужно
+   проверить сначала на staging.
 9. В Settings → Deploy задайте `Healthcheck Path`: `/healthz`.
    Healthcheck timeout возьмите с запасом от `POLL_INTERVAL_SECONDS`:
    до первого успешного цикла эндпоинт отдаёт `503 {"status":"starting"}`,
-   и запас на старт равен `3 × POLL_INTERVAL_SECONDS`.
+   и запас на старт равен `3 × POLL_INTERVAL_SECONDS`. На дату R0 production
+   deployment использует `/healthz`, а staging deployment не имеет Railway
+   healthcheck setting, хотя сам endpoint отвечает HTTP 200.
 
 `/healthz` — HTTP healthcheck на том же `PORT`, что и OAuth callback; новых
 переменных и портов не требует. `200 {"status":"ok"}` — поллер жив и успел
@@ -122,8 +128,12 @@ bot/chat_listener.py         — IRC-клиент чата Twitch (топ чат
 bot/oauth.py                 — Twitch OAuth flow + постоянный callback-сервер
 bot/token_store.py           — хранение и обновление пользовательских Twitch-токенов
 bot/poller.py                — фоновый цикл проверки стримов, отчёты, алерты
-bot/preview_runtime.py       — fail-open lifecycle/scheduling preview-сессий (P3)
-bot/preview_capture/         — изолированное bounded FFmpeg/HLS capture-ядро (P4A)
+bot/preview_runtime.py       — fail-open lifecycle/scheduling preview-сессий
+bot/live_preview_provider.py — связывает capture, анализ и render артефакта
+bot/preview_source/          — Twitch/Streamlink playback source
+bot/preview_capture/         — bounded FFmpeg/HLS capture
+bot/preview_analysis/        — выбор и объединение highlights
+bot/preview_render/          — H.264 MP4 render, probe и хранение
 bot/report.py                 — генерация HTML-отчёта
 bot/handlers/streams.py      — основные команды и меню
 bot/handlers/auth.py          — команда /auth_twitch
