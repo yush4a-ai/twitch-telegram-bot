@@ -14,8 +14,8 @@ from .live_post import (
     LivePostMediaStatus,
     LivePostTarget,
     LivePostUpdater,
-    LocalVideo,
-    TelegramVideo,
+    LocalAnimation,
+    TelegramAnimation,
 )
 
 
@@ -48,7 +48,7 @@ _PROVIDER_RENDER_REASONS = frozenset({
     "storage_unavailable", "unexpected_error",
 })
 
-PreviewArtifact: TypeAlias = LocalVideo | TelegramVideo
+PreviewArtifact: TypeAlias = LocalAnimation | TelegramAnimation
 
 
 @dataclass(frozen=True)
@@ -663,7 +663,7 @@ class PreviewManager:
         session: PreviewArtifactSession,
         value: object,
     ) -> None:
-        if isinstance(value, (LocalVideo, TelegramVideo)):
+        if isinstance(value, (LocalAnimation, TelegramAnimation)):
             await self._bounded_cleanup(
                 session.release_artifact(value),
                 "late artifact release",
@@ -833,11 +833,10 @@ class PreviewManager:
     def _is_first_preview(
         participants: tuple[tuple[int, str, int, str], ...]
     ) -> bool:
-        """True until at least one eligible destination has an applied video
-        preview (``message_kind == "video"``) for the current physical stream.
+        """True until a destination has an applied preview for this stream.
         Reuses the durable P2B lifecycle field already tracked per logical
         stream instead of introducing a second persistent state."""
-        return not any(kind == "video" for _, _, _, kind in participants)
+        return not any(kind in {"video", "animation"} for _, _, _, kind in participants)
 
     async def _fan_out(
         self,
@@ -860,18 +859,18 @@ class PreviewManager:
                 or destination.message_id != message_id
             ):
                 continue
-            video: PreviewArtifact = artifact
-            if isinstance(artifact, LocalVideo) and cached_file_id is not None:
-                video = TelegramVideo(cached_file_id)
+            animation: PreviewArtifact = artifact
+            if isinstance(artifact, LocalAnimation) and cached_file_id is not None:
+                animation = TelegramAnimation(cached_file_id, artifact.duration_seconds)
             try:
-                result = await self._live_post_updater.apply_video(
+                result = await self._live_post_updater.apply_animation(
                     target=LivePostTarget(
                         chat_id=chat_id,
                         twitch_login=token.twitch_login,
                         logical_stream_id=logical_stream_id,
                         message_id=message_id,
                     ),
-                    video=video,
+                    animation=animation,
                     is_current_physical_stream=lambda token=token: self._is_current(token),
                     build_content=lambda destination=destination: self._content(
                         self._latest_observation_for(
@@ -890,7 +889,7 @@ class PreviewManager:
                 )
                 continue
             if (
-                isinstance(artifact, LocalVideo)
+                isinstance(artifact, LocalAnimation)
                 and result.status is LivePostMediaStatus.APPLIED
                 and result.file_id
             ):

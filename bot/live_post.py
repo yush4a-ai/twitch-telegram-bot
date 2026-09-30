@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import math
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -16,7 +17,7 @@ from aiogram.exceptions import (
     TelegramNetworkError,
     TelegramRetryAfter,
 )
-from aiogram.types import FSInputFile, InlineKeyboardMarkup, InputMediaPhoto, InputMediaVideo
+from aiogram.types import FSInputFile, InlineKeyboardMarkup, InputMediaAnimation, InputMediaPhoto
 
 from .database import Database, LivePostState
 from .logging_utils import mask_chat_id
@@ -69,17 +70,19 @@ class LivePostContent:
 
 
 @dataclass(frozen=True)
-class LocalVideo:
+class LocalAnimation:
     path: str | Path
+    duration_seconds: float
     filename: str | None = None
 
 
 @dataclass(frozen=True)
-class TelegramVideo:
+class TelegramAnimation:
     file_id: str
+    duration_seconds: float
 
 
-VideoInput: TypeAlias = LocalVideo | TelegramVideo
+AnimationInput: TypeAlias = LocalAnimation | TelegramAnimation
 ContentFactory: TypeAlias = Callable[
     [], LivePostContent | Awaitable[LivePostContent]
 ]
@@ -137,6 +140,7 @@ def _is_invalid_media(error: BaseException) -> bool:
             "media_invalid",
             "invalid media",
             "invalid video",
+            "invalid animation",
             "failed to get http url content",
         )
     )
@@ -206,7 +210,7 @@ class LivePostUpdater:
                 return await self._reconcile_pending_locked(target, content)
             if state.message_kind == "text":
                 outcome = await self._edit_text(target, content)
-            elif state.message_kind in {"photo", "video"}:
+            elif state.message_kind in {"photo", "video", "animation"}:
                 if not _caption_fits(content.html):
                     return LivePostUpdateResult.CONTENT_TOO_LONG
                 outcome = await self._edit_caption(target, content)
@@ -280,11 +284,11 @@ class LivePostUpdater:
                 else LivePostMediaStatus.STATE_CONFLICT
             )
 
-    async def apply_video(
+    async def apply_animation(
         self,
         *,
         target: LivePostTarget,
-        video: VideoInput,
+        animation: AnimationInput,
         is_current_physical_stream: PhysicalStreamGuard,
         build_content: ContentFactory,
     ) -> LivePostMediaResult:
@@ -344,8 +348,8 @@ class LivePostUpdater:
                 if not self._media_enabled(state):
                     return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
 
-            first_transition = state.message_kind == "text"
-            if first_transition and not await db.begin_video_transition(
+            first_transition = state.message_kind != "animation" and not state.media_transition_pending
+            if first_transition and not await db.begin_animation_transition(
                 target.chat_id,
                 target.twitch_login,
                 target.logical_stream_id,
@@ -370,20 +374,30 @@ class LivePostUpdater:
                     return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
 
             media_input: FSInputFile | str
-            if isinstance(video, LocalVideo):
-                media_input = FSInputFile(video.path, filename=video.filename)
-            elif isinstance(video, TelegramVideo):
-                media_input = video.file_id
+            if isinstance(animation, LocalAnimation):
+                media_input = FSInputFile(
+                    animation.path, filename=animation.filename or "preview.mp4"
+                )
+            elif isinstance(animation, TelegramAnimation):
+                media_input = animation.file_id
             else:
                 if first_transition:
                     await self._clear_pending(target)
-                raise TypeError(f"Unsupported video input: {type(video)!r}")
+                raise TypeError(f"Unsupported animation input: {type(animation)!r}")
 
-            media = InputMediaVideo(
+            duration_seconds = animation.duration_seconds
+            if not math.isfinite(duration_seconds) or duration_seconds <= 0:
+                if first_transition:
+                    await self._clear_pending(target)
+                raise ValueError("Animation duration must be finite and positive")
+
+            media = InputMediaAnimation(
                 media=media_input,
                 caption=content.html,
                 parse_mode="HTML",
-                supports_streaming=True,
+                width=854,
+                height=480,
+                duration=math.ceil(duration_seconds),
             )
             try:
                 message = await self._bot.edit_message_media(
@@ -400,8 +414,8 @@ class LivePostUpdater:
                 return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
             except TelegramBadRequest as error:
                 if _is_not_modified(error):
-                    if not first_transition:
-                        if not await db.finish_video_transition(
+                    if state.message_kind == "animation" and not state.media_transition_pending:
+                        if not await db.finish_animation_transition(
                             target.chat_id,
                             target.twitch_login,
                             target.logical_stream_id,
@@ -420,7 +434,7 @@ class LivePostUpdater:
                     if (
                         reconciled is LivePostUpdateResult.UPDATED
                         and self._is_current(state, target)
-                        and state.message_kind == "video"
+                        and state.message_kind == "animation"
                         and not state.media_transition_pending
                     ):
                         return LivePostMediaResult(LivePostMediaStatus.APPLIED)
@@ -430,7 +444,9 @@ class LivePostUpdater:
                         return LivePostMediaResult(
                             LivePostMediaStatus.MESSAGE_MISSING
                         )
-                    return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+                    if reconciled is LivePostUpdateResult.UPDATED and state.message_kind == "text":
+                        return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+                    return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
                 if first_transition:
                     await self._clear_pending(target)
                 if _is_missing(error):
@@ -443,15 +459,15 @@ class LivePostUpdater:
                     await self._clear_pending(target)
                 return LivePostMediaResult(LivePostMediaStatus.REJECTED)
 
-            if not await db.finish_video_transition(
+            if not await db.finish_animation_transition(
                 target.chat_id,
                 target.twitch_login,
                 target.logical_stream_id,
                 target.message_id,
             ):
                 return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
-            video_message = getattr(message, "video", None)
-            file_id = getattr(video_message, "file_id", None)
+            animation_message = getattr(message, "animation", None)
+            file_id = getattr(animation_message, "file_id", None)
             return LivePostMediaResult(LivePostMediaStatus.APPLIED, file_id)
 
     async def update(
@@ -605,12 +621,19 @@ class LivePostUpdater:
 
         caption_outcome = await self._edit_caption(target, content)
         if caption_outcome is _EditOutcome.APPLIED:
+            if (
+                state.media_transition_target_kind == "animation"
+                and state.message_kind in {"photo", "video"}
+            ):
+                # A caption edit proves only that media exists. The original video/photo
+                # may still be present after an interrupted media replacement.
+                return LivePostUpdateResult.UPDATED
             updated = await db.set_live_message_kind_if_current(
                 target.chat_id,
                 target.twitch_login,
                 target.logical_stream_id,
                 target.message_id,
-                "video",
+                state.media_transition_target_kind,
                 False,
             )
             return (

@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, NoReturn
 
-from bot.live_post import LocalVideo
+from bot.live_post import LocalAnimation
 from bot.preview_analysis import (
     AnalysisResult,
     AnalysisStatus,
@@ -394,7 +394,11 @@ class _LivePreviewArtifactSession:
             pending.release()
             _provider_error("artifact")
         try:
-            artifact = LocalVideo(pending.output.path, "preview.mp4")
+            artifact = LocalAnimation(
+                pending.output.path,
+                duration_seconds=pending.output.duration_seconds,
+                filename="preview.mp4",
+            )
         except asyncio.CancelledError:
             self._release_during_cancellation(pending)
             raise

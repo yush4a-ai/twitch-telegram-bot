@@ -10,7 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from bot.live_post import LocalVideo, TelegramVideo
+from bot.live_post import LocalAnimation, TelegramAnimation
 from bot.live_preview_provider import (
     LivePreviewArtifactProvider,
     LivePreviewProviderError,
@@ -482,7 +482,7 @@ class ArtifactFlowTests(ProviderTestCase):
 
         artifact = await session.create_artifact(request)
 
-        self.assertIsInstance(artifact, LocalVideo)
+        self.assertIsInstance(artifact, LocalAnimation)
         self.assertEqual(artifact.path, rendered.path)
         self.assertEqual(analyzer.include_fallback_calls, [True])
         self.assertEqual(len(renderer.calls), 1)
@@ -511,7 +511,7 @@ class ArtifactFlowTests(ProviderTestCase):
 
         artifact = await session.create_artifact(self.request)
 
-        self.assertIsInstance(artifact, LocalVideo)
+        self.assertIsInstance(artifact, LocalAnimation)
         self.assertEqual(artifact.path, rendered.path)
         self.assertEqual(artifact.filename, "preview.mp4")
         self.assertEqual(handle.acquire_calls, [90.0])
@@ -555,7 +555,7 @@ class ArtifactOwnershipTests(ProviderTestCase):
         session, _handle, _snapshot, rendered, artifact = (
             await self._owned_artifact()
         )
-        equal_but_foreign = LocalVideo(artifact.path, artifact.filename)
+        equal_but_foreign = LocalAnimation(artifact.path, artifact.duration_seconds, artifact.filename)
         self.assertEqual(equal_but_foreign, artifact)
         self.assertIsNot(equal_but_foreign, artifact)
 
@@ -571,8 +571,8 @@ class ArtifactOwnershipTests(ProviderTestCase):
         handle = FakeCaptureHandle()
         session, _source, _analyzer, _renderer = await self._session(handle)
 
-        await session.release_artifact(LocalVideo("C:/foreign/video.mp4"))
-        await session.release_artifact(TelegramVideo("private-file-id"))
+        await session.release_artifact(LocalAnimation("C:/foreign/video.mp4", duration_seconds=6.0))
+        await session.release_artifact(TelegramAnimation("private-file-id", duration_seconds=6.0))
 
         self.assertEqual(handle.close_calls, 0)
 
@@ -591,7 +591,7 @@ class ArtifactOwnershipTests(ProviderTestCase):
         )
 
         with patch(
-            "bot.live_preview_provider.LocalVideo",
+            "bot.live_preview_provider.LocalAnimation",
             side_effect=RuntimeError("C:/private/orphan.mp4"),
         ), self.assertRaises(LivePreviewProviderError) as raised:
             await session.create_artifact(self.request)
@@ -731,7 +731,7 @@ class SnapshotCleanupTests(ProviderTestCase):
         )
 
         with patch(
-            "bot.live_preview_provider.LocalVideo",
+            "bot.live_preview_provider.LocalAnimation",
             side_effect=asyncio.CancelledError(),
         ), self.assertRaises(asyncio.CancelledError):
             await session.create_artifact(self.request)
@@ -770,7 +770,7 @@ class SnapshotCleanupTests(ProviderTestCase):
         )
 
         with patch(
-            "bot.live_preview_provider.LocalVideo",
+            "bot.live_preview_provider.LocalAnimation",
             side_effect=asyncio.CancelledError(),
         ), self.assertRaises(asyncio.CancelledError):
             await session.create_artifact(self.request)
@@ -1295,7 +1295,7 @@ class CumulativePreviewCycleTests(ProviderTestCase):
         durations = []
         for _ in range(6):
             artifact = await session.create_artifact(self.request)
-            self.assertIsInstance(artifact, LocalVideo)
+            self.assertIsInstance(artifact, LocalAnimation)
             durations.append(renderer.outputs[artifact.path].duration_seconds)
             await session.release_artifact(artifact)
 
@@ -1303,6 +1303,16 @@ class CumulativePreviewCycleTests(ProviderTestCase):
         self.assertEqual(
             [len(items) for items in renderer.cumulative_calls], [2, 3, 4, 5]
         )
+
+    async def test_artifact_carries_rendered_duration_for_telegram(self) -> None:
+        session, _snapshots, _analyzer, _renderer = await self._cycle_session(
+            (self._success(), self._success())
+        )
+        first = await session.create_artifact(self.request)
+        second = await session.create_artifact(self.request)
+        self.assertEqual(first.duration_seconds, 6.0)
+        self.assertEqual(second.duration_seconds, 12.0)
+        self.assertEqual(second.path.suffix, ".mp4")
 
     async def test_no_new_highlight_does_not_advance_or_reset_full_cycle(self) -> None:
         analyses = (

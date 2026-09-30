@@ -1007,7 +1007,7 @@ class StreamPoller:
                                 chat_id > 0
                                 and thumbnail_refresh_due
                                 and thumbnail_url is not None
-                                and message_kind != "video"
+                                and message_kind not in {"video", "animation"}
                             ):
                                 thumbnail_attempted = True
                                 photo_result = await self._refresh_thumbnail(

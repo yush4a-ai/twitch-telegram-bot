@@ -16,7 +16,7 @@ from aiogram.exceptions import (
     TelegramNetworkError,
     TelegramRetryAfter,
 )
-from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaVideo
+from aiogram.types import FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaAnimation, InputMediaVideo
 
 from bot.database import Database
 from bot.poller import OFFLINE_GRACE_SECONDS, StreamPoller
@@ -86,6 +86,23 @@ class LivePostDatabaseP2BTests(unittest.IsolatedAsyncioTestCase):
         await self.db.connect()
 
         self.assertEqual(await self._stored_state(), (701, "text", 0))
+
+    async def test_legacy_pending_transition_migrates_with_video_target(self) -> None:
+        self.assertTrue(await self.db.begin_video_transition(
+            101, "channel", "logical-1", 701
+        ))
+        await self.db.close()
+        raw = sqlite3.connect(self.path)
+        raw.execute("ALTER TABLE tracked_channels DROP COLUMN media_transition_target_kind")
+        raw.commit()
+        raw.close()
+
+        self.db = Database(self.path)
+        await self.db.connect()
+        state = await self.db.get_live_post_state(101, "channel")
+        self.assertIsNotNone(state)
+        self.assertTrue(state.media_transition_pending)
+        self.assertEqual(state.media_transition_target_kind, "video")
 
     async def test_set_live_state_preserves_fresh_kind_and_pending_for_same_message(self) -> None:
         begin = self._require_db_method("begin_video_transition")
@@ -189,7 +206,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             edit_message_text=AsyncMock(),
             edit_message_caption=AsyncMock(),
             edit_message_media=AsyncMock(
-                return_value=SimpleNamespace(video=SimpleNamespace(file_id="uploaded-file-id"))
+                return_value=SimpleNamespace(animation=SimpleNamespace(file_id="uploaded-file-id"))
             ),
             send_message=AsyncMock(),
             delete_message=AsyncMock(),
@@ -231,13 +248,13 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         cls = self._require_type("LivePostContent")
         return cls(html=text, reply_markup=self.keyboard)
 
-    def _local_video(self, path: Path | None = None):
-        cls = self._require_type("LocalVideo")
-        return cls(path=path or Path(self._directory.name) / "preview.mp4")
+    def _local_animation(self, path: Path | None = None):
+        cls = self._require_type("LocalAnimation")
+        return cls(path=path or Path(self._directory.name) / "preview.mp4", duration_seconds=6.0)
 
-    def _telegram_video(self, file_id: str = "cached-file-id"):
-        cls = self._require_type("TelegramVideo")
-        return cls(file_id=file_id)
+    def _telegram_animation(self, file_id: str = "cached-file-id"):
+        cls = self._require_type("TelegramAnimation")
+        return cls(file_id=file_id, duration_seconds=6.0)
 
     def _status(self, name: str):
         enum = self._require_type("LivePostMediaStatus")
@@ -258,6 +275,100 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(row)
         return row
 
+    async def test_animation_from_text_uses_mp4_metadata_and_animation_file_id(self) -> None:
+        local = self._require_type("LocalAnimation")(
+            Path(self._directory.name) / "preview.mp4", duration_seconds=17.5
+        )
+        self.bot.edit_message_media.return_value = SimpleNamespace(
+            animation=SimpleNamespace(file_id="animation-file-id"),
+            video=SimpleNamespace(file_id="wrong-video-file-id"),
+        )
+
+        result = await self._updater().apply_animation(
+            target=self._target(), animation=local,
+            is_current_physical_stream=lambda: True,
+            build_content=self._build_content,
+        )
+
+        self.assertEqual(result.status, self._status("APPLIED"))
+        self.assertEqual(result.file_id, "animation-file-id")
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
+        media = self.bot.edit_message_media.await_args.kwargs["media"]
+        self.assertIsInstance(media, InputMediaAnimation)
+        self.assertNotIsInstance(media, InputMediaVideo)
+        self.assertIsInstance(media.media, FSInputFile)
+        self.assertEqual(media.media.filename, "preview.mp4")
+        self.assertEqual((media.width, media.height, media.duration), (854, 480, 18))
+        self.assertEqual(media.caption, "<b>Fresh live HTML</b>")
+        self.assertIs(self.bot.edit_message_media.await_args.kwargs["reply_markup"], self.keyboard)
+        self.bot.send_message.assert_not_awaited()
+
+    async def test_legacy_video_migrates_in_place_to_animation(self) -> None:
+        await self._mark_video()
+        cached = self._require_type("TelegramAnimation")(
+            "cached-animation-id", duration_seconds=12.0
+        )
+
+        result = await self._updater().apply_animation(
+            target=self._target(), animation=cached,
+            is_current_physical_stream=lambda: True,
+            build_content=self._build_content,
+        )
+
+        self.assertEqual(result.status, self._status("APPLIED"))
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
+        media = self.bot.edit_message_media.await_args.kwargs["media"]
+        self.assertIsInstance(media, InputMediaAnimation)
+        self.assertEqual(media.media, "cached-animation-id")
+        self.assertEqual(media.duration, 12)
+        self.bot.send_message.assert_not_awaited()
+        self.bot.delete_message.assert_not_awaited()
+
+    async def test_animation_content_updates_caption(self) -> None:
+        await self.db.set_live_message_kind_if_current(
+            101, "channel", "logical-1", 701, "animation", False
+        )
+        result = await self._updater().update_content(
+            target=self._target(), build_content=self._build_content
+        )
+        self.assertEqual(result, self._require_type("LivePostUpdateResult").UPDATED)
+        self.bot.edit_message_caption.assert_awaited_once()
+        self.bot.edit_message_text.assert_not_awaited()
+
+    async def test_restart_during_video_to_animation_keeps_legacy_kind_until_confirmed(self) -> None:
+        await self._mark_video()
+        self.assertTrue(await self.db.begin_animation_transition(
+            101, "channel", "logical-1", 701
+        ))
+        result = await self._updater().update_content(
+            target=self._target(), build_content=self._build_content
+        )
+        self.assertEqual(result, self._require_type("LivePostUpdateResult").UPDATED)
+        self.assertEqual(await self._stored_state(), (701, "video", 1))
+        self.bot.send_message.assert_not_awaited()
+        self.bot.delete_message.assert_not_awaited()
+
+        refreshed = await self._updater().apply_animation(
+            target=self._target(), animation=self._local_animation(),
+            is_current_physical_stream=lambda: True,
+            build_content=self._build_content,
+        )
+        self.assertEqual(refreshed.status, self._status("APPLIED"))
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
+        self.assertEqual(self.bot.edit_message_media.await_args.kwargs["message_id"], 701)
+        self.bot.send_message.assert_not_awaited()
+
+    async def test_restart_after_text_to_animation_uses_persisted_transition_target(self) -> None:
+        self.assertTrue(await self.db.begin_animation_transition(
+            101, "channel", "logical-1", 701
+        ))
+        result = await self._updater().update_content(
+            target=self._target(), build_content=self._build_content
+        )
+        self.assertEqual(result, self._require_type("LivePostUpdateResult").UPDATED)
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
+        self.bot.send_message.assert_not_awaited()
+
     async def _mark_video(
         self,
         *,
@@ -272,36 +383,36 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             await method(chat_id, login, stream_id, message_id, "video", False)
         )
 
-    async def test_text_to_local_video_keeps_message_and_builds_expected_media(self) -> None:
+    async def test_text_to_local_animation_keeps_message_and_builds_expected_media(self) -> None:
         updater = self._updater()
 
-        result = await updater.apply_video(
+        result = await updater.apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
 
         self.assertEqual(result.status, self._status("APPLIED"))
         self.assertEqual(result.file_id, "uploaded-file-id")
-        self.assertEqual(await self._stored_state(), (701, "video", 0))
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
         call = self.bot.edit_message_media.await_args
         self.assertEqual(call.kwargs["chat_id"], 101)
         self.assertEqual(call.kwargs["message_id"], 701)
         self.assertIs(call.kwargs["reply_markup"], self.keyboard)
         media = call.kwargs["media"]
-        self.assertIsInstance(media, InputMediaVideo)
+        self.assertIsInstance(media, InputMediaAnimation)
         self.assertIsInstance(media.media, FSInputFile)
         self.assertEqual(media.caption, "<b>Fresh live HTML</b>")
         self.assertEqual(media.parse_mode, "HTML")
-        self.assertTrue(media.supports_streaming)
+        self.assertEqual((media.width, media.height, media.duration), (854, 480, 6))
         self.bot.send_message.assert_not_awaited()
         self.bot.delete_message.assert_not_awaited()
 
     async def test_telegram_file_id_is_reused_without_local_upload(self) -> None:
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._telegram_video(),
+            animation=self._telegram_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -311,19 +422,19 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(media.media, "cached-file-id")
         self.assertNotIsInstance(media.media, FSInputFile)
 
-    async def test_media_success_without_video_file_id_still_applies(self) -> None:
-        self.bot.edit_message_media.return_value = SimpleNamespace(video=None)
+    async def test_media_success_without_animation_file_id_still_applies(self) -> None:
+        self.bot.edit_message_media.return_value = SimpleNamespace(animation=None)
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
 
         self.assertEqual(result.status, self._status("APPLIED"))
         self.assertIsNone(result.file_id)
-        self.assertEqual(await self._stored_state(), (701, "video", 0))
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
 
     async def test_media_state_changes_only_after_confirmed_success(self) -> None:
         entered = asyncio.Event()
@@ -332,13 +443,13 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         async def blocked_edit(**_kwargs):
             entered.set()
             await release.wait()
-            return SimpleNamespace(video=None)
+            return SimpleNamespace(animation=None)
 
         self.bot.edit_message_media.side_effect = blocked_edit
         task = asyncio.create_task(
-            self._updater().apply_video(
+            self._updater().apply_animation(
                 target=self._target(),
-                video=self._local_video(),
+                animation=self._local_animation(),
                 is_current_physical_stream=lambda: True,
                 build_content=self._build_content,
             )
@@ -349,7 +460,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         release.set()
         result = await task
         self.assertEqual(result.status, self._status("APPLIED"))
-        self.assertEqual(await self._stored_state(), (701, "video", 0))
+        self.assertEqual(await self._stored_state(), (701, "animation", 0))
 
     async def test_definitive_media_failures_are_non_destructive_and_clear_pending(self) -> None:
         cases = (
@@ -366,9 +477,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
                 self.bot.edit_message_media.reset_mock(side_effect=True)
                 self.bot.edit_message_media.side_effect = error
 
-                result = await self._updater().apply_video(
+                result = await self._updater().apply_animation(
                     target=self._target(),
-                    video=self._local_video(),
+                    animation=self._local_animation(),
                     is_current_physical_stream=lambda: True,
                     build_content=self._build_content,
                 )
@@ -383,9 +494,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             SimpleNamespace(), "retry", retry_after=3
         )
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -400,9 +511,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             SimpleNamespace(), "offline"
         )
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -414,15 +525,15 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_stale_message_and_physical_guards_stop_before_telegram(self) -> None:
         updater = self._updater()
-        stale_message = await updater.apply_video(
+        stale_message = await updater.apply_animation(
             target=self._target(message_id=999),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
-        stale_physical = await updater.apply_video(
+        stale_physical = await updater.apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: False,
             build_content=self._build_content,
         )
@@ -439,9 +550,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             current = False
             return self._content()
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: current,
             build_content=supersede_artifact_during_build,
         )
@@ -463,9 +574,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
                 )
             return True
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._telegram_video(),
+            animation=self._telegram_animation(),
             is_current_physical_stream=replace_target_on_final_guard,
             build_content=self._build_content,
         )
@@ -476,7 +587,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_first_transition_rechecks_physical_guard_after_begin_cas(self) -> None:
         current = True
-        original_begin = self.db.begin_video_transition
+        original_begin = self.db.begin_animation_transition
 
         async def supersede_during_begin(*args):
             nonlocal current
@@ -484,11 +595,11 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             current = False
             return began
 
-        self.db.begin_video_transition = supersede_during_begin
+        self.db.begin_animation_transition = supersede_during_begin
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: current,
             build_content=self._build_content,
         )
@@ -500,13 +611,13 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
     async def test_finish_cas_conflict_never_clobbers_replacement(self) -> None:
         async def replace_during_request(**_kwargs):
             await self.db.set_live_state(101, "channel", True, "logical-1", 702)
-            return SimpleNamespace(video=SimpleNamespace(file_id="old-artifact"))
+            return SimpleNamespace(animation=SimpleNamespace(file_id="old-artifact"))
 
         self.bot.edit_message_media.side_effect = replace_during_request
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -597,21 +708,21 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(result, expected)
                 self.assertEqual(await self._stored_state(), (701, "video", 0))
 
-    async def test_existing_video_media_not_modified_is_applied_noop(self) -> None:
+    async def test_legacy_video_not_modified_remains_pending_for_safe_retry(self) -> None:
         await self._mark_video()
         self.bot.edit_message_media.side_effect = TelegramBadRequest(
             SimpleNamespace(), "message is not modified"
         )
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._telegram_video(),
+            animation=self._telegram_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
 
-        self.assertEqual(result.status, self._status("APPLIED"))
-        self.assertEqual(await self._stored_state(), (701, "video", 0))
+        self.assertEqual(result.status, self._status("RETRY_LATER"))
+        self.assertEqual(await self._stored_state(), (701, "video", 1))
 
     async def test_pending_actual_video_reconciles_with_caption_probe(self) -> None:
         begin = getattr(self.db, "begin_video_transition", None)
@@ -677,7 +788,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         self.bot.edit_message_caption.assert_awaited_once()
         self.assertEqual(await self._stored_state(), (701, "video", 0))
 
-    async def test_first_media_not_modified_does_not_blindly_flip_text_to_video(self) -> None:
+    async def test_first_media_not_modified_does_not_blindly_flip_text_to_animation(self) -> None:
         self.bot.edit_message_media.side_effect = TelegramBadRequest(
             SimpleNamespace(), "message is not modified"
         )
@@ -685,9 +796,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             SimpleNamespace(), "message is not a media message"
         )
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -700,9 +811,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
     async def test_caption_preflight_blocks_first_conversion_without_truncation(self) -> None:
         long_html = "x" * 1025
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=lambda: self._build_content(long_html),
         )
@@ -712,9 +823,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self._stored_state(), (701, "text", 0))
 
     async def test_caption_preflight_counts_raw_html_utf16_code_units(self) -> None:
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=lambda: self._build_content("😀" * 512),
         )
@@ -743,9 +854,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         updater = self._updater()
         await self.db.set_preview_enabled(101, "channel", False)
 
-        blocked = await updater.apply_video(
+        blocked = await updater.apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=self._build_content,
         )
@@ -765,9 +876,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             await self.db.set_preview_enabled(101, "channel", False)
             return self._content()
 
-        result = await self._updater().apply_video(
+        result = await self._updater().apply_animation(
             target=self._target(),
-            video=self._local_video(),
+            animation=self._local_animation(),
             is_current_physical_stream=lambda: True,
             build_content=disable_during_content_build,
         )
@@ -794,9 +905,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         holder = asyncio.create_task(hold_lock())
         await holder_entered.wait()
         media = asyncio.create_task(
-            updater.apply_video(
+            updater.apply_animation(
                 target=self._target(),
-                video=self._local_video(),
+                animation=self._local_animation(),
                 is_current_physical_stream=lambda: True,
                 build_content=build_after_lock,
             )
@@ -830,9 +941,9 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         )
         await caption_entered.wait()
         media = asyncio.create_task(
-            updater.apply_video(
+            updater.apply_animation(
                 target=self._target(),
-                video=self._telegram_video(),
+                animation=self._telegram_animation(),
                 is_current_physical_stream=lambda: True,
                 build_content=self._build_content,
             )
@@ -860,14 +971,14 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             if entered == {701, 702}:
                 both_entered.set()
             await release.wait()
-            return SimpleNamespace(video=None)
+            return SimpleNamespace(animation=None)
 
         self.bot.edit_message_media.side_effect = blocked_media
         tasks = [
             asyncio.create_task(
-                updater.apply_video(
+                updater.apply_animation(
                     target=target,
-                    video=self._local_video(),
+                    animation=self._local_animation(),
                     is_current_physical_stream=lambda: True,
                     build_content=self._build_content,
                 )
@@ -937,7 +1048,7 @@ class StreamPollerP2BTests(unittest.IsolatedAsyncioTestCase):
             send_message=AsyncMock(return_value=SimpleNamespace(message_id=702)),
             edit_message_text=AsyncMock(),
             edit_message_caption=AsyncMock(),
-            edit_message_media=AsyncMock(return_value=SimpleNamespace(video=None)),
+            edit_message_media=AsyncMock(return_value=SimpleNamespace(animation=None)),
             delete_message=AsyncMock(),
         )
         self.twitch = SimpleNamespace(
@@ -1106,12 +1217,12 @@ class StreamPollerP2BTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self._state(), (702, "text", 0))
 
         target_cls = getattr(_live_post_module(), "LivePostTarget", None)
-        local_cls = getattr(_live_post_module(), "LocalVideo", None)
+        local_cls = getattr(_live_post_module(), "LocalAnimation", None)
         self.assertIsNotNone(target_cls)
         self.assertIsNotNone(local_cls)
-        result = await self.updater.apply_video(
+        result = await self.updater.apply_animation(
             target=target_cls(101, "channel", "logical-1", 701),
-            video=local_cls(Path(self._directory.name) / "old.mp4"),
+            animation=local_cls(Path(self._directory.name) / "old.mp4", duration_seconds=6.0),
             is_current_physical_stream=lambda: True,
             build_content=lambda: self.poller._live_post_content(
                 "channel", "Old", "Game", 1, None, include_track_link=False

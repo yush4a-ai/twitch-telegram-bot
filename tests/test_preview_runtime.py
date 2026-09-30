@@ -17,8 +17,8 @@ from bot.live_post import (
     LivePostContent,
     LivePostMediaResult,
     LivePostMediaStatus,
-    LocalVideo,
-    TelegramVideo,
+    LocalAnimation,
+    TelegramAnimation,
 )
 from bot.oauth import evaluate_runtime_health
 from bot.poller import StreamPoller
@@ -209,7 +209,7 @@ class RecordingUpdater:
         self.apply_entered = asyncio.Event()
         self.active_lock_count = 0
 
-    async def apply_video(self, **kwargs):
+    async def apply_animation(self, **kwargs):
         content = kwargs["build_content"]()
         if inspect.isawaitable(content):
             content = await content
@@ -370,7 +370,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_five_destinations_share_one_provider_session_and_job(self) -> None:
         for offset in range(5):
             await self.seed(101 + offset, message_id=701 + offset)
-        self.provider.default_outcome = LocalVideo(Path("artifact.mp4"))
+        self.provider.default_outcome = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0)
         manager = self.manager()
 
         await self.start_online(manager)
@@ -388,6 +388,33 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.provider.create_calls) == 1)
 
         self.assertTrue(self.provider.create_calls[0][1].is_first_preview)
+
+    async def test_animation_and_legacy_video_both_count_as_existing_preview(self) -> None:
+        manager_type = self.preview.PreviewManager
+        self.assertFalse(manager_type._is_first_preview(((101, "s", 701, "animation"),)))
+        self.assertFalse(manager_type._is_first_preview(((101, "s", 701, "video"),)))
+
+    async def test_local_animation_file_id_fans_out_as_telegram_animation(self) -> None:
+        from bot.live_post import LocalAnimation, TelegramAnimation
+
+        for chat_id in (101, 102):
+            await self.seed(chat_id, message_id=600 + chat_id)
+        artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=24.0)
+        self.provider.default_outcome = artifact
+        self.updater.apply_animation = AsyncMock(
+            return_value=LivePostMediaResult(LivePostMediaStatus.APPLIED, "animation-id")
+        )
+        manager = self.manager()
+
+        await self.start_online(manager)
+        await _wait_until(lambda: self.updater.apply_animation.await_count == 2)
+
+        calls = self.updater.apply_animation.await_args_list
+        self.assertEqual(calls[0].kwargs["animation"], artifact)
+        self.assertEqual(
+            calls[1].kwargs["animation"],
+            TelegramAnimation("animation-id", duration_seconds=24.0),
+        )
 
     async def test_request_is_not_first_preview_when_message_kind_is_video(self) -> None:
         await self.seed(101, logical="physical-A", message_id=701)
@@ -440,7 +467,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(102, notify=False)
         await self.seed(103, message_id=None)
         await self.seed(104)
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
 
         await self.start_online(manager)
@@ -473,7 +500,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
         self.provider.ignore_create_cancellation = True
-        self.provider.outcomes.extend([LocalVideo(Path("late-a.mp4")), None])
+        self.provider.outcomes.extend([LocalAnimation(Path("late-a.mp4"), duration_seconds=6.0), None])
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -492,7 +519,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(self.updater.calls, [])
-        self.assertEqual(self.provider.released, [LocalVideo(Path("late-a.mp4"))])
+        self.assertEqual(self.provider.released, [LocalAnimation(Path("late-a.mp4"), duration_seconds=6.0)])
         self.assertEqual(self.provider.open_calls[-1].physical_stream_id, "physical-B")
 
     async def test_physical_change_replaces_generation_even_when_logical_id_is_merged(self) -> None:
@@ -708,7 +735,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         alpha_gate = asyncio.Event()
         self.provider.create_gate_by_login["alpha"] = alpha_gate
         self.provider.ignore_create_cancellation = True
-        late_artifact = LocalVideo(Path("late-alpha.mp4"))
+        late_artifact = LocalAnimation(Path("late-alpha.mp4"), duration_seconds=6.0)
         self.provider.outcome_by_login.update(
             {
                 "alpha": lambda _request: (
@@ -785,7 +812,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.provider.create_gate = create_gate
         self.provider.ignore_create_cancellation = True
         self.provider.reject_release_after_close = True
-        artifact = LocalVideo(Path("shutdown-late.mp4"))
+        artifact = LocalAnimation(Path("shutdown-late.mp4"), duration_seconds=6.0)
         self.provider.default_outcome = artifact
         manager = self.manager(timeout=0.05)
         await self.start_online(manager)
@@ -813,7 +840,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.provider.release_gate_by_login["channel"] = release_gate
         self.provider.ignore_release_cancellation = True
         self.provider.reject_release_after_close = True
-        artifact = LocalVideo(Path("inflight-release.mp4"))
+        artifact = LocalAnimation(Path("inflight-release.mp4"), duration_seconds=6.0)
         self.provider.default_outcome = artifact
         manager = self.manager(timeout=0.05)
         await self.start_online(manager)
@@ -895,7 +922,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_offline_cancels_job_closes_session_and_releases_artifact(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = LocalVideo(Path("cancelled.mp4"))
+        self.provider.default_outcome = LocalAnimation(Path("cancelled.mp4"), duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -936,7 +963,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_destination_joining_running_job_waits_for_next_artifact(self) -> None:
         await self.seed(101, message_id=701)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager(interval=300)
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -973,7 +1000,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_first_local_upload_file_id_is_reused_for_remaining_destinations(self) -> None:
         for chat_id in (101, 102, 103):
             await self.seed(chat_id, message_id=600 + chat_id)
-        artifact = LocalVideo(Path("artifact.mp4"), "preview.mp4")
+        artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0, filename="preview.mp4")
         self.provider.default_outcome = artifact
         manager = self.manager()
 
@@ -981,17 +1008,17 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.updater.calls) == 3)
         await _wait_until(lambda: self.provider.released == [artifact])
 
-        self.assertEqual(self.updater.calls[0]["video"], artifact)
+        self.assertEqual(self.updater.calls[0]["animation"], artifact)
         self.assertEqual(
-            [call["video"] for call in self.updater.calls[1:]],
-            [TelegramVideo("uploaded-file-id"), TelegramVideo("uploaded-file-id")],
+            [call["animation"] for call in self.updater.calls[1:]],
+            [TelegramAnimation("uploaded-file-id", duration_seconds=6.0), TelegramAnimation("uploaded-file-id", duration_seconds=6.0)],
         )
         self.assertEqual(self.provider.released, [artifact])
 
     async def test_failed_first_target_makes_second_retry_local_upload(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
-        artifact = LocalVideo(Path("artifact.mp4"))
+        artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0)
         self.provider.default_outcome = artifact
         self.updater.results.extend(
             [
@@ -1004,13 +1031,13 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.start_online(manager)
         await _wait_until(lambda: len(self.updater.calls) == 2)
 
-        self.assertEqual(self.updater.calls[0]["video"], artifact)
-        self.assertEqual(self.updater.calls[1]["video"], artifact)
+        self.assertEqual(self.updater.calls[0]["animation"], artifact)
+        self.assertEqual(self.updater.calls[1]["animation"], artifact)
 
     async def test_applied_without_file_id_keeps_local_input_for_next_target(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
-        artifact = LocalVideo(Path("artifact.mp4"))
+        artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0)
         self.provider.default_outcome = artifact
         self.updater.results.extend(
             [
@@ -1024,13 +1051,13 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.updater.calls) == 2)
 
         self.assertEqual(
-            [call["video"] for call in self.updater.calls], [artifact, artifact]
+            [call["animation"] for call in self.updater.calls], [artifact, artifact]
         )
 
     async def test_provider_telegram_file_id_is_reused_for_every_target(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
-        artifact = TelegramVideo("provider-file")
+        artifact = TelegramAnimation("provider-file", duration_seconds=6.0)
         self.provider.default_outcome = artifact
         manager = self.manager()
 
@@ -1038,13 +1065,13 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.updater.calls) == 2)
 
         self.assertEqual(
-            [call["video"] for call in self.updater.calls], [artifact, artifact]
+            [call["animation"] for call in self.updater.calls], [artifact, artifact]
         )
 
     async def test_one_telegram_exception_does_not_block_remaining_fanout(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         self.updater.results.extend(
             [RuntimeError("telegram-sensitive-text"), self.updater.default_result]
         )
@@ -1060,7 +1087,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_replaced_message_revision_is_skipped_before_apply(self) -> None:
         await self.seed(101, message_id=701)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1074,7 +1101,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_removed_destination_is_skipped_before_apply(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1088,7 +1115,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_preview_toggle_during_job_is_respected(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1102,7 +1129,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_notify_toggle_during_job_is_respected_by_manager(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1116,7 +1143,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_new_destination_during_job_is_not_in_frozen_participants(self) -> None:
         await self.seed(101, message_id=701)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1130,7 +1157,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_same_physical_stream_uses_latest_observation_for_fanout_content(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = TelegramVideo("provider-file")
+        self.provider.default_outcome = TelegramAnimation("provider-file", duration_seconds=6.0)
         manager = self.manager()
         manager.start()
         manager.observe_cycle((self.observation(title="Old title"),))
@@ -1174,7 +1201,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     async def test_observation_lease_blocks_media_after_poll_outage(self) -> None:
         await self.seed(101)
         self.provider.create_gate = asyncio.Event()
-        self.provider.default_outcome = LocalVideo(Path("stale.mp4"))
+        self.provider.default_outcome = LocalAnimation(Path("stale.mp4"), duration_seconds=6.0)
         manager = self.manager(poll_interval=10)
         await self.start_online(manager)
         await self.provider.create_entered.wait()
@@ -1184,7 +1211,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _settle(30)
 
         self.assertEqual(self.updater.calls, [])
-        self.assertEqual(self.provider.released, [LocalVideo(Path("stale.mp4"))])
+        self.assertEqual(self.provider.released, [LocalAnimation(Path("stale.mp4"), duration_seconds=6.0)])
 
     async def test_restart_has_empty_runtime_and_requires_new_observation_and_warmup(self) -> None:
         await self.seed(101)
@@ -1691,9 +1718,9 @@ class LivePostNotifyRaceTests(unittest.IsolatedAsyncioTestCase):
                 await db.set_notify_enabled(101, "channel", False)
                 return LivePostContent("fresh", None)
 
-            result = await updater_type(bot, db).apply_video(
+            result = await updater_type(bot, db).apply_animation(
                 target=target_type(101, "channel", "logical-1", 701),
-                video=TelegramVideo("file-id"),
+                animation=TelegramAnimation("file-id", duration_seconds=6.0),
                 is_current_physical_stream=lambda: True,
                 build_content=disable_notify_during_content_build,
             )

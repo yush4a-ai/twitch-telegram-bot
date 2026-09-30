@@ -102,6 +102,7 @@ class LivePostState:
     media_transition_pending: bool
     preview_enabled: bool
     notify_enabled: bool
+    media_transition_target_kind: str
 
 
 @dataclass(frozen=True)
@@ -169,6 +170,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     last_message_id INTEGER,
     last_message_kind TEXT NOT NULL DEFAULT 'text',
     media_transition_pending INTEGER NOT NULL DEFAULT 0,
+    media_transition_target_kind TEXT NOT NULL DEFAULT 'video',
     live_post_ended INTEGER NOT NULL DEFAULT 0,
     last_title TEXT,
     offline_since REAL,
@@ -513,6 +515,7 @@ class Database:
                 "auto_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
                 "media_transition_pending": "INTEGER NOT NULL DEFAULT 0",
+                "media_transition_target_kind": "TEXT NOT NULL DEFAULT 'video'",
                 "live_post_ended": "INTEGER NOT NULL DEFAULT 0",
                 "channel_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "post_recipient_chat_id": "INTEGER",
@@ -1371,7 +1374,8 @@ class Database:
     ) -> LivePostState | None:
         cursor = await self.conn.execute(
             "SELECT last_stream_id, last_message_id, last_message_kind, "
-            "media_transition_pending, preview_enabled, notify_enabled "
+            "media_transition_pending, preview_enabled, notify_enabled, "
+            "media_transition_target_kind "
             "FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
@@ -1387,6 +1391,7 @@ class Database:
             media_transition_pending=bool(row[3]),
             preview_enabled=bool(row[4]),
             notify_enabled=bool(row[5]),
+            media_transition_target_kind=row[6],
         )
 
     async def get_live_post_ended(self, chat_id: int, twitch_login: str) -> bool:
@@ -1502,6 +1507,36 @@ class Database:
         return cursor.rowcount > 0
 
     @_serialized
+    async def begin_animation_transition(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET media_transition_pending = 1, "
+            "media_transition_target_kind = 'animation' "
+            "WHERE chat_id = ? AND twitch_login = ? AND is_live = 1 "
+            "AND last_stream_id = ? AND last_message_id = ?",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    @_serialized
+    async def finish_animation_transition(
+        self,
+        chat_id: int,
+        twitch_login: str,
+        logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        return await self._set_live_message_kind_if_current_unlocked(
+            chat_id, twitch_login, logical_stream_id, message_id, "animation", False
+        )
+
+    @_serialized
     async def finish_video_transition(
         self,
         chat_id: int,
@@ -1544,7 +1579,7 @@ class Database:
         message_kind: str,
         media_transition_pending: bool,
     ) -> bool:
-        if message_kind not in {"text", "photo", "video"}:
+        if message_kind not in {"text", "photo", "video", "animation"}:
             raise ValueError(f"Unsupported live message kind: {message_kind!r}")
         cursor = await self.conn.execute(
             "UPDATE tracked_channels SET last_message_kind = ?, "

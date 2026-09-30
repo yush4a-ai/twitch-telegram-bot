@@ -139,6 +139,19 @@ class PrivateThumbnailLifecycleTests(unittest.IsolatedAsyncioTestCase):
         await self._poll(101, 1301.0, _stream(viewers=72))
         self.bot.edit_message_media.assert_awaited_once()
 
+    async def test_refresh_keeps_video_and_animation_previews(self) -> None:
+        await self._track(101)
+        await self._poll(101, 1000.0, _stream())
+        for kind in ("video", "animation"):
+            with self.subTest(kind=kind):
+                await self.db.set_live_message_kind_if_current(
+                    101, "channel", "stream-1", 701, kind, False
+                )
+                self.bot.edit_message_media.reset_mock()
+                await self._poll(101, 1301.0, _stream(viewers=72))
+                self.bot.edit_message_media.assert_not_awaited()
+                self.assertEqual(await self._kind(101), kind)
+
     async def test_group_does_not_get_thumbnail_media(self) -> None:
         await self._track(-100123)
         await self._poll(-100123, 1000.0, _stream())
