@@ -269,8 +269,13 @@ def _wait_for_deployment(
             if state in {"FAILED", "CRASHED", "REMOVED", "CANCELED"}:
                 raise RuntimeError(f"Staging deployment {deployment_id}: {state}")
             if state == "SUCCESS":
-                status = json.loads(_capture(["railway", "status", "--json"]))
-                if not _active_deployment_check(status, target, deployment_id):
+                try:
+                    status = json.loads(_capture(["railway", "status", "--json"]))
+                except (RuntimeError, json.JSONDecodeError):
+                    # Railway API can time out after reporting terminal SUCCESS;
+                    # keep polling until active target validation succeeds.
+                    status = None
+                if status is not None and not _active_deployment_check(status, target, deployment_id):
                     return deployment_id
         if time.monotonic() >= deadline:
             raise TimeoutError("Staging deployment не достиг активного SUCCESS за отведённое время")

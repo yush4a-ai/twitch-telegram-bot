@@ -286,6 +286,32 @@ def test_wait_for_deployment_rejects_failed_terminal_state(monkeypatch):
         raise AssertionError("FAILED deployment was accepted")
 
 
+def test_wait_retries_transient_status_read_after_terminal_success(monkeypatch):
+    status_attempts = 0
+
+    def capture(argv):
+        nonlocal status_attempts
+        if argv[1:3] == ["deployment", "list"]:
+            return deploy.json.dumps([
+                {"id": "new", "status": "SUCCESS", "meta": {"cliMessage": "staging abc"}}
+            ])
+        if argv[1:3] == ["status", "--json"]:
+            status_attempts += 1
+            if status_attempts == 1:
+                raise RuntimeError("Railway status temporarily unavailable")
+            return deploy.json.dumps({"active": "new"})
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(deploy, "_capture", capture)
+    monkeypatch.setattr(
+        deploy, "_active_deployment_check",
+        lambda status, target, deployment_id: [] if status["active"] == deployment_id else ["not active"],
+    )
+    monkeypatch.setattr(deploy.time, "sleep", lambda seconds: None)
+    assert deploy._wait_for_deployment(TARGET, "abc", timeout_seconds=30) == "new"
+    assert status_attempts == 2
+
+
 def test_active_deployment_check_rejects_an_old_success():
     status = _status()
     active = status["environments"]["edges"][0]["node"]["serviceInstances"]["edges"][0]["node"]["activeDeployments"][0]
