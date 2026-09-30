@@ -84,7 +84,8 @@
 - [x] Run focused RED; implement independent bounded worker with lease-safe timing, per-chat spacing and idle-state pruning.
 - [x] Test send-before-ack crash boundary explicitly: expired lease retries and can duplicate external send.
 - [x] Implement new go-live cutover behind a pinned staging-only flag with atomic tracked-state/queue transition; preserve worker message ID during concurrent live/offline polls.
-- [ ] Extend queue cutover to live post updates and offline cleanup only after go-live tests pass; preserve media CAS and preview file-id reuse.
+- [ ] Offline cleanup TDD package: failing tests for grace/no Telegram in poll, unique post identity, private ended, public delete, reconnect/new message stale and transient retry; add indexed per-destination offline state reader, enqueue after grace and worker dispatch. Keep private media CAS and public post lock.
+- [ ] Live update coalescing design and TDD package: one pending destination job with revision fencing, newest shared sample, media CAS/preview file-id reuse, restart/retry/terminal semantics; then staging cutover.
 - [ ] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
 
 ### Task 6: Preview isolation, staging validation and decision
