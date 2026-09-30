@@ -248,6 +248,8 @@ CREATE INDEX IF NOT EXISTS idx_stream_samples_lookup
     ON stream_samples (chat_id, twitch_login, stream_id, sampled_at);
 CREATE INDEX IF NOT EXISTS idx_stream_samples_retention
     ON stream_samples (sampled_at);
+CREATE INDEX IF NOT EXISTS idx_stream_samples_stream_mode
+    ON stream_samples (twitch_login, stream_id);
 
 CREATE TABLE IF NOT EXISTS stream_history (
     chat_id INTEGER NOT NULL,
@@ -605,23 +607,25 @@ class Database:
             "twitch_login TEXT NOT NULL, stream_id TEXT NOT NULL, "
             "sampled_at REAL NOT NULL, viewer_count INTEGER NOT NULL, "
             "title TEXT NOT NULL, game_name TEXT NOT NULL, "
-            "PRIMARY KEY (twitch_login, stream_id, sampled_at))"
+            "PRIMARY KEY (twitch_login, stream_id, sampled_at)) WITHOUT ROWID"
         )
         await self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_stream_observations_retention "
             "ON stream_observations (sampled_at)"
         )
         await self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS stream_observation_destinations ("
+            "CREATE TABLE IF NOT EXISTS stream_observation_memberships ("
             "chat_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
-            "stream_id TEXT NOT NULL, first_sampled_at REAL NOT NULL, "
-            "last_sampled_at REAL NOT NULL, "
-            "CHECK (first_sampled_at <= last_sampled_at), "
-            "PRIMARY KEY (chat_id, twitch_login, stream_id))"
+            "stream_id TEXT NOT NULL, sampled_at REAL NOT NULL, "
+            "PRIMARY KEY (chat_id, twitch_login, stream_id, sampled_at)) WITHOUT ROWID"
         )
         await self.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_stream_observation_destinations_stream "
-            "ON stream_observation_destinations (twitch_login, stream_id)"
+            "CREATE INDEX IF NOT EXISTS idx_stream_observation_memberships_stream "
+            "ON stream_observation_memberships (twitch_login, stream_id, sampled_at)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_stream_samples_stream_mode "
+            "ON stream_samples (twitch_login, stream_id)"
         )
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) "
@@ -866,15 +870,23 @@ class Database:
         в эфире. viewer_count/game_name — из последнего опроса, None если сэмплов ещё не было."""
         cursor = await self.conn.execute(
             "SELECT tc.twitch_login, tc.last_title, "
-            "(SELECT ss.viewer_count FROM stream_samples ss "
-            " WHERE ss.chat_id = tc.chat_id AND ss.twitch_login = tc.twitch_login "
-            " AND ss.stream_id = tc.last_stream_id "
-            " ORDER BY ss.sampled_at DESC LIMIT 1) AS viewer_count, "
-            "(SELECT ss.game_name FROM stream_samples ss "
-            " WHERE ss.chat_id = tc.chat_id AND ss.twitch_login = tc.twitch_login "
-            " AND ss.stream_id = tc.last_stream_id "
-            " ORDER BY ss.sampled_at DESC LIMIT 1) AS game_name "
+            "COALESCE(ss.viewer_count, obs.viewer_count) AS viewer_count, "
+            "COALESCE(ss.game_name, obs.game_name) AS game_name "
             "FROM tracked_channels tc "
+            "LEFT JOIN stream_samples ss ON ss.rowid = ("
+            " SELECT sample.rowid FROM stream_samples sample "
+            " WHERE sample.chat_id = tc.chat_id AND sample.twitch_login = tc.twitch_login "
+            " AND sample.stream_id = tc.last_stream_id "
+            " ORDER BY sample.sampled_at DESC LIMIT 1) "
+            "LEFT JOIN stream_observation_memberships m ON "
+            "m.chat_id = tc.chat_id AND m.twitch_login = tc.twitch_login "
+            "AND m.stream_id = tc.last_stream_id AND m.sampled_at = ("
+            " SELECT MAX(membership.sampled_at) FROM stream_observation_memberships membership "
+            " WHERE membership.chat_id = tc.chat_id "
+            " AND membership.twitch_login = tc.twitch_login "
+            " AND membership.stream_id = tc.last_stream_id) "
+            "LEFT JOIN stream_observations obs ON obs.twitch_login = m.twitch_login "
+            "AND obs.stream_id = m.stream_id AND obs.sampled_at = m.sampled_at "
             "WHERE tc.chat_id = ? AND tc.is_live = 1 "
             "ORDER BY tc.twitch_login",
             (chat_id,),
@@ -1482,10 +1494,15 @@ class Database:
             return None, None
         title, stream_id = row
         game_cursor = await self.conn.execute(
-            "SELECT game_name FROM stream_samples "
-            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            "SELECT game_name FROM ("
+            " SELECT game_name, sampled_at FROM stream_samples "
+            " WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
+            " UNION ALL "
+            " SELECT o.game_name, o.sampled_at FROM stream_observation_memberships m "
+            " JOIN stream_observations o USING (twitch_login, stream_id, sampled_at) "
+            " WHERE m.chat_id = ? AND m.twitch_login = ? AND m.stream_id = ?) "
             "ORDER BY sampled_at DESC LIMIT 1",
-            (chat_id, twitch_login, stream_id),
+            (chat_id, twitch_login, stream_id, chat_id, twitch_login, stream_id),
         )
         game_row = await game_cursor.fetchone()
         game_name = game_row[0] if game_row and game_row[0] not in (None, "—") else None
@@ -2165,16 +2182,75 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
+    async def record_stream_observation(
+        self,
+        twitch_login: str,
+        stream_id: str,
+        sampled_at: float,
+        viewer_count: int,
+        title: str,
+        game_name: str,
+        chat_ids: list[int],
+    ) -> None:
+        """Persist one poll sample for every processed destination of a logical stream.
+
+        An already-active legacy stream stays legacy for all destinations, including
+        destinations added midstream. Memberships preserve skipped-poll gaps exactly.
+        """
+        recipients = list(dict.fromkeys(chat_ids))
+        if not recipients:
+            return
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM stream_samples WHERE twitch_login = ? AND stream_id = ? LIMIT 1",
+            (twitch_login, stream_id),
+        )
+        if await cursor.fetchone() is not None:
+            await self.conn.executemany(
+                "INSERT INTO stream_samples "
+                "(chat_id, twitch_login, stream_id, sampled_at, viewer_count, title, game_name) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [(chat_id, twitch_login, stream_id, sampled_at, viewer_count, title, game_name)
+                 for chat_id in recipients],
+            )
+        else:
+            await self.conn.execute(
+                "INSERT OR IGNORE INTO stream_observations "
+                "(twitch_login, stream_id, sampled_at, viewer_count, title, game_name) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (twitch_login, stream_id, sampled_at, viewer_count, title, game_name),
+            )
+            await self.conn.executemany(
+                "INSERT OR IGNORE INTO stream_observation_memberships "
+                "(chat_id, twitch_login, stream_id, sampled_at) VALUES (?, ?, ?, ?)",
+                [(chat_id, twitch_login, stream_id, sampled_at) for chat_id in recipients],
+            )
+        await self.conn.commit()
+
     async def get_stream_samples(
         self, chat_id: int, twitch_login: str, stream_id: str
     ) -> list[tuple[float, int, str, str]]:
         """(sampled_at, viewer_count, title, game_name) по возрастанию времени."""
-        cursor = await self.conn.execute(
-            "SELECT sampled_at, viewer_count, title, game_name FROM stream_samples "
-            "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
-            "ORDER BY sampled_at ASC",
-            (chat_id, twitch_login, stream_id),
+        mode = await self.conn.execute(
+            "SELECT 1 FROM stream_samples WHERE twitch_login = ? AND stream_id = ? LIMIT 1",
+            (twitch_login, stream_id),
         )
+        if await mode.fetchone() is not None:
+            cursor = await self.conn.execute(
+                "SELECT sampled_at, viewer_count, title, game_name FROM stream_samples "
+                "WHERE chat_id = ? AND twitch_login = ? AND stream_id = ? "
+                "ORDER BY sampled_at ASC",
+                (chat_id, twitch_login, stream_id),
+            )
+        else:
+            cursor = await self.conn.execute(
+                "SELECT o.sampled_at, o.viewer_count, o.title, o.game_name "
+                "FROM stream_observation_memberships m "
+                "JOIN stream_observations o USING (twitch_login, stream_id, sampled_at) "
+                "WHERE m.chat_id = ? AND m.twitch_login = ? AND m.stream_id = ? "
+                "ORDER BY m.sampled_at ASC",
+                (chat_id, twitch_login, stream_id),
+            )
         return await cursor.fetchall()
 
     @_serialized
@@ -2392,6 +2468,24 @@ class Database:
         и вся сессия со свежей history защищены целиком. Свёрнутая ``stream_history``
         не трогается — она хранится всегда.
         """
+        await self.conn.execute(
+            "DELETE FROM stream_observation_memberships AS raw WHERE raw.sampled_at < ? "
+            "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
+            "WHERE tc.chat_id = raw.chat_id AND tc.twitch_login = raw.twitch_login "
+            "AND tc.last_stream_id = raw.stream_id "
+            "AND (tc.is_live = 1 OR tc.stats_sent = 0)) "
+            "AND NOT EXISTS (SELECT 1 FROM stream_history h "
+            "WHERE h.chat_id = raw.chat_id AND h.twitch_login = raw.twitch_login "
+            "AND h.stream_id = raw.stream_id AND h.ended_at >= ?)",
+            (older_than_ts, older_than_ts),
+        )
+        await self.conn.execute(
+            "DELETE FROM stream_observations AS raw WHERE raw.sampled_at < ? "
+            "AND NOT EXISTS (SELECT 1 FROM stream_observation_memberships m "
+            "WHERE m.twitch_login = raw.twitch_login AND m.stream_id = raw.stream_id "
+            "AND m.sampled_at = raw.sampled_at)",
+            (older_than_ts,),
+        )
         await self.conn.execute(
             "DELETE FROM stream_samples AS raw WHERE raw.sampled_at < ? "
             "AND NOT EXISTS (SELECT 1 FROM tracked_channels tc "
@@ -2881,9 +2975,9 @@ class Database:
             " SELECT tc.twitch_login, "
             " COUNT(*) OVER (PARTITION BY tc.twitch_login) AS destinations, "
             " MAX(tc.last_seen_live_at) OVER (PARTITION BY tc.twitch_login) AS observed_at, "
-            " ss.viewer_count, "
+            " COALESCE(ss.viewer_count, obs.viewer_count) AS viewer_count, "
             " ROW_NUMBER() OVER (PARTITION BY tc.twitch_login "
-            " ORDER BY ss.sampled_at DESC, tc.chat_id) AS rn "
+            " ORDER BY COALESCE(ss.sampled_at, obs.sampled_at) DESC, tc.chat_id) AS rn "
             " FROM tracked_channels tc "
             " LEFT JOIN stream_samples ss ON ss.rowid = ("
             "  SELECT sample.rowid FROM stream_samples sample "
@@ -2891,6 +2985,15 @@ class Database:
             "  AND sample.twitch_login = tc.twitch_login "
             "  AND sample.stream_id = tc.last_stream_id "
             "  ORDER BY sample.sampled_at DESC LIMIT 1) "
+            " LEFT JOIN stream_observation_memberships m ON "
+            " m.chat_id = tc.chat_id AND m.twitch_login = tc.twitch_login "
+            " AND m.stream_id = tc.last_stream_id AND m.sampled_at = ("
+            "  SELECT MAX(membership.sampled_at) FROM stream_observation_memberships membership "
+            "  WHERE membership.chat_id = tc.chat_id "
+            "  AND membership.twitch_login = tc.twitch_login "
+            "  AND membership.stream_id = tc.last_stream_id) "
+            " LEFT JOIN stream_observations obs ON obs.twitch_login = m.twitch_login "
+            " AND obs.stream_id = m.stream_id AND obs.sampled_at = m.sampled_at "
             " WHERE tc.is_live = 1) "
             "WHERE rn = 1 ORDER BY observed_at DESC LIMIT ?",
             (max(1, min(limit, 100)),),

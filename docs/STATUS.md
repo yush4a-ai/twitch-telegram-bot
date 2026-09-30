@@ -7,7 +7,7 @@
 | R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
 | R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
 | R2 Owner Admin Panel v1 | реализация и staging smoke выполнены; реальный Telegram Login E2E ожидает BotFather domain | deployment `26ab6e4a-6548-4b29-9f07-60f6e75f0815` из `2faa74f` terminal `SUCCESS`; gate 942 passed, 2 skipped, 259 subtests; signed owner/non-owner staging проверки и браузерный 390/1440 smoke |
-| R3 Growth Foundation | в работе: spec/plan и синтетический baseline | `docs/superpowers/specs/2026-09-30-r3-growth-foundation-design.md`, `docs/audits/2026-09-30-r3-baseline.md`; 1k/5k/10k, один sample на destination, 100× дублирование строк в выбранном профиле; staging backup/export/restore `integrity=ok` |
+| R3 Growth Foundation | в работе: локально проверены общий sample и точные membership; staging R3 ещё не деплоился | `docs/audits/2026-09-30-r3-shared-observations.md`; парный synthetic 1k/5k/10k, 10k: 39.35 → 19.85 с, DB 4 595 712 → 3 395 584 байта; staging backup/export/restore `integrity=ok`; 499 профильных тестов и 55 subtests до последней обработки ошибки poll, финальный gate впереди |
 | R4–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
 ## Проверенное в R1
@@ -30,7 +30,7 @@
 
 ## Следующий шаг
 
-Продолжать R3 с additive schema и совместимостью отчётов; затем durable Telegram queue и измерения после изменения. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
+Продолжать R3 с durable Telegram queue, затем staging deploy общей схемы и измерения. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
 
 ## Проверенное в R2
 

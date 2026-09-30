@@ -26,7 +26,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                     )
                     cursor = await db.conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
-                        "('stream_observations', 'stream_observation_destinations', 'notification_jobs')"
+                        "('stream_observations', 'stream_observation_memberships', 'notification_jobs')"
                     )
                     self.assertEqual(len(await cursor.fetchall()), 3)
                     cursor = await db.conn.execute(

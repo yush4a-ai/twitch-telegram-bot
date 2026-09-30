@@ -35,6 +35,17 @@ class LoadHarnessTests(unittest.IsolatedAsyncioTestCase):
             await run_profile(10, seed=1, db_path=str(outside), rounds=1)
         self.assertFalse(outside.exists())
 
+    async def test_shared_mode_keeps_exact_memberships_with_one_payload_per_login(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = await run_profile(
+                100, seed=17, db_path=str(Path(directory) / "shared.db"),
+                rounds=2, sample_mode="shared",
+            )
+        self.assertEqual(result["sample_mode"], "shared")
+        self.assertEqual(result["sample_rows"], 2)
+        self.assertEqual(result["membership_rows"], 200)
+        self.assertEqual(result["sample_duplication_factor"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

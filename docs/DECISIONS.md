@@ -81,3 +81,11 @@
 - **Причина:** уточнение владельца перед R2 acceptance и официальные правила проверки [Mini App initData](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app) и [Telegram Login Widget](https://core.telegram.org/widgets/login/#checking-authorization).
 - **Последствие:** прямой URL и подписанный чужой ID не открывают данные; на staging это подтверждено отрицательными тестами и синтетическими подписями. Реальный browser widget пока сообщает `Bot domain invalid`; домен staging нужно разрешить в BotFather только для тестового бота. Удалять fallback до реального E2E нельзя.
 - **Пересмотр:** после фактического входа владельца через Telegram на staging и отдельного решения об удалении аварийного механизма.
+
+## D-011 — общие stream observations с точной привязкой к poll
+
+- **Дата:** 2026-09-30.
+- **Решение:** новый logical stream хранит один набор Twitch-полей за poll в `stream_observations` и отдельную компактную membership для каждого реально обработанного destination. Обе таблицы `WITHOUT ROWID`; уже активный stream с `stream_samples` остаётся целиком в legacy режиме. Старый формат и таблица сохраняются.
+- **Причина:** интервал first/last включал бы sample пропущенного poll в чужой отчёт. Тесты проверили позднее подключение, пропуск poll, legacy stream, rollback при ошибке записи и retention. Парный локальный synthetic профиль на 10 000 назначений дал 39.348 → 19.846 с и 4 595 712 → 3 395 584 байта DB, при WAL 4 144 752 → 4 486 712 байт; см. `docs/audits/2026-09-30-r3-shared-observations.md`.
+- **Последствие:** staging migration остаётся additive и выполняется только после полного gate и проверки target; реальная Telegram нагрузка, preview и решение SQLite/PostgreSQL ещё требуют R3/R9 измерений.
+- **Пересмотр:** после staging fan-out/retention smoke и синтетических 20k/30k/40k профилей.

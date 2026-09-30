@@ -6343,7 +6343,7 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
                 "FROM tracked_channels WHERE chat_id = 1 AND twitch_login = 'channel'"
             )
             self.assertEqual(await cursor.fetchone(), (18_000, 720, 25))
-            cursor = await db.conn.execute("SELECT COUNT(*) FROM stream_samples")
+            cursor = await db.conn.execute("SELECT COUNT(*) FROM stream_observations")
             self.assertEqual((await cursor.fetchone())[0], 720)
             self.assertEqual(twitch.get_live_streams.await_count, 720)
         finally:

@@ -1,0 +1,154 @@
+{
+  "synthetic": true,
+  "runtime": {
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "os": "Windows"
+  },
+  "profiles": [
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 1000,
+      "distinct_logins": 10,
+      "rounds": 1,
+      "sample_mode": "shared",
+      "workload_sha256": "0fdabca34c765fa7fc2e38ff8a7e0aa1af66c5d664df75a2703dabb560ac1413",
+      "sample_rows": 10,
+      "membership_rows": 1000,
+      "sample_duplication_factor": 1.0,
+      "elapsed_seconds": 2.0306,
+      "profile_sample_rows_per_second": 4.92,
+      "sample_insert_rows_per_second": 35934.25,
+      "db_bytes": 421888,
+      "wal_bytes": 4132392,
+      "peak_process_rss_bytes": 32751616,
+      "operations": {
+        "track_insert": {
+          "count": 1000,
+          "p50_ms": 1.8186,
+          "p95_ms": 2.2187,
+          "p99_ms": 3.4109,
+          "max_ms": 6.2943
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 2.5781,
+          "p95_ms": 2.5781,
+          "p99_ms": 2.5781,
+          "max_ms": 2.5781
+        },
+        "sample_insert": {
+          "count": 10,
+          "p50_ms": 2.8826,
+          "p95_ms": 3.1766,
+          "p99_ms": 3.1766,
+          "max_ms": 3.1766
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.2264,
+          "p95_ms": 0.3784,
+          "p99_ms": 0.4314,
+          "max_ms": 0.6326
+        }
+      }
+    },
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 5000,
+      "distinct_logins": 50,
+      "rounds": 1,
+      "sample_mode": "shared",
+      "workload_sha256": "4cb12ec10711ca39bc1f505c3aa96966746e7b1e3d3ccfcafcd4a6fa85199bab",
+      "sample_rows": 50,
+      "membership_rows": 5000,
+      "sample_duplication_factor": 1.0,
+      "elapsed_seconds": 10.0136,
+      "profile_sample_rows_per_second": 4.99,
+      "sample_insert_rows_per_second": 26037.15,
+      "db_bytes": 2162688,
+      "wal_bytes": 4268352,
+      "peak_process_rss_bytes": 37384192,
+      "operations": {
+        "track_insert": {
+          "count": 5000,
+          "p50_ms": 1.844,
+          "p95_ms": 2.2845,
+          "p99_ms": 3.5059,
+          "max_ms": 9.021
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 15.1101,
+          "p95_ms": 15.1101,
+          "p99_ms": 15.1101,
+          "max_ms": 15.1101
+        },
+        "sample_insert": {
+          "count": 50,
+          "p50_ms": 3.2398,
+          "p95_ms": 11.429,
+          "p99_ms": 12.3661,
+          "max_ms": 12.3661
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.2885,
+          "p95_ms": 0.4282,
+          "p99_ms": 0.5019,
+          "max_ms": 0.5227
+        }
+      }
+    },
+    {
+      "synthetic": true,
+      "seed": 20260930,
+      "destinations": 10000,
+      "distinct_logins": 100,
+      "rounds": 1,
+      "sample_mode": "shared",
+      "workload_sha256": "5a66e87b1612432568848060662c5376d1fa97e251305ff79ffc1ee0c1cdc5c8",
+      "sample_rows": 100,
+      "membership_rows": 10000,
+      "sample_duplication_factor": 1.0,
+      "elapsed_seconds": 33.0331,
+      "profile_sample_rows_per_second": 3.03,
+      "sample_insert_rows_per_second": 3159.11,
+      "db_bytes": 4022272,
+      "wal_bytes": 4536152,
+      "peak_process_rss_bytes": 41312256,
+      "operations": {
+        "track_insert": {
+          "count": 10000,
+          "p50_ms": 1.8966,
+          "p95_ms": 10.0598,
+          "p99_ms": 16.337,
+          "max_ms": 98.9931
+        },
+        "tracked_snapshot": {
+          "count": 1,
+          "p50_ms": 19.2699,
+          "p95_ms": 19.2699,
+          "p99_ms": 19.2699,
+          "max_ms": 19.2699
+        },
+        "sample_insert": {
+          "count": 100,
+          "p50_ms": 22.2344,
+          "p95_ms": 82.2419,
+          "p99_ms": 152.7973,
+          "max_ms": 166.2082
+        },
+        "sample_read": {
+          "count": 100,
+          "p50_ms": 0.2713,
+          "p95_ms": 0.4297,
+          "p99_ms": 0.5246,
+          "max_ms": 0.5285
+        }
+      }
+    }
+  ]
+}

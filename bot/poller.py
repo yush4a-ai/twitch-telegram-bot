@@ -39,7 +39,7 @@ from .preview_runtime import PreviewObservation, PreviewObserver
 from . import stream_thumbnail
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
-from .twitch import ClipInfo, TwitchClient
+from .twitch import ClipInfo, StreamInfo, TwitchClient
 
 logger = logging.getLogger(__name__)
 
@@ -835,6 +835,34 @@ class StreamPoller:
         return _find_collab_mentions(title, login, candidates)
 
     async def _check_streams(self) -> None:
+        pending_samples: dict[str, tuple[StreamInfo, float, dict[str, list[int]]]] = {}
+        try:
+            await self._check_streams_cycle(pending_samples)
+        except BaseException:
+            # Если следующий чат упал после записи счётчиков предыдущих чатов,
+            # сохраняем их samples до передачи ошибки основному циклу.
+            try:
+                await self._flush_sample_batches(pending_samples)
+            except Exception:
+                logger.exception("Не удалось сохранить накопленные stream samples после ошибки poll")
+            raise
+
+    async def _flush_sample_batches(
+        self, pending_samples: dict[str, tuple[StreamInfo, float, dict[str, list[int]]]]
+    ) -> None:
+        for login, (stream, sampled_at, by_logical_stream) in list(pending_samples.items()):
+            for logical_stream_id, sampled_chats in list(by_logical_stream.items()):
+                await self._db.record_stream_observation(
+                    login, logical_stream_id, sampled_at, stream.viewer_count,
+                    stream.title or "(без названия)", stream.game_name or "—",
+                    sampled_chats,
+                )
+                del by_logical_stream[logical_stream_id]
+            del pending_samples[login]
+
+    async def _check_streams_cycle(
+        self, pending_samples: dict[str, tuple[StreamInfo, float, dict[str, list[int]]]]
+    ) -> None:
         # три запроса на весь круг вместо нескольких на каждую пару «канал × чат»
         chats_by_login, states = await self._db.snapshot_tracked_state()
         if not chats_by_login:
@@ -866,6 +894,9 @@ class StreamPoller:
                     or now - previous_refresh[1] >= stream_thumbnail.REFRESH_SECONDS
                 )
             thumbnail_attempted = False
+            sampled_chat_ids: dict[str, list[int]] = {}
+            if stream is not None:
+                pending_samples[login] = (stream, now, sampled_chat_ids)
             for chat_id in chat_ids:
                 include_track_link = chat_id in telegram_channel_ids
                 include_video_submission_link = (
@@ -1181,15 +1212,7 @@ class StreamPoller:
                             ),
                         )
                     await self._db.record_viewer_sample(chat_id, login, stream.viewer_count)
-                    await self._db.add_stream_sample(
-                        chat_id,
-                        login,
-                        effective_stream_id,
-                        time.time(),
-                        stream.viewer_count,
-                        title,
-                        stream.game_name or "—",
-                    )
+                    sampled_chat_ids.setdefault(effective_stream_id, []).append(chat_id)
                     # Внутри одной логической сессии исходный снимок фолловеров нельзя
                     # обновлять: иначе итог станет разницей лишь с последним poll/reconnect.
                     effective_followers_at_start = (
@@ -1217,6 +1240,8 @@ class StreamPoller:
                             peak_viewers=_peak_viewers,
                             message_kind=last_message_kind,
                         )
+
+            await self._flush_sample_batches(pending_samples)
 
             if (
                 stream is not None

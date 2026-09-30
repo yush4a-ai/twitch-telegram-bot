@@ -44,24 +44,24 @@
 
 **Files:** Modify `bot/database.py`; create `tests/test_growth_schema.py`; modify `docs/runbooks/staging-backup-rollback.md`.
 
-**Interfaces:** `schema_migrations`, `stream_observations`, `stream_observation_destinations`, `notification_jobs` are created idempotently by `Database.connect()`; `Database.schema_versions() -> list[str]` exposes applied named versions for local/staging checks.
+**Interfaces:** `schema_migrations`, `stream_observations`, `stream_observation_memberships`, `notification_jobs` are created idempotently by `Database.connect()`; `Database.schema_versions() -> list[str]` exposes applied named versions for local/staging checks.
 
 - [x] Write failing tests for fresh DB, old DB migration, second startup idempotence, unique keys and rollback on injected migration failure.
 - [x] Run focused RED; add tables/indexes and explicit version ledger in the existing `BEGIN IMMEDIATE` migration boundary.
 - [x] Run focused GREEN and existing migration/retention tests; review `EXPLAIN QUERY PLAN` on claim. Shared-sample query plan follows Task 3 writer/reader.
 - [x] Before staging schema deploy, complete external staging snapshot/export and online backup/restore drill; record paths and integrity without exposing tokens/user data.
-- [ ] Commit schema package; do not deploy until Task 3 reader/writer path and Task 4 queue model are tested together.
+- [x] Commit schema package; do not deploy until Task 3 reader/writer path and Task 4 queue model are tested together.
 
 ### Task 3: Shared observations and legacy report compatibility
 
 **Files:** Modify `bot/database.py`, `bot/poller.py`; create `tests/test_shared_stream_observations.py`; update R3 baseline comparison.
 
-**Interfaces:** `Database.record_stream_observation(login, stream_id, sampled_at, viewer_count, title, game_name, chat_ids) -> None` writes one observation and membership rows in one transaction for new streams, while streams already present in legacy `stream_samples` keep legacy writes. Existing `get_stream_samples(chat_id, login, stream_id)` returns the same tuple sequence interface from the selected source.
+**Interfaces:** `Database.record_stream_observation(login, stream_id, sampled_at, viewer_count, title, game_name, chat_ids) -> None` writes one observation and exact per-sample membership rows in one transaction for new streams, while streams already present in legacy `stream_samples` keep legacy writes. Existing `get_stream_samples(chat_id, login, stream_id)` returns the same tuple sequence interface from the selected source.
 
-- [ ] Write failing tests for N destinations sharing one row, later joiner window, legacy in-progress stream, reconnect logical ID, report order, retention safety and all existing latest-sample readers (`list_live_channels`, `get_live_post_details`, owner live snapshot).
-- [ ] Run focused RED; change poller to collect per-logical-stream sample memberships and write one DB batch after destination processing.
-- [ ] Run focused GREEN plus report/preview/regression tests; compare size and p95 on the synthetic harness.
-- [ ] Review source selection and cutoff around active sessions; commit package.
+- [x] Write failing tests for N destinations sharing one row, later joiner, one skipped poll, legacy in-progress stream, reconnect logical ID, report order, retention safety and all existing latest-sample readers (`list_live_channels`, `get_live_post_details`, owner live snapshot).
+- [x] Run focused RED; change poller to collect per-logical-stream sample memberships and write one DB batch after destination processing. An error after a completed destination flushes accumulated samples before propagating.
+- [x] Run focused GREEN plus report/preview/regression tests; compare size and p95 on the synthetic harness.
+- [x] Review source selection and cutoff around active sessions; commit package.
 
 ### Task 4: Durable job model
 
