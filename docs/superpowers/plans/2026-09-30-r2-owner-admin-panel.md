@@ -47,11 +47,11 @@
 
 **Interfaces:** `Database.get_admin_live_streams(limit: int = 20) -> list[dict]`; `AdminSnapshot(db, poller, follow_listener, token_store, preview_manager, *, db_path, telegram_polling_provider).collect() -> dict`. The provider is called only by authenticated API.
 
-- [ ] Write failing tests for live deduplication, empty data, separate Telegram/Twitch/preview states, absent preview, DB timeout/error, safe error class names, resource unknowns.
-- [ ] Run focused tests to confirm failure.
-- [ ] Implement parameterized read-only query and bounded snapshot collection; call no external API and never log/output secrets or paths.
-- [ ] Run focused tests plus existing DB and preview health tests; review query cost and response schema.
-- [ ] Commit tested package.
+- [x] Write failing tests for live deduplication, empty data, separate Telegram/Twitch/preview states, absent preview, DB timeout/error, safe error class names, resource unknowns.
+- [x] Run focused tests to confirm failure.
+- [x] Implement parameterized read-only query and bounded snapshot collection; call no external API and never log/output secrets or paths.
+- [x] Run focused tests plus existing DB and preview health tests; review query cost and response schema.
+- [x] Commit tested package.
 
 ### Task 3: Responsive panel and browser journey
 

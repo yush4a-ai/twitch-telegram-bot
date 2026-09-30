@@ -2809,6 +2809,25 @@ class Database:
             "history_rows": (await history_rows.fetchone())[0],
         }
 
+    async def get_admin_live_streams(self, limit: int = 20) -> list[dict]:
+        """Unique live Twitch channels; no chat IDs in the owner projection."""
+        cursor = await self.conn.execute(
+            "SELECT tc.twitch_login, COUNT(*), MAX(tc.last_seen_live_at), "
+            "(SELECT ss.viewer_count FROM stream_samples ss "
+            " WHERE ss.twitch_login = tc.twitch_login AND ss.stream_id IN "
+            " (SELECT last_stream_id FROM tracked_channels "
+            "  WHERE twitch_login = tc.twitch_login AND is_live = 1) "
+            " ORDER BY ss.sampled_at DESC LIMIT 1) "
+            "FROM tracked_channels tc WHERE tc.is_live = 1 "
+            "GROUP BY tc.twitch_login ORDER BY MAX(tc.last_seen_live_at) DESC "
+            "LIMIT ?",
+            (max(1, min(limit, 100)),),
+        )
+        return [
+            {"login": row[0], "destinations": row[1], "viewers": row[3], "observed_at": row[2]}
+            for row in await cursor.fetchall()
+        ]
+
     async def health_snapshot(self, now: float | None = None) -> dict[str, int | float | None]:
         """Дешёвая read-only диагностика очередей и SQLite storage.
 

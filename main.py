@@ -33,6 +33,7 @@ from bot.config import (
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.admin_auth import AdminAccess
+from bot.admin_metrics import AdminSnapshot
 from bot.logging_utils import mask_chat_id
 from bot.live_preview_provider import LivePreviewArtifactProvider
 from bot.live_post import LivePostUpdater
@@ -607,6 +608,17 @@ async def main() -> None:
 
                 oauth_server.set_health_provider(_runtime_health)
 
+                if getattr(config, "admin_panel_access_key", None):
+                    admin_snapshot = AdminSnapshot(
+                        db, poller, follow_listener, token_store, preview_manager,
+                        db_path=config.db_path,
+                        telegram_polling_provider=lambda: (
+                            None if polling_task is None else not polling_task.done()
+                        ),
+                        environment="staging" if config.oauth_public_base_url.startswith("https://") else "local",
+                    )
+                    oauth_server.set_admin_snapshot_provider(admin_snapshot.collect)
+
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=True), "Удаление webhook"
                 )
@@ -630,6 +642,8 @@ async def main() -> None:
                 # 503 и балансировщик перестал считать инстанс здоровым, пока
                 # сервер ещё дослуживает текущие запросы.
                 oauth_server.set_health_provider(None)
+                if getattr(config, "admin_panel_access_key", None):
+                    oauth_server.set_admin_snapshot_provider(None)
                 if poller is not None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")
