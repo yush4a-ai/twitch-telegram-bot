@@ -171,7 +171,7 @@ class NotificationWorker:
             except (NotificationTerminalError, TelegramForbiddenError, TelegramBadRequest) as error:
                 await self._queue.fail(
                     job.id, job.attempt_count, error_class=type(error).__name__,
-                    now=self._clock(),
+                    now=self._clock(), revision=job.revision,
                 )
                 return
             except Exception as error:
@@ -186,4 +186,8 @@ class NotificationWorker:
                 raise ValueError("send_job returned an unknown outcome")
             # Отправка уже могла пройти; сбой здесь оставляет lease для повторного
             # claim. Внешний Telegram send поэтому имеет at-least-once семантику.
-            await self._queue.ack(job.id, job.attempt_count, now=self._clock())
+            await self._queue.ack(
+                job.id, job.attempt_count, now=self._clock(),
+                revision=job.revision,
+                applied_media_url=(job.media_url if outcome is NotificationOutcome.SENT else None),
+            )

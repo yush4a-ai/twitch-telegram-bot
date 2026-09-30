@@ -905,6 +905,7 @@ class StreamPoller:
                 )
             thumbnail_attempted = False
             sampled_chat_ids: dict[str, list[int]] = {}
+            update_requests: list[tuple[int, str, str, int, str | None]] = []
             if stream is not None:
                 pending_samples[login] = (stream, now, sampled_chat_ids)
             for chat_id in chat_ids:
@@ -1032,58 +1033,61 @@ class StreamPoller:
                         message_id = last_message_id
                         message_kind = last_message_kind
                     elif continuing_session and last_message_id is not None:
-                        update_result = await self._edit(
-                            chat_id, last_message_id, login,
-                            last_stream_id or stream.stream_id,
-                            title, stream.viewer_count,
-                            game_name, return_note,
-                            include_track_link=include_track_link,
-                            include_video_submission_link=include_video_submission_link,
-                        )
-                        if update_result is LivePostUpdateResult.STALE_TARGET:
-                            continue
-                        if (
-                            update_result is not False
-                            and update_result is not LivePostUpdateResult.REPLACE_REQUIRED
-                        ):
+                        if self._notification_queue_enabled:
                             message_id = last_message_id
                             message_kind = last_message_kind
+                        else:
+                            update_result = await self._edit(
+                                chat_id, last_message_id, login,
+                                last_stream_id or stream.stream_id,
+                                title, stream.viewer_count,
+                                game_name, return_note,
+                                include_track_link=include_track_link,
+                                include_video_submission_link=include_video_submission_link,
+                            )
+                            if update_result is LivePostUpdateResult.STALE_TARGET:
+                                continue
                             if (
-                                chat_id > 0
-                                and thumbnail_refresh_due
-                                and thumbnail_url is not None
-                                and message_kind not in {"video", "animation"}
+                                update_result is not False
+                                and update_result is not LivePostUpdateResult.REPLACE_REQUIRED
                             ):
-                                thumbnail_attempted = True
-                                photo_result = await self._refresh_thumbnail(
+                                message_id = last_message_id
+                                message_kind = last_message_kind
+                                if (
+                                    chat_id > 0
+                                    and thumbnail_refresh_due
+                                    and thumbnail_url is not None
+                                    and message_kind not in {"video", "animation"}
+                                ):
+                                    thumbnail_attempted = True
+                                    photo_result = await self._refresh_thumbnail(
+                                        chat_id,
+                                        message_id,
+                                        login,
+                                        last_stream_id or stream.stream_id,
+                                        title,
+                                        stream.viewer_count,
+                                        game_name,
+                                        return_note,
+                                        thumbnail_url,
+                                    )
+                                    if photo_result.status is LivePostMediaStatus.APPLIED:
+                                        message_kind = "photo"
+                            else:
+                                # Старый media post не вмещает текст; пересоздаём.
+                                message_id = await self._replace_live_post_if_current(
                                     chat_id,
-                                    message_id,
                                     login,
                                     last_stream_id or stream.stream_id,
+                                    last_message_id,
                                     title,
                                     stream.viewer_count,
                                     game_name,
                                     return_note,
-                                    thumbnail_url,
+                                    include_track_link=include_track_link,
+                                    include_video_submission_link=include_video_submission_link,
                                 )
-                                if photo_result.status is LivePostMediaStatus.APPLIED:
-                                    message_kind = "photo"
-                        else:
-                            # старый пост — фото (до перехода на текстовые сообщения),
-                            # его нельзя отредактировать в текст; пересоздаём как текст
-                            message_id = await self._replace_live_post_if_current(
-                                chat_id,
-                                login,
-                                last_stream_id or stream.stream_id,
-                                last_message_id,
-                                title,
-                                stream.viewer_count,
-                                game_name,
-                                return_note,
-                                include_track_link=include_track_link,
-                                include_video_submission_link=include_video_submission_link,
-                            )
-                            message_kind = "text"
+                                message_kind = "text"
                     elif (
                         continuing_session
                         and self._notification_queue_enabled
@@ -1227,6 +1231,8 @@ class StreamPoller:
                         **({"preserve_live_message": True} if queue_waiting else {}),
                     )
                     if (
+                        not self._notification_queue_enabled
+                        and
                         chat_id > 0
                         and notify_enabled
                         and message_id is not None
@@ -1262,6 +1268,21 @@ class StreamPoller:
                         )
                     await self._db.record_viewer_sample(chat_id, login, stream.viewer_count)
                     sampled_chat_ids.setdefault(effective_stream_id, []).append(chat_id)
+                    if (
+                        self._notification_queue_enabled and notify_enabled
+                        and message_id is not None
+                    ):
+                        media_url = (
+                            thumbnail_url
+                            if chat_id > 0 and thumbnail_refresh_due
+                            and message_kind not in {"video", "animation"}
+                            else None
+                        )
+                        if media_url is not None:
+                            thumbnail_attempted = True
+                        update_requests.append((
+                            chat_id, login, effective_stream_id, message_id, media_url,
+                        ))
                     # Внутри одной логической сессии исходный снимок фолловеров нельзя
                     # обновлять: иначе итог станет разницей лишь с последним poll/reconnect.
                     effective_followers_at_start = (
@@ -1293,6 +1314,10 @@ class StreamPoller:
                         )
 
             await self._flush_sample_batches(pending_samples)
+            if update_requests:
+                await NotificationQueue(self._db).request_live_updates(
+                    update_requests, now=now
+                )
 
             if (
                 stream is not None
@@ -2231,6 +2256,8 @@ class StreamPoller:
     async def send_queued_job(self, job: NotificationJob) -> NotificationOutcome:
         if job.kind == "offline_cleanup":
             return await self._send_queued_offline_cleanup(job)
+        if job.kind == "live_update":
+            return await self._send_queued_live_update(job)
         if job.kind != "go_live":
             return NotificationOutcome.STALE
         state = await self._db.get_live_post_state(job.chat_id, job.twitch_login)
@@ -2274,6 +2301,74 @@ class StreamPoller:
             except Exception as error:
                 logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
             return NotificationOutcome.STALE
+        return NotificationOutcome.SENT
+
+    async def _send_queued_live_update(
+        self, job: NotificationJob
+    ) -> NotificationOutcome:
+        live = await self._db.get_live_state(job.chat_id, job.twitch_login)
+        state = await self._db.get_live_post_state(job.chat_id, job.twitch_login)
+        if (
+            state is None or not state.notify_enabled
+            or not live[0] or live[1] != job.logical_stream_id
+            or state.logical_stream_id != job.logical_stream_id
+            or state.message_id != job.payload_version
+        ):
+            return NotificationOutcome.STALE
+        current = next(
+            (row for row in await self._db.list_live_channels(
+                job.chat_id, twitch_login=job.twitch_login
+            ) if row[0] == job.twitch_login),
+            None,
+        )
+        if current is None or current[2] is None:
+            raise RuntimeError("queued live update sample is not ready")
+        _login, title, viewers, game_name = current
+        return_note = _build_return_note(
+            await self._db.get_last_stream_end(job.chat_id, job.twitch_login)
+        )
+        include_track_link = await self._db.is_telegram_channel(job.chat_id)
+        include_video_submission_link = (
+            self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
+        )
+        result = await self._edit(
+            job.chat_id, state.message_id, job.twitch_login,
+            job.logical_stream_id, title, viewers, game_name, return_note,
+            include_track_link=include_track_link,
+            include_video_submission_link=include_video_submission_link,
+            require_live=True,
+            propagate_retry_after=True,
+        )
+        if result is LivePostUpdateResult.STALE_TARGET:
+            return NotificationOutcome.STALE
+        if result is LivePostUpdateResult.RETRY_LATER:
+            raise RuntimeError("queued live edit retry later")
+        if result is LivePostUpdateResult.REPLACE_REQUIRED:
+            replacement = await self._replace_live_post_if_current(
+                job.chat_id, job.twitch_login, job.logical_stream_id,
+                state.message_id, title, viewers, game_name, return_note,
+                include_track_link=include_track_link,
+                include_video_submission_link=include_video_submission_link,
+            )
+            if replacement is None:
+                raise RuntimeError("queued live replacement retry later")
+            return (
+                NotificationOutcome.SENT if replacement != state.message_id
+                else NotificationOutcome.STALE
+            )
+        if result is not LivePostUpdateResult.UPDATED:
+            raise NotificationTerminalError("queued live edit rejected")
+        if job.chat_id > 0 and job.media_url and state.message_kind not in {"video", "animation"}:
+            media_result = await self._refresh_thumbnail(
+                job.chat_id, state.message_id, job.twitch_login,
+                job.logical_stream_id, title, viewers, game_name,
+                return_note, job.media_url, propagate_retry_after=True,
+                require_live=True,
+            )
+            if media_result.status is LivePostMediaStatus.RETRY_LATER:
+                raise RuntimeError("queued thumbnail retry later")
+            if media_result.status is LivePostMediaStatus.STALE_TARGET:
+                return NotificationOutcome.STALE
         return NotificationOutcome.SENT
 
     async def _send_queued_offline_cleanup(
@@ -2408,6 +2503,7 @@ class StreamPoller:
                 message_id=message_id,
             ),
             build_content=build_content,
+            require_live=False,
         )
 
     async def _refresh_thumbnail(
@@ -2421,6 +2517,8 @@ class StreamPoller:
         game_name: str | None,
         return_note: str | None,
         image_url: str,
+        *, propagate_retry_after: bool = False,
+        require_live: bool | None = None,
     ):
         return await self._live_post_updater.apply_photo(
             target=LivePostTarget(
@@ -2439,6 +2537,8 @@ class StreamPoller:
                 include_track_link=False,
                 private_chat=True,
             ),
+            propagate_retry_after=propagate_retry_after,
+            require_live=require_live,
         )
 
     async def _edit(
@@ -2454,6 +2554,8 @@ class StreamPoller:
         *,
         include_track_link: bool = False,
         include_video_submission_link: bool = False,
+        require_live: bool | None = None,
+        propagate_retry_after: bool = False,
     ) -> LivePostUpdateResult:
         """Обновляет current post и сохраняет типизированную lifecycle-семантику."""
         return await self._live_post_updater.update_content(
@@ -2473,6 +2575,8 @@ class StreamPoller:
                 include_video_submission_link=include_video_submission_link,
                 private_chat=chat_id > 0,
             ),
+            require_live=require_live,
+            propagate_retry_after=propagate_retry_after,
         )
 
     async def _live_post_content(

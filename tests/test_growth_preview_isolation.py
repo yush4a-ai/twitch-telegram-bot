@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from bot.database import Database
+from bot.live_post import LivePostUpdateResult
 from bot.notification_queue import NotificationQueue
 from bot.notification_worker import NotificationWorker
 from bot.poller import StreamPoller
@@ -56,7 +57,7 @@ class GrowthPreviewIsolationTests(unittest.IsolatedAsyncioTestCase):
                 SimpleNamespace(), db, twitch, 60,
                 preview_observer=preview, notification_queue_enabled=True,
             )
-            poller._edit = AsyncMock(return_value=True)
+            poller._edit = AsyncMock(return_value=LivePostUpdateResult.UPDATED)
             poller._notify = AsyncMock(return_value=321)
             with patch("bot.poller.time.time", return_value=1000.0):
                 await asyncio.wait_for(poller._check_streams(), 3.0)
@@ -66,6 +67,9 @@ class GrowthPreviewIsolationTests(unittest.IsolatedAsyncioTestCase):
                 group_chat_interval=0, global_interval=0,
                 clock=lambda: 1000.0,
             )
+            # Alpha now also queues a live-post update; the single-slot worker
+            # drains that job before Beta's go-live send.
+            await asyncio.wait_for(worker.run_once(), 3.0)
             await asyncio.wait_for(worker.run_once(), 3.0)
             self.assertEqual((await db.get_live_post_state(2, "beta")).message_id, 321)
             self.assertEqual(provider.active_creates, 1)

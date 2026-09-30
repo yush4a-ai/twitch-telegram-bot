@@ -1,7 +1,7 @@
-"""Guarded testbot go-live and offline cleanup using disposable SQLite.
+"""Guarded testbot go-live, live update and cleanup using disposable SQLite.
 
 Run only inside the pinned Railway staging service. The outgoing synthetic post
-is deleted after both durable queue acknowledgements have been verified.
+is deleted after all three durable queue acknowledgements have been verified.
 """
 
 from __future__ import annotations
@@ -78,8 +78,9 @@ async def run_smoke(bot, owner_id: int) -> dict[str, object]:
                 bot, db, SimpleNamespace(), 60,
                 notification_queue_enabled=True,
             )
+            queue = NotificationQueue(db)
             worker = NotificationWorker(
-                NotificationQueue(db), poller.send_queued_job,
+                queue, poller.send_queued_job,
                 max_concurrency=1, per_chat_interval=0,
                 group_chat_interval=0, global_interval=0,
             )
@@ -95,6 +96,26 @@ async def run_smoke(bot, owner_id: int) -> dict[str, object]:
             if processed != 1 or row is None or row[0] != "done" or message_id is None:
                 reason = row[2] if row is not None else "missing_job"
                 raise RuntimeError(f"Staging go-live job did not complete: {reason}")
+            await db.record_stream_observation(
+                login, stream_id, now + 0.002, 99,
+                "[STAGING E2E] Проверка обновления live-поста", "Тест",
+                [owner_id],
+            )
+            await queue.request_live_updates(
+                [(owner_id, login, stream_id, message_id, None)],
+                now=time.time(),
+            )
+            update_processed = await worker.run_once()
+            cursor = await db.conn.execute(
+                "SELECT status, last_error_class FROM notification_jobs "
+                "WHERE kind = 'live_update' AND chat_id = ? AND twitch_login = ? "
+                "AND payload_version = ?",
+                (owner_id, login, message_id),
+            )
+            update_row = await cursor.fetchone()
+            if update_processed != 1 or update_row is None or update_row[0] != "done":
+                reason = update_row[1] if update_row is not None else "missing_job"
+                raise RuntimeError(f"Staging live update job did not complete: {reason}")
             await db.set_live_state(
                 owner_id, login, False, stream_id, message_id,
                 "[STAGING E2E] Проверка очереди live-поста",
@@ -119,6 +140,7 @@ async def run_smoke(bot, owner_id: int) -> dict[str, object]:
                 "bot_username": identity.username,
                 "job_status": row[0],
                 "attempt_count": row[1],
+                "update_job_status": update_row[0],
                 "offline_job_status": offline_row[0],
                 "post_ended": post_ended,
                 "message_deleted": deleted,
@@ -147,6 +169,7 @@ async def _main() -> int:
     print("bot_username=" + str(result["bot_username"]))
     print("job_status=" + str(result["job_status"]))
     print("attempt_count=" + str(result["attempt_count"]))
+    print("update_job_status=" + str(result["update_job_status"]))
     print("offline_job_status=" + str(result["offline_job_status"]))
     print("post_ended=" + str(result["post_ended"]))
     print("message_deleted=" + str(result["message_deleted"]))

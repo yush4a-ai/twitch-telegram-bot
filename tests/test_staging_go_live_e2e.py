@@ -36,11 +36,13 @@ class StagingGoLiveE2ETests(unittest.IsolatedAsyncioTestCase):
         result = await run_smoke(bot, 425785231)
         self.assertEqual(result["job_status"], "done")
         self.assertEqual(result["attempt_count"], 1)
+        self.assertEqual(result["update_job_status"], "done")
         self.assertEqual(result["offline_job_status"], "done")
         self.assertTrue(result["post_ended"])
         self.assertTrue(result["message_deleted"])
         bot.send_message.assert_awaited_once()
-        bot.edit_message_text.assert_awaited_once()
+        self.assertEqual(bot.edit_message_text.await_count, 2)
+        self.assertIn("99", bot.edit_message_text.await_args_list[0].args[0])
         bot.delete_message.assert_awaited_once_with(425785231, 321)
 
     async def test_non_testbot_identity_never_sends(self):

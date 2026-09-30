@@ -191,29 +191,38 @@ class LivePostUpdater:
         *,
         target: LivePostTarget,
         build_content: ContentFactory,
+        require_live: bool | None = None,
+        propagate_retry_after: bool = False,
     ) -> LivePostUpdateResult:
         db = self._require_db()
         async with self.serialized(target.chat_id, target.message_id):
             state = await db.get_live_post_state(
                 target.chat_id, target.twitch_login
             )
-            if not self._is_current(state, target):
+            if not self._is_current(state, target, require_live=require_live):
                 return LivePostUpdateResult.STALE_TARGET
 
             content = await self._build_content(build_content)
             state = await db.get_live_post_state(
                 target.chat_id, target.twitch_login
             )
-            if not self._is_current(state, target):
+            if not self._is_current(state, target, require_live=require_live):
                 return LivePostUpdateResult.STALE_TARGET
             if state.media_transition_pending:
-                return await self._reconcile_pending_locked(target, content)
+                return await self._reconcile_pending_locked(
+                    target, content, propagate_retry_after=propagate_retry_after,
+                    require_live=require_live,
+                )
             if state.message_kind == "text":
-                outcome = await self._edit_text(target, content)
+                outcome = await self._edit_text(
+                    target, content, propagate_retry_after=propagate_retry_after
+                )
             elif state.message_kind in {"photo", "video", "animation"}:
                 if not _caption_fits(content.html):
                     return LivePostUpdateResult.CONTENT_TOO_LONG
-                outcome = await self._edit_caption(target, content)
+                outcome = await self._edit_caption(
+                    target, content, propagate_retry_after=propagate_retry_after
+                )
             else:
                 logger.warning(
                     "Неизвестный kind live-post %r для %s",
@@ -229,12 +238,14 @@ class LivePostUpdater:
         target: LivePostTarget,
         photo_url: str,
         build_content: ContentFactory,
+        propagate_retry_after: bool = False,
+        require_live: bool | None = None,
     ) -> LivePostMediaResult:
         # Lightweight private thumbnail path; never starts capture/render work.
         db = self._require_db()
         async with self.serialized(target.chat_id, target.message_id):
             state = await db.get_live_post_state(target.chat_id, target.twitch_login)
-            if not self._is_current(state, target):
+            if not self._is_current(state, target, require_live=require_live):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
             if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
                 return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
@@ -243,7 +254,7 @@ class LivePostUpdater:
             if not _caption_fits(content.html):
                 return LivePostMediaResult(LivePostMediaStatus.CAPTION_TOO_LONG)
             state = await db.get_live_post_state(target.chat_id, target.twitch_login)
-            if not self._is_current(state, target):
+            if not self._is_current(state, target, require_live=require_live):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
             if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
                 return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
@@ -258,7 +269,11 @@ class LivePostUpdater:
                     media=media,
                     reply_markup=content.reply_markup,
                 )
-            except (TelegramRetryAfter, TelegramNetworkError):
+            except TelegramRetryAfter:
+                if propagate_retry_after:
+                    raise
+                return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+            except TelegramNetworkError:
                 return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
             except TelegramBadRequest as error:
                 if not _is_not_modified(error):
@@ -495,12 +510,14 @@ class LivePostUpdater:
 
     @staticmethod
     def _is_current(
-        state: LivePostState | None, target: LivePostTarget
+        state: LivePostState | None, target: LivePostTarget,
+        *, require_live: bool | None = None,
     ) -> bool:
         return bool(
             state is not None
             and state.logical_stream_id == target.logical_stream_id
             and state.message_id == target.message_id
+            and (require_live is None or state.is_live == require_live)
         )
 
     @staticmethod
@@ -524,7 +541,8 @@ class LivePostUpdater:
         return bool(result)
 
     async def _edit_text(
-        self, target: LivePostTarget, content: LivePostContent
+        self, target: LivePostTarget, content: LivePostContent,
+        *, propagate_retry_after: bool = False,
     ) -> _EditOutcome:
         try:
             await self._bot.edit_message_text(
@@ -536,6 +554,8 @@ class LivePostUpdater:
             )
             return _EditOutcome.APPLIED
         except TelegramRetryAfter as error:
+            if propagate_retry_after:
+                raise
             logger.info(
                 "Лимит Telegram при обновлении поста в %s, повтор через %sс",
                 mask_chat_id(target.chat_id),
@@ -571,7 +591,8 @@ class LivePostUpdater:
             return _EditOutcome.REJECTED
 
     async def _edit_caption(
-        self, target: LivePostTarget, content: LivePostContent
+        self, target: LivePostTarget, content: LivePostContent,
+        *, propagate_retry_after: bool = False,
     ) -> _EditOutcome:
         try:
             await self._bot.edit_message_caption(
@@ -582,7 +603,11 @@ class LivePostUpdater:
                 reply_markup=content.reply_markup,
             )
             return _EditOutcome.APPLIED
-        except (TelegramRetryAfter, TelegramNetworkError):
+        except TelegramRetryAfter:
+            if propagate_retry_after:
+                raise
+            return _EditOutcome.RETRY_LATER
+        except TelegramNetworkError:
             return _EditOutcome.RETRY_LATER
         except TelegramBadRequest as error:
             if _is_not_modified(error):
@@ -608,18 +633,22 @@ class LivePostUpdater:
             return _EditOutcome.REJECTED
 
     async def _reconcile_pending_locked(
-        self, target: LivePostTarget, content: LivePostContent
+        self, target: LivePostTarget, content: LivePostContent,
+        *, propagate_retry_after: bool = False,
+        require_live: bool | None = None,
     ) -> LivePostUpdateResult:
         db = self._require_db()
         state = await db.get_live_post_state(target.chat_id, target.twitch_login)
-        if not self._is_current(state, target):
+        if not self._is_current(state, target, require_live=require_live):
             return LivePostUpdateResult.STALE_TARGET
         if not state.media_transition_pending:
             return LivePostUpdateResult.STALE_TARGET
         if not _caption_fits(content.html):
             return LivePostUpdateResult.CONTENT_TOO_LONG
 
-        caption_outcome = await self._edit_caption(target, content)
+        caption_outcome = await self._edit_caption(
+            target, content, propagate_retry_after=propagate_retry_after
+        )
         if caption_outcome is _EditOutcome.APPLIED:
             if (
                 state.media_transition_target_kind == "animation"
@@ -644,7 +673,9 @@ class LivePostUpdater:
         if caption_outcome is not _EditOutcome.KIND_MISMATCH:
             return self._update_result(caption_outcome)
 
-        text_outcome = await self._edit_text(target, content)
+        text_outcome = await self._edit_text(
+            target, content, propagate_retry_after=propagate_retry_after
+        )
         if text_outcome is _EditOutcome.APPLIED:
             updated = await db.set_live_message_kind_if_current(
                 target.chat_id,
