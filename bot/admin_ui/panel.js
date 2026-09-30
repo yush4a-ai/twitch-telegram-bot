@@ -62,6 +62,11 @@ function render(data) {
   put('stat-tracked',value(data.audience?.tracked_channels));
   put('stat-channels',value(data.audience?.unique_twitch_channels));
   renderLive(data.live);
+  put('live-queue-pending',value(data.queues?.pending_jobs));
+  put('live-queue-leased',value(data.queues?.leased_jobs));
+  put('live-queue-due',value(data.queues?.due_jobs));
+  put('live-queue-failed',value(data.queues?.failed_jobs));
+  put('live-queue-oldest',age(data.queues?.oldest_due_age_seconds));
   put('queue-pending',value(data.queues?.pending_deliveries));
   put('queue-age',age(data.queues?.oldest_pending_age_seconds));
   put('queue-deferred',value(data.queues?.deferred_reports));

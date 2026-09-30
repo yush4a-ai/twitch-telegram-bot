@@ -54,6 +54,27 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 200)
             self.assertIn("javascript", response.headers["Content-Type"])
 
+    async def test_owner_panel_displays_live_queue_depth_and_oldest_due_age(self):
+        async with self.session.post(
+            self.base + "/admin/emergency/login", data={"access_key": KEY},
+            allow_redirects=False,
+        ):
+            pass
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        for field in (
+            "live-queue-pending", "live-queue-leased", "live-queue-due",
+            "live-queue-failed", "live-queue-oldest",
+        ):
+            self.assertIn(f'id="{field}"', html)
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
+        for field in (
+            "pending_jobs", "leased_jobs", "due_jobs", "failed_jobs",
+            "oldest_due_age_seconds",
+        ):
+            self.assertIn(field, script)
+
 
 if __name__ == "__main__":
     unittest.main()

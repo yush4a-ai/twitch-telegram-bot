@@ -46,7 +46,19 @@
 
       <div class="lower-grid">
         <section class="live-section" aria-labelledby="live-heading"><div class="section-head"><h2 id="live-heading">Сейчас в эфире</h2><p>По последнему состоянию poller</p></div><table class="live-table"><thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead><tbody id="live-list"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody></table></section>
-        <section class="operations-section" aria-labelledby="operations-heading"><div class="section-head"><h2 id="operations-heading">Операции</h2><p>Очереди, ошибки, ресурсы процесса</p></div><div class="operation-group"><h3>Очереди отчётов</h3><dl><div><dt>Ожидают отправки</dt><dd id="queue-pending">—</dd></div><div><dt>Старейший элемент</dt><dd id="queue-age">—</dd></div><div><dt>Отложены на тихие часы</dt><dd id="queue-deferred">—</dd></div></dl></div><div class="operation-group"><h3>Ошибки</h3><dl><div><dt>Poller</dt><dd id="error-poller">—</dd></div><div><dt>EventSub</dt><dd id="error-eventsub">—</dd></div><div><dt>Preview</dt><dd id="error-preview">—</dd></div><div><dt>База данных</dt><dd id="error-database">—</dd></div></dl></div><div class="operation-group"><h3>Ресурсы</h3><dl><div><dt>CPU процесса</dt><dd id="resource-cpu">—</dd></div><div><dt>RAM процесса</dt><dd id="resource-ram">—</dd></div><div><dt>Свободно на томе DB</dt><dd id="resource-disk">—</dd></div><div><dt>SQLite DB / WAL</dt><dd id="resource-db">—</dd></div></dl></div></section>
+        <section class="operations-section" aria-labelledby="operations-heading">
+          <div class="section-head"><h2 id="operations-heading">Операции</h2><p>Очереди, ошибки, ресурсы процесса</p></div>
+          <div class="operation-group"><h3>Очередь live-постов</h3><dl>
+            <div><dt>Ожидают</dt><dd id="live-queue-pending">—</dd></div>
+            <div><dt>В обработке</dt><dd id="live-queue-leased">—</dd></div>
+            <div><dt>Готовы к отправке</dt><dd id="live-queue-due">—</dd></div>
+            <div><dt>Окончательные ошибки</dt><dd id="live-queue-failed">—</dd></div>
+            <div><dt>Старейший готовый job</dt><dd id="live-queue-oldest">—</dd></div>
+          </dl></div>
+          <div class="operation-group"><h3>Очереди отчётов</h3><dl><div><dt>Ожидают отправки</dt><dd id="queue-pending">—</dd></div><div><dt>Старейший элемент</dt><dd id="queue-age">—</dd></div><div><dt>Отложены на тихие часы</dt><dd id="queue-deferred">—</dd></div></dl></div>
+          <div class="operation-group"><h3>Ошибки</h3><dl><div><dt>Poller</dt><dd id="error-poller">—</dd></div><div><dt>EventSub</dt><dd id="error-eventsub">—</dd></div><div><dt>Preview</dt><dd id="error-preview">—</dd></div><div><dt>База данных</dt><dd id="error-database">—</dd></div></dl></div>
+          <div class="operation-group"><h3>Ресурсы</h3><dl><div><dt>CPU процесса</dt><dd id="resource-cpu">—</dd></div><div><dt>RAM процесса</dt><dd id="resource-ram">—</dd></div><div><dt>Свободно на томе DB</dt><dd id="resource-disk">—</dd></div><div><dt>SQLite DB / WAL</dt><dd id="resource-db">—</dd></div></dl></div>
+        </section>
       </div>
     </main>
     <footer>Внутренняя панель TwitchSignalBot · данные только для диагностики staging</footer>
