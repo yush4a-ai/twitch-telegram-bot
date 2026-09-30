@@ -59,11 +59,11 @@
 
 **Interfaces:** `GET /admin`, `/admin/panel.css`, `/admin/panel.js`, `/admin/api/snapshot`; JS renders exact Task 2 schema. Login and logout use Task 1 routes.
 
-- [ ] Write failing route/static assertions and browser scenario for sign-in, refresh, logout, denied access, empty/error/stale presentation.
-- [ ] Run focused tests to confirm failure.
-- [ ] Implement UI to `DESIGN.md` and craft floor; use textContent for all dynamic values, responsive live rows, focus states, dark/light and reduced motion.
-- [ ] Run route tests, Playwright at 360/390/768/1440 and screenshot/keyboard/overflow checks in one batch. Correct observed defects and recheck.
-- [ ] Commit tested package.
+- [x] Write failing route/static assertions and browser scenario for sign-in, refresh, logout, denied access, empty/error/stale presentation.
+- [x] Run focused tests to confirm failure.
+- [x] Implement UI to `DESIGN.md` and craft floor; use textContent for all dynamic values, responsive live rows, focus states, dark/light and reduced motion.
+- [x] Run route tests, Playwright at 360/390/768/1440 and screenshot/keyboard/overflow checks in one batch. Correct observed defects and recheck.
+- [x] Commit tested package.
 
 ### Task 4: Staging evidence and documentation
 

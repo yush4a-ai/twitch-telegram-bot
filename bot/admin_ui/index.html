@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Панель владельца · TwitchSignalBot</title>
+  <link rel="stylesheet" href="/admin/panel.css">
+  <script src="/admin/panel.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand" aria-label="TwitchSignalBot"><span class="brand-mark" aria-hidden="true"></span><span>TwitchSignal<span class="brand-bot">Bot</span></span></div>
+      <div class="topbar-actions">
+        <span class="environment" id="environment">STAGING</span>
+        <button class="button button-quiet" id="refresh" type="button">Обновить</button>
+        <form method="post" action="/admin/logout"><button class="button button-quiet" type="submit">Выйти</button></form>
+      </div>
+    </header>
+
+    <main>
+      <div class="page-intro">
+        <div><h1>Состояние бота</h1><p>Тестовый контур · данные обновляются каждые 30 секунд</p></div>
+        <div class="update-meta" role="status" aria-live="polite"><span id="updated-at">Загрузка…</span><span class="freshness" id="freshness">Ожидание данных</span></div>
+      </div>
+
+      <div class="notice" id="notice" role="alert" hidden></div>
+
+      <section aria-labelledby="health-heading">
+        <div class="section-head"><h2 id="health-heading">Подсистемы</h2><p>Состояния рассчитаны отдельно</p></div>
+        <div class="health-grid" id="health-grid">
+          <article class="health-panel" id="telegram-panel"><div class="health-title"><h3>Telegram</h3><span class="state" id="telegram-state">Нет данных</span></div><p class="health-description">Задача получения сообщений и команд</p><dl><div><dt>Polling</dt><dd id="telegram-polling">Нет данных</dd></div><div><dt>Доставка сообщений</dt><dd id="telegram-delivery">Не проверена</dd></div></dl></article>
+          <article class="health-panel" id="twitch-panel"><div class="health-title"><h3>Twitch</h3><span class="state" id="twitch-state">Нет данных</span></div><p class="health-description">Опрос каналов и EventSub</p><dl><div><dt>Успешный опрос</dt><dd id="twitch-success">Нет данных</dd></div><div><dt>EventSub</dt><dd id="twitch-eventsub">Нет данных</dd></div><div><dt>Нужна повторная авторизация</dt><dd id="twitch-auth">Нет данных</dd></div></dl></article>
+          <article class="health-panel" id="preview-panel"><div class="health-title"><h3>Live preview</h3><span class="state" id="preview-state">Нет данных</span></div><p class="health-description">Сборка Telegram Animation · до 24 сек.</p><dl><div><dt>Активные сессии / задачи</dt><dd id="preview-active">Нет данных</dd></div><div><dt>Последний успех</dt><dd id="preview-success">Нет данных</dd></div><div><dt>Причина отключения</dt><dd id="preview-reason">Нет данных</dd></div></dl></article>
+        </div>
+      </section>
+
+      <section aria-labelledby="audience-heading" class="audience-section">
+        <div class="section-head"><h2 id="audience-heading">Аудитория staging</h2><p>Записи тестовой базы, не production-аудитория</p></div>
+        <div class="audience-grid"><div><strong id="stat-users">—</strong><span>Личных пользователей</span></div><div><strong id="stat-groups">—</strong><span>Групп</span></div><div><strong id="stat-tracked">—</strong><span>Подписок чат + канал</span></div><div><strong id="stat-channels">—</strong><span>Уникальных Twitch-каналов</span></div></div>
+      </section>
+
+      <div class="lower-grid">
+        <section class="live-section" aria-labelledby="live-heading"><div class="section-head"><h2 id="live-heading">Сейчас в эфире</h2><p>По последнему состоянию poller</p></div><div class="live-header" aria-hidden="true"><span>Канал</span><span>Назначений</span><span>Зрителей</span><span>Наблюдение</span></div><div id="live-list" class="live-list"><p class="empty">Загрузка…</p></div></section>
+        <section class="operations-section" aria-labelledby="operations-heading"><div class="section-head"><h2 id="operations-heading">Операции</h2><p>Очереди, ошибки, ресурсы процесса</p></div><div class="operation-group"><h3>Очереди отчётов</h3><dl><div><dt>Ожидают отправки</dt><dd id="queue-pending">—</dd></div><div><dt>Старейший элемент</dt><dd id="queue-age">—</dd></div><div><dt>Отложены на тихие часы</dt><dd id="queue-deferred">—</dd></div></dl></div><div class="operation-group"><h3>Ошибки</h3><dl><div><dt>Poller</dt><dd id="error-poller">—</dd></div><div><dt>EventSub</dt><dd id="error-eventsub">—</dd></div><div><dt>Preview</dt><dd id="error-preview">—</dd></div><div><dt>База данных</dt><dd id="error-database">—</dd></div></dl></div><div class="operation-group"><h3>Ресурсы</h3><dl><div><dt>CPU процесса</dt><dd id="resource-cpu">—</dd></div><div><dt>RAM процесса</dt><dd id="resource-ram">—</dd></div><div><dt>Свободно на томе DB</dt><dd id="resource-disk">—</dd></div><div><dt>SQLite DB / WAL</dt><dd id="resource-db">—</dd></div></dl></div></section>
+      </div>
+    </main>
+    <footer>Внутренняя панель TwitchSignalBot · данные только для диагностики staging</footer>
+  </div>
+</body>
+</html>
