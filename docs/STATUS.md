@@ -7,7 +7,7 @@
 | R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
 | R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
 | R2 Owner Admin Panel v1 | реализация и staging smoke выполнены; реальный Telegram Login E2E ожидает BotFather domain | deployment `26ab6e4a-6548-4b29-9f07-60f6e75f0815` из `2faa74f` terminal `SUCCESS`; gate 942 passed, 2 skipped, 259 subtests; signed owner/non-owner staging проверки и браузерный 390/1440 smoke |
-| R3 Growth Foundation | в работе: shared samples и go-live queue cutover на staging; реальный testbot go-live E2E прошёл, локальные 20k/30k/40k, preview и queue профили записаны; update/cleanup и rollback впереди | deployment `e757b5e5-ba83-4be7-a4cb-cd1d5737b0db` из `741167a` `SUCCESS`; gate 1002 passed, 2 skipped, 265 subtests; `/healthz` 200, owner API 401 без сессии; через временную DB testbot job `done` за одну попытку и отправленный live-пост удалён; основная DB `integrity=ok`, 0 тестовых строк; `docs/audits/2026-09-30-r3-queue-cutover-staging.md`, `docs/audits/2026-09-30-r3-results.md` |
+| R3 Growth Foundation | в работе: shared samples, go-live queue и offline cleanup на staging; реальный testbot E2E прошёл; локальные 20k/30k/40k, preview и queue профили записаны; live update coalescing и rollback впереди | deployment `d05d8d5d-56c9-4c51-abff-0fb804cd0431` из `1129a20` `SUCCESS`; gate 1011 passed, 2 skipped, 265 subtests; `/healthz` 200, owner API 401 без сессии; временная DB/testbot: go-live и offline jobs `done`, карточка `ended`, тестовый пост удалён; `docs/audits/2026-09-30-r3-queue-cutover-staging.md`, `docs/audits/2026-09-30-r3-results.md` |
 | R4–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
 ## Проверенное в R1
@@ -30,7 +30,7 @@
 
 ## Следующий шаг
 
-Продолжать R3: staged update/cleanup, затем проверить откат shared данных и mixed-load recovery. Локальные профили и одиночный успешный testbot send не заменяют нагрузочную проверку. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
+Продолжать R3: live update coalescing, затем проверить откат shared данных и mixed-load recovery. Локальные профили и одиночный успешный testbot lifecycle не заменяют нагрузочную проверку. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
 
 ## Проверенное в R2
 

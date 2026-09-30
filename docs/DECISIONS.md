@@ -121,3 +121,11 @@
 - **Основание:** локальные синтетические профили в `docs/audits/2026-09-30-r3-results.md`: shared sample path на 20k/30k/40k, fake preview 1/2/4 и durable queue до 10k jobs без сети. 10k jobs завершились без потерь; DB-only drain 28,96 с, но установленный Telegram budget 25 стартов/с задаёт минимум 400 с для 10k одновременных sends. PostgreSQL сам по себе не снимет этот внешний предел.
 - **Ограничение:** это один прогон каждого локального профиля без FFmpeg, Telegram, настоящего poller и одновременных mixed workloads. Вывод не подтверждает SLA 40k пользователей, безопасность горизонтального scaling или отсутствие будущего DB bottleneck.
 - **Пересмотр:** R9 full mixed load, WAL/lock/CPU/RAM/disk, recovery и staging testbot delivery; перейти к PostgreSQL по измеренному DB bottleneck, а не по числу пользователей в одиночку.
+
+## D-016 — offline cleanup переносится из poll cycle в staging queue
+
+- **Дата:** 2026-10-01.
+- **Решение:** при staging queue flag после grace периодически ставить due offline cleanup jobs одним индексированным `INSERT SELECT`. Уникальный ключ включает message ID как `payload_version`: новый пост после reconnect получает новый job, старый worker проверяет stream и message перед действием. Личная карточка редактируется в ended через media-aware updater, публичный пост удаляется под post lock; transient error откладывает job.
+- **Основание:** TDD тесты grace, идемпотентности, stale target, private/public путей, retry и батчевой постановки; gate 1011 passed, 2 skipped, 265 subtests. Deployment `d05d8d5d-56c9-4c51-abff-0fb804cd0431` terminal `SUCCESS`; staging testbot E2E: go-live и cleanup jobs `done`, карточка `ended`, тестовый пост удалён.
+- **Ограничение:** это одиночный тестовый lifecycle; mixed-load fan-out, общий Telegram budget для старых путей и code/data rollback ещё не проверены.
+- **Пересмотр:** после R3 live update coalescing, staging mixed-load и recovery.
