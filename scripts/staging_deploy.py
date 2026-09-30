@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 
 
 EXPECTED_BRANCH = "autonomous/twitchsignal-roadmap"
@@ -88,6 +89,13 @@ def validate_target(status: dict, target: dict, require_health: bool = True) -> 
         else:
             meta = active[0].get("meta") or {}
             settings = (meta.get("serviceManifest") or {}).get("deploy") or {}
+            mapping = meta.get("propertyFileMapping") or {}
+            file_override = bool(mapping) and all(
+                mapping.get(f"deploy.{key}") == f"$.environments.staging.deploy.{key}"
+                for key in BOOTSTRAP_DEPLOY
+            )
+            if mapping and not file_override:
+                errors.append("staging config mapping не совпадает")
             if settings.get("numReplicas") != 1:
                 errors.append("staging replicas должно быть ровно 1")
             if settings.get("overlapSeconds") not in (None, 0):
@@ -95,11 +103,17 @@ def validate_target(status: dict, target: dict, require_health: bool = True) -> 
             if "/data" not in (meta.get("volumeMounts") or []):
                 errors.append("staging deployment не содержит /data Volume mount")
             if require_health:
-                if settings.get("healthcheckPath") != "/healthz":
+                def setting_matches(key: str, expected: object) -> bool:
+                    value = settings.get(key)
+                    return value == expected or (file_override and value is None)
+
+                if not setting_matches("healthcheckPath", "/healthz"):
                     errors.append("staging healthcheckPath должен быть /healthz")
-                if not isinstance(settings.get("healthcheckTimeout"), int) or settings["healthcheckTimeout"] < 180:
+                timeout = settings.get("healthcheckTimeout")
+                if not ((isinstance(timeout, int) and timeout >= 180) or (file_override and timeout is None)):
                     errors.append("staging healthcheckTimeout должен быть не меньше 180")
-                if not isinstance(settings.get("drainingSeconds"), int) or settings["drainingSeconds"] < 30:
+                draining = settings.get("drainingSeconds")
+                if not ((isinstance(draining, int) and draining >= 30) or (file_override and draining is None)):
                     errors.append("staging drainingSeconds должен быть не меньше 30")
 
     if prod_service is not None:
@@ -141,8 +155,12 @@ def validate_bootstrap_target(status: dict, target: dict) -> list[str]:
     instance = _instance(stage, target["service_id"]) if stage else None
     deployments = instance.get("activeDeployments", []) if instance else []
     if len(deployments) == 1:
-        settings = ((deployments[0].get("meta") or {}).get("serviceManifest") or {}).get("deploy") or {}
-        if any(settings.get(key) is not None for key in BOOTSTRAP_DEPLOY):
+        meta = deployments[0].get("meta") or {}
+        settings = (meta.get("serviceManifest") or {}).get("deploy") or {}
+        mapping = meta.get("propertyFileMapping") or {}
+        has_settings = any(settings.get(key) is not None for key in BOOTSTRAP_DEPLOY)
+        has_mapping = any(f"deploy.{key}" in mapping for key in BOOTSTRAP_DEPLOY)
+        if has_settings or has_mapping:
             errors.append("bootstrap допустим только до первой настройки staging health/drain")
     return errors
 
@@ -206,6 +224,59 @@ def _status(target: dict, require_health: bool, bootstrap: bool = False) -> list
     return validate_bootstrap_target(status, target) if bootstrap else validate_target(status, target, require_health=require_health)
 
 
+def _active_deployment_check(status: dict, target: dict, deployment_id: str) -> list[str]:
+    errors = validate_target(status, target, require_health=True)
+    stage = next((e for e in _nodes(status, "environments") if e.get("name") == "staging"), None)
+    instance = _instance(stage, target["service_id"]) if stage else None
+    active = instance.get("activeDeployments", []) if instance else []
+    if len(active) != 1 or active[0].get("id") != deployment_id:
+        errors.append("новый staging deployment ещё не активен")
+    return errors
+
+
+def _deployment_list(target: dict) -> list[dict]:
+    return json.loads(_capture([
+        "railway", "deployment", "list",
+        "--project", target["project_id"],
+        "--environment", target["staging_environment_id"],
+        "--service", target["service_id"],
+        "--limit", "5", "--json",
+    ]))
+
+
+def _wait_for_deployment(
+    target: dict, commit: str, known_ids: set[str] | None = None, timeout_seconds: int = 600
+) -> str:
+    deadline = time.monotonic() + timeout_seconds
+    last_state: str | None = None
+    previous = known_ids or set()
+    while True:
+        deployments = _deployment_list(target)
+        current = next(
+            (
+                item for item in deployments
+                if item.get("id") not in previous
+                and (item.get("meta") or {}).get("cliMessage") == f"staging {commit}"
+            ),
+            None,
+        )
+        if current is not None:
+            deployment_id = current["id"]
+            state = current["status"]
+            if state != last_state:
+                print(f"Staging deployment {deployment_id}: {state}")
+                last_state = state
+            if state in {"FAILED", "CRASHED", "REMOVED", "CANCELED"}:
+                raise RuntimeError(f"Staging deployment {deployment_id}: {state}")
+            if state == "SUCCESS":
+                status = json.loads(_capture(["railway", "status", "--json"]))
+                if not _active_deployment_check(status, target, deployment_id):
+                    return deployment_id
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Staging deployment не достиг активного SUCCESS за отведённое время")
+        time.sleep(5)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Проверка и deploy только Railway staging")
     mode = parser.add_mutually_exclusive_group()
@@ -251,8 +322,14 @@ def main(argv: list[str] | None = None) -> int:
         if _capture(["git", "rev-parse", "HEAD"]) != commit:
             print("Git commit изменился во время тестов", file=sys.stderr)
             return 2
+        known_ids = {item["id"] for item in _deployment_list(target)}
         with _committed_bundle(commit) as bundle:
-            return _stream(build_deploy_command(target, commit, str(bundle)))
+            upload_code = _stream(build_deploy_command(target, commit, str(bundle)))
+        if upload_code != 0:
+            return upload_code
+        deployment_id = _wait_for_deployment(target, commit, known_ids=known_ids)
+        print(f"Staging deploy подтверждён: {deployment_id}")
+        return 0
     except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError, tarfile.TarError) as error:
         print(f"Staging deploy остановлен: {type(error).__name__}", file=sys.stderr)
         return 2

@@ -1,31 +1,31 @@
 # Статус TwitchSignalBot
 
-Обновлено: 2026-09-30. Рабочая ветка: `autonomous/twitchsignal-roadmap`; baseline HEAD до R0-документов `b4898a9`, production-код и активный production deployment `6074744`.
+Обновлено: 2026-09-30. Рабочая ветка: `autonomous/twitchsignal-roadmap`. Production-код и активный production deployment: `6074744`; push/merge `main` не выполнялись.
 
 | Этап | Состояние | Evidence |
 | --- | --- | --- |
-| R0 Audit & Baseline | завершён локально; production и staging deployment в R0 не выполнялись | `docs/audits/2026-09-30-baseline.md`, risk register; локально 886 passed, 2 skipped; `git diff --cached --check` без ошибок |
-| R1 Safe Development/Staging Workflow | следующий этап | нужен staging-only deploy runbook, healthcheck, backup/restore и проверка bot identity |
-| R2–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
+| R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
+| R1 Safe Development/Staging Workflow | staging deploy и smoke выполнены; локальный guard приведён к реальной metadata | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
+| R2 Owner Admin Panel v1 | следующий этап | по утверждённому workflow нужна адаптивная браузерная owner-панель; отдельная spec/plan, безопасный вход и staging проверка ещё нужны |
+| R3–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
-## Проверенное
+## Проверенное в R1
 
-- Railway production активен из GitHub `main` на `6074744`; staging — отдельный environment и отдельный Volume, текущий deploy через CLI.
-- Оба `/healthz` ответили HTTP 200; staging Railway healthcheck setting в active deployment отсутствует.
-- Код использует одну SQLite connection, последовательный poll cycle, preview artifact semaphore по умолчанию 1 и capture limit 2.
-- README/`.env.example` приведены к реальному preview pipeline; это документальное изменение.
-
-## Staging
-
-R0 deployment и Telegram E2E не выполнялись. Последний видимый staging deployment создан 2026-09-30 10:33 UTC; Git SHA в его metadata отсутствует. Проверка target identity `@TwitchSignalTestbot` и безопасный deploy gate входят в R1.
+- Production привязан к GitHub `main` и после staging работ остался на `6074744` (`SUCCESS`, deployment `2d440603-b74f-4c03-ba42-a5d53a491c02`); staging остаётся CLI source с отдельным Volume и одной replica. Deployment выполнялся с явными project, environment и service ID из `scripts/staging_target.json`.
+- Railway CLI завершился до terminal status нового deployment. При переключении Volume `/healthz` кратковременно отвечал 502, после `SUCCESS` ответил HTTP 200 `{"status":"ok"}`.
+- `railway.json` содержит только staging override: healthcheck `/healthz`, timeout 300 с, draining 30 с, overlap 0. Railway записал четыре точных пути в `propertyFileMapping`, оставив базовые service-поля `null`; локальный guard проверяет этот формат. Фактический runtime healthcheck не является постоянным мониторингом.
+- Staging bot identity подтверждена Telegram `getMe` из staging контейнера без вывода token: `TwitchSignalTestbot`.
+- Онлайн backup `/data/backups/2026-09-30-r1-7b5862d.db` и неразрушающий restore drill: `integrity=ok`, 21 таблица, 360 448 байт. Активная DB не заменялась; production DB не читалась и не копировалась.
+- Принят workflow addendum `docs/workflows/2026-09-30-autonomy-design-testing.md` и краткие project rules `AGENTS.md`: R2 является браузерной панелью, QA включает desktop/mobile и безопасный owner access; завершённые R0/R1 не перезапускаются.
 
 ## Открытые ограничения
 
 - Нельзя push/merge `main`: он является источником production deployment.
-- Staging healthcheck/draining и backup/restore runbook пока не закреплены.
-- Secret values и production DB не копировались; различие credentials между окружениями ещё не доказано.
+- `OWNER_CHAT_ID` отсутствует в staging, поэтому Telegram `/health` с отдельным preview snapshot и исходящее E2E-сообщение тестовому chat ID не проверены. Preview состояние в живом staging — `unknown`; HTTP `/healthz` его не подтверждает.
+- Backup находится на том же staging Volume. Перед существенной migration требуется внешний staging snapshot/export и проверенный offline maintenance path для активного DB rollback.
+- Railway Config as Code (`railway.json`) устаревает 2026-12-01; нужен переход на Infrastructure as Code после отдельной проверки staging/production границы.
 - Реальные платежи/provider, production rollout и юридические решения отложены до отдельного решения пользователя.
 
 ## Следующий шаг
 
-Написать спецификацию и implementation plan R1, затем настроить и проверить только staging. Начать с branch/deploy guard и изоляции данных, затем backup/rollback и smoke через тестовый бот.
+Завершить проверку локального R1 guard и документации, затем перейти к R2: spec и plan для адаптивной браузерной owner-панели с отдельным Telegram/Twitch/preview health, аудиторией, очередью и ресурсами. Все новые функции проверять только в staging.

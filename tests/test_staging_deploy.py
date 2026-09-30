@@ -224,6 +224,22 @@ def test_bootstrap_requires_exact_legacy_missing_health_state():
     assert deploy.validate_bootstrap_target(status, TARGET)
 
 
+def test_accepts_staging_config_file_mapping_from_active_deployment():
+    status = _status()
+    active = status["environments"]["edges"][0]["node"]["serviceInstances"]["edges"][0]["node"]["activeDeployments"][0]
+    settings = active["meta"]["serviceManifest"]["deploy"]
+    for key in deploy.BOOTSTRAP_DEPLOY:
+        settings[key] = None
+    active["meta"]["propertyFileMapping"] = {
+        f"deploy.{key}": f"$.environments.staging.deploy.{key}"
+        for key in deploy.BOOTSTRAP_DEPLOY
+    }
+    assert validate_target(status, TARGET) == []
+    assert deploy.validate_bootstrap_target(status, TARGET)
+    active["meta"]["propertyFileMapping"]["deploy.healthcheckPath"] = "$.environments.production.deploy.healthcheckPath"
+    assert validate_target(status, TARGET)
+
+
 def test_committed_bundle_excludes_ignored_and_untracked_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     subprocess.run(["git", "init", "-q"], check=True)
@@ -238,3 +254,59 @@ def test_committed_bundle_excludes_ignored_and_untracked_files(tmp_path, monkeyp
         assert (bundle / "app.py").read_text(encoding="utf-8") == "committed\n"
         assert not (bundle / ".env").exists()
         assert not (bundle / "untracked.txt").exists()
+
+
+def test_wait_for_deployment_requires_terminal_success_and_active_id(monkeypatch):
+    states = ["DEPLOYING", "SUCCESS", "SUCCESS"]
+    active_ids = ["old", "new"]
+
+    def capture(argv):
+        if argv[1:3] == ["deployment", "list"]:
+            state = states.pop(0)
+            return deploy.json.dumps([{"id": "new", "status": state, "meta": {"cliMessage": "staging abc"}}])
+        if argv[1:3] == ["status", "--json"]:
+            return deploy.json.dumps({"active": active_ids.pop(0)})
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(deploy, "_capture", capture)
+    monkeypatch.setattr(deploy, "_active_deployment_check", lambda status, target, deployment_id: [] if status["active"] == deployment_id else ["not active"])
+    monkeypatch.setattr(deploy.time, "sleep", lambda seconds: None)
+    assert deploy._wait_for_deployment(TARGET, "abc", timeout_seconds=30) == "new"
+
+
+def test_wait_for_deployment_rejects_failed_terminal_state(monkeypatch):
+    monkeypatch.setattr(deploy, "_capture", lambda argv: deploy.json.dumps([
+        {"id": "new", "status": "FAILED", "meta": {"cliMessage": "staging abc"}}
+    ]))
+    try:
+        deploy._wait_for_deployment(TARGET, "abc", timeout_seconds=30)
+    except RuntimeError as error:
+        assert "FAILED" in str(error)
+    else:
+        raise AssertionError("FAILED deployment was accepted")
+
+
+def test_active_deployment_check_rejects_an_old_success():
+    status = _status()
+    active = status["environments"]["edges"][0]["node"]["serviceInstances"]["edges"][0]["node"]["activeDeployments"][0]
+    active["id"] = "old"
+    assert deploy._active_deployment_check(status, TARGET, "new")
+    assert deploy._active_deployment_check(status, TARGET, "old") == []
+
+
+def test_wait_ignores_previous_deployment_of_same_commit(monkeypatch):
+    responses = [
+        [{"id": "old", "status": "SUCCESS", "meta": {"cliMessage": "staging abc"}}],
+        [{"id": "new", "status": "SUCCESS", "meta": {"cliMessage": "staging abc"}}],
+    ]
+    def capture(argv):
+        if argv[1:3] == ["deployment", "list"]:
+            return deploy.json.dumps(responses.pop(0))
+        if argv[1:3] == ["status", "--json"]:
+            return "{}"
+        raise AssertionError(argv)
+
+    monkeypatch.setattr(deploy, "_capture", capture)
+    monkeypatch.setattr(deploy, "_active_deployment_check", lambda status, target, deployment_id: [])
+    monkeypatch.setattr(deploy.time, "sleep", lambda seconds: None)
+    assert deploy._wait_for_deployment(TARGET, "abc", known_ids={"old"}, timeout_seconds=30) == "new"
