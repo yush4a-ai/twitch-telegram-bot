@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 
 
 EXPECTED_BRANCH = "autonomous/twitchsignal-roadmap"
@@ -144,15 +147,34 @@ def validate_bootstrap_target(status: dict, target: dict) -> list[str]:
     return errors
 
 
-def build_deploy_command(target: dict, commit: str) -> list[str]:
+def build_deploy_command(target: dict, commit: str, bundle_path: str) -> list[str]:
     return [
-        "railway", "up",
+        "railway", "up", bundle_path, "--path-as-root",
         "--project", target["project_id"],
         "--environment", target["staging_environment_id"],
         "--service", target["service_id"],
         "--message", f"staging {commit}",
         "--yes",
     ]
+
+
+@contextmanager
+def _committed_bundle(commit: str):
+    """Upload only Git's committed snapshot, excluding local secrets and caches."""
+    temp_root = Path(tempfile.gettempdir()).resolve()
+    with tempfile.TemporaryDirectory(prefix="twitchsignal-staging-", dir=temp_root, ignore_cleanup_errors=True) as name:
+        temporary = Path(name).resolve()
+        if temporary.parent != temp_root:
+            raise RuntimeError("Временный каталог deploy вне системного TEMP")
+        archive_path = temporary / "source.tar"
+        bundle_path = temporary / "repo"
+        bundle_path.mkdir()
+        subprocess.run(["git", "archive", "--format=tar", "--output", str(archive_path), commit], check=True)
+        with tarfile.open(archive_path, "r") as archive:
+            if any(not (member.isfile() or member.isdir()) for member in archive.getmembers()):
+                raise RuntimeError("Git archive содержит неподдерживаемый тип файла")
+            archive.extractall(bundle_path, filter="data")
+        yield bundle_path
 
 
 def _load_target() -> dict:
@@ -229,8 +251,9 @@ def main(argv: list[str] | None = None) -> int:
         if _capture(["git", "rev-parse", "HEAD"]) != commit:
             print("Git commit изменился во время тестов", file=sys.stderr)
             return 2
-        return _stream(build_deploy_command(target, commit))
-    except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError) as error:
+        with _committed_bundle(commit) as bundle:
+            return _stream(build_deploy_command(target, commit, str(bundle)))
+    except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError, tarfile.TarError) as error:
         print(f"Staging deploy остановлен: {type(error).__name__}", file=sys.stderr)
         return 2
 

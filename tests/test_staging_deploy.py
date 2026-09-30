@@ -1,5 +1,7 @@
 """Guard for the only environment that autonomous work may deploy to."""
 
+import subprocess
+
 from scripts import staging_deploy as deploy
 from scripts.staging_deploy import (
     build_deploy_command,
@@ -159,9 +161,11 @@ def test_git_gate_rejects_dirty_and_main():
 
 
 def test_deploy_command_pins_all_three_ids_and_commit():
-    command = build_deploy_command(TARGET, "a" * 40)
+    command = build_deploy_command(TARGET, "a" * 40, "C:/Temp/staging-bundle/repo")
     assert command[:2] == ["railway", "up"]
     assert "." not in command
+    assert command[2] == "C:/Temp/staging-bundle/repo"
+    assert "--path-as-root" in command
     assert command[command.index("--project") + 1] == "project-1"
     assert command[command.index("--environment") + 1] == "staging-1"
     assert command[command.index("--service") + 1] == "service-1"
@@ -218,3 +222,19 @@ def test_bootstrap_requires_exact_legacy_missing_health_state():
     assert deploy.validate_bootstrap_target(status, TARGET) == []
     settings["healthcheckPath"] = "/wrong"
     assert deploy.validate_bootstrap_target(status, TARGET)
+
+
+def test_committed_bundle_excludes_ignored_and_untracked_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    subprocess.run(["git", "init", "-q"], check=True)
+    (tmp_path / ".gitignore").write_text(".env\n", encoding="utf-8")
+    (tmp_path / "app.py").write_text("committed\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore", "app.py"], check=True)
+    subprocess.run(["git", "-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "snapshot"], check=True)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], check=True, text=True, capture_output=True).stdout.strip()
+    (tmp_path / ".env").write_text("secret", encoding="utf-8")
+    (tmp_path / "untracked.txt").write_text("do not upload", encoding="utf-8")
+    with deploy._committed_bundle(commit) as bundle:
+        assert (bundle / "app.py").read_text(encoding="utf-8") == "committed\n"
+        assert not (bundle / ".env").exists()
+        assert not (bundle / "untracked.txt").exists()

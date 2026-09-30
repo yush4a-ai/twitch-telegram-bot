@@ -66,6 +66,7 @@
 
 - [ ] Проверить `git diff`, полный suite и Railway project/environment/service/Volume metadata перед изменением конфигурации.
 - [ ] После подтверждённого `No changes to apply` от CLI включить только staging healthcheck `/healthz`, timeout 300 с, draining 30 с и overlap 0 через `railway.json`; пройти `--bootstrap-deploy` из чистого commit и прочитать обратно metadata.
+- [ ] Загрузить только `git archive` проверенного commit через `--path-as-root`: рабочая директория вызвала локальные ошибки индексации; подтвердить отсутствие ignored/untracked файлов в тесте и архиве.
 - [ ] Запустить обычный `scripts/staging_deploy.py --check` после bootstrap; записать SHA и Railway deployment ID.
 - [ ] Проверить staging `/healthz`, Railway terminal status, Telegram `getMe` из staging container без вывода токена и доступный preview health signal.
 - [ ] Выполнить staging backup/verify через Railway SSH и записать только технические результаты без строк пользователей.
