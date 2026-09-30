@@ -886,16 +886,21 @@ class Database:
         return True
 
     async def has_streamer_plus(self, telegram_user_id: int, *, now: float | None = None) -> bool:
+        return await self.get_streamer_plus_expiry(telegram_user_id, now=now) is not None
+
+    async def get_streamer_plus_expiry(
+        self, telegram_user_id: int, *, now: float | None = None,
+    ) -> float | None:
         at = time.time() if now is None else now
         cursor = await self.conn.execute(
-            "SELECT 1 FROM streamer_identities i JOIN entitlement_grants g "
+            "SELECT MAX(g.expires_at) FROM streamer_identities i JOIN entitlement_grants g "
             "ON g.subject_id = i.broadcaster_id "
             "WHERE i.telegram_user_id = ? AND g.subject_kind = 'streamer' "
             "AND g.plan = 'streamer_plus' AND g.revoked_at IS NULL "
-            "AND g.starts_at <= ? AND g.expires_at > ? LIMIT 1",
+            "AND g.starts_at <= ? AND g.expires_at > ?",
             (telegram_user_id, at, at),
         )
-        return await cursor.fetchone() is not None
+        return (await cursor.fetchone())[0]
 
     def _encrypt_token(self, value: str) -> str:
         if self._token_cipher is None or value.startswith(_ENCRYPTED_TOKEN_PREFIX):

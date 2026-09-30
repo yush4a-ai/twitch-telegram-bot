@@ -6,9 +6,9 @@ import hashlib
 import hmac
 import secrets
 import time
-import json
 from collections.abc import Mapping
-from urllib.parse import parse_qsl
+
+from .telegram_identity import verify_login_widget_user, verify_webapp_user
 
 
 class AdminAccess:
@@ -54,44 +54,16 @@ class AdminAccess:
         return self._new_session(now), False
 
     def login_webapp(self, init_data: str) -> str | None:
-        if not self.enabled or self.owner_id is None or not self._bot_token or len(init_data) > 4096:
+        if not self.enabled or self.owner_id is None:
             return None
-        try:
-            pairs = parse_qsl(init_data, keep_blank_values=True, strict_parsing=True)
-            if len(pairs) != len({key for key, _ in pairs}):
-                return None
-            fields = dict(pairs)
-            signature = fields.pop("hash")
-            if not self._fresh(fields["auth_date"]):
-                return None
-            check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
-            secret = hmac.new(b"WebAppData", self._bot_token.encode(), hashlib.sha256).digest()
-            expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(expected, signature):
-                return None
-            user = json.loads(fields["user"])
-            if not isinstance(user, dict) or type(user.get("id")) is not int or user["id"] != self.owner_id:
-                return None
-        except (ValueError, KeyError, TypeError, UnicodeError, json.JSONDecodeError):
+        if verify_webapp_user(init_data, self._bot_token) != self.owner_id:
             return None
         return self._new_session(time.monotonic())
 
     def login_telegram_widget(self, values: Mapping[str, str]) -> str | None:
-        if not self.enabled or self.owner_id is None or not self._bot_token:
+        if not self.enabled or self.owner_id is None:
             return None
-        try:
-            fields = dict(values)
-            signature = fields.pop("hash")
-            if not self._fresh(fields["auth_date"]):
-                return None
-            if int(fields["id"]) != self.owner_id or fields["id"] != str(self.owner_id):
-                return None
-            check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
-            secret = hashlib.sha256(self._bot_token.encode()).digest()
-            expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
-            if not hmac.compare_digest(expected, signature):
-                return None
-        except (ValueError, KeyError, TypeError, UnicodeError):
+        if verify_login_widget_user(values, self._bot_token) != self.owner_id:
             return None
         return self._new_session(time.monotonic())
 
@@ -109,13 +81,6 @@ class AdminAccess:
             return False
         expiry = self._login_states.pop(self._digest(candidate), None)
         return expiry is not None and expiry > time.monotonic()
-
-    @staticmethod
-    def _fresh(raw: str) -> bool:
-        if not raw.isascii() or not raw.isdecimal():
-            return False
-        age = time.time() - int(raw)
-        return -60 <= age <= 600
 
     def _new_session(self, now: float) -> str:
         self._prune(now)

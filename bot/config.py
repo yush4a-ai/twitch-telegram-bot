@@ -264,6 +264,7 @@ class Config:
     admin_panel_access_key: str | None = None
     admin_telegram_bot_username: str = ""
     notification_queue_enabled: bool = False
+    streamer_plus_enabled: bool = False
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -314,20 +315,26 @@ def load_config() -> Config:
     if queue_flag not in {"0", "1"}:
         raise ConfigError("NOTIFICATION_QUEUE_ENABLED должен быть 0 или 1")
     notification_queue_enabled = queue_flag == "1"
-    if notification_queue_enabled and railway:
+    pinned_staging = False
+    if railway:
         try:
             target = json.loads(
                 (Path(__file__).resolve().parents[1] / "scripts" / "staging_target.json")
                 .read_text(encoding="utf-8")
             )
-        except (OSError, ValueError) as error:
-            raise ConfigError("Не удалось проверить staging target для очереди") from error
-        if (
-            os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging"
-            or os.getenv("RAILWAY_PROJECT_ID") != target.get("project_id")
-            or os.getenv("RAILWAY_ENVIRONMENT_ID") != target.get("staging_environment_id")
-            or os.getenv("RAILWAY_SERVICE_ID") != target.get("service_id")
-        ):
+        except (OSError, ValueError):
+            target = {}
+        pinned_staging = (
+            os.getenv("RAILWAY_ENVIRONMENT_NAME") == "staging"
+            and all(
+                isinstance(target.get(key), str) and bool(target.get(key))
+                for key in ("project_id", "staging_environment_id", "service_id")
+            )
+            and os.getenv("RAILWAY_PROJECT_ID") == target.get("project_id")
+            and os.getenv("RAILWAY_ENVIRONMENT_ID") == target.get("staging_environment_id")
+            and os.getenv("RAILWAY_SERVICE_ID") == target.get("service_id")
+        )
+        if notification_queue_enabled and not pinned_staging:
             raise ConfigError("NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging")
     return Config(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
@@ -346,4 +353,5 @@ def load_config() -> Config:
         admin_panel_access_key=admin_panel_access_key,
         admin_telegram_bot_username=admin_telegram_bot_username,
         notification_queue_enabled=notification_queue_enabled,
+        streamer_plus_enabled=not railway or pinned_staging,
     )

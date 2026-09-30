@@ -34,6 +34,7 @@ from bot.config import (
 from bot.database import Database, DatabaseConfigurationError
 from bot.handlers import register_all_handlers
 from bot.admin_auth import AdminAccess
+from bot.streamer_auth import StreamerAccess
 from bot.admin_metrics import AdminSnapshot
 from bot.logging_utils import mask_chat_id
 from bot.live_preview_provider import LivePreviewArtifactProvider
@@ -555,6 +556,16 @@ async def main() -> None:
                     if getattr(config, "admin_panel_access_key", None) and config.owner_chat_id is not None
                     else None
                 ),
+                streamer_access=(
+                    StreamerAccess(
+                        config.telegram_bot_token,
+                        bot_username=config.admin_telegram_bot_username,
+                        public_base_url=config.oauth_public_base_url,
+                        secure_cookie=config.oauth_public_base_url.startswith("https://"),
+                    )
+                    if config.streamer_plus_enabled else None
+                ),
+                streamer_db=db if config.streamer_plus_enabled else None,
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None

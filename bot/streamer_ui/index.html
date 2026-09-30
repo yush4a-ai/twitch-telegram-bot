@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Кабинет стримера · TwitchSignalBot</title>
+  <link rel="stylesheet" href="/streamer/panel.css">
+  <script src="/streamer/panel.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div><p class="eyebrow">TwitchSignalBot · staging</p><h1>Кабинет стримера</h1></div>
+      <form action="/streamer/logout" method="post"><button class="quiet" type="submit">Выйти</button></form>
+    </header>
+    <p id="message" class="message" role="status">Загружаем данные…</p>
+    <div class="grid" id="content" hidden>
+      <section class="card identity" aria-labelledby="channel-title">
+        <p class="label">Подключённый Twitch</p>
+        <h2 id="channel-title">—</h2>
+        <p>Доступ подтверждён через Twitch OAuth и личный Telegram-чат.</p>
+      </section>
+      <section class="card" aria-labelledby="plus-title">
+        <p class="label">Тестовый доступ</p>
+        <h2 id="plus-title">—</h2>
+        <p id="plus-expiry">—</p>
+      </section>
+      <section class="card wide" aria-labelledby="next-title">
+        <p class="label">Следующий шаг</p>
+        <h2 id="next-title">Подключение сообщества</h2>
+        <p>Публикация в сообществе появится после проверки твоих прав и прав бота. Базовые уведомления продолжают работать.</p>
+      </section>
+    </div>
+    <button class="refresh" id="refresh" type="button">Обновить</button>
+  </main>
+</body>
+</html>
