@@ -4,9 +4,12 @@ import asyncio
 import errno
 import functools
 import logging
+import math
 import os
+import re
 import sqlite3
 import time
+import uuid
 from dataclasses import dataclass
 
 import aiosqlite
@@ -605,6 +608,7 @@ class Database:
             "WHERE c.chat_id = quiet_hours_digest_sent.chat_id)"
         )
         await self._migrate_growth_schema()
+        await self._migrate_streamer_schema()
         await self.conn.commit()
 
     async def _migrate_growth_schema(self) -> None:
@@ -696,6 +700,153 @@ class Database:
             "SELECT version FROM schema_migrations ORDER BY version"
         )
         return [row[0] for row in await cursor.fetchall()]
+
+    async def _migrate_streamer_schema(self) -> None:
+        """R4 identity and test entitlements in the existing migration transaction."""
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_identities ("
+            "broadcaster_id TEXT PRIMARY KEY, telegram_user_id INTEGER NOT NULL UNIQUE, "
+            "twitch_login TEXT NOT NULL, verified_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS entitlement_grants ("
+            "grant_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, "
+            "subject_kind TEXT NOT NULL, subject_id TEXT NOT NULL, "
+            "plan TEXT NOT NULL, source TEXT NOT NULL, "
+            "starts_at REAL NOT NULL, expires_at REAL NOT NULL, "
+            "revoked_at REAL, issued_by INTEGER NOT NULL, created_at REAL NOT NULL, "
+            "CHECK(expires_at > starts_at))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_entitlement_access "
+            "ON entitlement_grants(subject_kind, subject_id, plan, starts_at, expires_at) "
+            "WHERE revoked_at IS NULL"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS entitlement_events ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, grant_id TEXT NOT NULL, "
+            "action TEXT NOT NULL CHECK(action IN ('grant', 'revoke')), "
+            "actor_telegram_id INTEGER NOT NULL, happened_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r4_001_streamer_access', ?)", (time.time(),)
+        )
+
+    @_serialized
+    async def link_streamer_identity(
+        self, telegram_user_id: int, broadcaster_id: str, twitch_login: str,
+        *, verified_at: float,
+    ) -> bool:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid Telegram user ID")
+        if not isinstance(broadcaster_id, str) or not broadcaster_id.isascii() or not broadcaster_id.isdecimal() or int(broadcaster_id) <= 0:
+            raise ValueError("invalid Twitch broadcaster ID")
+        if not isinstance(twitch_login, str) or re.fullmatch(r"[A-Za-z0-9_]{2,25}", twitch_login) is None:
+            raise ValueError("invalid Twitch login")
+        if not isinstance(verified_at, (int, float)) or not math.isfinite(verified_at):
+            raise ValueError("invalid verification time")
+        cursor = await self.conn.execute(
+            "SELECT broadcaster_id, telegram_user_id FROM streamer_identities "
+            "WHERE broadcaster_id = ? OR telegram_user_id = ?",
+            (broadcaster_id, telegram_user_id),
+        )
+        matches = await cursor.fetchall()
+        if any(row != (broadcaster_id, telegram_user_id) for row in matches):
+            return False
+        await self.conn.execute(
+            "INSERT INTO streamer_identities "
+            "(broadcaster_id, telegram_user_id, twitch_login, verified_at) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT(broadcaster_id) DO UPDATE SET "
+            "twitch_login=excluded.twitch_login, verified_at=excluded.verified_at",
+            (broadcaster_id, telegram_user_id, twitch_login.lower(), verified_at),
+        )
+        await self.conn.commit()
+        return True
+
+    async def get_streamer_identity(self, telegram_user_id: int) -> tuple[str, str] | None:
+        cursor = await self.conn.execute(
+            "SELECT broadcaster_id, twitch_login FROM streamer_identities "
+            "WHERE telegram_user_id = ?", (telegram_user_id,),
+        )
+        row = await cursor.fetchone()
+        return (row[0], row[1]) if row else None
+
+    @_serialized
+    async def issue_test_streamer_plus(
+        self, broadcaster_id: str, request_key: str, *, starts_at: float,
+        expires_at: float, issued_by: int, now: float | None = None,
+    ) -> str:
+        if not isinstance(request_key, str) or not 1 <= len(request_key) <= 128 or not request_key.isascii():
+            raise ValueError("invalid request key")
+        if type(issued_by) is not int or issued_by <= 0:
+            raise ValueError("invalid actor")
+        if any(not isinstance(value, (int, float)) or not math.isfinite(value) for value in (starts_at, expires_at)) or expires_at <= starts_at:
+            raise ValueError("invalid entitlement interval")
+        created_at = time.time() if now is None else now
+        if not isinstance(created_at, (int, float)) or not math.isfinite(created_at):
+            raise ValueError("invalid creation time")
+        cursor = await self.conn.execute(
+            "SELECT grant_id, subject_id, starts_at, expires_at, issued_by "
+            "FROM entitlement_grants WHERE request_key = ?", (request_key,),
+        )
+        existing = await cursor.fetchone()
+        if existing:
+            if existing[1:] != (broadcaster_id, starts_at, expires_at, issued_by):
+                raise ValueError("idempotency key conflicts with existing grant")
+            return existing[0]
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM streamer_identities WHERE broadcaster_id = ?", (broadcaster_id,),
+        )
+        if await cursor.fetchone() is None:
+            raise ValueError("Twitch account is not linked to a verified Telegram user")
+        grant_id = uuid.uuid4().hex
+        await self.conn.execute(
+            "INSERT INTO entitlement_grants "
+            "(grant_id, request_key, subject_kind, subject_id, plan, source, "
+            "starts_at, expires_at, issued_by, created_at) "
+            "VALUES (?, ?, 'streamer', ?, 'streamer_plus', 'test', ?, ?, ?, ?)",
+            (grant_id, request_key, broadcaster_id, starts_at, expires_at, issued_by, created_at),
+        )
+        await self.conn.execute(
+            "INSERT INTO entitlement_events(grant_id, action, actor_telegram_id, happened_at) "
+            "VALUES (?, 'grant', ?, ?)", (grant_id, issued_by, created_at),
+        )
+        await self.conn.commit()
+        return grant_id
+
+    @_serialized
+    async def revoke_test_streamer_plus(
+        self, grant_id: str, *, revoked_at: float, issued_by: int,
+    ) -> bool:
+        if not isinstance(grant_id, str) or not grant_id or type(issued_by) is not int or issued_by <= 0 or not isinstance(revoked_at, (int, float)) or not math.isfinite(revoked_at):
+            raise ValueError("invalid revoke request")
+        cursor = await self.conn.execute(
+            "UPDATE entitlement_grants SET revoked_at = ? "
+            "WHERE grant_id = ? AND source = 'test' AND revoked_at IS NULL",
+            (revoked_at, grant_id),
+        )
+        if cursor.rowcount != 1:
+            await self.conn.rollback()
+            return False
+        await self.conn.execute(
+            "INSERT INTO entitlement_events(grant_id, action, actor_telegram_id, happened_at) "
+            "VALUES (?, 'revoke', ?, ?)", (grant_id, issued_by, revoked_at),
+        )
+        await self.conn.commit()
+        return True
+
+    async def has_streamer_plus(self, telegram_user_id: int, *, now: float | None = None) -> bool:
+        at = time.time() if now is None else now
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM streamer_identities i JOIN entitlement_grants g "
+            "ON g.subject_id = i.broadcaster_id "
+            "WHERE i.telegram_user_id = ? AND g.subject_kind = 'streamer' "
+            "AND g.plan = 'streamer_plus' AND g.revoked_at IS NULL "
+            "AND g.starts_at <= ? AND g.expires_at > ? LIMIT 1",
+            (telegram_user_id, at, at),
+        )
+        return await cursor.fetchone() is not None
 
     def _encrypt_token(self, value: str) -> str:
         if self._token_cipher is None or value.startswith(_ENCRYPTED_TOKEN_PREFIX):
