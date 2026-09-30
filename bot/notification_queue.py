@@ -87,6 +87,29 @@ class NotificationQueue:
             )
             return int((await cursor.fetchone())[0])
 
+    async def enqueue_due_offline_cleanup(self, now: float, grace_seconds: float) -> int:
+        """Queue due cleanup in one indexed SQLite statement, idempotently."""
+        self._check_time(now)
+        self._check_time(grace_seconds)
+        if grace_seconds < 0:
+            raise ValueError("grace_seconds must be nonnegative")
+        async with self._transaction() as conn:
+            cursor = await conn.execute(
+                "INSERT INTO notification_jobs "
+                "(kind, chat_id, twitch_login, logical_stream_id, payload_version, "
+                "due_at, status, attempt_count, lease_until, created_at, updated_at) "
+                "SELECT 'offline_cleanup', chat_id, twitch_login, last_stream_id, "
+                "last_message_id, ?, 'pending', 0, NULL, ?, ? "
+                "FROM tracked_channels "
+                "WHERE is_live = 0 AND offline_since <= ? "
+                "AND last_stream_id IS NOT NULL AND last_message_id IS NOT NULL "
+                "AND (chat_id < 0 OR live_post_ended = 0) "
+                "ON CONFLICT (kind, chat_id, twitch_login, logical_stream_id, payload_version) "
+                "DO NOTHING",
+                (now, now, now, now - grace_seconds),
+            )
+            return cursor.rowcount
+
     async def claim_due(
         self, now: float, *, limit: int, lease_seconds: float,
     ) -> list[NotificationJob]:

@@ -40,8 +40,10 @@ from . import stream_thumbnail
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, StreamInfo, TwitchClient
-from .notification_queue import NotificationJob
-from .notification_worker import NotificationOutcome
+from .notification_queue import NotificationJob, NotificationQueue
+from .notification_worker import (
+    NotificationOutcome, NotificationRetryAfter, NotificationTerminalError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1404,6 +1406,11 @@ class StreamPoller:
 
     async def _cleanup_offline_posts(self) -> None:
         now = time.time()
+        if self._notification_queue_enabled:
+            await NotificationQueue(self._db).enqueue_due_offline_cleanup(
+                now, OFFLINE_GRACE_SECONDS
+            )
+            return
         for (
             chat_id, login, message_id, offline_since, stats_sent,
         ) in await self._db.pending_offline_posts():
@@ -2222,6 +2229,8 @@ class StreamPoller:
         return text
 
     async def send_queued_job(self, job: NotificationJob) -> NotificationOutcome:
+        if job.kind == "offline_cleanup":
+            return await self._send_queued_offline_cleanup(job)
         if job.kind != "go_live":
             return NotificationOutcome.STALE
         state = await self._db.get_live_post_state(job.chat_id, job.twitch_login)
@@ -2266,6 +2275,64 @@ class StreamPoller:
                 logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
             return NotificationOutcome.STALE
         return NotificationOutcome.SENT
+
+    async def _send_queued_offline_cleanup(
+        self, job: NotificationJob
+    ) -> NotificationOutcome:
+        state = await self._db.get_offline_cleanup_state(job.chat_id, job.twitch_login)
+        if (
+            state is None or state.logical_stream_id != job.logical_stream_id
+            or state.message_id != job.payload_version
+            or (job.chat_id > 0 and state.ended)
+        ):
+            return NotificationOutcome.STALE
+        remaining = state.offline_since + OFFLINE_GRACE_SECONDS - time.time()
+        if remaining > 0:
+            raise NotificationRetryAfter(remaining)
+        if job.chat_id > 0:
+            title, game_name = await self._db.get_live_post_details(
+                job.chat_id, job.twitch_login
+            )
+            result = await self._edit_private_ended(
+                job.chat_id, state.message_id, job.twitch_login,
+                state.logical_stream_id, title or "(без названия)", game_name,
+            )
+            if result is LivePostUpdateResult.STALE_TARGET:
+                return NotificationOutcome.STALE
+            if result is LivePostUpdateResult.RETRY_LATER:
+                raise RuntimeError("offline edit retry later")
+            if result is not LivePostUpdateResult.UPDATED:
+                raise NotificationTerminalError("offline edit rejected")
+            marked = await self._db.mark_live_post_ended_if_current(
+                job.chat_id, job.twitch_login,
+                state.logical_stream_id, state.message_id,
+            )
+            if marked and state.stats_sent:
+                await self._db.clear_finished_session(job.chat_id, job.twitch_login)
+            return NotificationOutcome.SENT if marked else NotificationOutcome.STALE
+
+        async with self._live_post_updater.serialized(job.chat_id, state.message_id):
+            state = await self._db.get_offline_cleanup_state(
+                job.chat_id, job.twitch_login
+            )
+            if (
+                state is None or state.logical_stream_id != job.logical_stream_id
+                or state.message_id != job.payload_version
+            ):
+                return NotificationOutcome.STALE
+            try:
+                await self._bot.delete_message(job.chat_id, state.message_id)
+            except (TelegramBadRequest, TelegramForbiddenError):
+                # Сохраняем прежнее правило: недоступный публичный пост больше
+                # не требует локального указателя и повторной попытки удаления.
+                pass
+            cleared = await self._db.clear_live_message_if_current(
+                job.chat_id, job.twitch_login,
+                state.logical_stream_id, state.message_id,
+            )
+            if cleared and state.stats_sent:
+                await self._db.clear_finished_session(job.chat_id, job.twitch_login)
+            return NotificationOutcome.SENT if cleared else NotificationOutcome.STALE
 
     async def _notify(
         self,

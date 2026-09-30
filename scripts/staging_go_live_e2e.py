@@ -1,7 +1,7 @@
-"""One guarded testbot go-live send using a disposable SQLite database.
+"""Guarded testbot go-live and offline cleanup using disposable SQLite.
 
 Run only inside the pinned Railway staging service. The outgoing synthetic post
-is deleted after its durable queue acknowledgement has been verified.
+is deleted after both durable queue acknowledgements have been verified.
 """
 
 from __future__ import annotations
@@ -95,12 +95,32 @@ async def run_smoke(bot, owner_id: int) -> dict[str, object]:
             if processed != 1 or row is None or row[0] != "done" or message_id is None:
                 reason = row[2] if row is not None else "missing_job"
                 raise RuntimeError(f"Staging go-live job did not complete: {reason}")
+            await db.set_live_state(
+                owner_id, login, False, stream_id, message_id,
+                "[STAGING E2E] Проверка очереди live-поста",
+                offline_since=time.time() - 400,
+            )
+            await poller._cleanup_offline_posts()
+            offline_processed = await worker.run_once()
+            cursor = await db.conn.execute(
+                "SELECT status, last_error_class FROM notification_jobs "
+                "WHERE kind = 'offline_cleanup' AND chat_id = ? AND twitch_login = ? "
+                "AND payload_version = ?",
+                (owner_id, login, message_id),
+            )
+            offline_row = await cursor.fetchone()
+            post_ended = await db.get_live_post_ended(owner_id, login)
+            if offline_processed != 1 or offline_row is None or offline_row[0] != "done" or not post_ended:
+                reason = offline_row[1] if offline_row is not None else "missing_job"
+                raise RuntimeError(f"Staging offline cleanup job did not complete: {reason}")
             await bot.delete_message(owner_id, message_id)
             deleted = True
             return {
                 "bot_username": identity.username,
                 "job_status": row[0],
                 "attempt_count": row[1],
+                "offline_job_status": offline_row[0],
+                "post_ended": post_ended,
                 "message_deleted": deleted,
             }
         finally:
@@ -127,6 +147,8 @@ async def _main() -> int:
     print("bot_username=" + str(result["bot_username"]))
     print("job_status=" + str(result["job_status"]))
     print("attempt_count=" + str(result["attempt_count"]))
+    print("offline_job_status=" + str(result["offline_job_status"]))
+    print("post_ended=" + str(result["post_ended"]))
     print("message_deleted=" + str(result["message_deleted"]))
     return 0
 

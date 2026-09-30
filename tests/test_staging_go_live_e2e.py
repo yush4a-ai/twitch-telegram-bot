@@ -30,13 +30,17 @@ class StagingGoLiveE2ETests(unittest.IsolatedAsyncioTestCase):
         bot = SimpleNamespace(
             get_me=AsyncMock(return_value=SimpleNamespace(username="TwitchSignalTestbot")),
             send_message=AsyncMock(return_value=SimpleNamespace(message_id=321)),
+            edit_message_text=AsyncMock(return_value=True),
             delete_message=AsyncMock(return_value=True),
         )
         result = await run_smoke(bot, 425785231)
         self.assertEqual(result["job_status"], "done")
         self.assertEqual(result["attempt_count"], 1)
+        self.assertEqual(result["offline_job_status"], "done")
+        self.assertTrue(result["post_ended"])
         self.assertTrue(result["message_deleted"])
         bot.send_message.assert_awaited_once()
+        bot.edit_message_text.assert_awaited_once()
         bot.delete_message.assert_awaited_once_with(425785231, 321)
 
     async def test_non_testbot_identity_never_sends(self):

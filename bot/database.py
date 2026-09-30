@@ -106,6 +106,16 @@ class LivePostState:
 
 
 @dataclass(frozen=True)
+class OfflineCleanupState:
+    logical_stream_id: str
+    message_id: int
+    offline_since: float
+    stats_sent: bool
+    title: str | None
+    ended: bool
+
+
+@dataclass(frozen=True)
 class PreviewDestinationState:
     chat_id: int
     twitch_login: str
@@ -1486,6 +1496,23 @@ class Database:
             notify_enabled=bool(row[5]),
             media_transition_target_kind=row[6],
         )
+
+    async def get_offline_cleanup_state(
+        self, chat_id: int, twitch_login: str
+    ) -> OfflineCleanupState | None:
+        cursor = await self.conn.execute(
+            "SELECT last_stream_id, last_message_id, offline_since, stats_sent, "
+            "last_title, live_post_ended FROM tracked_channels "
+            "WHERE chat_id = ? AND twitch_login = ? AND is_live = 0 "
+            "AND last_stream_id IS NOT NULL AND last_message_id IS NOT NULL "
+            "AND offline_since IS NOT NULL",
+            (chat_id, twitch_login),
+        )
+        row = await cursor.fetchone()
+        return OfflineCleanupState(
+            logical_stream_id=row[0], message_id=row[1], offline_since=row[2],
+            stats_sent=bool(row[3]), title=row[4], ended=bool(row[5]),
+        ) if row is not None else None
 
     async def get_live_post_ended(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
