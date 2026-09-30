@@ -80,9 +80,10 @@
 
 **Interfaces:** `NotificationWorker(queue, send_job, *, max_concurrency, per_chat_interval)` drains due jobs in a separate task. Staging-only `NOTIFICATION_QUEUE_ENABLED` switches a destination to enqueue mode; enqueue and tracked transition are one DB transaction. `send_job` reuses existing live-post composition and CAS update; report outbox stays separate.
 
-- [ ] Write failing tests for slow fake Telegram not delaying `_check_streams()`, bound concurrency, per-chat spacing, RetryAfter scheduling, transient/terminal errors, stale jobs and no duplicate normal retry.
-- [ ] Run focused RED; implement worker and new go-live cutover behind staging-only flag.
-- [ ] Test crash/restart boundary explicitly and document the possible duplicate after send-before-ack.
+- [x] Write failing tests for slow fake Telegram not delaying `_check_streams()`, bound concurrency, per-chat spacing, RetryAfter scheduling, transient/terminal errors, stale jobs and no duplicate normal retry.
+- [x] Run focused RED; implement independent bounded worker with lease-safe timing, per-chat spacing and idle-state pruning.
+- [x] Test send-before-ack crash boundary explicitly: expired lease retries and can duplicate external send.
+- [ ] Implement new go-live cutover behind staging-only flag with atomic tracked-state/queue transition.
 - [ ] Extend queue cutover to live post updates and offline cleanup only after go-live tests pass; preserve media CAS and preview file-id reuse.
 - [ ] Run focused/full regression suite, review diff and commit each go-live and update/cleanup package separately.
 
