@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | R0 Audit & Baseline | завершён | `docs/audits/2026-09-30-baseline.md`, risk register; исходный suite 886 passed, 2 skipped |
 | R1 Safe Development/Staging Workflow | завершён с отмеченными ограничениями preview E2E и внешнего backup | staging deployment `e6cb7283-087d-4e76-8fb7-002c059c11d9` из `7b5862d`, terminal `SUCCESS`; suite перед upload 904 passed, 2 skipped, 259 subtests; финальный локальный suite 909 passed, 2 skipped, 259 subtests; guard `--check` прошёл из `5672d0a`; `/healthz` 200, `getMe=TwitchSignalTestbot`, backup/restore `integrity=ok` |
-| R2 Owner Admin Panel v1 | следующий этап | по утверждённому workflow нужна адаптивная браузерная owner-панель; отдельная spec/plan, безопасный вход и staging проверка ещё нужны |
+| R2 Owner Admin Panel v1 | реализация и staging smoke выполнены; реальный Telegram Login E2E ожидает BotFather domain | deployment `26ab6e4a-6548-4b29-9f07-60f6e75f0815` из `2faa74f` terminal `SUCCESS`; gate 942 passed, 2 skipped, 259 subtests; signed owner/non-owner staging проверки и браузерный 390/1440 smoke |
 | R3–R9 | не начаты | scope в `docs/ROADMAP.md`; production и реальные деньги запрещены |
 
 ## Проверенное в R1
@@ -21,11 +21,18 @@
 ## Открытые ограничения
 
 - Нельзя push/merge `main`: он является источником production deployment.
-- `OWNER_CHAT_ID` отсутствует в staging, поэтому Telegram `/health` с отдельным preview snapshot и исходящее E2E-сообщение тестовому chat ID не проверены. Preview состояние в живом staging — `unknown`; HTTP `/healthz` его не подтверждает.
+- В staging теперь задан подтверждённый владельцем `OWNER_CHAT_ID=425785231`; `getMe` вернул `TwitchSignalTestbot`. `getMyCommands` подтвердил: общие private и group команды без `/admin`, в scope личного чата владельца команда есть. Фактический Telegram-клиент владельца и исходящее E2E-сообщение пока не проверены. Preview в панели сейчас `unknown` без зафиксированного успешного capture; `/healthz` его не подтверждает.
+- R2 signed auth на staging проверен с синтетическими Telegram-подписями, вычисленными внутри staging контейнера: non-owner WebApp/Login 403, owner 303 и API 200. Это проверка серверной валидации, не прохождение реального Telegram UI. Browser widget показывает `Bot domain invalid`: домен `https://worker-staging-2f74.up.railway.app` ещё не разрешён для `@TwitchSignalTestbot` в BotFather. Аварийный `ADMIN_PANEL_ACCESS_KEY` скрыт от обычного UI и сохранён до реального E2E.
 - Backup находится на том же staging Volume. Перед существенной migration требуется внешний staging snapshot/export и проверенный offline maintenance path для активного DB rollback.
 - Railway Config as Code (`railway.json`) устаревает 2026-12-01; нужен переход на Infrastructure as Code после отдельной проверки staging/production границы.
 - Реальные платежи/provider, production rollout и юридические решения отложены до отдельного решения пользователя.
 
 ## Следующий шаг
 
-Начать R2: spec и plan для адаптивной браузерной owner-панели с отдельным Telegram/Twitch/preview health, аудиторией, очередью и ресурсами. Все новые функции проверять только в staging.
+Продолжать независимую R3 работу локально и в staging. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner E2E и закрыть R2 acceptance; production не менять.
+
+## Проверенное в R2
+
+- Read-only dashboard показывает Telegram, Twitch и preview отдельно; аудиторию, live, очереди, ошибки и ресурсы процесса. На staging browser smoke в ширинах 390/1440 px без переполнения; старая ошибка clock domain preview исправлена и проверена локальным тестом, staging preview остаётся без успешного capture.
+- Нормальная страница входа содержит только Telegram Login и попытку `initData` из Mini App. Прямой API без cookie — 401, неподписанный Mini App — 403, прежний `/admin/login` — 404. Отдельный скрытый emergency route прошёл вход/API/logout без вывода ключа.
+- Production deployment, production variables/DB и `main` не менялись. Последний R2 deploy выполнен из commit snapshot через guard с точными staging project/environment/service ID.

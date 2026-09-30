@@ -69,10 +69,11 @@
 
 **Files:** Modify `bot/admin_auth.py`, `bot/admin_web.py`, `bot/handlers/streams.py`, `main.py`, `bot/config.py`, `tests/test_admin_web.py`, menu tests and login assets.
 
-- [ ] RED: non-owner sees no admin command/button and signed non-owner cannot enter direct `/admin`; owner private entry appears and signed owner reaches API.
-- [ ] Implement Telegram Mini App initData and Telegram Login Widget HMAC validation, bounded `auth_date`, duplicate-field rejection and CSRF state for browser callback.
-- [ ] Put access-key fallback behind hidden `/admin/emergency`; keep rate limit, session revocation and staging gate. No normal UI link to fallback.
-- [ ] Focused tests, security review, full suite, staging deploy and browser/Telegram smoke; preserve fallback until normal auth is verified on staging.
+- [x] RED: non-owner sees no admin command/button and signed non-owner cannot enter direct `/admin`; owner private entry appears and signed owner reaches API.
+- [x] Implement Telegram Mini App initData and Telegram Login Widget HMAC validation, bounded `auth_date`, duplicate-field rejection and CSRF state for browser callback.
+- [x] Put access-key fallback behind hidden `/admin/emergency`; keep rate limit, session revocation and staging gate. No normal UI link to fallback.
+- [x] Focused tests, security review, full suite and staging deploy; synthetic signed owner/non-owner and browser smoke passed.
+- [ ] Real Telegram client owner login via widget/Mini App: browser widget currently reports `Bot domain invalid` until staging domain is registered for `@TwitchSignalTestbot` in BotFather.
 
 ### Task 4: Staging evidence and documentation
 
@@ -80,11 +81,11 @@
 
 **Interfaces:** Existing `scripts/staging_deploy.py` guard and Railway staging IDs remain authoritative.
 
-- [ ] Self-review spec coverage, `git diff`, security and UI review; run full pytest suite on exact clean commit.
-- [ ] Set isolated staging-only key without printing it; verify staging target and deploy with R1 guard.
-- [ ] Confirm new deployment ID/SHA, `getMe=TwitchSignalTestbot`, `/healthz`, denied API, authenticated API and browser smoke. Capture screenshots; mark unavailable Telegram delivery and native-device checks unverified.
-- [ ] Update STATUS/DECISIONS with evidence and limitations; commit documents.
+- [x] Self-review spec coverage, `git diff`, security and UI review; run full pytest suite on exact clean commit.
+- [x] Set isolated staging-only key without printing it; verify staging target and deploy with R1 guard.
+- [x] Confirm new deployment ID/SHA, `getMe=TwitchSignalTestbot`, `/healthz`, denied API, authenticated API and browser smoke. Capture screenshots; mark unavailable Telegram delivery and native-device checks unverified.
+- [x] Update STATUS/DECISIONS with evidence and limitations; commit documents.
 
 ## Self-review
 
-Spec sections map to Tasks 1–4. Task 1 handles access and environment gating; Task 2 handles every dashboard datum and unknown semantics; Task 3 handles browser states and accessibility; Task 4 handles staging identity and evidence. Type names and routes are consistent. `DESIGN.md` and `PRODUCT.md` are durable inputs to Task 3. No TODO/TBD or production action remains in this plan.
+Spec sections map to Tasks 1–4 including owner-identity Task 3a. Task 1 handles base sessions and environment gating; Task 2 handles every dashboard datum and unknown semantics; Task 3 handles browser states and accessibility; Task 3a handles Telegram signatures, private entry and hidden fallback; Task 4 handles staging identity and evidence. Type names and routes are consistent. `DESIGN.md` and `PRODUCT.md` are durable inputs to Task 3. Реальный Telegram Login/Mini App E2E остаётся отдельным явным пунктом выше из-за BotFather domain; production действий в плане нет.

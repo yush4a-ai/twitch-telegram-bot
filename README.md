@@ -87,9 +87,9 @@ EventSub/IRC-слушатели и встроенный HTTP-сервер OAuth 
 9. В Settings → Deploy задайте `Healthcheck Path`: `/healthz`.
    Healthcheck timeout возьмите с запасом от `POLL_INTERVAL_SECONDS`:
    до первого успешного цикла эндпоинт отдаёт `503 {"status":"starting"}`,
-   и запас на старт равен `3 × POLL_INTERVAL_SECONDS`. На дату R0 production
-   deployment использует `/healthz`, а staging deployment не имеет Railway
-   healthcheck setting, хотя сам endpoint отвечает HTTP 200.
+   и запас на старт равен `3 × POLL_INTERVAL_SECONDS`. После R1 staging
+   deployment получает этот healthcheck через staging override в `railway.json`;
+   production-конфигурация автономной работой не менялась.
 
 `/healthz` — HTTP healthcheck на том же `PORT`, что и OAuth callback; новых
 переменных и портов не требует. `200 {"status":"ok"}` — поллер жив и успел
@@ -107,11 +107,28 @@ Railway Volume не заменяет backup. Храните отдельную �
 `TOKEN_ENCRYPTION_KEY`, делайте SQLite online backup и backup/snapshot перед крупными
 миграциями.
 
+## Панель владельца на staging
+
+Read-only `/admin` показывает Telegram, Twitch, Preview, аудиторию, live,
+очереди, ошибки и ресурсы процесса отдельно. Она включается только в локальном
+контуре или Railway staging при заданных `OWNER_CHAT_ID` и
+`ADMIN_PANEL_ACCESS_KEY` (случайная строка от 32 символов). В личном чате
+владельца тестового бота есть кнопка и команда `/admin`; у остальных пользователей
+и в группах их нет. Сервер проверяет подпись Telegram Mini App `initData` либо
+Telegram Login Widget и совпадение user ID с `OWNER_CHAT_ID`.
+
+Для браузерного Telegram Login у тестового бота нужно разрешить staging domain
+в BotFather и задать `ADMIN_TELEGRAM_BOT_USERNAME=TwitchSignalTestbot` на staging.
+Аварийный ключ остаётся на отдельном скрытом `/admin/emergency` до реальной
+проверки Telegram-входа; обычная страница ключ не показывает. Текущее состояние
+проверки — в `docs/STATUS.md`. Production-панель автономно не включалась.
+
 ## Команды бота
 
 - `/start` — главное меню
 - `/help` — что умеет бот
 - `/health` — состояние цикла опроса и фоновых задач (только для `OWNER_CHAT_ID`)
+- `/admin` — вход в staging-панель (только личный чат `OWNER_CHAT_ID`; нет в общих командах)
 - `/track <канал>`, `/untrack <канал>`, `/list` — управление отслеживаемыми каналами
 - `/report` — отчёт по последнему стриму
 - `/auth_twitch` — подключить свой Twitch-аккаунт (нужно для счётчика новых фолловеров)

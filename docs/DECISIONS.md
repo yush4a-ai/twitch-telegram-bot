@@ -73,3 +73,11 @@
 - **Причина:** утверждённый владельцем workflow addendum `docs/workflows/2026-09-30-autonomy-design-testing.md` и project `AGENTS.md`.
 - **Последствие:** отдельная spec/plan определит auth, сбор метрик, UI states и browser QA. Если реальный owner credential не доступен, использовать явно тестовый fixture и пометить deployed login как непроверенный, продолжая независимую работу.
 - **Пересмотр:** только после нового продуктового решения владельца.
+
+## D-010 — нормальный вход в R2 требует подписанный Telegram ID владельца
+
+- **Дата:** 2026-09-30.
+- **Решение:** вход из личного чата `@TwitchSignalTestbot` использует проверенный сервером Mini App `initData`; обычный браузер — Telegram Login Widget с проверенной сервером подписью и одноразовым CSRF state. Обе ветки требуют `user.id == OWNER_CHAT_ID=425785231`. Кнопка и команда `/admin` показываются только в личном чате этого ID; общие команды и меню не содержат админ-вход. `ADMIN_PANEL_ACCESS_KEY` остаётся скрытым аварийным fallback на отдельном route до реального Telegram E2E на staging.
+- **Причина:** уточнение владельца перед R2 acceptance и официальные правила проверки [Mini App initData](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app) и [Telegram Login Widget](https://core.telegram.org/widgets/login/#checking-authorization).
+- **Последствие:** прямой URL и подписанный чужой ID не открывают данные; на staging это подтверждено отрицательными тестами и синтетическими подписями. Реальный browser widget пока сообщает `Bot domain invalid`; домен staging нужно разрешить в BotFather только для тестового бота. Удалять fallback до реального E2E нельзя.
+- **Пересмотр:** после фактического входа владельца через Telegram на staging и отдельного решения об удалении аварийного механизма.
