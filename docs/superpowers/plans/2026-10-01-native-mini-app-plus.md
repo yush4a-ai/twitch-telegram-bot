@@ -63,11 +63,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** `bot/billing.py`, `billing_models.py`, `database.py`, `plan_catalog.py`; new `tests/test_billing_viewer_product.py`; existing `test_billing_orders.py`, `test_billing_lifecycle.py`, `test_billing_provider.py`.
 **Interfaces:** расширить `BillingService.create_checkout(telegram_user_id, request_key, duration_seconds, *, plan='streamer_plus', now=None) -> CheckoutSession`, сохранив старый вызов. `plan` только из allowlist. DB-слой получает проверенный `BillingSubject(kind: Literal['viewer','streamer'], subject_id: str)`.
-- [ ] Написать RED: viewer без Twitch получает только viewer grant; streamer требует подтверждённую связь; callback/неверная подпись ничего не активирует; replay создаёт один grant; refund не отзывает соседнюю действующую покупку.
-- [ ] Написать RED миграции копии старой R5 DB: orders/payment/audit/сроки сохранены, старые Streamer-заказы читаются и возвращаются; viewer не получает фиктивный broadcaster ID.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_billing_viewer_product.py tests/test_billing_orders.py tests/test_billing_lifecycle.py -q` и подтвердить ожидаемые причины RED.
-- [ ] Внести типизированного субъекта в ledger и модели; nullable legacy broadcaster допускается только для viewer. При SQLite rebuild сохранить индексы/ограничения/данные в транзакции. Обновить явные SELECT и mapping, не полагаться на прежний `SELECT *`/позиционный tuple.
-- [ ] Прогнать все `tests/test_billing_*.py` через явно перечисленные пути/pytest discovery, restore/integrity на temp DB и scope review. Сохранить commit. Никаких реальных invoice/capture и открытого webhook.
+- [x] Написать RED: viewer без Twitch получает только viewer grant; streamer требует подтверждённую связь; callback/неверная подпись ничего не активирует; replay создаёт один grant; refund не отзывает соседнюю действующую покупку.
+- [x] Написать RED миграции копии старой R5 DB: orders/payment/audit/сроки сохранены, старые Streamer-заказы читаются и возвращаются; viewer не получает фиктивный broadcaster ID.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_billing_viewer_product.py tests/test_billing_orders.py tests/test_billing_lifecycle.py -q` и подтвердить ожидаемые причины RED.
+- [x] Внести типизированного субъекта в ledger и модели; nullable legacy broadcaster допускается только для viewer. При SQLite rebuild сохранить индексы/ограничения/данные в транзакции. Обновить явные SELECT и mapping, не полагаться на прежний `SELECT *`/позиционный tuple.
+- [x] Прогнать все `tests/test_billing_*.py` через явно перечисленные пути/pytest discovery, restore/integrity на temp DB и scope review. Сохранить commit. Никаких реальных invoice/capture и открытого webhook.
 
 ## T4. Оболочка приложения и Telegram-поведение
 

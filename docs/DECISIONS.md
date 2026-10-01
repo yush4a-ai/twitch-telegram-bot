@@ -266,3 +266,10 @@
 - **Решение:** единый `CapabilityService` вычисляет возможности из текущих DB grants и точной пары broadcaster/chat для placement. При отказе проверки платное право закрыто, Free базовая возможность остаётся доступной как политика. Каталог фиксирует только согласованные 50/200/5; цена и реальные покупки не определяются кодом.
 - **Основание:** RED→PASS пяти сценариев `tests/test_mini_app_capabilities.py`, связанные viewer/streamer access тесты — суммарно 17 passed и 3 subtests; кодовый commit `d7d78d2`, tree `b7996dcefa01b253a98f5c72821aa6f1f8d07db3`.
 - **Граница:** T2 создаёт контракт, но не подключает новые `/app` маршруты и не заменяет все старые проверки; потребители и expiry перед отправкой реализуются на последующих этапах. Full suite и staging относятся к финальному snapshot.
+
+## D-036 — mock ledger различает viewer и streamer subject
+
+- **Дата:** 2026-10-01.
+- **Решение:** `BillingService` оставляет прежний streamer-вызов и принимает `plan='viewer_plus'` только в разрешённом mock-контракте. Viewer subject — проверенный Telegram ID; streamer subject — подтверждённый Twitch broadcaster. Старые R5 заказы получают тип `streamer` через транзакционную migration, а refund отзывает связанный grant своего заказа.
+- **Основание:** RED→PASS `tests/test_billing_viewer_product.py`, связанные billing и synthetic probe тесты: 24 passed, 18 subtests; временная legacy DB `integrity_check=ok`; commit `34b3966`, tree `12b3a67b88b90ee3a1397739a45e531727149a76`.
+- **Граница:** этот внутренний mock-контракт не является публичным checkout в Mini App; T11 ещё должен ограничить тестовую активацию allowlist и вывести только реальные состояния. Цены, периоды реальной покупки и деньги не определены.
