@@ -4,19 +4,40 @@ import logging
 import time
 
 import aiohttp
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.enums import ChatType
 from aiogram.types import Message
+from aiogram.types import ReplyKeyboardRemove
 
 from ..config import Config
 from ..database import Database
 from ..oauth import OAuthCallbackServer, OAuthFlowError, run_authorization_flow
+from ..mini_app_streamer import complete_community_intent
 
 logger = logging.getLogger(__name__)
 OAUTH_HTTP_TIMEOUT = aiohttp.ClientTimeout(total=30, connect=10)
 
 router = Router(name="auth")
+
+
+@router.message(F.chat_shared)
+async def on_streamer_community_shared(message: Message, db: Database) -> None:
+    if (
+        message.chat.type != ChatType.PRIVATE or message.from_user is None
+        or message.from_user.id != message.chat.id or message.chat_shared is None
+    ):
+        return
+    shared = message.chat_shared
+    saved = await complete_community_intent(
+        db, message.bot, message.from_user.id, shared.request_id,
+        shared.chat_id, now=time.time(),
+    )
+    if saved:
+        await message.answer(
+            "Сообщество подключено. Вернитесь в приложение, чтобы увидеть его статус.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
 
 
 async def _run_auth_flow(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import secrets
 import time
@@ -189,6 +190,10 @@ class OAuthCallbackServer:
         mini_app_db: Database | None = None,
         mini_app_bot_token: str | None = None,
         mini_app_twitch=None,
+        mini_app_bot=None,
+        mini_app_bot_username: str = "",
+        mini_app_oauth_client_id: str = "",
+        mini_app_oauth_client_secret: str = "",
         growth_bot_username: str | None = None,
         growth_public_base_url: str | None = None,
     ) -> None:
@@ -209,6 +214,11 @@ class OAuthCallbackServer:
         self._mini_app_db = mini_app_db
         self._mini_app_bot_token = mini_app_bot_token
         self._mini_app_twitch = mini_app_twitch
+        self._mini_app_bot = mini_app_bot or streamer_bot
+        self._mini_app_bot_username = mini_app_bot_username
+        self._mini_app_oauth_client_id = mini_app_oauth_client_id
+        self._mini_app_oauth_client_secret = mini_app_oauth_client_secret
+        self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
         self._admin_snapshot_provider: SnapshotProvider | None = None
@@ -244,7 +254,9 @@ class OAuthCallbackServer:
         if self._mini_app_db is not None and self._mini_app_bot_token is not None:
             install_mini_app_routes(
                 app, self._mini_app_db, self._mini_app_bot_token,
-                twitch=self._mini_app_twitch,
+                bot=self._mini_app_bot, twitch=self._mini_app_twitch,
+                bot_username=self._mini_app_bot_username,
+                oauth_server=self,
             )
         if self._growth_bot_username is not None:
             install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)
@@ -255,6 +267,11 @@ class OAuthCallbackServer:
         logger.info("OAuth callback-сервер слушает на %s:%s", self._host, self._port)
 
     async def stop(self) -> None:
+        for task in self._mini_app_connect_tasks.values():
+            task.cancel()
+        if self._mini_app_connect_tasks:
+            await asyncio.gather(*self._mini_app_connect_tasks.values(), return_exceptions=True)
+        self._mini_app_connect_tasks.clear()
         for state in list(self._pending):
             self.discard_state(state)
         if self._runner is not None:
@@ -275,6 +292,82 @@ class OAuthCallbackServer:
         if len(self._pending) >= MAX_PENDING_AUTHORIZATIONS:
             raise OAuthFlowError("Слишком много одновременных попыток авторизации")
         self._pending[state] = asyncio.get_running_loop().create_future()
+
+    async def create_streamer_connect_intent(self, telegram_user_id: int) -> tuple[str, str, float]:
+        db = self._mini_app_db
+        if db is None or not self._mini_app_oauth_client_id or not self._mini_app_oauth_client_secret:
+            raise OAuthFlowError("Mini App Twitch connection is unavailable")
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid streamer user")
+        old = self._mini_app_connect_tasks.get(telegram_user_id)
+        if old is not None and not old.done():
+            raise OAuthFlowError("Twitch connection already pending")
+        state = secrets.token_urlsafe(24)
+        intent_id = secrets.token_urlsafe(18)
+        now = time.time()
+        await db.create_streamer_connect_intent(
+            intent_id, telegram_user_id, hashlib.sha256(state.encode()).hexdigest(),
+            now=now,
+        )
+        try:
+            self.register_state(state)
+        except Exception:
+            await db.finish_streamer_connect_intent(intent_id, "failed")
+            raise
+        task = asyncio.create_task(
+            self._finish_streamer_connect_intent(telegram_user_id, intent_id, state),
+            name="mini-app-streamer-oauth",
+        )
+        self._mini_app_connect_tasks[telegram_user_id] = task
+        return intent_id, build_authorize_url(
+            self._mini_app_oauth_client_id, self.redirect_uri, state,
+        ), now + 600
+
+    async def _finish_streamer_connect_intent(
+        self, telegram_user_id: int, intent_id: str, state: str,
+    ) -> None:
+        db = self._mini_app_db
+        try:
+            code = await self.wait_for_code(state, timeout=600)
+            if not await db.claim_streamer_connect_intent(
+                intent_id, telegram_user_id, now=time.time(),
+            ):
+                return
+            async with aiohttp.ClientSession() as session:
+                result = await _exchange_code(
+                    self._mini_app_oauth_client_id,
+                    self._mini_app_oauth_client_secret,
+                    code, self.redirect_uri, session,
+                )
+            saved = await db.save_verified_streamer_connection(
+                telegram_user_id, result, verified_at=time.time(),
+            )
+            await db.finish_streamer_connect_intent(
+                intent_id, "connected" if saved else "conflict",
+                twitch_login=result.login if saved else None,
+            )
+        except asyncio.CancelledError:
+            await db.finish_streamer_connect_intent(intent_id, "cancelled")
+        except Exception:
+            logger.exception("Mini App Twitch connection failed")
+            await db.finish_streamer_connect_intent(intent_id, "failed")
+        finally:
+            self.discard_state(state)
+            if self._mini_app_connect_tasks.get(telegram_user_id) is asyncio.current_task():
+                self._mini_app_connect_tasks.pop(telegram_user_id, None)
+
+    async def cancel_streamer_connect_intent(self, telegram_user_id: int, intent_id: str) -> bool:
+        db = self._mini_app_db
+        row = await db.get_streamer_connect_intent(intent_id)
+        if row is None or row[1] != telegram_user_id or row[4] != "pending":
+            return False
+        task = self._mini_app_connect_tasks.get(telegram_user_id)
+        if task is not None and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        await db.finish_streamer_connect_intent(intent_id, "cancelled")
+        final = await db.get_streamer_connect_intent(intent_id)
+        return final is not None and final[4] == "cancelled"
 
     def discard_state(self, state: str) -> None:
         future = self._pending.pop(state, None)

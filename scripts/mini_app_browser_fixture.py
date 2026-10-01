@@ -6,11 +6,26 @@ import signal
 import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 from aiohttp import web
 
 from bot.database import Database
 from bot.mini_app_web import install_mini_app_routes
+from bot.mini_app_streamer import complete_community_intent
+
+
+class FixtureBot:
+    id = 999
+
+    async def get_chat(self, chat_id):
+        return SimpleNamespace(type="supergroup", title="Тестовое сообщество")
+
+    async def get_chat_member(self, chat_id, user_id):
+        return SimpleNamespace(status="administrator")
+
+    async def save_prepared_keyboard_button(self, *, user_id, button):
+        return SimpleNamespace(id=f"fixture-prepared-{button.request_chat.request_id}")
 
 
 class FixtureTwitch:
@@ -59,8 +74,26 @@ async def main() -> None:
             501, "browser-plus-fixture", starts_at=now - 5,
             expires_at=now + 3600, issued_by=425785231, now=now,
         )
+        await db.link_streamer_identity(601, "2001", "alpha", verified_at=now)
+        bot = FixtureBot()
         app = web.Application()
-        install_mini_app_routes(app, db, "123456:test-telegram-token", twitch=FixtureTwitch())
+        install_mini_app_routes(
+            app, db, "123456:test-telegram-token", bot=bot,
+            twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
+        )
+
+        async def complete_fixture_community(request):
+            # Loopback-only browser fixture: emulate Telegram's service message, never send one.
+            body = await request.json()
+            row = await db.get_community_intent(body.get("intent_id", ""))
+            if row is None:
+                return web.json_response({"connected": False}, status=404)
+            connected = await complete_community_intent(
+                db, bot, row[1], row[2], -1001, now=time.time(),
+            )
+            return web.json_response({"connected": connected})
+
+        app.router.add_post("/_qa/complete-community", complete_fixture_community)
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, "127.0.0.1", 0)

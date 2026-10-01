@@ -13,6 +13,7 @@ from .capabilities import CapabilityService
 from .database import Database
 from .mini_app_auth import verified_payload
 from .mini_app_viewer import install_mini_app_viewer_routes
+from .mini_app_streamer import install_mini_app_streamer_routes
 
 
 _UI_DIR = Path(__file__).with_name("mini_app_ui")
@@ -24,6 +25,7 @@ _ASSETS = {
     "api.js": "application/javascript",
     "components.js": "application/javascript",
     "viewer.js": "application/javascript",
+    "streamer.js": "application/javascript",
 }
 
 
@@ -34,6 +36,8 @@ def install_mini_app_routes(
     *,
     bot=None,
     twitch=None,
+    bot_username: str = "",
+    oauth_server=None,
     capability_service: CapabilityService | None = None,
 ) -> None:
     if not bot_token:
@@ -76,6 +80,10 @@ def install_mini_app_routes(
         return web.json_response({"user": {"id": user_id}, "capabilities": asdict(flags)})
 
     app.router.add_get("/app", shell)
-    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js}", asset)
+    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
     install_mini_app_viewer_routes(app, db, bot_token, capabilities, twitch)
+    install_mini_app_streamer_routes(
+        app, db, bot_token, bot, bot_username=bot_username,
+        oauth_server=oauth_server,
+    )

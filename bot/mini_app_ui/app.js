@@ -1,8 +1,9 @@
 import { createApi, ApiError } from './api.js';
 import { createTelegramAdapter } from './telegram.js';
 import { createRouter } from './router.js';
-import { element, panel, action } from './components.js';
+import { element, panel } from './components.js';
 import { createViewerFeature } from './viewer.js';
+import { createStreamerFeature } from './streamer.js';
 
 const content = document.getElementById('content');
 const modeSwitch = document.getElementById('mode-switch');
@@ -11,6 +12,7 @@ let session = null;
 let authError = null;
 let router;
 let viewerFeature;
+let streamerFeature;
 const telegram = createTelegramAdapter(() => router.back(), (theme) => {
   document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101722' : '#f7f9fc';
@@ -18,6 +20,7 @@ const telegram = createTelegramAdapter(() => router.back(), (theme) => {
 const api = createApi(telegram.initData);
 router = createRouter(render);
 viewerFeature = createViewerFeature(api, () => router, telegram);
+streamerFeature = createStreamerFeature(api, () => router, telegram);
 window.addEventListener('pagehide', () => telegram.dispose(), { once: true });
 
 function render(state, canBack) {
@@ -60,33 +63,7 @@ function render(state, canBack) {
     viewerFeature.render(content, state);
     return;
   }
-  if (state.detail) {
-    content.append(element('p', 'eyebrow', state.mode === 'viewer' ? 'Зритель' : 'Стример'));
-    content.append(element('h1', '', state.detail));
-    content.append(element('p', 'lead', 'Настройки этого раздела появятся здесь после загрузки данных.'));
-    return;
-  }
-  const layouts = {
-    viewer: {
-      home: ['Сейчас в эфире', 'Ваши стримеры и последние изменения.', 'Здесь появятся эфиры', 'Добавьте стримера, чтобы получать оповещения о его эфирах.'],
-      streamers: ['Мои стримеры', 'Подписки и уведомления в одном месте.', 'Добавьте первого стримера', 'Найдите его по нику Twitch или вставьте ссылку на канал.'],
-      profile: ['Профиль', 'Ваши настройки и доступ.', 'Ваши возможности', `До ${session.capabilities.viewer_channel_limit} отслеживаемых стримеров. ${session.capabilities.viewer_plus_active ? 'Viewer Plus активен.' : 'Основные оповещения доступны бесплатно.'}`],
-    },
-    streamer: {
-      channel: ['Мой канал', 'Подключения и состояние публикаций.', 'Проверяем подключение', 'Чтобы публиковать сообщения, подключите Twitch и сообщество Telegram.'],
-      posts: ['Посты', 'Оформление и подтверждённые публикации.', 'Публикации пока не загружены', 'Пример поста и настройки будут доступны после подключения канала.'],
-      profile: ['Профиль', 'Настройки и доступ стримера.', 'Ваши возможности', session.capabilities.streamer_plus_active ? 'Streamer Plus активен.' : 'Подключение канала доступно бесплатно.'],
-    },
-  };
-  const [title, lead, emptyTitle, emptyText] = layouts[state.mode][state.tab];
-  content.append(element('p', 'eyebrow', state.mode === 'viewer' ? 'Зритель' : 'Стример'));
-  content.append(element('h1', '', title), element('p', 'lead', lead));
-  content.append(panel(emptyTitle, emptyText));
-  if (state.mode === 'viewer' && state.tab === 'home') {
-    const buttons = element('div', 'actions');
-    buttons.append(action('Найти стримера', () => router.setTab('streamers')));
-    content.append(buttons);
-  }
+  streamerFeature.render(content, state);
 }
 
 router.refresh();

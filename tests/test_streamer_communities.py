@@ -60,8 +60,8 @@ class CommunityStorageTests(unittest.IsolatedAsyncioTestCase):
         await self.db.close()
         self.directory.cleanup()
 
-    async def test_two_communities_require_active_plus_and_are_scoped_to_owner(self):
-        self.assertFalse(await self.db.add_streamer_community(101, -1001, "Group", "supergroup", now=100))
+    async def test_two_communities_work_for_free_and_are_scoped_to_owner(self):
+        self.assertTrue(await self.db.add_streamer_community(101, -1001, "Group", "supergroup", now=100))
         await self.db.issue_test_streamer_plus(
             "11", "grant", starts_at=100, expires_at=200,
             issued_by=425785231, now=90,
@@ -73,8 +73,17 @@ class CommunityStorageTests(unittest.IsolatedAsyncioTestCase):
             [(-1002, "Channel", "channel"), (-1001, "Group", "supergroup")],
         )
         self.assertEqual(await self.db.list_streamer_communities(202), [])
-        self.assertFalse(await self.db.add_streamer_community(101, -1003, "Late", "supergroup", now=200))
-        self.assertEqual(len(await self.db.list_streamer_communities(101)), 2)
+        self.assertTrue(await self.db.add_streamer_community(101, -1003, "Late", "supergroup", now=200))
+        self.assertEqual(len(await self.db.list_streamer_communities(101)), 3)
+
+    async def test_free_verified_streamer_can_link_own_community(self):
+        self.assertTrue(await self.db.add_streamer_community(
+            101, -1001, "Free group", "supergroup", now=100,
+        ))
+        self.assertEqual(await self.db.list_streamer_communities(101), [
+            (-1001, "Free group", "supergroup"),
+        ])
+        self.assertEqual(await self.db.list_streamer_communities(202), [])
 
 
 if __name__ == "__main__":

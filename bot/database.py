@@ -656,6 +656,7 @@ class Database:
         await self._migrate_viewer_preferences_schema()
         await self._migrate_category_alert_schema()
         await self._migrate_category_delivery_schema()
+        await self._migrate_streamer_intents_schema()
         await self._migrate_growth_attribution_schema()
         await self.conn.commit()
 
@@ -783,6 +784,34 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_003_category_delivery',?)", (time.time(),)
+        )
+
+    async def _migrate_streamer_intents_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_connect_intents ("
+            "intent_id TEXT PRIMARY KEY,telegram_user_id INTEGER NOT NULL, "
+            "state_digest TEXT NOT NULL UNIQUE,created_at REAL NOT NULL, "
+            "expires_at REAL NOT NULL,status TEXT NOT NULL, "
+            "twitch_login TEXT) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_streamer_connect_intents_user "
+            "ON streamer_connect_intents(telegram_user_id,created_at)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_community_intents ("
+            "intent_id TEXT PRIMARY KEY, telegram_user_id INTEGER NOT NULL, "
+            "request_id INTEGER NOT NULL UNIQUE, created_at REAL NOT NULL, "
+            "expires_at REAL NOT NULL, chat_type TEXT NOT NULL, "
+            "status TEXT NOT NULL, prepared_id TEXT, chat_id INTEGER) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_community_intents_user "
+            "ON streamer_community_intents(telegram_user_id,created_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_004_streamer_intents',?)", (time.time(),)
         )
 
     async def _migrate_growth_schema(self) -> None:
@@ -1689,6 +1718,147 @@ class Database:
         return (row[0], row[1]) if row else None
 
     @_serialized
+    async def create_streamer_connect_intent(
+        self, intent_id: str, telegram_user_id: int, state_digest: str, *, now: float,
+    ) -> None:
+        if (not isinstance(intent_id, str) or not 16 <= len(intent_id) <= 80
+                or type(telegram_user_id) is not int or telegram_user_id <= 0
+                or not isinstance(state_digest, str) or len(state_digest) != 64
+                or type(now) not in (int, float) or not math.isfinite(now)):
+            raise ValueError("invalid streamer connect intent")
+        await self.conn.execute(
+            "UPDATE streamer_connect_intents SET status='superseded' "
+            "WHERE telegram_user_id=? AND status='pending'",
+            (telegram_user_id,),
+        )
+        await self.conn.execute(
+            "INSERT INTO streamer_connect_intents "
+            "(intent_id,telegram_user_id,state_digest,created_at,expires_at,status) "
+            "VALUES (?,?,?,?,?,'pending')",
+            (intent_id, telegram_user_id, state_digest, now, now + 600),
+        )
+        await self.conn.commit()
+
+    async def get_streamer_connect_intent(self, intent_id: str) -> tuple | None:
+        cursor = await self.conn.execute(
+            "SELECT intent_id,telegram_user_id,created_at,expires_at,status,twitch_login "
+            "FROM streamer_connect_intents WHERE intent_id=?", (intent_id,),
+        )
+        row = await cursor.fetchone()
+        return tuple(row) if row else None
+
+    @_serialized
+    async def claim_streamer_connect_intent(
+        self, intent_id: str, telegram_user_id: int, *, now: float,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE streamer_connect_intents SET status='verifying' "
+            "WHERE intent_id=? AND telegram_user_id=? AND status='pending' "
+            "AND expires_at>?",
+            (intent_id, telegram_user_id, now),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
+    async def finish_streamer_connect_intent(
+        self, intent_id: str, status: str, *, twitch_login: str | None = None,
+    ) -> bool:
+        if status not in {"connected", "failed", "conflict", "cancelled"}:
+            raise ValueError("invalid streamer connect status")
+        cursor = await self.conn.execute(
+            "UPDATE streamer_connect_intents SET status=?,twitch_login=? "
+            "WHERE intent_id=? AND status IN ('pending','verifying')",
+            (status, twitch_login, intent_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
+    async def create_community_intent(
+        self, intent_id: str, telegram_user_id: int, request_id: int,
+        chat_type: str, *, now: float,
+    ) -> bool:
+        if (not isinstance(intent_id, str) or not 16 <= len(intent_id) <= 80
+                or type(telegram_user_id) is not int or telegram_user_id <= 0
+                or type(request_id) is not int or not 1 <= request_id <= 2**31 - 1
+                or chat_type not in {"group", "channel"}
+                or type(now) not in (int, float) or not math.isfinite(now)):
+            raise ValueError("invalid community intent")
+        cursor = await self.conn.execute(
+            "INSERT INTO streamer_community_intents "
+            "(intent_id,telegram_user_id,request_id,created_at,expires_at,chat_type,status) "
+            "SELECT ?,?,?,?,?,?,'pending' WHERE EXISTS ("
+            "SELECT 1 FROM streamer_identities WHERE telegram_user_id=?)",
+            (intent_id, telegram_user_id, request_id, now, now + 600, chat_type,
+             telegram_user_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    async def get_community_intent(self, intent_id: str) -> tuple | None:
+        cursor = await self.conn.execute(
+            "SELECT intent_id,telegram_user_id,request_id,created_at,expires_at, "
+            "chat_type,status,prepared_id,chat_id FROM streamer_community_intents "
+            "WHERE intent_id=?", (intent_id,),
+        )
+        row = await cursor.fetchone()
+        return tuple(row) if row else None
+
+    @_serialized
+    async def set_community_prepared_id(self, intent_id: str, prepared_id: str) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE streamer_community_intents SET prepared_id=? "
+            "WHERE intent_id=? AND status='pending'",
+            (prepared_id, intent_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
+    async def claim_community_intent(
+        self, telegram_user_id: int, request_id: int, chat_id: int, *, now: float,
+    ) -> tuple[str, str] | None:
+        if (type(telegram_user_id) is not int or telegram_user_id <= 0
+                or type(request_id) is not int or type(chat_id) is not int
+                or chat_id >= 0 or not math.isfinite(now)):
+            return None
+        cursor = await self.conn.execute(
+            "UPDATE streamer_community_intents SET status='verifying',chat_id=? "
+            "WHERE telegram_user_id=? AND request_id=? AND status='pending' "
+            "AND expires_at>? AND EXISTS (SELECT 1 FROM streamer_identities "
+            "WHERE telegram_user_id=?) RETURNING intent_id,chat_type",
+            (chat_id, telegram_user_id, request_id, now, telegram_user_id),
+        )
+        row = await cursor.fetchone()
+        await self.conn.commit()
+        return (row[0], row[1]) if row else None
+
+    @_serialized
+    async def finish_community_intent(
+        self, intent_id: str, status: str, *, chat_id: int,
+    ) -> bool:
+        if status not in {"connected", "denied", "failed"}:
+            raise ValueError("invalid community intent status")
+        cursor = await self.conn.execute(
+            "UPDATE streamer_community_intents SET status=?,chat_id=? "
+            "WHERE intent_id=? AND status='verifying'",
+            (status, chat_id, intent_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
+    async def cancel_community_intent(self, intent_id: str, telegram_user_id: int) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE streamer_community_intents SET status='cancelled' "
+            "WHERE intent_id=? AND telegram_user_id=? AND status='pending'",
+            (intent_id, telegram_user_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
     async def add_streamer_community(
         self, telegram_user_id: int, chat_id: int, title: str,
         chat_type: str, *, now: float | None = None,
@@ -1719,13 +1889,10 @@ class Database:
         cursor = await self.conn.execute(
             "INSERT INTO streamer_communities(broadcaster_id, chat_id, title, chat_type, verified_at) "
             "SELECT i.broadcaster_id, ?, ?, ?, ? FROM streamer_identities i "
-            "WHERE i.telegram_user_id = ? AND EXISTS ("
-            "SELECT 1 FROM entitlement_grants g WHERE g.subject_kind = 'streamer' "
-            "AND g.subject_id = i.broadcaster_id AND g.plan = 'streamer_plus' "
-            "AND g.revoked_at IS NULL AND g.starts_at <= ? AND g.expires_at > ?) "
+            "WHERE i.telegram_user_id = ? "
             "ON CONFLICT(broadcaster_id, chat_id) DO UPDATE SET "
             "title=excluded.title, chat_type=excluded.chat_type, verified_at=excluded.verified_at",
-            (chat_id, title.strip(), chat_type, at, telegram_user_id, at, at),
+            (chat_id, title.strip(), chat_type, at, telegram_user_id),
         )
         if cursor.rowcount != 1:
             await self.conn.rollback()

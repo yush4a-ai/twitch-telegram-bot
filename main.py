@@ -593,6 +593,10 @@ async def main() -> None:
                     config.telegram_bot_token if getattr(config, "mini_app_enabled", False) else None
                 ),
                 mini_app_twitch=twitch if getattr(config, "mini_app_enabled", False) else None,
+                mini_app_bot=bot if getattr(config, "mini_app_enabled", False) else None,
+                mini_app_bot_username=config.admin_telegram_bot_username or "",
+                mini_app_oauth_client_id=(config.twitch_client_id if getattr(config, "mini_app_enabled", False) else ""),
+                mini_app_oauth_client_secret=(config.twitch_client_secret if getattr(config, "mini_app_enabled", False) else ""),
                 growth_bot_username=(
                     config.admin_telegram_bot_username
                     if getattr(config, "growth_enabled", False)

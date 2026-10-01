@@ -200,8 +200,8 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
         origin = request.headers.get("Origin")
         if origin and origin.rstrip("/") != (access.public_base_url or str(request.url.origin())):
             return web.json_response({"error": "origin_denied"}, status=403)
-        if await db.get_streamer_identity(user_id) is None or not await db.has_streamer_plus(user_id):
-            return web.json_response({"error": "plus_required"}, status=403)
+        if await db.get_streamer_identity(user_id) is None:
+            return web.json_response({"error": "not_linked"}, status=403)
         try:
             body = await request.read()
             if len(body) > 2048:
@@ -222,7 +222,7 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
         except ValueError:
             return web.json_response({"error": "community_limit"}, status=400)
         if not saved:
-            return web.json_response({"error": "plus_required"}, status=403)
+            return web.json_response({"error": "not_linked"}, status=403)
         return web.json_response({
             "chat_id": verified.chat_id, "title": verified.title,
             "chat_type": verified.chat_type,

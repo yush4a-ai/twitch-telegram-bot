@@ -38,6 +38,27 @@ export function createTelegramAdapter(onBack, onThemeChange) {
         catch { finish(null); }
       });
     },
+    requestChat(requestId) {
+      if (!sdk?.requestChat || !requestId) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        let finished = false;
+        const finish = (value) => {
+          if (finished) return;
+          finished = true; clearTimeout(timer); resolve(value);
+        };
+        const timer = setTimeout(() => finish(null), 120000);
+        try { sdk.requestChat(requestId, (sent) => finish(Boolean(sent))); }
+        catch { finish(null); }
+      });
+    },
+    openLink(url) {
+      if (sdk?.openLink) sdk.openLink(url);
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    openTelegramLink(url) {
+      if (sdk?.openTelegramLink) sdk.openTelegramLink(url);
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    },
     syncBack(visible) {
       if (!sdk?.BackButton) return;
       if (visible) {

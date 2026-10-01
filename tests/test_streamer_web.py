@@ -126,7 +126,7 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
         ) as response:
             self.assertEqual(response.status, 403)
 
-    async def test_community_connect_requires_signed_linked_plus_and_fresh_telegram_rights(self):
+    async def test_community_connect_requires_signed_linked_free_and_fresh_telegram_rights(self):
         async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
             self.assertEqual(response.status, 401)
         async with self.session.post(
@@ -135,11 +135,7 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
         ) as response:
             self.assertEqual(response.status, 303)
         async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": -1001}) as response:
-            self.assertEqual(response.status, 403)
-        await self.db.issue_test_streamer_plus(
-            "11", "grant-communities", starts_at=time.time() - 5,
-            expires_at=time.time() + 600, issued_by=425785231,
-        )
+            self.assertEqual(response.status, 201)
         async with self.session.post(self.base + "/streamer/api/communities", json={"chat_id": 101}) as response:
             self.assertEqual(response.status, 400)
         self.user_admin = False
