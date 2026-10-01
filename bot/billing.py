@@ -8,6 +8,7 @@ import time
 import uuid
 from typing import Mapping
 
+from .billing_models import BillingSubject
 from .billing_provider import CheckoutSession, PaymentProvider
 from .database import Database
 
@@ -21,13 +22,23 @@ class BillingService:
 
     async def create_checkout(
         self, telegram_user_id: int, request_key: str, duration_seconds: int,
-        *, now: float | None = None,
+        *, plan: str = "streamer_plus", now: float | None = None,
     ) -> CheckoutSession:
         at = time.time() if now is None else now
         if not isinstance(at, (int, float)) or not math.isfinite(at):
             raise ValueError("invalid checkout time")
+        if plan == "viewer_plus":
+            subject = BillingSubject("viewer", str(telegram_user_id))
+        elif plan == "streamer_plus":
+            identity = await self._db.get_streamer_identity(telegram_user_id)
+            if identity is None:
+                raise PermissionError("streamer identity is not linked")
+            subject = BillingSubject("streamer", identity[0])
+        else:
+            raise ValueError("unsupported billing plan")
         order = await self._db.create_billing_order(
-            uuid.uuid4().hex, request_key, telegram_user_id, duration_seconds, now=at,
+            uuid.uuid4().hex, request_key, telegram_user_id, duration_seconds,
+            now=at, plan=plan, subject=subject,
         )
         if order.status in {"cancelled", "expired", "refunded"} or at >= order.checkout_expires_at:
             raise ValueError("checkout is closed")

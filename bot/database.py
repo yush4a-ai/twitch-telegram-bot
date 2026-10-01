@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
 
-from .billing_models import BillingOrder, PaymentRecord
+from .billing_models import BillingOrder, BillingSubject, PaymentRecord
 from .billing_provider import VerifiedPaymentEvent
 from .deep_links import REFERRAL_CODE_RE, parse_growth_start_payload
 from .streamer_template import StreamerTemplate, validate_streamer_template
@@ -30,6 +30,28 @@ if TYPE_CHECKING:
 
 _ENCRYPTED_TOKEN_PREFIX = "fernet:v1:"
 logger = logging.getLogger(__name__)
+
+_BILLING_ORDER_FIELDS = (
+    "order_id,request_key,telegram_user_id,subject_kind,subject_id,"
+    "broadcaster_id,plan,provider,status,units,currency,duration_seconds,"
+    "created_at,checkout_expires_at,checkout_reference,paid_at,closed_at,grant_id"
+)
+_BILLING_ORDER_DEFINITION = (
+    "(order_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, "
+    "telegram_user_id INTEGER NOT NULL, subject_kind TEXT NOT NULL "
+    "CHECK(subject_kind IN ('viewer','streamer')), subject_id TEXT NOT NULL, "
+    "broadcaster_id TEXT, plan TEXT NOT NULL, provider TEXT NOT NULL, "
+    "status TEXT NOT NULL CHECK(status IN ('pending','paid','cancelled','refunded','expired')), "
+    "units INTEGER NOT NULL CHECK(units > 0), currency TEXT NOT NULL, "
+    "duration_seconds INTEGER NOT NULL CHECK(duration_seconds BETWEEN 60 AND 2678400), "
+    "created_at REAL NOT NULL, checkout_expires_at REAL NOT NULL, "
+    "checkout_reference TEXT, paid_at REAL, closed_at REAL, grant_id TEXT UNIQUE, "
+    "CHECK(checkout_expires_at > created_at), "
+    "CHECK((subject_kind='viewer' AND broadcaster_id IS NULL "
+    "AND subject_id=CAST(telegram_user_id AS TEXT) AND plan='viewer_plus') OR "
+    "(subject_kind='streamer' AND broadcaster_id=subject_id "
+    "AND plan='streamer_plus')))"
+)
 
 
 class DatabaseConfigurationError(RuntimeError):
@@ -625,6 +647,7 @@ class Database:
         await self._migrate_streamer_template_schema()
         await self._migrate_streamer_stats_schema()
         await self._migrate_billing_schema()
+        await self._migrate_billing_subject_schema()
         await self._migrate_viewer_schema()
         await self._migrate_growth_attribution_schema()
         await self.conn.commit()
@@ -846,16 +869,7 @@ class Database:
 
     async def _migrate_billing_schema(self) -> None:
         await self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS billing_orders ("
-            "order_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, "
-            "telegram_user_id INTEGER NOT NULL, broadcaster_id TEXT NOT NULL, "
-            "plan TEXT NOT NULL, provider TEXT NOT NULL, "
-            "status TEXT NOT NULL CHECK(status IN ('pending','paid','cancelled','refunded','expired')), "
-            "units INTEGER NOT NULL CHECK(units > 0), currency TEXT NOT NULL, "
-            "duration_seconds INTEGER NOT NULL CHECK(duration_seconds BETWEEN 60 AND 2678400), "
-            "created_at REAL NOT NULL, checkout_expires_at REAL NOT NULL, "
-            "checkout_reference TEXT, paid_at REAL, closed_at REAL, grant_id TEXT UNIQUE, "
-            "CHECK(checkout_expires_at > created_at))"
+            "CREATE TABLE IF NOT EXISTS billing_orders " + _BILLING_ORDER_DEFINITION
         )
         await self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_billing_orders_pending_expiry "
@@ -903,19 +917,51 @@ class Database:
             "VALUES ('r5_001_billing_ledger', ?)", (time.time(),)
         )
 
+    async def _migrate_billing_subject_schema(self) -> None:
+        """Rebuild legacy Streamer-only orders inside the outer migration transaction."""
+        cursor = await self.conn.execute("PRAGMA table_info(billing_orders)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "subject_kind" not in columns:
+            await self.conn.execute("CREATE TABLE billing_orders_v2 " + _BILLING_ORDER_DEFINITION)
+            await self.conn.execute(
+                "INSERT INTO billing_orders_v2 (" + _BILLING_ORDER_FIELDS + ") "
+                "SELECT order_id,request_key,telegram_user_id,'streamer',broadcaster_id,"
+                "broadcaster_id,plan,provider,status,units,currency,duration_seconds,"
+                "created_at,checkout_expires_at,checkout_reference,paid_at,closed_at,grant_id "
+                "FROM billing_orders"
+            )
+            await self.conn.execute("DROP TABLE billing_orders")
+            await self.conn.execute("ALTER TABLE billing_orders_v2 RENAME TO billing_orders")
+            await self.conn.execute(
+                "CREATE INDEX idx_billing_orders_pending_expiry "
+                "ON billing_orders(status, checkout_expires_at)"
+            )
+            await self.conn.execute(
+                "CREATE INDEX idx_billing_orders_owner "
+                "ON billing_orders(telegram_user_id, created_at)"
+            )
+        elif not {"subject_id", "broadcaster_id"}.issubset(columns):
+            raise DatabaseConfigurationError("billing subject schema is incomplete")
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r10_001_billing_subjects', ?)", (time.time(),)
+        )
+
     @staticmethod
     def _billing_order_from_row(row: tuple | None) -> BillingOrder | None:
         return BillingOrder(*row) if row is not None else None
 
     async def get_billing_order(self, order_id: str) -> BillingOrder | None:
         cursor = await self.conn.execute(
-            "SELECT * FROM billing_orders WHERE order_id = ?", (order_id,),
+            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders WHERE order_id = ?",
+            (order_id,),
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
     async def get_billing_order_by_request_key(self, request_key: str) -> BillingOrder | None:
         cursor = await self.conn.execute(
-            "SELECT * FROM billing_orders WHERE request_key = ?", (request_key,),
+            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders WHERE request_key = ?",
+            (request_key,),
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
@@ -1108,7 +1154,8 @@ class Database:
     @_serialized
     async def create_billing_order(
         self, order_id: str, request_key: str, telegram_user_id: int,
-        duration_seconds: int, *, now: float,
+        duration_seconds: int, *, now: float, plan: str = "streamer_plus",
+        subject: BillingSubject | None = None,
     ) -> BillingOrder:
         if (
             not isinstance(order_id, str) or not re.fullmatch(r"[0-9a-f]{32}", order_id)
@@ -1117,29 +1164,42 @@ class Database:
             or type(telegram_user_id) is not int or telegram_user_id <= 0
             or type(duration_seconds) is not int or not 60 <= duration_seconds <= 2678400
             or not isinstance(now, (int, float)) or not math.isfinite(now)
+            or plan not in {"viewer_plus", "streamer_plus"}
+            or (subject is not None and not isinstance(subject, BillingSubject))
         ):
             raise ValueError("invalid billing order")
-        identity = await self.get_streamer_identity(telegram_user_id)
-        if identity is None:
-            raise PermissionError("streamer identity is not linked")
+        if plan == "viewer_plus":
+            expected_subject = BillingSubject("viewer", str(telegram_user_id))
+            broadcaster_id = None
+        else:
+            identity = await self.get_streamer_identity(telegram_user_id)
+            if identity is None:
+                raise PermissionError("streamer identity is not linked")
+            expected_subject = BillingSubject("streamer", identity[0])
+            broadcaster_id = identity[0]
+        if subject is not None and subject != expected_subject:
+            raise PermissionError("billing subject is not owned by Telegram user")
+        subject = expected_subject
         existing = await self.get_billing_order_by_request_key(request_key)
         if existing is not None:
             if (
                 existing.telegram_user_id != telegram_user_id
-                or existing.broadcaster_id != identity[0]
+                or existing.subject != subject
+                or existing.broadcaster_id != broadcaster_id
                 or existing.duration_seconds != duration_seconds
-                or existing.plan != "streamer_plus" or existing.provider != "mock"
+                or existing.plan != plan or existing.provider != "mock"
                 or existing.units != 1 or existing.currency != "TEST"
             ):
                 raise ValueError("billing request key conflict")
             return existing
         await self.conn.execute(
             "INSERT INTO billing_orders "
-            "(order_id,request_key,telegram_user_id,broadcaster_id,plan,provider,status,"
+            "(order_id,request_key,telegram_user_id,subject_kind,subject_id,"
+            "broadcaster_id,plan,provider,status,"
             "units,currency,duration_seconds,created_at,checkout_expires_at) "
-            "VALUES (?,?,?,?, 'streamer_plus','mock','pending',1,'TEST',?,?,?)",
-            (order_id, request_key, telegram_user_id, identity[0], duration_seconds,
-             now, now + 900),
+            "VALUES (?,?,?,?,?,?,?,'mock','pending',1,'TEST',?,?,?)",
+            (order_id, request_key, telegram_user_id, subject.kind, subject.subject_id,
+             broadcaster_id, plan, duration_seconds, now, now + 900),
         )
         await self.conn.execute(
             "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'created',?)",
@@ -1308,8 +1368,9 @@ class Database:
                     "INSERT INTO entitlement_grants "
                     "(grant_id,request_key,subject_kind,subject_id,plan,source,"
                     "starts_at,expires_at,issued_by,created_at) "
-                    "VALUES (?,?,'streamer',?,'streamer_plus','mock',?,?,0,?)",
-                    (grant_id, "mock-order:" + order.order_id, order.broadcaster_id,
+                    "VALUES (?,?,?,?,?,'mock',?,?,0,?)",
+                    (grant_id, "mock-order:" + order.order_id,
+                     order.subject_kind, order.subject_id, order.plan,
                      now, now + order.duration_seconds, now),
                 )
                 await self.conn.execute(

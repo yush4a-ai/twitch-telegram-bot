@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
+
+
+@dataclass(frozen=True)
+class BillingSubject:
+    kind: Literal["viewer", "streamer"]
+    subject_id: str
 
 
 @dataclass(frozen=True)
@@ -10,7 +17,9 @@ class BillingOrder:
     order_id: str
     request_key: str
     telegram_user_id: int
-    broadcaster_id: str
+    subject_kind: Literal["viewer", "streamer"]
+    subject_id: str
+    broadcaster_id: str | None
     plan: str
     provider: str
     status: str
@@ -23,6 +32,10 @@ class BillingOrder:
     paid_at: float | None
     closed_at: float | None
     grant_id: str | None
+
+    @property
+    def subject(self) -> BillingSubject:
+        return BillingSubject(self.subject_kind, self.subject_id)
 
 
 @dataclass(frozen=True)
