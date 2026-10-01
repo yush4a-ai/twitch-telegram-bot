@@ -10,8 +10,9 @@
 | R3 Growth Foundation | staging engineering acceptance с ограничениями реальной нагрузки | deployment `822ef65f-2fa6-437e-90cb-6357c0e5b405` из `e36b6d4` `SUCCESS`; gate 1026 passed, 2 skipped, 268 subtests; поздний локальный gate 1030 passed, 2 skipped, 268 subtests; lease recovery и 1k/5k mixed-load на временной staging DB; offline rollback copy проверена; `docs/audits/2026-10-01-r3-recovery-rollback.md` |
 | R4 Streamer Plus | engineering acceptance на staging; реальный Telegram/Twitch UI E2E ожидает внешние условия | deployment `a1577af8-919e-42b5-b5e0-d08a17a9b2b2` из `5b9f0b4` `SUCCESS`; gate 1064 passed, 2 skipped, 299 subtests; `r4_001–r4_004`, `integrity=ok`; `docs/audits/2026-10-01-r4-templates-staging.md` |
 | R5 Payments foundation | engineering acceptance на staging; mock/test без денег | deployment `fa758200-bb09-47d0-9cca-fdeab33b204f` из `fd17d34` `SUCCESS`; gate 1082 passed, 2 skipped, 317 subtests; `r5_001`, `integrity=ok`, временный checkout/capture/refund/cancel/expiry и rollback; `docs/audits/2026-10-01-r5-mock-billing-staging.md` |
-| R6 Pilot simulation | следующий этап: 5–10 фиктивных стримеров на staging | без реальных пользователей и production |
-| R7–R9 | не начаты | production и реальные деньги запрещены |
+| R6 Pilot simulation | engineering acceptance на staging, без реальных участников | deployment `31086fa4-21ca-4190-bedb-6d79d95a267e` из `ff04f37` `SUCCESS`; gate 1084 passed, 2 skipped, 334 subtests; 8 synthetic journeys, 16 ожидаемых отказов, 0 unexpected errors, активная DB 0 pilot rows; `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` |
+| R7 Telegram Mini App + Viewer Plus | следующий этап | production и реальные деньги запрещены |
+| R8–R9 | не начаты | staging-only |
 
 ## Проверенное в R1
 
@@ -34,7 +35,7 @@
 
 ## Следующий шаг
 
-Начать R6: закрытая staging simulation 5–10 фиктивных стримеров с проверкой Plus lifecycle, шаблонов, статистики, ошибок и затрат. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner и streamer E2E; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
+Начать R7: staging Telegram Mini App с серверной проверкой `initData`, Viewer Plus entitlement, smart alerts/filter/exclusions, digest и синхронными настройками бота. После привязки testbot domain в BotFather завершить реальный Telegram Login/Mini App owner и streamer E2E; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
 
 ## Проверенное в R2
 

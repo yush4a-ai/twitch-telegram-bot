@@ -17,8 +17,8 @@
 ## Task 2: Проверка и staging acceptance
 
 - [x] Self-review spec/plan без незаполненных решений и противоречий, `git diff --check`, focused и полный suite 1084 passed, 2 skipped, 334 subtests; code review и commit snapshot.
-- [ ] Deployment только после target validation=staging и полного guard. Terminal SUCCESS, независимый active target, testbot/HTTP/DB smoke; отдельный staging simulation run и проверка активной DB после.
-- [ ] Обновить `docs/STATUS.md`, `docs/DECISIONS.md`, `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` с реальными числами и границей реального pilot; начать R7.
+- [x] Deployment только после target validation=staging и полного guard (1084 passed, 2 skipped, 334 subtests). `31086fa4-21ca-4190-bedb-6d79d95a267e` terminal SUCCESS, независимый active target, `TwitchSignalTestbot`/HTTP/DB smoke; staging simulation run и 0 pilot rows в активной DB после.
+- [x] `docs/STATUS.md`, `docs/DECISIONS.md`, `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` с фактическими числами и границей реального pilot; далее R7.
 
 ## Самопроверка плана
 
