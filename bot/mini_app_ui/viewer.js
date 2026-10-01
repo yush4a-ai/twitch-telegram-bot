@@ -17,6 +17,10 @@ export function createViewerFeature(api, getRouter, telegram) {
   let lastLoadedAt = 0;
   let quietDraft = null;
   let profileFeedback = '';
+  let videoFeedback = '';
+  let videoSaving = false;
+  let planFeedback = '';
+  let lastDetail = null;
   const filterDrafts = new Map();
   const names = new Map();
   try { searchDraft = (localStorage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
@@ -173,12 +177,17 @@ export function createViewerFeature(api, getRouter, telegram) {
     const section = element('div', 'section-head');
     section.append(element('h2', '', 'Подписки'), element('small', '', `${rows.length} из ${data.channel_limit}`));
     target.append(section);
+    if (data.viewer_plus_active) {
+      target.append(element('p', 'muted', `Видеопревью: ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`));
+    }
     if (!rows.length) { target.append(panel('Добавьте первого стримера', 'Найдите его по нику Twitch или вставьте ссылку на канал.')); return; }
     const list = element('div', 'list');
     for (const row of rows) {
       const item = element('div', 'list-row');
       const copy = element('div', 'row-copy');
-      copy.append(element('strong', '', nameOf(row.login)), element('small', '', row.notify_enabled ? 'Уведомления включены' : 'Уведомления выключены'));
+      copy.append(element('strong', '', nameOf(row.login)), element('small', '', row.paused_by_plan
+        ? 'Приостановлен по лимиту тарифа'
+        : row.notify_enabled ? 'Уведомления включены' : 'Уведомления выключены'));
       item.append(copy, action(`Настройки ${nameOf(row.login)}`, () => getRouter().openDetail(row.login), true));
       list.append(item);
     }
@@ -210,6 +219,47 @@ export function createViewerFeature(api, getRouter, telegram) {
     });
     settings.append(label, status);
     target.append(settings);
+    if (row.paused_by_plan) {
+      const paused = element('div', 'panel feature-panel');
+      paused.append(element('h2', '', 'Приостановлено по лимиту'));
+      paused.append(element('p', 'muted', 'Подписка сохранена. Можно включить её в активные 50. Последняя активная подписка тогда приостановится.'));
+      paused.append(action('Включить в активные 50', async () => {
+        try {
+          await api.post('/app/api/viewer/plan-activate', { login });
+          planFeedback = '';
+          await load();
+        } catch {
+          planFeedback = 'Не удалось изменить активные подписки. Попробуйте ещё раз.';
+          refresh();
+        }
+      }));
+      if (planFeedback) paused.append(element('p', 'notice error', planFeedback));
+      target.append(paused);
+    }
+    const video = data.video_selection;
+    if (data.viewer_plus_active) {
+      const section = element('div', 'panel feature-panel');
+      section.append(element('h2', '', 'Видеопревью'));
+      section.append(element('p', 'muted', `Видеопревью: ${video.selected_logins.length} из ${video.limit}. ${row.video_selected ? 'Для этого стримера выбрано видео.' : 'Сейчас используется фото.'}`));
+      if (row.video_selected) {
+        section.append(action('Выключить видео', () => void saveVideoSelection(video.selected_logins.filter((value) => value !== login))));
+      } else if (video.selected_logins.length < video.limit) {
+        section.append(action('Выбрать видео', () => void saveVideoSelection([...video.selected_logins, login])));
+      } else {
+        section.append(element('p', 'muted', 'Все пять мест заняты. Выберите, кого заменить.'));
+        for (const old of video.selected_logins) {
+          section.append(action(`Заменить ${nameOf(old)}`, () => void saveVideoSelection(video.selected_logins.map((value) => value === old ? login : value)), true));
+        }
+      }
+      if (videoFeedback) {
+        const note = element('p', 'notice', videoFeedback);
+        note.setAttribute('role', 'status');
+        section.append(note);
+      }
+      target.append(section);
+    } else {
+      target.append(panel('Видеопревью · Viewer Plus', 'Фото остаётся по умолчанию. С Viewer Plus можно выбрать до пяти стримеров для видео.'));
+    }
     if (data.viewer_plus_active) {
       const rule = element('div', 'panel feature-panel');
       rule.append(element('h2', '', 'Фильтр эфиров'));
@@ -232,8 +282,9 @@ export function createViewerFeature(api, getRouter, telegram) {
         : window.confirm(`Удалить ${nameOf(login)} из подписок?`);
       if (!confirmed) return;
       try {
-        await api.post('/app/api/viewer/unfollow', { login });
+        const removed = await api.post('/app/api/viewer/unfollow', { login });
         data.subscriptions = data.subscriptions.filter((item) => item.login !== login);
+        data.video_selection = removed.video_selection;
         getRouter().back();
       } catch (cause) {
         status.textContent = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
@@ -242,6 +293,37 @@ export function createViewerFeature(api, getRouter, telegram) {
       }
     }, true));
     target.append(actions);
+  }
+  async function saveVideoSelection(selectedLogins) {
+    if (videoSaving) return;
+    videoSaving = true;
+    videoFeedback = 'Сохраняем выбор…';
+    refresh();
+    try {
+      const saved = await api.post('/app/api/viewer/video-selection', {
+        selected_logins: selectedLogins,
+        expected_version: data.video_selection.version,
+      });
+      data.video_selection = saved;
+      for (const entry of data.subscriptions) {
+        entry.video_selected = saved.selected_logins.includes(entry.login);
+        entry.video_effective = entry.video_selected && saved.effective_ids.includes(saved.selected_ids[saved.selected_logins.indexOf(entry.login)]);
+      }
+      videoFeedback = 'Выбор сохранён';
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'version_conflict') {
+        await load();
+        videoFeedback = 'Выбор изменился в другой сессии. Проверьте список и повторите действие.';
+      } else if (cause instanceof ApiError && cause.code === 'plus_required') {
+        await load();
+        videoFeedback = 'Доступ Viewer Plus завершился. Фото продолжает работать.';
+      } else {
+        videoFeedback = 'Не удалось сохранить выбор. Попробуйте ещё раз.';
+      }
+    } finally {
+      videoSaving = false;
+    }
+    refresh();
   }
   function explainFilter(rule) {
     if (!rule || (!rule.games.length && !rule.title_keywords.length && !rule.exclude_keywords.length)) {
@@ -453,6 +535,11 @@ export function createViewerFeature(api, getRouter, telegram) {
   }
   return {
     render(target, route) {
+      if (route.detail !== lastDetail) {
+        videoFeedback = '';
+        planFeedback = '';
+        lastDetail = route.detail;
+      }
       target.replaceChildren();
       if (data && !loading && Date.now() - lastLoadedAt > 30000) void load();
       if (!data) {

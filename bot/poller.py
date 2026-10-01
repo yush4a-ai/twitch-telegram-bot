@@ -2285,6 +2285,10 @@ class StreamPoller:
     async def send_queued_job(self, job: NotificationJob) -> NotificationOutcome:
         if job.kind == "offline_cleanup":
             return await self._send_queued_offline_cleanup(job)
+        if job.chat_id > 0 and not await self._db.is_personal_channel_active(
+            job.chat_id, job.twitch_login,
+        ):
+            return NotificationOutcome.STALE
         if job.kind == "live_update":
             return await self._send_queued_live_update(job)
         if job.kind != "go_live":
@@ -2325,6 +2329,10 @@ class StreamPoller:
             direct=True,
         )
         if message_id is None:
+            if job.chat_id > 0 and not await self._db.is_personal_channel_active(
+                job.chat_id, job.twitch_login,
+            ):
+                return NotificationOutcome.STALE
             raise RuntimeError("queued Telegram send returned no message")
         if not await self._db.set_live_message_if_current(
             job.chat_id, job.twitch_login, job.logical_stream_id, message_id
@@ -2477,6 +2485,8 @@ class StreamPoller:
         direct: bool = False,
         respect_viewer_filter: bool = True,
     ) -> int | None:
+        if chat_id > 0 and not await self._db.is_personal_channel_active(chat_id, login):
+            return None
         if respect_viewer_filter and not await self._viewer_allows_private_alert(
             chat_id, login, title, game_name,
         ):

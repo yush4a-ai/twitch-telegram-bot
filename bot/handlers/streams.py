@@ -28,6 +28,7 @@ import aiohttp
 
 from ..config import Config
 from ..database import Database
+from ..plan_catalog import viewer_channel_limit
 from ..deep_links import (
     TRACK_START_PREFIX,
     TWITCH_LOGIN_RE,
@@ -67,6 +68,11 @@ LOGIN_RE = TWITCH_LOGIN_RE
 
 # защита от злоупотребления: сколько каналов может отслеживать один чат
 MAX_CHANNELS_PER_CHAT = 50
+
+
+async def _tracking_limit(db: Database, chat_id: int) -> int:
+    return (viewer_channel_limit(await db.has_viewer_plus(chat_id))
+            if chat_id > 0 else MAX_CHANNELS_PER_CHAT)
 
 # Анимированный Twitch-логотип из публичного Telegram custom-emoji набора. Внутри
 # HTML-тега остаётся 🎮 — его покажут клиенты без поддержки custom emoji.
@@ -532,7 +538,7 @@ async def cmd_start_link(
         elif result == _TRACK_LIMIT:
             text = (
                 f"В личном чате уже отслеживается максимум каналов "
-                f"({MAX_CHANNELS_PER_CHAT}). Удали ненужный через «Мои каналы» "
+                f"({await _tracking_limit(db, message.chat.id)}). Удали ненужный через «Мои каналы» "
                 "и открой ссылку снова."
             )
         elif result == _TRACK_NOT_FOUND:
@@ -2048,7 +2054,8 @@ async def _add_validated_tracking(
     tracked = await db.list_channels(chat_id)
     if login in tracked:
         return _TRACK_ALREADY, False
-    if len(tracked) >= MAX_CHANNELS_PER_CHAT:
+    limit = await _tracking_limit(db, chat_id)
+    if len(tracked) >= limit:
         return _TRACK_LIMIT, False
 
     try:
@@ -2060,7 +2067,7 @@ async def _add_validated_tracking(
         return _TRACK_NOT_FOUND, False
 
     result = await db.add_channel_with_limit(
-        chat_id, login, MAX_CHANNELS_PER_CHAT
+        chat_id, login, limit
     )
     return result, not tracked if result == _TRACK_CREATED else False
 
@@ -2169,10 +2176,11 @@ async def _run_import_follows(
         )
         return
 
-    free_slots = MAX_CHANNELS_PER_CHAT - await db.count_channels(message.chat.id)
+    limit = await _tracking_limit(db, message.chat.id)
+    free_slots = limit - await db.count_channels(message.chat.id)
     if free_slots <= 0:
         await message.answer(
-            f"В этом чате уже максимум каналов ({MAX_CHANNELS_PER_CHAT}) — "
+            f"В этом чате уже максимум каналов ({limit}) — "
             "освободи место, прежде чем импортировать.",
             reply_markup=_back_keyboard(),
         )
@@ -2243,7 +2251,7 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
     added = 0
     for login in logins:
         result = await db.add_channel_with_limit(
-            current_chat_id, login, MAX_CHANNELS_PER_CHAT
+            current_chat_id, login, await _tracking_limit(db, current_chat_id)
         )
         if result == _TRACK_LIMIT:
             break
@@ -2274,11 +2282,11 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
     await state.clear()
     had_channels_before = await db.count_channels(target_chat_id) > 0
     result = await db.add_channel_with_limit(
-        target_chat_id, login, MAX_CHANNELS_PER_CHAT
+        target_chat_id, login, await _tracking_limit(db, target_chat_id)
     )
     if result == _TRACK_LIMIT:
         await callback.answer(
-            f"В этом чате уже максимум каналов ({MAX_CHANNELS_PER_CHAT}).", show_alert=True
+            f"В этом чате уже максимум каналов ({await _tracking_limit(db, target_chat_id)}).", show_alert=True
         )
         return
 
@@ -2339,7 +2347,7 @@ async def process_login_input(
     if result == _TRACK_LIMIT:
         await state.clear()
         await message.answer(
-            f"В этом чате уже отслеживается максимум каналов ({MAX_CHANNELS_PER_CHAT}). "
+            f"В этом чате уже отслеживается максимум каналов ({await _tracking_limit(db, target_chat_id)}). "
             "Удали ненужный через «Мои каналы», прежде чем добавлять новый.",
             reply_markup=back_keyboard,
         )
@@ -2405,7 +2413,7 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
         return
     if result == _TRACK_LIMIT:
         await message.answer(
-            f"В этом чате уже отслеживается максимум каналов ({MAX_CHANNELS_PER_CHAT}). "
+            f"В этом чате уже отслеживается максимум каналов ({await _tracking_limit(db, message.chat.id)}). "
             "Удали ненужный через /untrack или кнопку «Мои каналы», прежде чем добавлять новый."
         )
         return

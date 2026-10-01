@@ -14,11 +14,16 @@ from bot.mini_app_web import install_mini_app_routes
 
 
 class FixtureTwitch:
+    _channels = ("alpha", "beta", "gamma", "delta", "epsilon", "zeta")
+
     async def channel_exists(self, login):
-        return login in {"alpha", "beta"}
+        return login in self._channels
+
+    async def get_user_id(self, login):
+        return str(1000 + self._channels.index(login)) if login in self._channels else None
 
     async def search_channels(self, query, limit=6):
-        if query not in {"alpha", "beta"}:
+        if query not in self._channels:
             return []
         from types import SimpleNamespace
         name = (
@@ -33,6 +38,10 @@ async def main() -> None:
         db = Database(str(Path(directory) / "fixture.db"))
         await db.connect()
         await db.add_channel(501, "alpha")
+        for login in FixtureTwitch._channels[1:]:
+            await db.add_channel(501, login)
+        for index in range(51):
+            await db.add_channel(502, f"track{index:03}")
         now = time.time()
         await db.issue_test_viewer_plus(
             501, "browser-plus-fixture", starts_at=now - 5,

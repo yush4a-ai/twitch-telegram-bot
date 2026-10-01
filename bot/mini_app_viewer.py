@@ -70,6 +70,7 @@ def install_mini_app_viewer_routes(
         now = time.time()
         flags = await capabilities.for_user(user_id, now=now)
         rows = await db.list_personal_channel_status(user_id)
+        video = await db.get_video_selection(user_id, now=now)
         filters = await db.list_viewer_filters(user_id) if flags.viewer_filters else {}
         quiet = await db.get_quiet_hours(user_id)
         live = {
@@ -80,6 +81,9 @@ def install_mini_app_viewer_routes(
             {
                 "login": login,
                 "notify_enabled": notify_enabled,
+                "paused_by_plan": paused_by_plan,
+                "video_selected": login in video.selected_logins,
+                "video_effective": login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids,
                 "is_live": is_live,
                 "status": (
                     "live" if is_live and observed_at is not None and now - observed_at <= 300
@@ -97,12 +101,17 @@ def install_mini_app_viewer_routes(
                     if login in filters else None
                 ),
             }
-            for login, notify_enabled, is_live, observed_at in rows
+            for login, notify_enabled, is_live, observed_at, paused_by_plan in rows
         ]
         return web.json_response({
             "subscriptions": subscriptions,
             "channel_limit": flags.viewer_channel_limit,
             "viewer_plus_active": flags.viewer_plus_active,
+            "video_selection": {
+                "version": video.version, "selected_ids": list(video.selected_ids),
+                "selected_logins": list(video.selected_logins),
+                "effective_ids": list(video.effective_ids), "limit": video.limit,
+            },
             "quiet_hours": (
                 {
                     "start_minute": quiet[0], "end_minute": quiet[1],
@@ -243,7 +252,15 @@ def install_mini_app_viewer_routes(
             return web.json_response({"error": "invalid_login"}, status=400)
         if not await db.remove_channel(user_id, login):
             return web.json_response({"error": "not_subscribed"}, status=404)
-        return web.json_response({"removed": True, "login": login})
+        video = await db.get_video_selection(user_id)
+        return web.json_response({
+            "removed": True, "login": login,
+            "video_selection": {
+                "version": video.version, "selected_ids": list(video.selected_ids),
+                "selected_logins": list(video.selected_logins),
+                "effective_ids": list(video.effective_ids), "limit": video.limit,
+            },
+        })
 
     async def notify(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -262,11 +279,69 @@ def install_mini_app_viewer_routes(
             return web.json_response({"error": "not_subscribed"}, status=404)
         return web.json_response({"notify_enabled": enabled})
 
+    async def video_selection(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        logins = values.get("selected_logins")
+        version = values.get("expected_version")
+        if type(version) is not int or version < 0 or not isinstance(logins, list):
+            return web.json_response({"error": "invalid_selection"}, status=400)
+        if len(logins) > 5:
+            return web.json_response({"error": "video_limit"}, status=409)
+        normalized = [normalize_twitch_login(login) for login in logins]
+        if None in normalized or len(set(normalized)) != len(normalized):
+            return web.json_response({"error": "invalid_selection"}, status=400)
+        flags = await capabilities.for_user(user_id, now=time.time())
+        if flags.viewer_video_slots == 0:
+            return web.json_response({"error": "plus_required"}, status=403)
+        owned = set(await db.list_channels(user_id))
+        if any(login not in owned for login in normalized):
+            return web.json_response({"error": "not_subscribed"}, status=400)
+        if twitch is None:
+            return web.json_response({"error": "lookup_unavailable"}, status=503)
+        try:
+            choices = [(await twitch.get_user_id(login), login) for login in normalized]
+        except Exception:
+            logger.exception("Mini App Twitch identity lookup failed")
+            return web.json_response({"error": "lookup_unavailable"}, status=503)
+        if any(broadcaster_id is None for broadcaster_id, _ in choices):
+            return web.json_response({"error": "lookup_unavailable"}, status=503)
+        try:
+            saved = await db.replace_video_selection(
+                user_id, choices, expected_version=version, now=time.time(),
+            )
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        except ValueError:
+            return web.json_response({"error": "invalid_selection"}, status=400)
+        if saved is None:
+            return web.json_response({"error": "version_conflict"}, status=409)
+        return web.json_response({
+            "version": saved.version, "selected_ids": list(saved.selected_ids),
+            "selected_logins": list(saved.selected_logins),
+            "effective_ids": list(saved.effective_ids), "limit": saved.limit,
+        })
+
+    async def plan_activate(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        login = normalize_twitch_login(values.get("login"))
+        if login is None:
+            return web.json_response({"error": "invalid_login"}, status=400)
+        result = await db.promote_personal_channel(user_id, login)
+        if result == "not_subscribed":
+            return web.json_response({"error": result}, status=404)
+        return web.json_response({"result": result})
+
     app.router.add_post("/app/api/viewer/state", state)
     app.router.add_post("/app/api/viewer/search", search)
     app.router.add_post("/app/api/viewer/follow", follow)
     app.router.add_post("/app/api/viewer/unfollow", unfollow)
     app.router.add_post("/app/api/viewer/notify", notify)
     app.router.add_post("/app/api/viewer/filter", save_filter)
+    app.router.add_post("/app/api/viewer/video-selection", video_selection)
+    app.router.add_post("/app/api/viewer/plan-activate", plan_activate)
     app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)
     app.router.add_post("/app/api/viewer/digest", digest)

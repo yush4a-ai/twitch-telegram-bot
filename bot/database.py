@@ -23,6 +23,8 @@ from .billing_provider import VerifiedPaymentEvent
 from .deep_links import REFERRAL_CODE_RE, parse_growth_start_payload
 from .streamer_template import StreamerTemplate, validate_streamer_template
 from .viewer_filter import ViewerFilter, validate_viewer_filter
+from .viewer_preferences import VideoSelection, validate_video_choices
+from .plan_catalog import FREE_VIEWER_CHANNEL_LIMIT, VIEWER_PLUS_CHANNEL_LIMIT
 
 if TYPE_CHECKING:
     from .oauth import UserTokenResult
@@ -232,6 +234,7 @@ CREATE TABLE IF NOT EXISTS tracked_channels (
     followers_at_start INTEGER,
     notify_enabled INTEGER NOT NULL DEFAULT 1,
     preview_enabled INTEGER NOT NULL DEFAULT 0,
+    added_at REAL NOT NULL DEFAULT 0,
     auto_report_enabled INTEGER NOT NULL DEFAULT 0,
     channel_report_enabled INTEGER NOT NULL DEFAULT 0,
     post_recipient_chat_id INTEGER,
@@ -562,6 +565,7 @@ class Database:
             {
                 "notify_enabled": "INTEGER NOT NULL DEFAULT 1",
                 "preview_enabled": "INTEGER NOT NULL DEFAULT 0",
+                "added_at": "REAL NOT NULL DEFAULT 0",
                 "auto_report_enabled": "INTEGER NOT NULL DEFAULT 0",
                 "last_message_kind": "TEXT NOT NULL DEFAULT 'text'",
                 "media_transition_pending": "INTEGER NOT NULL DEFAULT 0",
@@ -649,6 +653,7 @@ class Database:
         await self._migrate_billing_schema()
         await self._migrate_billing_subject_schema()
         await self._migrate_viewer_schema()
+        await self._migrate_viewer_preferences_schema()
         await self._migrate_growth_attribution_schema()
         await self.conn.commit()
 
@@ -690,6 +695,34 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('r7_001_viewer_filters',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_preferences_schema(self) -> None:
+        # Legacy rowid records insertion order. Freeze it before future writes.
+        await self.conn.execute(
+            "UPDATE tracked_channels SET added_at=CAST(rowid AS REAL) WHERE added_at=0"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_video_selection_state ("
+            "telegram_user_id INTEGER PRIMARY KEY, version INTEGER NOT NULL) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_plan_priority ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "priority INTEGER NOT NULL, PRIMARY KEY(telegram_user_id,twitch_login)) "
+            "WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_video_selections ("
+            "telegram_user_id INTEGER NOT NULL, broadcaster_id TEXT NOT NULL, "
+            "twitch_login TEXT NOT NULL, position INTEGER NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,broadcaster_id), "
+            "UNIQUE(telegram_user_id,twitch_login), "
+            "UNIQUE(telegram_user_id,position)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_001_viewer_preferences',?)", (time.time(),)
         )
 
     async def _migrate_growth_schema(self) -> None:
@@ -992,6 +1025,84 @@ class Database:
             (str(telegram_user_id), at, at),
         )
         return await cursor.fetchone() is not None
+
+    async def get_video_selection(
+        self, telegram_user_id: int, *, now: float | None = None,
+    ) -> VideoSelection:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid viewer")
+        cursor = await self.conn.execute(
+            "SELECT version FROM viewer_video_selection_state WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        version_row = await cursor.fetchone()
+        cursor = await self.conn.execute(
+            "SELECT s.broadcaster_id,s.twitch_login,t.notify_enabled "
+            "FROM viewer_video_selections s LEFT JOIN tracked_channels t "
+            "ON t.chat_id=s.telegram_user_id AND t.twitch_login=s.twitch_login "
+            "WHERE s.telegram_user_id=? ORDER BY s.position",
+            (telegram_user_id,),
+        )
+        rows = [row for row in await cursor.fetchall() if row[2] is not None]
+        plus = await self.has_viewer_plus(telegram_user_id, now=now)
+        paused = {row[0] for row in await self.list_personal_channel_status(
+            telegram_user_id, now=now,
+        ) if row[4]}
+        return VideoSelection(
+            version=version_row[0] if version_row else 0,
+            selected_ids=tuple(row[0] for row in rows),
+            effective_ids=tuple(row[0] for row in rows if plus and row[2] and row[1] not in paused),
+            selected_logins=tuple(row[1] for row in rows),
+        )
+
+    @_serialized
+    async def replace_video_selection(
+        self, telegram_user_id: int, choices: object, *,
+        expected_version: int, now: float | None = None,
+    ) -> VideoSelection | None:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid viewer")
+        if type(expected_version) is not int or expected_version < 0:
+            raise ValueError("invalid version")
+        rows = validate_video_choices(choices)
+        at = time.time() if now is None else now
+        await self.conn.execute("BEGIN IMMEDIATE")
+        if not await self.has_viewer_plus(telegram_user_id, now=at):
+            raise PermissionError("Viewer Plus required")
+        cursor = await self.conn.execute(
+            "SELECT version FROM viewer_video_selection_state WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        current = await cursor.fetchone()
+        version = current[0] if current else 0
+        if version != expected_version:
+            await self.conn.rollback()
+            return None
+        for _broadcaster_id, login in rows:
+            cursor = await self.conn.execute(
+                "SELECT 1 FROM tracked_channels WHERE chat_id=? AND twitch_login=?",
+                (telegram_user_id, login),
+            )
+            if await cursor.fetchone() is None:
+                raise ValueError("selection includes unsubscribed channel")
+        await self.conn.execute(
+            "DELETE FROM viewer_video_selections WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        for position, (broadcaster_id, login) in enumerate(rows):
+            await self.conn.execute(
+                "INSERT INTO viewer_video_selections "
+                "(telegram_user_id,broadcaster_id,twitch_login,position) VALUES (?,?,?,?)",
+                (telegram_user_id, broadcaster_id, login, position),
+            )
+        await self.conn.execute(
+            "INSERT INTO viewer_video_selection_state(telegram_user_id,version) VALUES (?,?) "
+            "ON CONFLICT(telegram_user_id) DO UPDATE SET version=excluded.version",
+            (telegram_user_id, version + 1),
+        )
+        saved = await self.get_video_selection(telegram_user_id, now=at)
+        await self.conn.commit()
+        return saved
 
     @_serialized
     async def issue_test_viewer_plus(
@@ -2006,12 +2117,20 @@ class Database:
                 (time.time(), chat_id),
             )
 
+    async def _next_tracking_order(self, chat_id: int) -> float:
+        cursor = await self.conn.execute(
+            "SELECT COALESCE(MAX(added_at),0)+1 FROM tracked_channels WHERE chat_id=?",
+            (chat_id,),
+        )
+        return float((await cursor.fetchone())[0])
+
     @_serialized
     async def add_channel(self, chat_id: int, twitch_login: str) -> bool:
         try:
+            added_at = await self._next_tracking_order(chat_id)
             await self.conn.execute(
-                "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
-                (chat_id, twitch_login),
+                "INSERT INTO tracked_channels (chat_id, twitch_login, added_at) VALUES (?, ?, ?)",
+                (chat_id, twitch_login, added_at),
             )
             await self._mark_growth_activation(chat_id)
             await self.conn.commit()
@@ -2032,24 +2151,37 @@ class Database:
         общей write-lock обязательна: между предварительной Twitch-валидацией двух
         параллельных запросов оба могли увидеть 49 строк и иначе создать 51-ю.
         """
+        if type(chat_id) is not int or chat_id == 0 or type(max_channels) is not int or max_channels < 0:
+            raise ValueError("invalid tracking limit")
+        await self.conn.execute("BEGIN IMMEDIATE")
         cursor = await self.conn.execute(
             "SELECT 1 FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
         if await cursor.fetchone() is not None:
+            await self.conn.commit()
             return "already"
+
+        if chat_id > 0:
+            actual = (VIEWER_PLUS_CHANNEL_LIMIT if await self.has_viewer_plus(chat_id)
+                      else FREE_VIEWER_CHANNEL_LIMIT)
+        else:
+            actual = FREE_VIEWER_CHANNEL_LIMIT
+        effective_limit = min(max_channels, actual)
 
         cursor = await self.conn.execute(
             "SELECT COUNT(*) FROM tracked_channels WHERE chat_id = ?", (chat_id,)
         )
         row = await cursor.fetchone()
-        if row is not None and row[0] >= max_channels:
+        if row is not None and row[0] >= effective_limit:
+            await self.conn.commit()
             return "limit"
 
         try:
+            added_at = await self._next_tracking_order(chat_id)
             await self.conn.execute(
-                "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
-                (chat_id, twitch_login),
+                "INSERT INTO tracked_channels (chat_id, twitch_login, added_at) VALUES (?, ?, ?)",
+                (chat_id, twitch_login, added_at),
             )
             await self._mark_growth_activation(chat_id)
             await self.conn.commit()
@@ -2069,6 +2201,19 @@ class Database:
                 "DELETE FROM viewer_alert_filters WHERE telegram_user_id=? AND twitch_login=?",
                 (chat_id, twitch_login),
             )
+            await self.conn.execute(
+                "DELETE FROM viewer_plan_priority WHERE telegram_user_id=? AND twitch_login=?",
+                (chat_id, twitch_login),
+            )
+            deleted = await self.conn.execute(
+                "DELETE FROM viewer_video_selections WHERE telegram_user_id=? AND twitch_login=?",
+                (chat_id, twitch_login),
+            )
+            if deleted.rowcount:
+                await self.conn.execute(
+                    "UPDATE viewer_video_selection_state SET version=version+1 "
+                    "WHERE telegram_user_id=?", (chat_id,),
+                )
         await self.conn.commit()
         return cursor.rowcount > 0
 
@@ -2087,6 +2232,16 @@ class Database:
         if chat_id > 0:
             await self.conn.execute(
                 "DELETE FROM viewer_alert_filters WHERE telegram_user_id=?", (chat_id,)
+            )
+            await self.conn.execute(
+                "DELETE FROM viewer_plan_priority WHERE telegram_user_id=?", (chat_id,)
+            )
+            await self.conn.execute(
+                "DELETE FROM viewer_video_selections WHERE telegram_user_id=?", (chat_id,)
+            )
+            await self.conn.execute(
+                "UPDATE viewer_video_selection_state SET version=version+1 "
+                "WHERE telegram_user_id=?", (chat_id,),
             )
         for table in (
             "telegram_channels", "stats_recipients", "quiet_hours",
@@ -2128,19 +2283,59 @@ class Database:
         return [(row[0], bool(row[1]), bool(row[2])) for row in rows]
 
     async def list_personal_channel_status(
-        self, telegram_user_id: int,
-    ) -> list[tuple[str, bool, bool, float | None]]:
+        self, telegram_user_id: int, *, now: float | None = None,
+    ) -> list[tuple[str, bool, bool, float | None, bool]]:
         """Own viewer rows with the last confirmed live observation timestamp."""
         cursor = await self.conn.execute(
-            "SELECT twitch_login,notify_enabled,is_live,last_seen_live_at "
-            "FROM tracked_channels WHERE chat_id=? ORDER BY twitch_login",
+            "SELECT t.twitch_login,t.notify_enabled,t.is_live,t.last_seen_live_at, "
+            "COALESCE(p.priority,0),t.added_at "
+            "FROM tracked_channels t LEFT JOIN viewer_plan_priority p "
+            "ON p.telegram_user_id=t.chat_id AND p.twitch_login=t.twitch_login "
+            "WHERE t.chat_id=? ORDER BY COALESCE(p.priority,0),t.added_at,t.twitch_login",
             (telegram_user_id,),
         )
         rows = await cursor.fetchall()
-        return [
-            (row[0], bool(row[1]), bool(row[2]), row[3])
-            for row in rows
+        limit = (VIEWER_PLUS_CHANNEL_LIMIT if await self.has_viewer_plus(telegram_user_id, now=now)
+                 else FREE_VIEWER_CHANNEL_LIMIT)
+        result = [
+            (row[0], bool(row[1]), bool(row[2]), row[3], index >= limit)
+            for index, row in enumerate(rows)
         ]
+        return sorted(result, key=lambda row: row[0])
+
+    async def is_personal_channel_active(
+        self, telegram_user_id: int, twitch_login: str, *, now: float | None = None,
+    ) -> bool:
+        rows = await self.list_personal_channel_status(telegram_user_id, now=now)
+        return any(row[0] == twitch_login and not row[4] for row in rows)
+
+    @_serialized
+    async def promote_personal_channel(self, telegram_user_id: int, twitch_login: str) -> str:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid viewer")
+        await self.conn.execute("BEGIN IMMEDIATE")
+        rows = await self.list_personal_channel_status(telegram_user_id)
+        target = next((row for row in rows if row[0] == twitch_login), None)
+        if target is None:
+            await self.conn.rollback()
+            return "not_subscribed"
+        if not target[4]:
+            await self.conn.rollback()
+            return "already"
+        cursor = await self.conn.execute(
+            "SELECT MIN(priority) FROM viewer_plan_priority WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        smallest = (await cursor.fetchone())[0]
+        priority = min(0, smallest or 0) - 1
+        await self.conn.execute(
+            "INSERT INTO viewer_plan_priority(telegram_user_id,twitch_login,priority) "
+            "VALUES (?,?,?) ON CONFLICT(telegram_user_id,twitch_login) "
+            "DO UPDATE SET priority=excluded.priority",
+            (telegram_user_id, twitch_login, priority),
+        )
+        await self.conn.commit()
+        return "activated"
 
     async def list_live_channels(
         self, chat_id: int, *, twitch_login: str | None = None
@@ -2695,19 +2890,43 @@ class Database:
         за списком чатов — при тысячах подписок это тысячи запросов в минуту.
         Возвращает ({login: [chat_id, ...]}, {(chat_id, login): состояние})."""
         cursor = await self.conn.execute(
-            "SELECT chat_id, twitch_login, is_live, last_stream_id, last_message_id, "
-            "last_message_kind, last_title, offline_since, stream_started_at, "
-            "last_seen_live_at, peak_viewers, notify_enabled, followers_at_start, stats_sent "
-            "FROM tracked_channels ORDER BY twitch_login, chat_id"
+            "SELECT tc.chat_id, tc.twitch_login, tc.is_live, tc.last_stream_id, tc.last_message_id, "
+            "tc.last_message_kind, tc.last_title, tc.offline_since, tc.stream_started_at, "
+            "tc.last_seen_live_at, tc.peak_viewers, tc.notify_enabled, tc.followers_at_start, tc.stats_sent, "
+            "tc.added_at, COALESCE(p.priority,0) "
+            "FROM tracked_channels tc LEFT JOIN viewer_plan_priority p "
+            "ON p.telegram_user_id=tc.chat_id AND p.twitch_login=tc.twitch_login "
+            "ORDER BY tc.twitch_login, tc.chat_id"
         )
+        rows = await cursor.fetchall()
+        at = time.time()
+        grants = await self.conn.execute(
+            "SELECT DISTINCT subject_id FROM entitlement_grants "
+            "WHERE subject_kind='viewer' AND plan='viewer_plus' AND revoked_at IS NULL "
+            "AND starts_at<=? AND expires_at>?",
+            (at, at),
+        )
+        plus_users = {int(row[0]) for row in await grants.fetchall() if str(row[0]).isdecimal()}
+        personal: dict[int, list[tuple[int, float, str]]] = {}
+        for row in rows:
+            if row[0] > 0:
+                personal.setdefault(row[0], []).append((row[15], row[14], row[1]))
+        allowed = {
+            chat_id: {login for _, _, login in sorted(items)[:(
+                VIEWER_PLUS_CHANNEL_LIMIT if chat_id in plus_users else FREE_VIEWER_CHANNEL_LIMIT
+            )]}
+            for chat_id, items in personal.items()
+        }
         chats_by_login: dict[str, list[int]] = {}
         states: dict[tuple[int, str], tuple] = {}
-        for row in await cursor.fetchall():
+        for row in rows:
             chat_id, login = row[0], row[1]
-            chats_by_login.setdefault(login, []).append(chat_id)
+            paused = chat_id > 0 and login not in allowed[chat_id]
+            if not paused:
+                chats_by_login.setdefault(login, []).append(chat_id)
             states[(chat_id, login)] = (
                 bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
-                row[9], row[10], bool(row[11]), row[12], bool(row[13]),
+                row[9], row[10], bool(row[11]) and not paused, row[12], bool(row[13]),
             )
         return chats_by_login, states
 
