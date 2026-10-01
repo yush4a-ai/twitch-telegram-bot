@@ -2111,6 +2111,21 @@ class Database:
         rows = await cursor.fetchall()
         return [(row[0], bool(row[1]), bool(row[2])) for row in rows]
 
+    async def list_personal_channel_status(
+        self, telegram_user_id: int,
+    ) -> list[tuple[str, bool, bool, float | None]]:
+        """Own viewer rows with the last confirmed live observation timestamp."""
+        cursor = await self.conn.execute(
+            "SELECT twitch_login,notify_enabled,is_live,last_seen_live_at "
+            "FROM tracked_channels WHERE chat_id=? ORDER BY twitch_login",
+            (telegram_user_id,),
+        )
+        rows = await cursor.fetchall()
+        return [
+            (row[0], bool(row[1]), bool(row[2]), row[3])
+            for row in rows
+        ]
+
     async def list_live_channels(
         self, chat_id: int, *, twitch_login: str | None = None
     ) -> list[tuple[str, str, int | None, str | None]]:
@@ -2206,6 +2221,19 @@ class Database:
             (int(enabled), chat_id, twitch_login),
         )
         await self.conn.commit()
+
+    @_serialized
+    async def set_personal_notify_if_subscribed(
+        self, telegram_user_id: int, twitch_login: str, enabled: bool,
+    ) -> bool:
+        """Atomically update only an existing subscription owned by this user."""
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET notify_enabled=? "
+            "WHERE chat_id=? AND twitch_login=?",
+            (int(enabled), telegram_user_id, twitch_login),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
 
     async def get_preview_enabled(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(

@@ -3,12 +3,13 @@ export class ApiError extends Error {
 }
 
 export function createApi(initData) {
-  async function post(path, fields = {}) {
+  async function post(path, fields = {}, options = {}) {
     const response = await fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
       credentials: 'same-origin',
+      signal: options.signal,
       body: JSON.stringify({ ...fields, init_data: initData }),
     });
     const result = await response.json();

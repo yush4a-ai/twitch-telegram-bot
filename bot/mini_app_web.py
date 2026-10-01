@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -12,7 +11,8 @@ from aiohttp import web
 from .admin_web import SECURITY_HEADERS
 from .capabilities import CapabilityService
 from .database import Database
-from .telegram_identity import verify_webapp_user
+from .mini_app_auth import verified_payload
+from .mini_app_viewer import install_mini_app_viewer_routes
 
 
 _UI_DIR = Path(__file__).with_name("mini_app_ui")
@@ -23,16 +23,8 @@ _ASSETS = {
     "router.js": "application/javascript",
     "api.js": "application/javascript",
     "components.js": "application/javascript",
+    "viewer.js": "application/javascript",
 }
-
-
-def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("duplicate Mini App field")
-        result[key] = value
-    return result
 
 
 def install_mini_app_routes(
@@ -41,6 +33,7 @@ def install_mini_app_routes(
     bot_token: str,
     *,
     bot=None,
+    twitch=None,
     capability_service: CapabilityService | None = None,
 ) -> None:
     if not bot_token:
@@ -76,26 +69,13 @@ def install_mini_app_routes(
         )
 
     async def bootstrap(request: web.Request) -> web.Response:
-        if request.content_length is not None and request.content_length > 8192:
-            return web.json_response({"error": "too_large"}, status=413)
-        try:
-            raw = await request.text()
-            if len(raw.encode("utf-8")) > 8192:
-                return web.json_response({"error": "too_large"}, status=413)
-            values = json.loads(raw, object_pairs_hook=_unique_pairs)
-        except (UnicodeError, ValueError, TypeError):
-            return web.json_response({"error": "invalid_request"}, status=400)
-        if not isinstance(values, dict):
-            return web.json_response({"error": "invalid_request"}, status=400)
-        init_data = values.get("init_data")
-        if not isinstance(init_data, str) or not init_data:
-            return web.json_response({"error": "unauthorized"}, status=401)
-        user_id = verify_webapp_user(init_data, bot_token)
-        if user_id is None:
-            return web.json_response({"error": "unauthorized"}, status=403)
+        user_id, _values, status = await verified_payload(request, bot_token)
+        if status != 200:
+            return web.json_response({"error": "unauthorized"}, status=status)
         flags = await capabilities.for_user(user_id, now=time.time())
         return web.json_response({"user": {"id": user_id}, "capabilities": asdict(flags)})
 
     app.router.add_get("/app", shell)
-    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js}", asset)
+    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
+    install_mini_app_viewer_routes(app, db, bot_token, capabilities, twitch)

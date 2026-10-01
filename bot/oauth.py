@@ -188,6 +188,7 @@ class OAuthCallbackServer:
         viewer_bot_token: str | None = None,
         mini_app_db: Database | None = None,
         mini_app_bot_token: str | None = None,
+        mini_app_twitch=None,
         growth_bot_username: str | None = None,
         growth_public_base_url: str | None = None,
     ) -> None:
@@ -207,6 +208,7 @@ class OAuthCallbackServer:
         self._viewer_bot_token = viewer_bot_token
         self._mini_app_db = mini_app_db
         self._mini_app_bot_token = mini_app_bot_token
+        self._mini_app_twitch = mini_app_twitch
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
         self._admin_snapshot_provider: SnapshotProvider | None = None
@@ -240,7 +242,10 @@ class OAuthCallbackServer:
         if self._viewer_db is not None and self._viewer_bot_token is not None:
             install_viewer_routes(app, self._viewer_db, self._viewer_bot_token)
         if self._mini_app_db is not None and self._mini_app_bot_token is not None:
-            install_mini_app_routes(app, self._mini_app_db, self._mini_app_bot_token)
+            install_mini_app_routes(
+                app, self._mini_app_db, self._mini_app_bot_token,
+                twitch=self._mini_app_twitch,
+            )
         if self._growth_bot_username is not None:
             install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)
         self._runner = web.AppRunner(app)

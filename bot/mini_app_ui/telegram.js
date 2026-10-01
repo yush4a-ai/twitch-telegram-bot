@@ -23,6 +23,21 @@ export function createTelegramAdapter(onBack, onThemeChange) {
   }
   return {
     initData: sdk?.initData || '',
+    requestWriteAccess() {
+      if (!sdk?.requestWriteAccess) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        let finished = false;
+        const finish = (value) => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          resolve(value);
+        };
+        const timer = setTimeout(() => finish(null), 10000);
+        try { sdk.requestWriteAccess((granted) => finish(Boolean(granted))); }
+        catch { finish(null); }
+      });
+    },
     syncBack(visible) {
       if (!sdk?.BackButton) return;
       if (visible) {

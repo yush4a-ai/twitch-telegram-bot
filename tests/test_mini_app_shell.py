@@ -71,7 +71,7 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('src="/app/app.js"', html)
             self.assertIn('id="mode-switch"', html)
             self.assertIn('id="tab-bar"', html)
-        for asset in ("app.css", "app.js", "telegram.js", "router.js", "api.js", "components.js"):
+        for asset in ("app.css", "app.js", "telegram.js", "router.js", "api.js", "components.js", "viewer.js"):
             with self.subTest(asset=asset):
                 async with self.session.get(self.base + "/app/" + asset) as response:
                     self.assertEqual(response.status, 200)

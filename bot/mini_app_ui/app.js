@@ -2,6 +2,7 @@ import { createApi, ApiError } from './api.js';
 import { createTelegramAdapter } from './telegram.js';
 import { createRouter } from './router.js';
 import { element, panel, action } from './components.js';
+import { createViewerFeature } from './viewer.js';
 
 const content = document.getElementById('content');
 const modeSwitch = document.getElementById('mode-switch');
@@ -9,12 +10,14 @@ const tabBar = document.getElementById('tab-bar');
 let session = null;
 let authError = null;
 let router;
+let viewerFeature;
 const telegram = createTelegramAdapter(() => router.back(), (theme) => {
   document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101722' : '#f7f9fc';
 });
 const api = createApi(telegram.initData);
 router = createRouter(render);
+viewerFeature = createViewerFeature(api, () => session, () => router, telegram);
 window.addEventListener('pagehide', () => telegram.dispose(), { once: true });
 
 function render(state, canBack) {
@@ -51,6 +54,10 @@ function render(state, canBack) {
   }
   if (!session) {
     content.append(element('div', 'status-panel', 'Проверяем вход…'));
+    return;
+  }
+  if (state.mode === 'viewer') {
+    viewerFeature.render(content, state);
     return;
   }
   if (state.detail) {
