@@ -2216,7 +2216,7 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await migrated.close()
 
-    def test_channel_card_shows_live_preview_disabled(self) -> None:
+    def test_channel_card_does_not_offer_legacy_private_preview_toggle(self) -> None:
         keyboard = self._preview_card_keyboard(
             preview_enabled=False,
             target_chat_id=101,
@@ -2224,16 +2224,16 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
 
         labels = [row[0].text for row in keyboard.inline_keyboard]
         callbacks = [row[0].callback_data for row in keyboard.inline_keyboard]
-        self.assertIn("🎞 Живое превью: ❌ выкл", labels)
-        self.assertIn("togglepreview:101:channel", callbacks)
+        self.assertFalse(any("Живое превью" in label for label in labels))
+        self.assertNotIn("togglepreview:101:channel", callbacks)
 
-    def test_channel_card_shows_live_preview_enabled(self) -> None:
+    def test_channel_card_does_not_offer_legacy_group_preview_toggle(self) -> None:
         keyboard = self._preview_card_keyboard(preview_enabled=True)
 
         labels = [row[0].text for row in keyboard.inline_keyboard]
-        self.assertIn("🎞 Живое превью: ✅ вкл", labels)
+        self.assertFalse(any("Живое превью" in label for label in labels))
 
-    async def test_remote_group_admin_can_toggle_live_preview_and_refresh_card(self) -> None:
+    async def test_remote_group_admin_cannot_use_legacy_preview_callback(self) -> None:
         db = Database(":memory:")
         await db.connect()
         try:
@@ -2256,21 +2256,16 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
 
             await streams_module.cb_toggle_preview(callback, db)
 
-            self.assertTrue(
+            self.assertFalse(
                 await db.get_preview_enabled(target_chat_id, "channel")
             )
             callback.bot.get_chat_member.assert_awaited_once_with(
                 target_chat_id, 42
             )
-            callback.message.edit_text.assert_awaited_once()
-            refreshed_keyboard = callback.message.edit_text.await_args.kwargs[
-                "reply_markup"
-            ]
-            self.assertIn(
-                "🎞 Живое превью: ✅ вкл",
-                [row[0].text for row in refreshed_keyboard.inline_keyboard],
+            callback.message.edit_text.assert_not_awaited()
+            callback.answer.assert_awaited_once_with(
+                "Настройте видеопревью в приложении бота.", show_alert=True,
             )
-            callback.answer.assert_awaited_once_with("Живое превью включено")
         finally:
             await db.close()
 
@@ -2330,7 +2325,7 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await db.close()
 
-    async def test_telegram_channel_owner_can_toggle_live_preview(self) -> None:
+    async def test_telegram_channel_owner_cannot_use_legacy_preview_callback(self) -> None:
         db = Database(":memory:")
         await db.connect()
         try:
@@ -2354,14 +2349,12 @@ class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
 
             await streams_module.cb_toggle_preview(callback, db)
 
-            self.assertTrue(await db.get_preview_enabled(channel_id, "channel"))
+            self.assertFalse(await db.get_preview_enabled(channel_id, "channel"))
             callback.bot.get_chat_member.assert_awaited_once_with(channel_id, 42)
-            refreshed_keyboard = callback.message.edit_text.await_args.kwargs[
-                "reply_markup"
-            ]
-            labels = [row[0].text for row in refreshed_keyboard.inline_keyboard]
-            self.assertIn("🎞 Живое превью: ✅ вкл", labels)
-            self.assertIn("Итоговый отчёт в канал: ❌ выкл", labels)
+            callback.message.edit_text.assert_not_awaited()
+            callback.answer.assert_awaited_once_with(
+                "Настройте видеопревью в приложении бота.", show_alert=True,
+            )
         finally:
             await db.close()
 
@@ -6842,7 +6835,8 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             shutdown=AsyncMock(side_effect=RuntimeError("cleanup failed")),
         )
         oauth_server = SimpleNamespace(
-            start=AsyncMock(), stop=AsyncMock(), set_health_provider=Mock()
+            start=AsyncMock(), stop=AsyncMock(), set_health_provider=Mock(),
+            set_preview_observer=Mock(),
         )
 
         with (
@@ -6867,6 +6861,7 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
         poller.shutdown.assert_awaited_once()
         follow_listener.stop.assert_awaited_once()
         oauth_server.stop.assert_awaited_once()
+        oauth_server.set_preview_observer.assert_called_once()
         # Падение runtime обязано снять health provider, иначе /healthz продолжил бы
         # отдавать 200 во время аварийного завершения процесса.
         self.assertEqual(oauth_server.set_health_provider.call_args_list[-1], call(None))

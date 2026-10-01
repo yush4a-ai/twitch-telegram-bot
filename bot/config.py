@@ -134,6 +134,7 @@ class PreviewRuntimeConfig:
     initial_delay_seconds: int = PREVIEW_INITIAL_DELAY_SECONDS
     interval_seconds: int = PREVIEW_INTERVAL_SECONDS
     max_concurrent_jobs: int = PREVIEW_MAX_CONCURRENT_JOBS
+    max_active_sessions: int = 2
     job_timeout_seconds: int = PREVIEW_JOB_TIMEOUT_SECONDS
     disabled_reason: str | None = None
 
@@ -214,6 +215,11 @@ def _preview_config() -> PreviewRuntimeConfig:
             return default
         return value
 
+    max_active_sessions = positive("PREVIEW_MAX_ACTIVE_SESSIONS", 2)
+    if max_active_sessions > 8:
+        invalid_names.append("PREVIEW_MAX_ACTIVE_SESSIONS")
+        max_active_sessions = 2
+
     config = PreviewRuntimeConfig(
         enabled=enabled,
         initial_delay_seconds=positive(
@@ -223,6 +229,7 @@ def _preview_config() -> PreviewRuntimeConfig:
         max_concurrent_jobs=positive(
             "PREVIEW_MAX_CONCURRENT_JOBS", PREVIEW_MAX_CONCURRENT_JOBS
         ),
+        max_active_sessions=max_active_sessions,
         job_timeout_seconds=positive(
             "PREVIEW_JOB_TIMEOUT_SECONDS", PREVIEW_JOB_TIMEOUT_SECONDS
         ),
@@ -239,6 +246,7 @@ def _preview_config() -> PreviewRuntimeConfig:
         initial_delay_seconds=config.initial_delay_seconds,
         interval_seconds=config.interval_seconds,
         max_concurrent_jobs=config.max_concurrent_jobs,
+        max_active_sessions=config.max_active_sessions,
         job_timeout_seconds=config.job_timeout_seconds,
         disabled_reason="config_error",
     )

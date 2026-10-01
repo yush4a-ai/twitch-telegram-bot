@@ -5,6 +5,7 @@ import importlib
 import inspect
 import os
 import tempfile
+import time
 import unittest
 from collections import deque
 from pathlib import Path
@@ -261,6 +262,15 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
     ) -> None:
         await self.db.add_channel(chat_id, login)
         await self.db.set_preview_enabled(chat_id, login, preview)
+        if chat_id > 0:
+            now = time.time()
+            if not await self.db.has_viewer_plus(chat_id):
+                await self.db.issue_test_viewer_plus(
+                    chat_id, f"preview-runtime-{chat_id}", starts_at=now - 5,
+                    expires_at=now + 3600, issued_by=425785231, now=now,
+                )
+            if preview:
+                await self.select_video(chat_id, login, True)
         await self.db.set_notify_enabled(chat_id, login, notify)
         await self.db.set_live_state(
             chat_id,
@@ -272,7 +282,20 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
             stream_started_at="2026-01-01T00:00:00Z",
             last_seen_live_at=self.clock(),
             message_kind=kind,
+            broadcaster_id=self._broadcaster_id(login),
         )
+
+    @staticmethod
+    def _broadcaster_id(login: str) -> str:
+        return str(1000 + sum((index + 1) * ord(char) for index, char in enumerate(login)))
+
+    async def select_video(self, chat_id: int, login: str, enabled: bool) -> None:
+        selection = await self.db.get_video_selection(chat_id)
+        rows = [(self._broadcaster_id(value), value) for value in selection.selected_logins if value != login]
+        if enabled:
+            rows.append((self._broadcaster_id(login), login))
+        saved = await self.db.replace_video_selection(chat_id, rows, expected_version=selection.version)
+        assert saved is not None
 
     def observation(
         self,
@@ -456,6 +479,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
             "Title",
             stream_started_at="2026-01-01T00:00:00Z",
             last_seen_live_at=self.clock(),
+            broadcaster_id=self._broadcaster_id("channel"),
         )
         manager.observe_cycle((self.observation(physical="physical-B"),))
         await _wait_until(lambda: len(self.provider.create_calls) == 2)
@@ -549,7 +573,8 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager.observe_cycle((self.observation(online=False),))
         await _settle()
         await self.db.set_live_state(
-            101, "channel", True, "logical-1", 701, "Title", last_seen_live_at=self.clock()
+            101, "channel", True, "logical-1", 701, "Title", last_seen_live_at=self.clock(),
+            broadcaster_id=self._broadcaster_id("channel"),
         )
         manager.observe_cycle((self.observation(),))
         await _wait_until(lambda: len(self.provider.create_calls) == 2)
@@ -939,7 +964,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(101)
         manager = self.manager(initial_delay=75)
         await self.start_online(manager)
-        await self.db.set_preview_enabled(101, "channel", False)
+        await self.select_video(101, "channel", False)
 
         manager.observe_cycle((self.observation(),))
         await _settle(30)
@@ -952,7 +977,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(102, message_id=702)
         manager = self.manager(initial_delay=75)
         await self.start_online(manager)
-        await self.db.set_preview_enabled(101, "channel", False)
+        await self.select_video(101, "channel", False)
 
         manager.observe_cycle((self.observation(),))
         await _settle()
@@ -987,7 +1012,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(101, preview=False)
         manager = self.manager(initial_delay=75)
         await self.start_online(manager)
-        await self.db.set_preview_enabled(101, "channel", True)
+        await self.select_video(101, "channel", True)
 
         manager.observe_cycle((self.observation(),))
         await _wait_until(lambda: len(self.provider.open_calls) == 1)
@@ -1015,7 +1040,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.provider.released, [artifact])
 
-    async def test_failed_first_target_makes_second_retry_local_upload(self) -> None:
+    async def test_retry_later_stops_wave_then_next_artifact_retries_local_upload(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
         artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0)
@@ -1029,10 +1054,21 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager()
 
         await self.start_online(manager)
-        await _wait_until(lambda: len(self.updater.calls) == 2)
+        await _wait_until(lambda: self.provider.released == [artifact])
+        await _wait_until(lambda: any(deadline >= self.clock() + 300 for deadline, _future in self.clock.sleeps))
+        self.assertEqual(len(self.updater.calls), 1)
+        for _ in range(5):
+            await self.clock.advance(60)
+            manager.observe_cycle((self.observation(),))
+            await _settle()
+        await _wait_until(lambda: len(self.updater.calls) == 3)
 
         self.assertEqual(self.updater.calls[0]["animation"], artifact)
         self.assertEqual(self.updater.calls[1]["animation"], artifact)
+        self.assertEqual(
+            self.updater.calls[2]["animation"],
+            TelegramAnimation("second-file", duration_seconds=6.0),
+        )
 
     async def test_applied_without_file_id_keeps_local_input_for_next_target(self) -> None:
         await self.seed(101, message_id=701)
@@ -1091,7 +1127,10 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
-        await self.db.set_live_state(101, "channel", True, "logical-1", 702, "Replacement")
+        await self.db.set_live_state(
+            101, "channel", True, "logical-1", 702, "Replacement",
+            broadcaster_id=self._broadcaster_id("channel"),
+        )
 
         self.provider.create_gate.set()
         await _settle(30)
@@ -1119,7 +1158,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager()
         await self.start_online(manager)
         await self.provider.create_entered.wait()
-        await self.db.set_preview_enabled(101, "channel", False)
+        await self.select_video(101, "channel", False)
 
         self.provider.create_gate.set()
         await _settle(30)
@@ -1262,6 +1301,15 @@ class PreviewDatabaseProjectionTests(unittest.IsolatedAsyncioTestCase):
         await self.db.register_telegram_channel(-100101, "Public")
         await self.db.set_notify_enabled(-100101, "channel", False)
         await self.db.set_preview_enabled(-100101, "channel", True)
+        # A raw legacy flag alone is not enough for a community animation.
+        self.assertFalse((await self.db.get_preview_destination_state(-100101, "channel")).preview_enabled)
+        now = time.time()
+        await self.db.link_streamer_identity(201, "1001", "channel", verified_at=now)
+        await self.db.add_streamer_community(201, -100101, "Public", "channel", now=now)
+        await self.db.issue_test_streamer_plus(
+            "1001", "projection-streamer", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
+        )
         await self.db.set_live_state(
             -100101,
             "channel",
@@ -1271,6 +1319,7 @@ class PreviewDatabaseProjectionTests(unittest.IsolatedAsyncioTestCase):
             "Title",
             stream_started_at="2026-01-01T00:00:00Z",
             message_kind="video",
+            broadcaster_id="1001",
         )
         self.assertTrue(
             await self.db.begin_video_transition(
@@ -1709,7 +1758,15 @@ class LivePostNotifyRaceTests(unittest.IsolatedAsyncioTestCase):
         try:
             await db.add_channel(101, "channel")
             await db.set_preview_enabled(101, "channel", True)
-            await db.set_live_state(101, "channel", True, "logical-1", 701, "Title")
+            now = time.time()
+            await db.issue_test_viewer_plus(
+                101, "notify-race", starts_at=now - 5, expires_at=now + 3600,
+                issued_by=425785231, now=now,
+            )
+            await db.replace_video_selection(101, [("1001", "channel")], expected_version=0)
+            await db.set_live_state(
+                101, "channel", True, "logical-1", 701, "Title", broadcaster_id="1001",
+            )
             bot = SimpleNamespace(edit_message_media=AsyncMock())
             updater_type = importlib.import_module("bot.live_post").LivePostUpdater
             target_type = importlib.import_module("bot.live_post").LivePostTarget
@@ -1802,7 +1859,7 @@ class PreviewManagerSupervisionAndHealthTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             set(health),
             {
-                "enabled", "manager_running", "active_sessions", "active_jobs",
+                "enabled", "manager_running", "active_sessions", "deferred_sessions", "active_jobs",
                 "consumer_tasks", "session_tasks", "job_tasks",
                 "latest_observation_age_seconds", "last_success_age_seconds",
                 "last_error", "consecutive_provider_failures", "disabled_reason",

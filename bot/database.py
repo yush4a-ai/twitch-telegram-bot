@@ -169,20 +169,28 @@ class PreviewDestinationState:
     last_stream_ended_at: float | None
 
 
-# An old stored preview toggle is not an entitlement. Community animations need
-# the current grant and the broadcaster observed for this live post.
+# Personal video is selected by the viewer, not by the old preview_enabled flag.
+# Both products require a current grant and the broadcaster observed for this post.
 _EFFECTIVE_PREVIEW_SQL = (
-    "tc.preview_enabled AND (tc.chat_id > 0 OR NOT EXISTS ("
-    "SELECT 1 FROM streamer_communities sc JOIN streamer_identities si "
-    "ON si.broadcaster_id=sc.broadcaster_id WHERE sc.chat_id=tc.chat_id "
-    "AND si.twitch_login=tc.twitch_login) OR EXISTS ("
+    "CASE WHEN tc.chat_id>0 THEN EXISTS("
+    "SELECT 1 FROM viewer_video_selections v JOIN entitlement_grants g "
+    "ON g.subject_kind='viewer' AND g.subject_id=CAST(v.telegram_user_id AS TEXT) "
+    "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
+    "AND g.starts_at<=?1 AND g.expires_at>?2 "
+    "WHERE v.telegram_user_id=tc.chat_id AND v.twitch_login=tc.twitch_login "
+    "AND v.broadcaster_id=tc.last_broadcaster_id "
+    "AND tc.twitch_login IN (SELECT x.twitch_login FROM tracked_channels x "
+    "LEFT JOIN viewer_plan_priority p ON p.telegram_user_id=x.chat_id "
+    "AND p.twitch_login=x.twitch_login WHERE x.chat_id=tc.chat_id "
+    "ORDER BY COALESCE(p.priority,0),x.added_at,x.twitch_login LIMIT 200)) "
+    "ELSE tc.preview_enabled AND EXISTS("
     "SELECT 1 FROM streamer_communities sc JOIN streamer_identities si "
     "ON si.broadcaster_id=sc.broadcaster_id JOIN entitlement_grants g "
     "ON g.subject_kind='streamer' AND g.subject_id=si.broadcaster_id "
     "AND g.plan='streamer_plus' AND g.revoked_at IS NULL "
-    "AND g.starts_at<=? AND g.expires_at>? WHERE sc.chat_id=tc.chat_id "
+    "AND g.starts_at<=?1 AND g.expires_at>?2 WHERE sc.chat_id=tc.chat_id "
     "AND si.twitch_login=tc.twitch_login "
-    "AND si.broadcaster_id=tc.last_broadcaster_id))"
+    "AND si.broadcaster_id=tc.last_broadcaster_id) END"
 )
 
 
@@ -3223,6 +3231,21 @@ class Database:
             )
         return chats_by_login, states
 
+    async def list_private_media_cleanup_candidates(
+        self,
+    ) -> list[tuple[int, str, str, int]]:
+        """Live private posts that may still show an animation after a plan change."""
+        cursor = await self.conn.execute(
+            "SELECT chat_id,twitch_login,last_stream_id,last_message_id "
+            "FROM tracked_channels WHERE chat_id>0 AND is_live=1 "
+            "AND last_stream_id IS NOT NULL AND last_message_id IS NOT NULL "
+            "AND (last_message_kind='animation' OR "
+            "(last_message_kind='photo' AND media_transition_pending=1 "
+            "AND media_transition_target_kind='animation')) "
+            "ORDER BY chat_id,twitch_login"
+        )
+        return [tuple(row) for row in await cursor.fetchall()]
+
     async def snapshot_last_stream_ends(self) -> dict[tuple[int, str], float]:
         """Когда бот в последний раз видел завершение стрима.
 
@@ -3434,6 +3457,25 @@ class Database:
         )
         await self.conn.commit()
         return cursor.rowcount > 0
+
+    @_serialized
+    async def begin_photo_transition(
+        self, chat_id: int, twitch_login: str, logical_stream_id: str,
+        message_id: int,
+    ) -> bool:
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET media_transition_pending=1, "
+            "media_transition_target_kind='photo' "
+            "WHERE chat_id=? AND twitch_login=? AND is_live=1 "
+            "AND last_stream_id=? AND last_message_id=? "
+            "AND ((last_message_kind='animation' AND media_transition_pending=0) "
+            "OR (last_message_kind IN ('photo','animation') "
+            "AND media_transition_pending=1 "
+            "AND media_transition_target_kind='animation'))",
+            (chat_id, twitch_login, logical_stream_id, message_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
 
     @_serialized
     async def finish_animation_transition(

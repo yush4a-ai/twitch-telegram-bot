@@ -222,6 +222,7 @@ class OAuthCallbackServer:
         self._mini_app_oauth_client_secret = mini_app_oauth_client_secret
         self._mini_app_billing_test_enabled = mini_app_billing_test_enabled
         self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
+        self._preview_observer = None
         self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
@@ -229,6 +230,15 @@ class OAuthCallbackServer:
 
     def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
         self._admin_snapshot_provider = provider
+
+    def set_preview_observer(self, observer) -> None:
+        self._preview_observer = observer
+
+    def _mini_app_preview_status(self, login: str) -> str:
+        observer = self._preview_observer
+        if observer is None or not hasattr(observer, "photo_delivery_status"):
+            return "unknown"
+        return observer.photo_delivery_status(login)
 
     def set_health_provider(
         self, provider: Callable[[], tuple[bool, str]] | None
@@ -263,6 +273,7 @@ class OAuthCallbackServer:
                 oauth_server=self,
                 billing_test_enabled=self._mini_app_billing_test_enabled,
                 billing_test_user_ids=self._mini_app_billing_test_user_ids,
+                preview_status_provider=self._mini_app_preview_status,
             )
         if self._growth_bot_username is not None:
             install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)

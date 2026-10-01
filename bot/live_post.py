@@ -53,6 +53,7 @@ class LivePostMediaStatus(Enum):
 class LivePostMediaResult:
     status: LivePostMediaStatus
     file_id: str | None = None
+    retry_after: float | None = None
 
 
 @dataclass(frozen=True)
@@ -316,6 +317,8 @@ class LivePostUpdater:
             return bool(
                 destination is not None and destination.preview_enabled
                 and destination.notify_enabled and destination.is_live
+                and destination.logical_stream_id == target.logical_stream_id
+                and destination.message_id == target.message_id
             )
 
         async with self.serialized(target.chat_id, target.message_id):
@@ -439,10 +442,12 @@ class LivePostUpdater:
                     media=media,
                     reply_markup=content.reply_markup,
                 )
-            except TelegramRetryAfter:
+            except TelegramRetryAfter as error:
                 if first_transition:
                     await self._clear_pending(target)
-                return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+                return LivePostMediaResult(
+                    LivePostMediaStatus.RETRY_LATER, retry_after=float(error.retry_after),
+                )
             except TelegramNetworkError:
                 return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
             except TelegramBadRequest as error:
@@ -503,6 +508,87 @@ class LivePostUpdater:
             file_id = getattr(animation_message, "file_id", None)
             return LivePostMediaResult(LivePostMediaStatus.APPLIED, file_id)
 
+    async def restore_photo(
+        self, *, target: LivePostTarget, photo_url: str,
+        build_content: ContentFactory,
+        allow_active_video_fallback: bool = False,
+        propagate_retry_after: bool = False,
+    ) -> LivePostMediaResult:
+        """Replace a private animation in place after its effective video right ends."""
+        db = self._require_db()
+        if target.chat_id <= 0 or not photo_url.startswith("https://"):
+            return LivePostMediaResult(LivePostMediaStatus.INVALID_MEDIA)
+        async with self.serialized(target.chat_id, target.message_id):
+            state = await db.get_live_post_state(target.chat_id, target.twitch_login)
+            if not self._is_current(state, target, require_live=True):
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if state.message_kind != "animation" and not (
+                state.message_kind == "photo"
+                and state.media_transition_pending
+                and state.media_transition_target_kind == "animation"
+            ):
+                return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+            destination = await db.get_preview_destination_state(target.chat_id, target.twitch_login)
+            if destination is None or destination.logical_stream_id != target.logical_stream_id or destination.message_id != target.message_id:
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if destination.preview_enabled and destination.notify_enabled and not allow_active_video_fallback:
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
+            content = await self._build_content(build_content)
+            if not _caption_fits(content.html):
+                return LivePostMediaResult(LivePostMediaStatus.CAPTION_TOO_LONG)
+            state = await db.get_live_post_state(target.chat_id, target.twitch_login)
+            destination = await db.get_preview_destination_state(target.chat_id, target.twitch_login)
+            if not self._is_current(state, target, require_live=True) or destination is None or destination.logical_stream_id != target.logical_stream_id or destination.message_id != target.message_id:
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if state.message_kind not in {"photo", "animation"} or (destination.preview_enabled and destination.notify_enabled and not allow_active_video_fallback):
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
+            if not state.media_transition_pending or state.media_transition_target_kind == "animation":
+                if not await db.begin_photo_transition(
+                    target.chat_id, target.twitch_login, target.logical_stream_id, target.message_id,
+                ):
+                    return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+            elif state.media_transition_target_kind != "photo":
+                return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
+            destination = await db.get_preview_destination_state(target.chat_id, target.twitch_login)
+            state = await db.get_live_post_state(target.chat_id, target.twitch_login)
+            if not self._is_current(state, target, require_live=True) or destination is None or destination.logical_stream_id != target.logical_stream_id or destination.message_id != target.message_id:
+                await self._clear_pending(target)
+                return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if destination.preview_enabled and destination.notify_enabled and not allow_active_video_fallback:
+                await self._clear_pending(target)
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
+            media = InputMediaPhoto(media=photo_url, caption=content.html, parse_mode="HTML")
+            try:
+                await self._bot.edit_message_media(
+                    chat_id=target.chat_id, message_id=target.message_id,
+                    media=media, reply_markup=content.reply_markup,
+                )
+            except TelegramNetworkError:
+                # Telegram may have applied the edit. Keep the pending marker for retry.
+                return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+            except TelegramRetryAfter as error:
+                if propagate_retry_after:
+                    raise
+                return LivePostMediaResult(
+                    LivePostMediaStatus.RETRY_LATER, retry_after=float(error.retry_after),
+                )
+            except TelegramBadRequest as error:
+                if not _is_not_modified(error):
+                    if _is_missing(error):
+                        return LivePostMediaResult(LivePostMediaStatus.MESSAGE_MISSING)
+                    if _is_invalid_media(error):
+                        return LivePostMediaResult(LivePostMediaStatus.INVALID_MEDIA)
+                    return LivePostMediaResult(LivePostMediaStatus.REJECTED)
+            except TelegramForbiddenError:
+                return LivePostMediaResult(LivePostMediaStatus.REJECTED)
+            updated = await db.set_live_message_kind_if_current(
+                target.chat_id, target.twitch_login, target.logical_stream_id,
+                target.message_id, "photo", False,
+            )
+            return LivePostMediaResult(
+                LivePostMediaStatus.APPLIED if updated else LivePostMediaStatus.STATE_CONFLICT,
+            )
+
     async def update(
         self,
         *,
@@ -540,7 +626,9 @@ class LivePostUpdater:
 
     @staticmethod
     def _media_enabled(state: LivePostState) -> bool:
-        return state.preview_enabled and state.notify_enabled
+        # The fresh destination projection checks the current grant and selection.
+        # The legacy toggle in LivePostState is never an authorization source.
+        return state.notify_enabled
 
     @staticmethod
     async def _build_content(factory: ContentFactory) -> LivePostContent:
@@ -669,8 +757,14 @@ class LivePostUpdater:
         )
         if caption_outcome is _EditOutcome.APPLIED:
             if (
-                state.media_transition_target_kind == "animation"
-                and state.message_kind in {"photo", "video"}
+                (
+                    state.media_transition_target_kind == "animation"
+                    and state.message_kind in {"photo", "video"}
+                )
+                or (
+                    state.media_transition_target_kind == "photo"
+                    and state.message_kind == "animation"
+                )
             ):
                 # A caption edit proves only that media exists. The original video/photo
                 # may still be present after an interrupted media replacement.

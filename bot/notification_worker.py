@@ -12,6 +12,7 @@ from enum import Enum
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 
 from .notification_queue import NotificationJob, NotificationQueue
+from .telegram_send_budget import TelegramSendBudget
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ class NotificationWorker:
         clock: Callable[[], float] = time.time,
         monotonic_clock: Callable[[], float] = time.monotonic,
         idle_interval: float = 1.0,
+        send_budget: TelegramSendBudget | None = None,
     ) -> None:
         if not 1 <= max_concurrency <= 16:
             raise ValueError("max_concurrency must be 1..16")
@@ -73,6 +75,7 @@ class NotificationWorker:
         self._clock = clock
         self._monotonic = monotonic_clock
         self._idle_interval = idle_interval
+        self._send_budget = send_budget
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
         self._chat_locks: dict[int, asyncio.Lock] = {}
@@ -160,6 +163,8 @@ class NotificationWorker:
                 self._chat_next_start[job.chat_id] = started_at + chat_interval
                 self._global_next_start = started_at + self._global_interval
             try:
+                if self._send_budget is not None:
+                    await self._send_budget.wait_turn(normal=True)
                 outcome = await asyncio.wait_for(self._send_job(job), self._send_timeout)
             except (NotificationRetryAfter, TelegramRetryAfter) as error:
                 retry_after = float(error.retry_after)

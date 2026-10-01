@@ -17,6 +17,7 @@ from .live_post import (
     LocalAnimation,
     TelegramAnimation,
 )
+from .telegram_send_budget import TelegramSendBudget
 
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,12 @@ class DisabledPreviewObserver:
     def start(self) -> None:
         return None
 
+    def photo_fallback_needed(self, _login: str) -> bool:
+        return True
+
+    def photo_delivery_status(self, _login: str) -> str:
+        return "unavailable"
+
     async def shutdown(self) -> None:
         return None
 
@@ -148,6 +155,7 @@ class DisabledPreviewObserver:
             "enabled": False,
             "manager_running": False,
             "active_sessions": 0,
+            "deferred_sessions": 0,
             "active_jobs": 0,
             "consumer_tasks": 0,
             "session_tasks": 0,
@@ -170,6 +178,8 @@ class _Observed:
 class _ManagedSession:
     key: PreviewSessionKey
     token: PreviewGeneration
+    admitted_at: float = 0.0
+    completed_rounds: int = 0
     state: PreviewSessionState = PreviewSessionState.WARMING
     task: asyncio.Task | None = None
     job_task: asyncio.Task | None = None
@@ -203,6 +213,8 @@ class PreviewManager:
         initial_delay_seconds: float,
         interval_seconds: float,
         max_concurrent_jobs: int,
+        max_active_sessions: int = 2,
+        send_budget: TelegramSendBudget | None = None,
         job_timeout_seconds: float,
         poll_interval_seconds: float,
         build_content: ContentBuilder,
@@ -225,6 +237,13 @@ class PreviewManager:
         self._clock = clock
         self._sleep = sleep
         self._artifact_semaphore = asyncio.Semaphore(max(1, int(max_concurrent_jobs)))
+        self._max_active_sessions = max(1, int(max_active_sessions))
+        self._send_budget = send_budget
+        self._admission_cursor = 0
+        self._admission_revision = -1
+        self._admitted_logins: set[str] = set()
+        self._deferred_logins: set[str] = set()
+        self._deferred_sessions = 0
         self._disabled_reason = (
             disabled_reason
             if disabled_reason is not None
@@ -302,6 +321,9 @@ class PreviewManager:
             self._session_tasks.clear()
             self._latest.clear()
             self._generation_by_login.clear()
+            self._admitted_logins.clear()
+            self._deferred_logins.clear()
+            self._deferred_sessions = 0
             self._latest_observation_at = None
             self._observation_event.clear()
 
@@ -311,6 +333,7 @@ class PreviewManager:
             "enabled": self._enabled,
             "manager_running": self._running,
             "active_sessions": len(self._sessions),
+            "deferred_sessions": self._deferred_sessions,
             "active_jobs": sum(
                 1
                 for record in self._sessions.values()
@@ -329,6 +352,16 @@ class PreviewManager:
             "consecutive_provider_failures": self._consecutive_provider_failures,
             "disabled_reason": self._disabled_reason,
         }
+
+    def photo_fallback_needed(self, login: str) -> bool:
+        return not self._enabled or not self._running or login in self._deferred_logins
+
+    def photo_delivery_status(self, login: str) -> str:
+        if not self._enabled or not self._running:
+            return "unavailable"
+        if login in self._deferred_logins:
+            return "limited"
+        return "preparing"
 
     @staticmethod
     def _age(now: float, then: float | None) -> float | None:
@@ -378,6 +411,7 @@ class PreviewManager:
             ):
                 await self._stop_session(login)
 
+        eligible_observations: dict[str, PreviewObservation] = {}
         for login, observed in latest.items():
             observation = observed.value
             if (
@@ -397,6 +431,40 @@ class PreviewManager:
                 if current is not None:
                     await self._stop_session(login)
                 continue
+            eligible_observations[login] = observation
+
+        names = sorted(eligible_observations)
+        if len(names) <= self._max_active_sessions:
+            admitted = set(names)
+        elif (
+            not self._admitted_logins
+            or not self._admitted_logins.issubset(names)
+            or (
+                self._admission_revision != self._revision
+                and self._admitted_round_finished()
+            )
+        ):
+            start = self._admission_cursor % len(names)
+            admitted = {
+                names[(start + offset) % len(names)]
+                for offset in range(self._max_active_sessions)
+            }
+            self._admission_cursor = (start + self._max_active_sessions) % len(names)
+        else:
+            admitted = self._admitted_logins
+        self._admission_revision = self._revision
+        self._admitted_logins = admitted
+        self._deferred_logins = set(names) - admitted
+        self._deferred_sessions = len(names) - len(admitted)
+        for login in list(self._sessions):
+            if login not in admitted:
+                await self._stop_session(login)
+
+        for login in names:
+            if login not in admitted:
+                continue
+            observation = eligible_observations[login]
+            current = self._sessions.get(login)
             if current is not None:
                 if (
                     current.key.physical_stream_id == observation.physical_stream_id
@@ -411,6 +479,21 @@ class PreviewManager:
             if login not in self._sessions:
                 self._generation_by_login.pop(login, None)
 
+    def _admitted_round_finished(self) -> bool:
+        max_wait = self._initial_delay + self._job_timeout + self._lease_seconds
+        for login in self._admitted_logins:
+            record = self._sessions.get(login)
+            if record is None:
+                continue
+            if record.completed_rounds or record.consecutive_failures:
+                continue
+            if record.task is not None and record.task.done():
+                continue
+            if self._clock() - record.admitted_at >= max_wait:
+                continue
+            return False
+        return True
+
     def _start_session(self, observation: PreviewObservation) -> None:
         physical_stream_id = observation.physical_stream_id
         if physical_stream_id is None:
@@ -422,6 +505,7 @@ class PreviewManager:
         record = _ManagedSession(
             key=PreviewSessionKey(observation.twitch_login, physical_stream_id),
             token=token,
+            admitted_at=self._clock(),
         )
         self._sessions[observation.twitch_login] = record
         task = asyncio.create_task(
@@ -532,6 +616,7 @@ class PreviewManager:
                         )
                 if not self._is_current(record.token):
                     break
+                record.completed_rounds += 1
                 record.state = PreviewSessionState.WAITING
                 await self._sleep(self._interval)
         except asyncio.CancelledError:
@@ -863,6 +948,10 @@ class PreviewManager:
             if isinstance(artifact, LocalAnimation) and cached_file_id is not None:
                 animation = TelegramAnimation(cached_file_id, artifact.duration_seconds)
             try:
+                if self._send_budget is not None:
+                    await self._send_budget.wait_turn(normal=False)
+                    if not self._is_current(token):
+                        return
                 result = await self._live_post_updater.apply_animation(
                     target=LivePostTarget(
                         chat_id=chat_id,
@@ -888,6 +977,10 @@ class PreviewManager:
                     type(error).__name__,
                 )
                 continue
+            if result.status is LivePostMediaStatus.RETRY_LATER:
+                if self._send_budget is not None:
+                    self._send_budget.defer_preview(result.retry_after or 5.0)
+                return
             if (
                 isinstance(artifact, LocalAnimation)
                 and result.status is LivePostMediaStatus.APPLIED

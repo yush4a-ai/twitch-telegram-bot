@@ -49,6 +49,7 @@ from bot.oauth import (
 from bot.poller import StreamPoller, TelegramChannelUsernameCache
 from bot.notification_queue import NotificationQueue
 from bot.notification_worker import NotificationWorker
+from bot.telegram_send_budget import TelegramSendBudget
 from bot.preview_analysis import HighlightAnalyzer
 from bot.preview_capture import CaptureService, CaptureSettings
 from bot.preview_render import PreviewRenderer
@@ -216,6 +217,7 @@ async def _build_preview_runtime(
     poll_interval_seconds: float,
     build_content,
     capture_owner=None,
+    send_budget=None,
 ):
     provider = NoopPreviewArtifactProvider()
     capture_service = None
@@ -298,6 +300,8 @@ async def _build_preview_runtime(
             initial_delay_seconds=preview_config.initial_delay_seconds,
             interval_seconds=preview_config.interval_seconds,
             max_concurrent_jobs=preview_config.max_concurrent_jobs,
+            max_active_sessions=preview_config.max_active_sessions,
+            send_budget=send_budget,
             job_timeout_seconds=preview_config.job_timeout_seconds,
             poll_interval_seconds=poll_interval_seconds,
             build_content=build_content,
@@ -453,12 +457,15 @@ async def _reconcile_telegram_channels(
         )
 
 
-def _make_notification_worker(config, db, poller: StreamPoller) -> NotificationWorker | None:
+def _make_notification_worker(
+    config, db, poller: StreamPoller, send_budget: TelegramSendBudget | None = None,
+) -> NotificationWorker | None:
     if not getattr(config, "notification_queue_enabled", False):
         return None
     return NotificationWorker(
         NotificationQueue(db), poller.send_queued_job,
         max_concurrency=4, per_chat_interval=1.0,
+        send_budget=send_budget,
     )
 
 
@@ -489,6 +496,7 @@ async def main() -> None:
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
         live_post_updater = LivePostUpdater(bot, db)
+        telegram_send_budget = TelegramSendBudget()
         channel_username_cache = TelegramChannelUsernameCache()
         await _with_startup_retry(
             lambda: _reconcile_telegram_channels(bot, db, channel_username_cache),
@@ -654,6 +662,7 @@ async def main() -> None:
                             poller.build_preview_content(observation, destination)
                         ),
                         capture_owner=own_preview_capture,
+                        send_budget=telegram_send_budget,
                     )
                 )
 
@@ -670,6 +679,7 @@ async def main() -> None:
                     preview_observer=preview_manager,
                     telegram_channel_username_cache=channel_username_cache,
                     notification_queue_enabled=getattr(config, "notification_queue_enabled", False),
+                    telegram_send_budget=telegram_send_budget,
                     viewer_filters_enabled=getattr(config, "viewer_plus_enabled", False),
                     bot_username=(
                         config.admin_telegram_bot_username
@@ -678,7 +688,9 @@ async def main() -> None:
                         else TELEGRAM_BOT_USERNAME
                     ),
                 )
-                notification_worker = _make_notification_worker(config, db, poller)
+                notification_worker = _make_notification_worker(
+                    config, db, poller, telegram_send_budget,
+                )
                 dp["poller"] = poller
                 dp["preview_manager"] = preview_manager
                 started_preview_manager, preview_capture_service = (
@@ -690,6 +702,7 @@ async def main() -> None:
                     preview_manager = started_preview_manager
                     poller.set_preview_observer(preview_manager)
                     dp["preview_manager"] = preview_manager
+                oauth_server.set_preview_observer(preview_manager)
                 if notification_worker is not None:
                     notification_worker.start()
                 poller_task = asyncio.create_task(poller.run())

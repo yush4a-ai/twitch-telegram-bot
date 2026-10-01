@@ -243,6 +243,18 @@ export function createViewerFeature(api, getRouter, telegram) {
       section.append(element('h2', '', 'Видеопревью'));
       section.append(element('p', 'muted', `Видеопревью: ${video.selected_logins.length} из ${video.limit}. ${row.video_selected ? 'Для этого стримера выбрано видео.' : 'Сейчас используется фото.'}`));
       if (row.video_selected) {
+        const delivery = {
+          video: 'Видео показывается в текущем сообщении.',
+          photo: 'Сейчас используется фото. Выбор видео сохранён.',
+          offline: 'Стример вне эфира. Место для видео остаётся занятым.',
+          limited: 'Видеопревью временно перегружено. Пока показываем фото.',
+          unavailable: 'Видеопревью временно недоступно. Пока показываем фото.',
+          preparing: 'Готовим видео. Пока может показываться фото.',
+          unknown: 'Проверяем видео. Пока может показываться фото.',
+        };
+        section.append(element('p', 'muted', delivery[row.video_delivery_status] || delivery.unknown));
+      }
+      if (row.video_selected) {
         section.append(action('Выключить видео', () => void saveVideoSelection(video.selected_logins.filter((value) => value !== login))));
       } else if (video.selected_logins.length < video.limit) {
         section.append(action('Выбрать видео', () => void saveVideoSelection([...video.selected_logins, login])));
@@ -263,6 +275,9 @@ export function createViewerFeature(api, getRouter, telegram) {
       const access = element('div', 'actions');
       access.append(action('Посмотреть доступ', () => getRouter().openDetail('subscription'), true));
       target.append(access);
+    }
+    if (row.video_delivery_status === 'returning_photo') {
+      target.append(element('p', 'notice', 'Возвращаем фото в текущее сообщение.'));
     }
     if (data.viewer_plus_active) {
       const rule = element('div', 'panel feature-panel');

@@ -43,6 +43,7 @@ def install_mini_app_routes(
     capability_service: CapabilityService | None = None,
     billing_test_enabled: bool = False,
     billing_test_user_ids: frozenset[int] = frozenset(),
+    preview_status_provider=None,
 ) -> None:
     if not bot_token:
         raise ValueError("Mini App needs bot token for initData verification")
@@ -86,7 +87,10 @@ def install_mini_app_routes(
     app.router.add_get("/app", shell)
     app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
-    install_mini_app_viewer_routes(app, db, bot_token, capabilities, twitch)
+    install_mini_app_viewer_routes(
+        app, db, bot_token, capabilities, twitch,
+        preview_status_provider=preview_status_provider,
+    )
     install_mini_app_streamer_routes(
         app, db, bot_token, bot, bot_username=bot_username,
         oauth_server=oauth_server,

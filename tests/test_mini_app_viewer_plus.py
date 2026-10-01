@@ -47,6 +47,46 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
             json={"init_data": signed_webapp(actor_id), **fields},
         )
 
+    async def test_selected_live_video_reports_capacity_photo_fallback(self):
+        now = time.time()
+        await self.db.issue_test_viewer_plus(
+            101, "video-status", starts_at=now - 5, expires_at=now + 600,
+            issued_by=OWNER_ID, now=now,
+        )
+        await self.db.replace_video_selection(101, [("1001", "alpha")], expected_version=0)
+        await self.db.set_live_state(
+            101, "alpha", True, "live-1", 700, "Title",
+            broadcaster_id="1001", last_seen_live_at=now,
+        )
+        self.server.set_preview_observer(SimpleNamespace(
+            photo_delivery_status=lambda login: "limited" if login == "alpha" else "unknown",
+        ))
+        async with self.request("/app/api/viewer/state") as response:
+            self.assertEqual(response.status, 200)
+            row = (await response.json())["subscriptions"][0]
+            self.assertEqual(row["video_delivery_status"], "limited")
+
+    async def test_video_status_uses_confirmed_media_kind_after_delivery_and_revoke(self):
+        now = time.time()
+        grant_id = await self.db.issue_test_viewer_plus(
+            101, "video-delivered", starts_at=now - 5, expires_at=now + 600,
+            issued_by=OWNER_ID, now=now,
+        )
+        await self.db.replace_video_selection(101, [("1001", "alpha")], expected_version=0)
+        await self.db.set_live_state(
+            101, "alpha", True, "live-1", 700, "Title",
+            broadcaster_id="1001", last_seen_live_at=now,
+        )
+        await self.db.set_live_message_kind_if_current(
+            101, "alpha", "live-1", 700, "animation", False,
+        )
+        self.server.set_preview_observer(SimpleNamespace(photo_delivery_status=lambda login: "preparing"))
+        async with self.request("/app/api/viewer/state") as response:
+            self.assertEqual((await response.json())["subscriptions"][0]["video_delivery_status"], "video")
+        await self.db.revoke_test_viewer_plus(grant_id, revoked_at=time.time(), issued_by=OWNER_ID)
+        async with self.request("/app/api/viewer/state") as response:
+            self.assertEqual((await response.json())["subscriptions"][0]["video_delivery_status"], "returning_photo")
+
     async def test_filter_save_requires_current_viewer_plus_and_owned_subscription(self):
         rule = dict(login="alpha", expected_version=0, games=["Minecraft"],
                     title_keywords=["speedrun"], exclude_keywords=[])

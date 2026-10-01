@@ -55,9 +55,28 @@ def install_mini_app_viewer_routes(
     bot_token: str,
     capabilities: CapabilityService,
     twitch,
+    *, preview_status_provider=None,
 ) -> None:
     search_times: dict[int, deque[float]] = {}
     category_store = CategoryAlertStore(db, poll_interval=60)
+
+    async def video_delivery_status(
+        user_id: int, login: str, *, is_live: bool, effective: bool,
+    ) -> str:
+        if not is_live:
+            return "offline"
+        post = await db.get_live_post_state(user_id, login)
+        if post is not None and post.media_transition_pending:
+            return "unknown"
+        if post is not None and post.message_kind == "animation":
+            return "video" if effective else "returning_photo"
+        if not effective:
+            return "photo"
+        try:
+            status = preview_status_provider(login) if preview_status_provider else "unknown"
+        except Exception:
+            return "unknown"
+        return status if status in {"limited", "unavailable", "preparing"} else "unknown"
 
     async def read(request: web.Request) -> tuple[int | None, dict[str, object] | None, web.Response | None]:
         user_id, values, status = await verified_payload(request, bot_token)
@@ -91,6 +110,10 @@ def install_mini_app_viewer_routes(
                 "paused_by_plan": paused_by_plan,
                 "video_selected": login in video.selected_logins,
                 "video_effective": login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids,
+                "video_delivery_status": await video_delivery_status(
+                    user_id, login, is_live=is_live,
+                    effective=(login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids),
+                ),
                 "is_live": is_live,
                 "status": (
                     "live" if is_live and observed_at is not None and now - observed_at <= 300

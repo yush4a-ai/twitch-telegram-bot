@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import signal
 import tempfile
 import time
@@ -74,6 +75,13 @@ async def main() -> None:
             501, "browser-plus-fixture", starts_at=now - 5,
             expires_at=now + 3600, issued_by=425785231, now=now,
         )
+        preview_status = os.getenv("MINI_APP_QA_PREVIEW_STATUS", "")
+        if preview_status:
+            await db.replace_video_selection(501, [("1000", "alpha")], expected_version=0)
+            await db.set_live_state(
+                501, "alpha", True, "fixture-live", 701, "Тестовый эфир",
+                broadcaster_id="1000", last_seen_live_at=now,
+            )
         await db.link_streamer_identity(601, "2001", "alpha", verified_at=now)
         await db.link_streamer_identity(603, "2003", "beta", verified_at=now)
         await db.link_streamer_identity(604, "2004", "gamma", verified_at=now)
@@ -94,6 +102,10 @@ async def main() -> None:
             app, db, "123456:test-telegram-token", bot=bot,
             twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
             billing_test_enabled=True, billing_test_user_ids=frozenset({501, 603, 605}),
+            preview_status_provider=(
+                (lambda login: preview_status if login == "alpha" else "unknown")
+                if preview_status else None
+            ),
         )
 
         async def complete_fixture_community(request):

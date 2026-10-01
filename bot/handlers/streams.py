@@ -288,18 +288,6 @@ def _channel_card_keyboard(
             )
         ]
     ]
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text=(
-                    "🎞 Живое превью: ✅ вкл"
-                    if preview_enabled
-                    else "🎞 Живое превью: ❌ выкл"
-                ),
-                callback_data=f"togglepreview:{target_chat_id}:{login}",
-            )
-        ]
-    )
     if is_telegram_channel:
         rows.append(
             [
@@ -1745,14 +1733,8 @@ async def cb_toggle_preview(callback: CallbackQuery, db: Database) -> None:
         )
         return
 
-    currently_enabled = await db.get_preview_enabled(target_chat_id, login)
-    await db.set_preview_enabled(target_chat_id, login, not currently_enabled)
-
-    await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
-        "Живое превью выключено"
-        if currently_enabled
-        else "Живое превью включено"
+        "Настройте видеопревью в приложении бота.", show_alert=True,
     )
 
 

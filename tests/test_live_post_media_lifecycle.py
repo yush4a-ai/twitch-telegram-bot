@@ -5,6 +5,7 @@ import importlib
 import os
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -190,8 +191,17 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
             701,
             "Title",
             stream_started_at="2026-01-01T00:00:00Z",
+            broadcaster_id="1001",
         )
         await self.db.set_preview_enabled(101, "channel", True)
+        now = time.time()
+        await self.db.issue_test_viewer_plus(
+            101, "lifecycle-viewer", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
+        )
+        await self.db.replace_video_selection(
+            101, [("1001", "channel")], expected_version=0,
+        )
         self.keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -852,7 +862,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_preview_disabled_blocks_conversion_but_not_existing_video_caption(self) -> None:
         updater = self._updater()
-        await self.db.set_preview_enabled(101, "channel", False)
+        await self.db.replace_video_selection(101, [], expected_version=1)
 
         blocked = await updater.apply_animation(
             target=self._target(),
@@ -873,7 +883,7 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_preview_is_rechecked_after_fresh_content_before_media_request(self) -> None:
         async def disable_during_content_build():
-            await self.db.set_preview_enabled(101, "channel", False)
+            await self.db.replace_video_selection(101, [], expected_version=1)
             return self._content()
 
         result = await self._updater().apply_animation(
@@ -959,8 +969,14 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_different_message_ids_run_in_parallel_and_registry_cleans_up(self) -> None:
         await self.db.add_channel(202, "other")
-        await self.db.set_live_state(202, "other", True, "logical-2", 702)
+        await self.db.set_live_state(202, "other", True, "logical-2", 702, broadcaster_id="1002")
         await self.db.set_preview_enabled(202, "other", True)
+        now = time.time()
+        await self.db.issue_test_viewer_plus(
+            202, "lifecycle-other", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
+        )
+        await self.db.replace_video_selection(202, [("1002", "other")], expected_version=0)
         updater = self._updater()
         both_entered = asyncio.Event()
         release = asyncio.Event()

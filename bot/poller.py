@@ -48,6 +48,7 @@ from .notification_worker import (
 )
 from .viewer_filter import matches_viewer_filter
 from .streamer_post import compose_streamer_post
+from .telegram_send_budget import TelegramSendBudget
 
 logger = logging.getLogger(__name__)
 
@@ -379,6 +380,7 @@ class StreamPoller:
         notification_queue_enabled: bool = False,
         viewer_filters_enabled: bool = False,
         bot_username: str = TELEGRAM_BOT_USERNAME,
+        telegram_send_budget: TelegramSendBudget | None = None,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -410,6 +412,8 @@ class StreamPoller:
         self._notification_queue_enabled = notification_queue_enabled
         self._viewer_filters_enabled = viewer_filters_enabled
         self._bot_username = bot_username
+        self._telegram_send_budget = telegram_send_budget
+        self._paused_media_cleanup_task: asyncio.Task | None = None
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -911,7 +915,19 @@ class StreamPoller:
     ) -> None:
         # три запроса на весь круг вместо нескольких на каждую пару «канал × чат»
         chats_by_login, states = await self._db.snapshot_tracked_state()
-        if not chats_by_login:
+        media_candidates = await self._db.list_private_media_cleanup_candidates()
+        paused_media = [
+            candidate for candidate in media_candidates
+            if (
+                candidate[0] not in chats_by_login.get(candidate[1], ())
+                or not states.get((candidate[0], candidate[1]), (False,) * 10)[9]
+            )
+        ]
+        logins = list(dict.fromkeys([
+            *chats_by_login,
+            *(login for _chat_id, login, _stream_id, _message_id in paused_media),
+        ]))
+        if not logins:
             self._publish_preview_observations(())
             return
         queued_starts = (
@@ -920,13 +936,12 @@ class StreamPoller:
         )
         telegram_channel_ids = await self._db.telegram_channel_ids()
         last_stream_ends = await self._db.snapshot_last_stream_ends()
-        logins = list(chats_by_login)
         live_streams = await self._twitch.get_live_streams(logins)
         now = time.time()
         follower_snapshot_cache: dict[str, int | None] = {}
 
         for login in logins:
-            chat_ids = chats_by_login[login]
+            chat_ids = chats_by_login.get(login, ())
             stream = live_streams.get(login)
             if stream is None:
                 self._thumbnail_refresh.pop(login, None)
@@ -1061,6 +1076,11 @@ class StreamPoller:
                         self._chat_listener.start(login)
 
                     game_name = stream.game_name or None
+                    photo_fallback_due = bool(
+                        chat_id > 0 and last_message_id is not None
+                        and thumbnail_url is not None
+                        and await self._photo_fallback_due(chat_id, login)
+                    )
                     # прошлый стрим ещё не попал в историю (она пишется при завершении),
                     # поэтому пометку можно пересчитывать на каждой итерации — она
                     # остаётся стабильной до конца текущего эфира
@@ -1097,9 +1117,9 @@ class StreamPoller:
                                 message_kind = last_message_kind
                                 if (
                                     chat_id > 0
-                                    and thumbnail_refresh_due
+                                    and (thumbnail_refresh_due or photo_fallback_due)
                                     and thumbnail_url is not None
-                                    and message_kind not in {"video", "animation"}
+                                    and message_kind != "video"
                                 ):
                                     thumbnail_attempted = True
                                     photo_result = await self._refresh_thumbnail(
@@ -1328,8 +1348,8 @@ class StreamPoller:
                     ):
                         media_url = (
                             thumbnail_url
-                            if chat_id > 0 and thumbnail_refresh_due
-                            and message_kind not in {"video", "animation"}
+                            if chat_id > 0 and (thumbnail_refresh_due or photo_fallback_due)
+                            and message_kind != "video"
                             else None
                         )
                         if media_url is not None:
@@ -1397,6 +1417,18 @@ class StreamPoller:
                 and thumbnail_attempted
             ):
                 self._thumbnail_refresh[login] = (stream.stream_id, now)
+
+        if paused_media and (
+            self._paused_media_cleanup_task is None
+            or self._paused_media_cleanup_task.done()
+        ):
+            cleanup = asyncio.create_task(
+                self._restore_paused_media(paused_media, live_streams, now),
+                name="paused-media-cleanup",
+            )
+            self._paused_media_cleanup_task = cleanup
+            self._background_tasks.add(cleanup)
+            cleanup.add_done_callback(self._background_tasks.discard)
 
         self._publish_preview_observations(
             tuple(
@@ -2354,6 +2386,7 @@ class StreamPoller:
              if row[0] == job.twitch_login),
             None,
         )
+
         if current is None:
             return NotificationOutcome.STALE
         _login, title, viewers, game_name = current
@@ -2390,6 +2423,40 @@ class StreamPoller:
                 logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
             return NotificationOutcome.STALE
         return NotificationOutcome.SENT
+
+    async def _restore_paused_media(
+        self,
+        candidates: list[tuple[int, str, str, int]],
+        live_streams: dict[str, StreamInfo],
+        now: float,
+    ) -> None:
+        for chat_id, login, logical_stream_id, message_id in candidates:
+            try:
+                stream = live_streams.get(login)
+                if stream is None or not await self._photo_fallback_due(chat_id, login):
+                    continue
+                photo_url = stream_thumbnail.build_url(
+                    stream.thumbnail_url, int(now // stream_thumbnail.REFRESH_SECONDS),
+                )
+                if photo_url is None:
+                    continue
+                if self._telegram_send_budget is not None:
+                    await self._telegram_send_budget.wait_turn(normal=False)
+                result = await self._refresh_thumbnail(
+                    chat_id, message_id, login, logical_stream_id,
+                    stream.title or "(без названия)", stream.viewer_count,
+                    stream.game_name or None, None, photo_url,
+                )
+                if (
+                    result.status is LivePostMediaStatus.RETRY_LATER
+                    and result.retry_after is not None
+                    and self._telegram_send_budget is not None
+                ):
+                    self._telegram_send_budget.defer_preview(result.retry_after)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                logger.warning("Paused media cleanup пропущен: %s", type(error).__name__)
 
     async def _send_queued_category_change(self, job: NotificationJob) -> NotificationOutcome:
         if job.chat_id <= 0 or not job.category_transition_id or self._category_alert_store is None:
@@ -2472,7 +2539,7 @@ class StreamPoller:
             )
         if result is not LivePostUpdateResult.UPDATED:
             raise NotificationTerminalError("queued live edit rejected")
-        if job.chat_id > 0 and job.media_url and state.message_kind not in {"video", "animation"}:
+        if job.chat_id > 0 and job.media_url and state.message_kind != "video":
             media_result = await self._refresh_thumbnail(
                 job.chat_id, state.message_id, job.twitch_login,
                 job.logical_stream_id, title, viewers, game_name,
@@ -2647,25 +2714,68 @@ class StreamPoller:
         *, propagate_retry_after: bool = False,
         require_live: bool | None = None,
     ):
+        target = LivePostTarget(
+            chat_id=chat_id,
+            twitch_login=login,
+            logical_stream_id=logical_stream_id,
+            message_id=message_id,
+        )
+        content = lambda: self._live_post_content(
+            login,
+            title,
+            game_name,
+            viewer_count,
+            return_note,
+            include_track_link=False,
+            private_chat=True,
+        )
+        state = await self._db.get_live_post_state(chat_id, login)
+        if state is not None and (
+            state.message_kind == "animation"
+            or (
+                state.message_kind == "photo"
+                and state.media_transition_pending
+                and state.media_transition_target_kind == "animation"
+            )
+        ):
+            observer = self._preview_observer
+            capacity_fallback = bool(
+                observer is not None
+                and hasattr(observer, "photo_fallback_needed")
+                and observer.photo_fallback_needed(login)
+            )
+            return await self._live_post_updater.restore_photo(
+                target=target, photo_url=image_url, build_content=content,
+                allow_active_video_fallback=capacity_fallback,
+                propagate_retry_after=propagate_retry_after,
+            )
         return await self._live_post_updater.apply_photo(
-            target=LivePostTarget(
-                chat_id=chat_id,
-                twitch_login=login,
-                logical_stream_id=logical_stream_id,
-                message_id=message_id,
-            ),
+            target=target,
             photo_url=image_url,
-            build_content=lambda: self._live_post_content(
-                login,
-                title,
-                game_name,
-                viewer_count,
-                return_note,
-                include_track_link=False,
-                private_chat=True,
-            ),
+            build_content=content,
             propagate_retry_after=propagate_retry_after,
             require_live=require_live,
+        )
+
+    async def _photo_fallback_due(self, chat_id: int, login: str) -> bool:
+        state = await self._db.get_live_post_state(chat_id, login)
+        if state is None or not (
+            state.message_kind == "animation"
+            or (
+                state.message_kind == "photo"
+                and state.media_transition_pending
+                and state.media_transition_target_kind == "animation"
+            )
+        ):
+            return False
+        destination = await self._db.get_preview_destination_state(chat_id, login)
+        if destination is None or not destination.preview_enabled or not destination.notify_enabled:
+            return True
+        observer = self._preview_observer
+        return bool(
+            observer is not None
+            and hasattr(observer, "photo_fallback_needed")
+            and observer.photo_fallback_needed(login)
         )
 
     async def _edit(
