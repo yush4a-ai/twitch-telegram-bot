@@ -52,8 +52,8 @@
 
 **Interfaces:** `Database.growth_funnel_snapshot()` returns fixed source buckets `{source,touched,activated,ever_test_plus}` without IDs; `AdminSnapshot.collect()` adds `growth` or null on isolated DB error.
 
-- [ ] RED: site/referral cohorts, activated subset, Viewer and Streamer test grants, revoke/expiry, repeated grant, zero rows, no IDs/codes and current-identity caveat; confirm failure.
-- [ ] GREEN: single bounded aggregate SQL/query and owner snapshot; render read-only funnel card with textContent and empty/unavailable states. Focused DB/admin tests and JS syntax pass. Commit this packet.
+- [x] RED: `tests/test_growth_funnel.py` дал 5 ожидаемых failure: fixed cohorts, Viewer/Streamer test grants, revoke/expiry, repeated grant, current identity, owner snapshot и markup.
+- [x] GREEN: bounded aggregate SQL с индексом test grants и owner snapshot; read-only table пишет только textContent. DB/admin/auth suite 22 passed, 3 subtests; полный R8-focused suite до UI cleanup 47 passed, 17 subtests; `node --check` прошёл. Commit пакета.
 
 ## Task 4: Surface brief, content map и два визуальных варианта
 

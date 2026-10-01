@@ -118,7 +118,7 @@ class AdminSnapshot:
         else:
             preview_state = "ok"
 
-        audience = live = queues = None
+        audience = live = queues = growth = None
         database_failed = False
         try:
             audience = await asyncio.wait_for(self._db.get_bot_stats(), 2.0)
@@ -130,6 +130,10 @@ class AdminSnapshot:
             database_failed = True
         try:
             queues = await asyncio.wait_for(self._db.health_snapshot(now), 2.0)
+        except Exception:
+            database_failed = True
+        try:
+            growth = await asyncio.wait_for(self._db.growth_funnel_snapshot(), 2.0)
         except Exception:
             database_failed = True
 
@@ -169,6 +173,7 @@ class AdminSnapshot:
             "audience": audience,
             "live": live,
             "queues": queues,
+            "growth": growth,
             "errors": {
                 "poller": _error_class(poller.get("last_cycle_error")),
                 "eventsub": _error_class(eventsub.get("last_error")),

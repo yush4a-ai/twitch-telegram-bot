@@ -53,6 +53,10 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.db.get_bot_stats = AsyncMock(return_value={"private_users": 3, "groups": 2, "tracked_channels": 4, "unique_twitch_channels": 2, "live_now": 2})
         self.db.get_admin_live_streams = AsyncMock(return_value=[{"login": "alpha", "destinations": 2, "viewers": 42, "observed_at": 101.0}])
         self.db.health_snapshot = AsyncMock(return_value={"pending_deliveries": 1, "oldest_pending_age_seconds": 12.0, "deferred_reports": 0, "oldest_deferred_age_seconds": None, "db_file_bytes": 8192, "wal_file_bytes": 0})
+        self.db.growth_funnel_snapshot = AsyncMock(return_value=[
+            {"source": "site", "touched": 0, "activated": 0, "ever_test_plus": 0},
+            {"source": "referral", "touched": 0, "activated": 0, "ever_test_plus": 0},
+        ])
         self.poller = Mock(health_snapshot=Mock(return_value={"running": True, "stopping": False, "last_successful_cycle_age_seconds": 2.0, "stale_after_seconds": 180.0, "last_cycle_duration_seconds": 0.8, "last_cycle_error": None}))
         self.eventsub = Mock(health_snapshot=Mock(return_value={"running": True, "configured_logins": 1, "ready_logins": 1, "last_error": None}))
         self.tokens = Mock(health_snapshot=Mock(return_value={"auth_blocked_logins": 0}))
@@ -132,6 +136,19 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result["audience"])
         self.assertIsNone(result["live"])
         self.assertIsNone(result["queues"])
+        self.assertEqual(result["errors"]["database"], "unavailable")
+        self.assertNotIn("secret", str(result))
+
+    async def test_growth_failure_is_isolated_and_sanitized(self):
+        self.db.growth_funnel_snapshot = AsyncMock(return_value=[
+            {"source": "site", "touched": 2, "activated": 1, "ever_test_plus": 0}
+        ])
+        result = await self.build().collect()
+        self.assertEqual(result["growth"][0]["touched"], 2)
+        self.db.growth_funnel_snapshot.side_effect = RuntimeError("secret /data/bot.db")
+        result = await self.build().collect()
+        self.assertIsNone(result["growth"])
+        self.assertEqual(result["telegram"]["state"], "ok")
         self.assertEqual(result["errors"]["database"], "unavailable")
         self.assertNotIn("secret", str(result))
 

@@ -647,6 +647,10 @@ class Database:
             "ON growth_attributions(source_kind,activated_at)"
         )
         await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_growth_test_grant "
+            "ON entitlement_grants(subject_kind,subject_id,plan,source,created_at)"
+        )
+        await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('r8_001_growth_attribution',?)", (time.time(),)
         )
@@ -1873,6 +1877,32 @@ class Database:
         )
         await self.conn.commit()
         return cursor.rowcount == 1
+
+    async def growth_funnel_snapshot(self) -> list[dict[str, int | str]]:
+        cursor = await self.conn.execute(
+            "WITH sources(source) AS (VALUES ('site'), ('referral')) "
+            "SELECT s.source, COUNT(a.telegram_user_id), COUNT(a.activated_at), "
+            "COALESCE(SUM(CASE WHEN a.activated_at IS NOT NULL AND ("
+            "EXISTS (SELECT 1 FROM entitlement_grants g "
+            "WHERE g.subject_kind='viewer' "
+            "AND g.subject_id=CAST(a.telegram_user_id AS TEXT) "
+            "AND g.plan='viewer_plus' AND g.source='test' "
+            "AND g.created_at>=a.activated_at) "
+            "OR EXISTS (SELECT 1 FROM streamer_identities i "
+            "JOIN entitlement_grants g ON g.subject_kind='streamer' "
+            "AND g.subject_id=i.broadcaster_id "
+            "AND g.plan='streamer_plus' AND g.source='test' "
+            "AND g.created_at>=a.activated_at "
+            "WHERE i.telegram_user_id=a.telegram_user_id)) "
+            "THEN 1 ELSE 0 END),0) "
+            "FROM sources s LEFT JOIN growth_attributions a ON a.source_kind=s.source "
+            "GROUP BY s.source ORDER BY CASE s.source WHEN 'site' THEN 0 ELSE 1 END"
+        )
+        return [
+            {"source": row[0], "touched": row[1], "activated": row[2],
+             "ever_test_plus": row[3]}
+            for row in await cursor.fetchall()
+        ]
 
     async def _mark_growth_activation(self, chat_id: int) -> None:
         if chat_id > 0:

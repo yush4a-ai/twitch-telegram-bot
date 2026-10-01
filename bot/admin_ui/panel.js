@@ -44,6 +44,29 @@ function renderLive(rows) {
     list.append(tr);
   }
 }
+function renderGrowth(rows) {
+  const list = $('growth-list');
+  list.replaceChildren();
+  if (rows === null || rows === undefined || !rows.length) {
+    const tr = document.createElement('tr'); tr.className = 'empty-row';
+    const td = document.createElement('td'); td.colSpan = 4;
+    td.textContent = rows === null || rows === undefined ? 'Данные временно недоступны' : 'Источники пока не зафиксированы';
+    tr.append(td); list.append(tr); return;
+  }
+  for (const row of rows) {
+    const tr = document.createElement('tr');
+    const source = row.source === 'site' ? 'Сайт' : row.source === 'referral' ? 'Приглашения' : 'Неизвестно';
+    for (const [label, content] of [
+      ['Источник', source], ['Открыли бота', value(row.touched)],
+      ['Добавили канал', value(row.activated)],
+      ['Получали тестовый Plus', value(row.ever_test_plus)]
+    ]) {
+      const td = document.createElement('td');
+      td.dataset.label = label; td.textContent = content; tr.append(td);
+    }
+    list.append(tr);
+  }
+}
 function render(data) {
   put('environment',(data.environment || 'staging').toUpperCase());
   state('telegram-state',data.telegram?.state);
@@ -61,6 +84,7 @@ function render(data) {
   put('stat-groups',value(data.audience?.groups));
   put('stat-tracked',value(data.audience?.tracked_channels));
   put('stat-channels',value(data.audience?.unique_twitch_channels));
+  renderGrowth(data.growth);
   renderLive(data.live);
   put('live-queue-pending',value(data.queues?.pending_jobs));
   put('live-queue-leased',value(data.queues?.leased_jobs));
