@@ -11,6 +11,7 @@ from aiogram.types import KeyboardButton, KeyboardButtonRequestChat
 
 from .database import Database
 from .mini_app_auth import verified_payload
+from .mini_app_streamer_plus import install_mini_app_streamer_plus_routes
 from .streamer_community import verify_community_permission
 
 
@@ -246,3 +247,6 @@ def install_mini_app_streamer_routes(
     app.router.add_post("/app/api/streamer/community-intent/cancel", cancel_community_intent)
     app.router.add_post("/app/api/streamer/communities", communities)
     app.router.add_post("/app/api/streamer/communities/toggle", toggle_community)
+    install_mini_app_streamer_plus_routes(
+        app, db, bot_token, bot, bot_username=bot_username,
+    )

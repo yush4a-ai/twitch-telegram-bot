@@ -2583,10 +2583,13 @@ class StreamPoller:
                 include_video_submission_link=include_video_submission_link,
             )
         keyboard = await self._build_keyboard(login)
-        content = await self._with_streamer_template(
-            chat_id, login, LivePostContent(html=text, reply_markup=keyboard),
-        )
-        send = lambda: self._bot.send_message(
+        base_content = LivePostContent(html=text, reply_markup=keyboard)
+
+        async def send():
+            # Queue/rate-limit waits can outlive a Plus grant. Resolve the current
+            # template at the actual Telegram dispatch boundary.
+            content = await self._with_streamer_template(chat_id, login, base_content)
+            return await self._bot.send_message(
                 chat_id,
                 content.html,
                 reply_markup=content.reply_markup,

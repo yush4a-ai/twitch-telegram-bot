@@ -308,6 +308,16 @@ class LivePostUpdater:
         build_content: ContentFactory,
     ) -> LivePostMediaResult:
         db = self._require_db()
+
+        async def effective_media_enabled() -> bool:
+            destination = await db.get_preview_destination_state(
+                target.chat_id, target.twitch_login,
+            )
+            return bool(
+                destination is not None and destination.preview_enabled
+                and destination.notify_enabled and destination.is_live
+            )
+
         async with self.serialized(target.chat_id, target.message_id):
             state = await db.get_live_post_state(
                 target.chat_id, target.twitch_login
@@ -315,6 +325,8 @@ class LivePostUpdater:
             if not self._is_current(state, target):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
             if not self._media_enabled(state):
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
+            if not await effective_media_enabled():
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if not await self._guard_is_current(is_current_physical_stream):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
@@ -329,6 +341,8 @@ class LivePostUpdater:
             if not self._is_current(state, target):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
             if not self._media_enabled(state):
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
+            if not await effective_media_enabled():
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if not await self._guard_is_current(is_current_physical_stream):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
@@ -414,6 +428,10 @@ class LivePostUpdater:
                 height=480,
                 duration=math.ceil(duration_seconds),
             )
+            if not await effective_media_enabled():
+                if first_transition:
+                    await self._clear_pending(target)
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             try:
                 message = await self._bot.edit_message_media(
                     chat_id=target.chat_id,

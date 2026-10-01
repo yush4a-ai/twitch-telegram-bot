@@ -72,6 +72,14 @@ p { margin: 0; }
 .tokens { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 4px 3px 9px; border-radius: 8px; background: var(--soft); color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
 .chip .button { min-height: 32px; padding: 0 7px; font-size: 12px; }
+.post-community-select, .template-field { display: grid; gap: 7px; font-size: 14px; font-weight: 650; }
+.post-community-select { margin-bottom: 16px; }
+.post-preview-text { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--canvas); white-space: pre-wrap; overflow-wrap: anywhere; }
+.post-preview-buttons { display: grid; gap: 7px; }
+.post-preview-button { display: block; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--accent); text-align: center; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.template-form { display: grid; gap: 14px; }
+.template-form textarea.input { padding: 12px 14px; resize: vertical; }
+.template-form .button { justify-self: start; }
 .text-link { color: var(--accent); font-size: 14px; font-weight: 700; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 .tab-bar { position: fixed; z-index: 2; bottom: 0; left: 50%; display: flex; width: min(100%, 760px); transform: translateX(-50%); padding: 9px 12px calc(9px + var(--bottom-inset)); border-top: 1px solid var(--line); background: var(--surface); }

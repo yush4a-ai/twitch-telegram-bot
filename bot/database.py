@@ -169,6 +169,23 @@ class PreviewDestinationState:
     last_stream_ended_at: float | None
 
 
+# An old stored preview toggle is not an entitlement. Community animations need
+# the current grant and the broadcaster observed for this live post.
+_EFFECTIVE_PREVIEW_SQL = (
+    "tc.preview_enabled AND (tc.chat_id > 0 OR NOT EXISTS ("
+    "SELECT 1 FROM streamer_communities sc JOIN streamer_identities si "
+    "ON si.broadcaster_id=sc.broadcaster_id WHERE sc.chat_id=tc.chat_id "
+    "AND si.twitch_login=tc.twitch_login) OR EXISTS ("
+    "SELECT 1 FROM streamer_communities sc JOIN streamer_identities si "
+    "ON si.broadcaster_id=sc.broadcaster_id JOIN entitlement_grants g "
+    "ON g.subject_kind='streamer' AND g.subject_id=si.broadcaster_id "
+    "AND g.plan='streamer_plus' AND g.revoked_at IS NULL "
+    "AND g.starts_at<=? AND g.expires_at>? WHERE sc.chat_id=tc.chat_id "
+    "AND si.twitch_login=tc.twitch_login "
+    "AND si.broadcaster_id=tc.last_broadcaster_id))"
+)
+
+
 def _report_delivery_from_row(row: tuple) -> ReportDelivery:
     return ReportDelivery(
         source_chat_id=row[0],
@@ -3297,30 +3314,32 @@ class Database:
     async def list_preview_destination_states(
         self, twitch_login: str
     ) -> list[PreviewDestinationState]:
+        now = time.time()
         cursor = await self.conn.execute(
             "SELECT tc.chat_id, tc.twitch_login, tc.notify_enabled, "
-            "tc.preview_enabled, tc.is_live, tc.last_stream_id, "
+            f"{_EFFECTIVE_PREVIEW_SQL}, tc.is_live, tc.last_stream_id, "
             "tc.last_message_id, tc.last_message_kind, "
             "EXISTS(SELECT 1 FROM telegram_channels tgc "
             "WHERE tgc.chat_id = tc.chat_id), tc.last_stream_ended_at "
             "FROM tracked_channels tc WHERE tc.twitch_login = ? "
             "ORDER BY tc.chat_id",
-            (twitch_login,),
+            (now, now, twitch_login),
         )
         return [self._preview_destination_from_row(row) for row in await cursor.fetchall()]
 
     async def get_preview_destination_state(
         self, chat_id: int, twitch_login: str
     ) -> PreviewDestinationState | None:
+        now = time.time()
         cursor = await self.conn.execute(
             "SELECT tc.chat_id, tc.twitch_login, tc.notify_enabled, "
-            "tc.preview_enabled, tc.is_live, tc.last_stream_id, "
+            f"{_EFFECTIVE_PREVIEW_SQL}, tc.is_live, tc.last_stream_id, "
             "tc.last_message_id, tc.last_message_kind, "
             "EXISTS(SELECT 1 FROM telegram_channels tgc "
             "WHERE tgc.chat_id = tc.chat_id), tc.last_stream_ended_at "
             "FROM tracked_channels tc "
             "WHERE tc.chat_id = ? AND tc.twitch_login = ?",
-            (chat_id, twitch_login),
+            (now, now, chat_id, twitch_login),
         )
         row = await cursor.fetchone()
         return self._preview_destination_from_row(row) if row is not None else None

@@ -12,6 +12,13 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let communityIntent = '';
   let communityFallback = '';
   let statusTimer = null;
+  let selectedPostChat = null;
+  let postState = null;
+  let postLoading = false;
+  let postError = '';
+  let postFeedback = '';
+  let postDraft = null;
+  let postConflict = false;
   try {
     connectIntent = localStorage.getItem('ts-streamer-connect-intent') || '';
     communityIntent = localStorage.getItem('ts-streamer-community-intent') || '';
@@ -30,6 +37,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
     try {
       data = await api.post('/app/api/streamer/profile');
       error = '';
+      postState = null;
       if (data.connected) {
         connectIntent = ''; connectUrl = '';
         remember('ts-streamer-connect-intent', '');
@@ -176,6 +184,106 @@ export function createStreamerFeature(api, getRouter, telegram) {
       refresh();
     }
   }
+  const draftKey = (chatId) => `ts-streamer-template-${data.twitch_login}-${chatId}`;
+  function restoreDraft(chatId, saved) {
+    try {
+      const raw = localStorage.getItem(draftKey(chatId));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Number.isInteger(parsed.version) && typeof parsed.headline === 'string'
+            && typeof parsed.body === 'string' && Array.isArray(parsed.buttons)) {
+          return { version: parsed.version, headline: parsed.headline, body: parsed.body,
+            buttons: [0, 1].map((index) => ({
+              label: typeof parsed.buttons[index]?.label === 'string' ? parsed.buttons[index].label : '',
+              url: typeof parsed.buttons[index]?.url === 'string' ? parsed.buttons[index].url : '',
+            })) };
+        }
+      }
+    } catch {}
+    return { version: saved.version, headline: saved.headline, body: saved.body,
+      buttons: [0, 1].map((index) => saved.buttons[index] || { label: '', url: '' }) };
+  }
+  function rememberDraft(chatId) {
+    try { localStorage.setItem(draftKey(chatId), JSON.stringify(postDraft)); } catch {}
+  }
+  async function loadPostState(chatId) {
+    if (postLoading || !chatId) return;
+    postLoading = true; postError = ''; refresh();
+    try {
+      const [example, template] = await Promise.all([
+        api.post('/app/api/streamer/post-example', { chat_id: chatId }),
+        api.post('/app/api/streamer/template', { chat_id: chatId }),
+      ]);
+      let stats = null;
+      if (template.can_edit) {
+        try { stats = await api.post('/app/api/streamer/stats'); } catch { /* State still renders without statistics. */ }
+      }
+      if (selectedPostChat !== chatId) return;
+      postState = { chatId, example, template, stats };
+      postDraft = restoreDraft(chatId, template);
+    } catch (cause) {
+      postError = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
+        ? 'Доступ изменился. Вернитесь в приложение из чата бота и обновите страницу.'
+        : 'Не удалось загрузить пример. Проверьте связь и попробуйте снова.';
+    } finally { postLoading = false; refresh(); }
+  }
+  async function saveTemplate(chatId) {
+    if (!postDraft) return;
+    try {
+      const buttons = postDraft.buttons.filter((item) => item.label || item.url);
+      const saved = await api.post('/app/api/streamer/template', {
+        chat_id: chatId, version: postDraft.version,
+        headline: postDraft.headline, body: postDraft.body, buttons,
+      });
+      postDraft.version = saved.version;
+      try { localStorage.removeItem(draftKey(chatId)); } catch {}
+      postConflict = false;
+      postFeedback = 'Сохранено. Оформление применяется к постам при действующем Plus.';
+      postState = null;
+      void loadPostState(chatId);
+    } catch (cause) {
+      postConflict = cause instanceof ApiError && cause.status === 409;
+      postFeedback = cause instanceof ApiError && cause.status === 409
+        ? 'Оформление изменилось в другом окне. Ваш текст сохранён здесь; обновите версию перед повтором.'
+        : cause instanceof ApiError && cause.status === 403
+          ? 'Доступ к оформлению закончился. Черновик сохранён.'
+          : cause instanceof ApiError && cause.status === 400
+            ? 'Проверьте длину текста и адреса кнопок: нужен HTTPS-сайт.'
+            : 'Не удалось сохранить оформление. Черновик сохранён.';
+      refresh();
+      if (cause instanceof ApiError && cause.status === 403) void load();
+    }
+  }
+  async function refreshTemplateVersion(chatId) {
+    try {
+      const current = await api.post('/app/api/streamer/template', { chat_id: chatId });
+      if (!current.can_edit) {
+        postFeedback = 'Доступ к оформлению закончился. Черновик сохранён.';
+        void load(); return;
+      }
+      postDraft.version = current.version;
+      rememberDraft(chatId);
+      postConflict = false;
+      postFeedback = 'Актуальная версия загружена. Ваш текст сохранён; проверьте его и нажмите «Сохранить оформление».';
+    } catch {
+      postFeedback = 'Не удалось получить актуальную версию. Ваш текст сохранён.';
+    }
+    refresh();
+  }
+  async function setAnimation(chatId, enabled) {
+    try {
+      await api.post('/app/api/streamer/preview', { chat_id: chatId, enabled });
+      postFeedback = enabled ? 'Живое превью включено для этого сообщества.'
+        : 'Живое превью выключено.';
+      postState = null; void loadPostState(chatId);
+    } catch (cause) {
+      postFeedback = cause instanceof ApiError && cause.status === 403
+        ? 'Для живого превью нужен действующий Streamer Plus и права в сообществе.'
+        : 'Не удалось изменить превью. Попробуйте ещё раз.';
+      refresh();
+      if (cause instanceof ApiError && cause.status === 403) void load();
+    }
+  }
   function renderChannel(target) {
     heading(target, 'Мой канал', 'Twitch и сообщества Telegram в одном месте.');
     if (!data.connected) {
@@ -220,19 +328,109 @@ export function createStreamerFeature(api, getRouter, telegram) {
     }
   }
   function renderPosts(target) {
-    heading(target, 'Посты', 'Пример сообщения и подтверждённые публикации.');
+    heading(target, 'Посты', 'Оформление для ваших сообществ.');
     if (!data.connected) {
-      target.append(panel('Сначала подключите Twitch', 'После подключения здесь появится пример стандартного поста.'));
+      target.append(panel('Сначала подключите Twitch', 'После подключения и выбора сообщества здесь появится пример поста.'));
       return;
     }
+    if (!data.communities.length) {
+      target.append(panel('Выберите сообщество', 'Подключите группу или канал в разделе «Мой канал», чтобы увидеть пост.'));
+      target.append(action('Мой канал', () => getRouter().setTab('channel')));
+      return;
+    }
+    if (!data.communities.some((item) => item.chat_id === selectedPostChat)) {
+      selectedPostChat = data.communities[0].chat_id;
+      postState = null;
+    }
+    if (data.communities.length > 1) {
+      const field = element('label', 'post-community-select', 'Сообщество');
+      const select = element('select', 'input');
+      for (const community of data.communities) {
+        const option = element('option', '', community.title);
+        option.value = String(community.chat_id); select.append(option);
+      }
+      select.value = String(selectedPostChat);
+      select.addEventListener('change', () => {
+        selectedPostChat = Number(select.value); postState = null; postDraft = null;
+        postFeedback = ''; postConflict = false; void loadPostState(selectedPostChat);
+      });
+      field.append(select); target.append(field);
+    }
+    if (postError) {
+      const note = element('p', 'notice error', postError); note.setAttribute('role', 'alert');
+      target.append(note, action('Повторить', () => void loadPostState(selectedPostChat), true));
+    }
+    if (!postState || postState.chatId !== selectedPostChat) {
+      if (!postLoading && !postError) void loadPostState(selectedPostChat);
+      if (!postError) target.append(element('div', 'status-panel', 'Загружаем пример поста…'));
+      return;
+    }
+    const { example, template, stats } = postState;
+    const community = data.communities.find((item) => item.chat_id === selectedPostChat);
     const box = element('section', 'panel feature-panel');
-    box.append(element('h2', '', 'Обычный пост'));
-    box.append(element('p', 'muted', `${data.twitch_login} в эфире · категория · название трансляции · ссылка на Twitch`));
-    box.append(element('p', 'muted', 'Это локальный пример. Сообщение в Telegram не отправляется.'));
+    box.append(element('h2', '', `Пример · ${community.title}`));
+    box.append(element('p', 'muted', 'Локальный пример. Сообщение в Telegram не отправляется.'));
+    box.append(element('div', 'post-preview-text', example.text));
+    const buttons = element('div', 'post-preview-buttons');
+    for (const button of example.buttons) buttons.append(element('span', 'post-preview-button', button.label));
+    box.append(buttons);
+    box.append(element('small', 'muted', example.custom_active
+      ? 'Применено ваше оформление.' : 'Стандартное оформление.'));
     target.append(box);
-    target.append(panel('Подтверждённые публикации', data.communities.length
-      ? 'История появится после первой реальной публикации ботом.'
-      : 'Подключите сообщество, чтобы бот мог публиковать сообщения.'));
+    if (postFeedback) {
+      const note = element('p', 'notice', postFeedback);
+      note.setAttribute('role', 'status'); target.append(note);
+    }
+    if (postConflict) target.append(action('Обновить версию', () => void refreshTemplateVersion(selectedPostChat), true));
+    if (!template.can_edit) {
+      target.append(panel('Обычный пост доступен бесплатно', template.version
+        ? 'Ваше оформление сохранено и вернётся при действующем Streamer Plus.'
+        : 'Дополнительный текст, кнопки и живое превью доступны с Streamer Plus.'));
+      return;
+    }
+    const media = element('section', 'panel feature-panel');
+    media.append(element('h2', '', 'Живое превью'));
+    media.append(element('p', 'muted', 'Во время эфира бот обновляет короткое видео в посте.'));
+    const mediaLabel = element('label', 'switch-row');
+    const mediaSwitch = element('input'); mediaSwitch.type = 'checkbox';
+    mediaSwitch.checked = example.animation_enabled;
+    mediaSwitch.disabled = !community.publishing;
+    mediaSwitch.addEventListener('change', () => void setAnimation(selectedPostChat, mediaSwitch.checked));
+    mediaLabel.append(mediaSwitch, element('span', '', 'Включить для этого сообщества'));
+    media.append(mediaLabel);
+    if (!community.publishing) media.append(element('small', 'muted', 'Сначала включите публикации в разделе «Мой канал».'));
+    target.append(media);
+    renderTemplateEditor(target, selectedPostChat);
+    target.append(panel('Подтверждённые публикации за 30 дней', stats
+      ? `Бот подтвердил: ${stats.published_posts}. Просмотры Telegram не измеряются.`
+      : 'Статистика временно недоступна. Пример и оформление продолжают работать.'));
+  }
+  function renderTemplateEditor(target, chatId) {
+    if (!postDraft) return;
+    const box = element('section', 'panel feature-panel');
+    box.append(element('h2', '', 'Оформление поста'));
+    box.append(element('p', 'muted', 'Заголовок до 60 знаков, текст до 140, две HTTPS-кнопки.'));
+    const form = element('form', 'template-form');
+    const input = (label, value, max, update, multiline = false) => {
+      const field = element('label', 'template-field', label);
+      const control = element(multiline ? 'textarea' : 'input', 'input');
+      control.value = value; control.maxLength = max;
+      if (multiline) control.rows = 3;
+      control.addEventListener('input', () => { update(control.value); rememberDraft(chatId); });
+      field.append(control); return field;
+    };
+    form.append(input('Заголовок', postDraft.headline, 60, (value) => { postDraft.headline = value; }));
+    form.append(input('Текст', postDraft.body, 140, (value) => { postDraft.body = value; }, true));
+    for (let index = 0; index < 2; index++) {
+      form.append(input(`Кнопка ${index + 1} · название`, postDraft.buttons[index]?.label || '', 24,
+        (value) => { postDraft.buttons[index].label = value; }));
+      form.append(input(`Кнопка ${index + 1} · HTTPS-адрес`, postDraft.buttons[index]?.url || '', 512,
+        (value) => { postDraft.buttons[index].url = value; }));
+    }
+    const save = action('Сохранить оформление', () => {});
+    save.type = 'submit'; form.append(save);
+    form.addEventListener('submit', (event) => { event.preventDefault(); void saveTemplate(chatId); });
+    box.append(form); target.append(box);
   }
   function renderProfile(target) {
     heading(target, 'Профиль', 'Подключение и доступ стримера.');

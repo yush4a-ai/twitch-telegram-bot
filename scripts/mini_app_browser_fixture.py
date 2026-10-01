@@ -75,6 +75,16 @@ async def main() -> None:
             expires_at=now + 3600, issued_by=425785231, now=now,
         )
         await db.link_streamer_identity(601, "2001", "alpha", verified_at=now)
+        await db.link_streamer_identity(603, "2003", "beta", verified_at=now)
+        await db.link_streamer_identity(604, "2004", "gamma", verified_at=now)
+        await db.add_streamer_community(603, -1003, "Сообщество Plus", "supergroup", now=now)
+        await db.add_streamer_community(604, -1004, "Бесплатное сообщество", "supergroup", now=now)
+        await db.add_channel(-1003, "beta")
+        await db.add_channel(-1004, "gamma")
+        await db.issue_test_streamer_plus(
+            "2003", "browser-streamer-plus", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
+        )
         bot = FixtureBot()
         app = web.Application()
         install_mini_app_routes(
