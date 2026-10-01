@@ -73,6 +73,29 @@ async function profile(page) {
     await streamer.screenshot({ path: path.join(screenshotDir, 't11-768-streamer-dark.png'), fullPage: true });
     await streamer.close();
 
+    const upgrade = await open(browser, 605);
+    await upgrade.getByRole('button', { name: 'Стример', exact: true }).click();
+    await upgrade.locator('#tab-bar button').nth(1).click();
+    await upgrade.getByText('Обычный пост доступен бесплатно').waitFor();
+    if (await upgrade.getByLabel('Заголовок').count()) throw new Error('Free editor visible before grant');
+    await profile(upgrade);
+    await upgrade.getByRole('button', { name: 'Создать тестовый заказ' }).first().click();
+    await upgrade.getByRole('button', { name: 'Подтвердить тест' }).click();
+    await upgrade.getByText('Подтверждён', { exact: false }).waitFor();
+    await upgrade.evaluate(() => window.__back());
+    await upgrade.getByRole('heading', { name: 'Профиль' }).waitFor();
+    await upgrade.locator('#tab-bar button').nth(1).click();
+    await upgrade.getByLabel('Заголовок').waitFor();
+    await upgrade.getByLabel('Заголовок').fill('Черновик без перезапуска');
+    await upgrade.locator('#tab-bar button').nth(2).click();
+    await profile(upgrade);
+    await upgrade.evaluate(() => window.__back());
+    await upgrade.locator('#tab-bar button').nth(1).click();
+    if (await upgrade.getByLabel('Заголовок').inputValue() !== 'Черновик без перезапуска') throw new Error('Unsaved draft lost after subscription');
+    await noOverflow(upgrade);
+    await upgrade.screenshot({ path: path.join(screenshotDir, 't11-390-unlocked-draft-light.png'), fullPage: true });
+    await upgrade.close();
+
     const free = await open(browser, 604, 1440);
     await free.getByRole('button', { name: 'Стример', exact: true }).click();
     await profile(free);
@@ -89,6 +112,6 @@ async function profile(page) {
     await free.evaluate(() => window.__back());
     await free.getByRole('heading', { name: 'Профиль' }).waitFor();
     await free.close();
-    console.log(JSON.stringify({ result: 'PASS', testOrder: true, cancel: true, confirm: true, refund: true, freeGate: true, errorRecovery: true, back: true, screenshots: 5 }));
+    console.log(JSON.stringify({ result: 'PASS', testOrder: true, cancel: true, confirm: true, refund: true, freeGate: true, errorRecovery: true, unlockWithoutRestart: true, draftPreserved: true, back: true, screenshots: 6 }));
   } finally { await browser.close(); }
 })().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });

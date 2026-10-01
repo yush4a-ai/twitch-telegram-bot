@@ -77,10 +77,13 @@ async def main() -> None:
         await db.link_streamer_identity(601, "2001", "alpha", verified_at=now)
         await db.link_streamer_identity(603, "2003", "beta", verified_at=now)
         await db.link_streamer_identity(604, "2004", "gamma", verified_at=now)
+        await db.link_streamer_identity(605, "2005", "delta", verified_at=now)
         await db.add_streamer_community(603, -1003, "Сообщество Plus", "supergroup", now=now)
         await db.add_streamer_community(604, -1004, "Бесплатное сообщество", "supergroup", now=now)
+        await db.add_streamer_community(605, -1005, "Тестовое сообщество", "supergroup", now=now)
         await db.add_channel(-1003, "beta")
         await db.add_channel(-1004, "gamma")
+        await db.add_channel(-1005, "delta")
         await db.issue_test_streamer_plus(
             "2003", "browser-streamer-plus", starts_at=now - 5,
             expires_at=now + 3600, issued_by=425785231, now=now,
@@ -90,7 +93,7 @@ async def main() -> None:
         install_mini_app_routes(
             app, db, "123456:test-telegram-token", bot=bot,
             twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
-            billing_test_enabled=True, billing_test_user_ids=frozenset({501, 603}),
+            billing_test_enabled=True, billing_test_user_ids=frozenset({501, 603, 605}),
         )
 
         async def complete_fixture_community(request):
