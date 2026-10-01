@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
 
-from .billing_models import BillingOrder
+from .billing_models import BillingOrder, PaymentRecord
+from .billing_provider import VerifiedPaymentEvent
 from .streamer_template import StreamerTemplate, validate_streamer_template
 
 if TYPE_CHECKING:
@@ -848,6 +849,11 @@ class Database:
             "ON billing_audit(order_id,id)"
         )
         await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS billing_refund_requests ("
+            "request_key TEXT PRIMARY KEY, order_id TEXT NOT NULL, "
+            "reference TEXT NOT NULL, requested_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
             "VALUES ('r5_001_billing_ledger', ?)", (time.time(),)
         )
@@ -867,6 +873,22 @@ class Database:
             "SELECT * FROM billing_orders WHERE request_key = ?", (request_key,),
         )
         return self._billing_order_from_row(await cursor.fetchone())
+
+    async def get_billing_payment(self, order_id: str) -> PaymentRecord | None:
+        cursor = await self.conn.execute(
+            "SELECT provider,payment_id,order_id,status,units,currency,captured_at,refunded_at "
+            "FROM billing_payments WHERE order_id = ? LIMIT 1", (order_id,),
+        )
+        row = await cursor.fetchone()
+        return PaymentRecord(*row) if row is not None else None
+
+    async def get_billing_refund_request(self, request_key: str) -> tuple[str, str] | None:
+        cursor = await self.conn.execute(
+            "SELECT order_id,reference FROM billing_refund_requests WHERE request_key = ?",
+            (request_key,),
+        )
+        row = await cursor.fetchone()
+        return (row[0], row[1]) if row is not None else None
 
     @_serialized
     async def create_billing_order(
@@ -979,6 +1001,164 @@ class Database:
         )
         await self.conn.commit()
         return len(order_ids)
+
+    @_serialized
+    async def save_billing_refund_request(
+        self, order_id: str, request_key: str, reference: str, *, now: float,
+    ) -> str:
+        if (
+            not isinstance(request_key, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_key) is None
+            or not isinstance(reference, str) or not 1 <= len(reference) <= 256
+            or not isinstance(now, (int, float)) or not math.isfinite(now)
+        ):
+            raise ValueError("invalid refund request")
+        existing = await self.get_billing_refund_request(request_key)
+        if existing is not None:
+            if existing[0] != order_id:
+                raise ValueError("refund request key conflict")
+            return existing[1]
+        order = await self.get_billing_order(order_id)
+        if order is None or order.status != "paid":
+            raise ValueError("only paid orders can request a refund")
+        await self.conn.execute(
+            "INSERT INTO billing_refund_requests(request_key,order_id,reference,requested_at) "
+            "VALUES (?,?,?,?)", (request_key, order_id, reference, now),
+        )
+        await self.conn.execute(
+            "INSERT INTO billing_audit(order_id,action,happened_at) "
+            "VALUES (?,'refund_requested',?)", (order_id, now),
+        )
+        await self.conn.commit()
+        return reference
+
+    @_serialized
+    async def apply_verified_billing_event(
+        self, event: VerifiedPaymentEvent, body_sha256: str, *, now: float,
+    ) -> str:
+        if (
+            not isinstance(event, VerifiedPaymentEvent)
+            or not isinstance(body_sha256, str)
+            or re.fullmatch(r"[0-9a-f]{64}", body_sha256) is None
+            or not isinstance(now, (int, float)) or not math.isfinite(now)
+        ):
+            raise ValueError("invalid verified billing event")
+        cursor = await self.conn.execute(
+            "SELECT body_sha256,result_status FROM billing_webhook_events "
+            "WHERE provider = ? AND event_id = ?",
+            (event.provider, event.event_id),
+        )
+        previous = await cursor.fetchone()
+        if previous is not None:
+            if previous[0] != body_sha256:
+                raise ValueError("billing event ID conflicts with existing body")
+            return previous[1]
+        order = await self.get_billing_order(event.order_id)
+        if (
+            order is None or order.provider != event.provider
+            or order.units != event.units or order.currency != event.currency
+        ):
+            raise ValueError("billing event does not match an order")
+        if now < order.created_at:
+            raise ValueError("billing event predates its order")
+        payment = await self.get_billing_payment(order.order_id)
+        if event.event_type == "captured":
+            if order.status == "paid":
+                if payment is None or payment.payment_id != event.payment_id or payment.status != "captured":
+                    raise ValueError("capture conflicts with paid order")
+                if now < payment.captured_at:
+                    raise ValueError("capture replay predates original capture")
+            elif (
+                order.status != "pending" or order.checkout_reference is None
+                or now >= order.checkout_expires_at
+            ):
+                raise ValueError("capture arrived after checkout closed")
+            else:
+                cursor = await self.conn.execute(
+                    "SELECT order_id FROM billing_payments "
+                    "WHERE provider = ? AND payment_id = ?",
+                    (event.provider, event.payment_id),
+                )
+                if await cursor.fetchone() is not None:
+                    raise ValueError("provider payment ID already belongs to another order")
+                grant_id = uuid.uuid4().hex
+                await self.conn.execute(
+                    "INSERT INTO billing_payments "
+                    "(provider,payment_id,order_id,status,units,currency,captured_at) "
+                    "VALUES (?,?,?,'captured',?,?,?)",
+                    (event.provider, event.payment_id, order.order_id,
+                     event.units, event.currency, now),
+                )
+                await self.conn.execute(
+                    "INSERT INTO entitlement_grants "
+                    "(grant_id,request_key,subject_kind,subject_id,plan,source,"
+                    "starts_at,expires_at,issued_by,created_at) "
+                    "VALUES (?,?,'streamer',?,'streamer_plus','mock',?,?,0,?)",
+                    (grant_id, "mock-order:" + order.order_id, order.broadcaster_id,
+                     now, now + order.duration_seconds, now),
+                )
+                await self.conn.execute(
+                    "INSERT INTO entitlement_events "
+                    "(grant_id,action,actor_telegram_id,happened_at) "
+                    "VALUES (?,'grant',0,?)", (grant_id, now),
+                )
+                await self.conn.execute(
+                    "UPDATE billing_orders SET status='paid', paid_at=?, grant_id=? "
+                    "WHERE order_id=? AND status='pending'",
+                    (now, grant_id, order.order_id),
+                )
+                await self.conn.execute(
+                    "INSERT INTO billing_audit(order_id,action,happened_at) "
+                    "VALUES (?,'captured',?)", (order.order_id, now),
+                )
+            result = "paid"
+        elif event.event_type == "refunded":
+            if payment is None or payment.payment_id != event.payment_id:
+                raise ValueError("refund has no matching captured payment")
+            if now < payment.captured_at:
+                raise ValueError("refund predates capture")
+            if order.status == "refunded" and payment.status == "refunded":
+                result = "refunded"
+            elif order.status != "paid" or payment.status != "captured" or order.grant_id is None:
+                raise ValueError("refund arrived before capture")
+            else:
+                await self.conn.execute(
+                    "UPDATE billing_payments SET status='refunded',refunded_at=? "
+                    "WHERE provider=? AND payment_id=? AND status='captured'",
+                    (now, event.provider, event.payment_id),
+                )
+                grant_cursor = await self.conn.execute(
+                    "UPDATE entitlement_grants SET revoked_at=? "
+                    "WHERE grant_id=? AND source='mock' AND revoked_at IS NULL",
+                    (now, order.grant_id),
+                )
+                if grant_cursor.rowcount != 1:
+                    raise ValueError("linked mock grant cannot be revoked")
+                await self.conn.execute(
+                    "INSERT INTO entitlement_events "
+                    "(grant_id,action,actor_telegram_id,happened_at) "
+                    "VALUES (?,'revoke',0,?)", (order.grant_id, now),
+                )
+                await self.conn.execute(
+                    "UPDATE billing_orders SET status='refunded',closed_at=? "
+                    "WHERE order_id=? AND status='paid'", (now, order.order_id),
+                )
+                await self.conn.execute(
+                    "INSERT INTO billing_audit(order_id,action,happened_at) "
+                    "VALUES (?,'refunded',?)", (order.order_id, now),
+                )
+                result = "refunded"
+        else:
+            raise ValueError("unsupported verified billing event")
+        await self.conn.execute(
+            "INSERT INTO billing_webhook_events "
+            "(provider,event_id,body_sha256,order_id,event_type,processed_at,result_status) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (event.provider, event.event_id, body_sha256, order.order_id,
+             event.event_type, now, result),
+        )
+        await self.conn.commit()
+        return result
 
     async def get_streamer_delivery_stats(
         self, telegram_user_id: int, *, since: float,

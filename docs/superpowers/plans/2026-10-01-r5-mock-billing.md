@@ -54,9 +54,9 @@
 
 **Interfaces:** `BillingService.handle_webhook(body:bytes,headers:Mapping[str,str],now:float|None=None)->str`, `request_refund(telegram_user_id:int,order_id:str,request_key:str)->None`; DB `apply_verified_billing_event(event,body_sha256,now)->str` одной serialized транзакцией. Возвращается фактический order status.
 
-- [ ] RED: capture выдаёт один `source='mock'` grant и audit; точный replay не удваивает; конфликт event ID/body, wrong amount/currency/order/payment, late capture и refund before capture отказывают.
-- [ ] GREEN: event dedupe, payment transition и entitlement grant/revoke в одной write-транзакции; отдельные источники grant не трогать.
-- [ ] RED/GREEN: refund запрос не отзывает grant до verified refund; повтор refund идемпотентен; expiry paid grant вычисляется по серверному времени; fault injection после payment доказывает rollback. Focused tests и commit.
+- [x] RED: capture выдаёт один `source='mock'` grant и audit; точный replay не удваивает; конфликт event ID/body, wrong order/payment, late capture и refund before capture отказывают. Mock verifier отдельно отвергает wrong amount/currency.
+- [x] GREEN: event dedupe, payment transition и entitlement grant/revoke в одной serialized write-транзакции; отдельные источники grant не тронуты.
+- [x] RED/GREEN: refund запрос не отзывает grant до verified refund; повтор refund идемпотентен; paid expiry вычисляется по серверному времени; fault injection после payment и DB reopen подтверждают rollback/replay. Focused suite 18 passed с соседними R5/schema тестами; commit пакета.
 
 ### Task 4: Закрытый staging drill и acceptance
 
