@@ -8,10 +8,10 @@
 | --- | --- | --- |
 | `/site`, `/site/for-viewers`, `/site/for-streamers`, `/site/help` | HTTP 200, уникальные title/description/H1, серверный текст и ссылки без JS | 4/4; [протокол](../design/r8-site-qa/browser-checks.json) |
 | Canonical и JSON-LD | canonical равен точному staging origin + path; `WebPage` соответствует видимой странице, без Price/Offers/Rating | 4/4 в focused тесте |
-| Индексация | HTTP и HTML `noindex, nofollow`; `robots.txt` допускает `/site` | 4/4 и robots в focused тесте; Railway ещё не проверен |
-| Телефон | 360/390 px, лого/шрифт, CTA/роли, нет горизонтального скролла и обрезанного демо | пройдено локально; скриншоты в [аудите](2026-10-01-r8-site-local.md) |
-| Доступ и ссылки | внутренние 200; testbot `src_site`; прямой admin API без сессии 401 | пройдено локально |
-| Скорость | фиксированный локальный mobile lab и повтор после финального видео | первая запись есть; loopback RTT не подтверждён, field данные отсутствуют |
+| Индексация | HTTP и HTML `noindex, nofollow`; `robots.txt` допускает `/site` | 4/4 и robots в focused тесте и на Railway staging `1f86e28e` |
+| Телефон | 360/390 px, лого/шрифт, CTA/роли, нет горизонтального скролла и обрезанного демо | локально 360/390/768/1440; staging Chromium 390/1440 и video play; скриншоты в [аудите](2026-10-01-r8-growth-staging.md) |
+| Доступ и ссылки | внутренние 200; testbot `src_site`; прямой admin API без сессии 401 | пройдено локально и на Railway staging; signed non-owner 403 |
+| Скорость | фиксированный локальный mobile lab после финального видео | повтор записан; loopback RTT не подтверждён, field данные отсутствуют |
 
 По [Google Search Central](https://developers.google.com/search/docs/crawling-indexing/block-indexing), `robots.txt Disallow` может скрыть от робота `noindex`. Поэтому публичный маркетинговый HTML staging оставлен читаемым с `noindex`; секретные страницы защищает серверная авторизация, а не robots. Пока запрещены sitemap submission и снятие noindex.
 

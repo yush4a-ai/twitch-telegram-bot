@@ -32,12 +32,14 @@
 
 ## Изолированный demo video
 
-- `marketing/video/` — отдельный Remotion проект с закреплёнными зависимостями, без импорта в bot runtime и без тяжёлого render на Railway. Сценарий: синтетический эфир начался → Telegram-пост → живое превью как демонстрация → переход к просмотру. Это маркетинговое видео, не изменение Telegram Animation preview (6 → 12 → 18 → 24 → reset, H.264 MP4 без аудио и существующий size guard остаются).
+- `marketing/video/` — отдельный Remotion проект с закреплёнными зависимостями, без импорта в bot runtime и без тяжёлого render на Railway. Сценарий: синтетический эфир начался → Telegram-пост → условный кадр короткого превью → переход к просмотру. Это маркетинговое видео, не изменение Telegram Animation preview (6 → 12 → 18 → 24 → reset, H.264 MP4 без аудио и существующий size guard остаются).
 - Сначала раскадровка и несколько кадров, затем короткий черновик в локальном Studio при доступности, после чего локальный ограниченный render 16:9 и 9:16 с poster. Используются собственные графика/текст и явно синтетические данные; без чужой музыки/роликов. Видео имеет управление запуском/паузой и лёгкую загрузку; текст сайта виден без воспроизведения. Файлы проверяются по длительности, разрешению, размеру, safe margins и отсутствию растяжения. Лицензионные условия конкретной runtime-версии проверяются до коммерческого распространения; staging preview не объявляется разрешением на публичное коммерческое использование.
 
 ## Проверка и rollout
 
 TDD для URL-safe parser/builder и testbot username, unknown/self/group/replay referral, first-touch и атомарной activation, duplicate/limit, Plus aggregation без ID, owner auth, noindex/canonical/site link и старых `track_`/`link_`. Визуальные варианты, site и video проходят отдельную проверку по связанному дополнению. После полного suite — внешний staging backup, restore/migration на копии, чистый commit и pinned deploy guard; затем signed/admin, bot identity, site/robots и temp-DB journeys в staging. Реферальный E2E через реальный клиент и SEO indexability не объявляются проверенными по synthetic тестам. Rollback остаётся с additive schema; code-only revert не стирает исторические growth rows, а тестовые attribution данные допускают сохранение в staging.
+
+Перед R8 acceptance человеческий текст изменённых roadmap-поверхностей проходит один ограниченный Stop-Slop разбор на поверхность и одну общую сверку по `docs/workflows/2026-10-01-r8-stop-slop-gate.md`. Машинные данные и неизменённый код не редактируются ради стиля; SEO-запросы, точные ограничения продукта и смысл ошибок сохраняются. Результат фиксируется в `docs/audits/2026-10-01-r8-copy-review.md`.
 
 ## Самопроверка
 

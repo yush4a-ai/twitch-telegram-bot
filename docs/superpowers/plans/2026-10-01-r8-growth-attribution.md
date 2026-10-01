@@ -87,14 +87,14 @@
 
 - [x] Pinned official Remotion SKILL and selected references прочитаны; `docs/design/r8-video-storyboard.md` и licensing note записаны. Все Remotion-пакеты закреплены на `4.0.530` после проверки дефекта официального архива `4.0.531`.
 - [x] Изолированный проект собран, Studio открыта, осмотрены кадры 30/90/150/210 двух композиций; оба формата локально отрендерены с concurrency 2 без аудио и чужих медиа. Размеры, длительность и safe area в `docs/audits/2026-10-01-r8-video-local.md`.
-- [x] Постер и native controls без autoplay/preload добавлены; reduced-motion и текстовый fallback сохранены. TDD video test 5 passed/17 subtests, browser playback/Range проверены, `python -m scripts.verify_r8_video` проходит. Пакет ожидает commit.
+- [x] Постер и native controls без autoplay/preload добавлены; reduced-motion и текстовый fallback сохранены. TDD video test 5 passed/17 subtests, browser playback/Range проверены, `python -m scripts.verify_r8_video` проходит. Пакет `6af8253` сохранён.
 
 ## Task 7: Staging acceptance
 
-- [ ] Spec/plan self-review без placeholders/противоречий; полный suite и code review, `git diff --check`, внешний staging backup/restore и migration drill на копии.
-- [ ] Чистый commit и pinned target check; guarded staging deploy с terminal SUCCESS; testbot identity, schema/integrity, `/site` metadata/robots/video assets, admin direct denial, stage link target.
-- [ ] Temp-DB journey `src_site`/ref → first activation → test Plus aggregation и replay/self/group rejection без изменения active user data; обновить `docs/STATUS.md`, `docs/DECISIONS.md`, R8 audit и перейти к R9.
-- [ ] Сохранить датированный SEO checklist и короткий план после запуска: Search Console/Яндекс только после подтверждения домена/аккаунтов, недельный отчёт как шаблон без automation; domain/Twitch mark risk и отсутствие реальных метрик явно оставить открытыми.
+- [x] Spec/plan self-review без placeholders/противоречий; локальный suite 1120 passed/2 skipped/378 subtests, staged diff review/`git diff --check`, внешний staging backup/restore и migration drill на копии прошли.
+- [x] Чистый commit `6af8253` и pinned target check; guarded deployment `1f86e28e` terminal SUCCESS; testbot identity, schema/integrity, `/site` metadata/robots/video assets, admin direct denial и stage link target проверены.
+- [x] Изолированная `:memory:` DB внутри staging прошла `src_site`/ref → first activation → test Plus aggregation, replay/self/unknown rejection; active user data 0 growth rows. Итоговый R8 staging audit и copy inventory записаны; далее R9.
+- [x] Датированный SEO checklist и план после запуска сохранены: Search Console/Яндекс только после подтверждения домена/аккаунтов, недельный отчёт как шаблон без automation; domain/Twitch mark risk и отсутствие реальных метрик открыты.
 
 ## Самопроверка плана
 
