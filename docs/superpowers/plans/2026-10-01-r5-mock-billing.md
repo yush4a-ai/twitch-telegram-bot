@@ -64,9 +64,9 @@
 
 **Interfaces:** CLI без сетевой продажи запускает end-to-end mock checkout/capture/refund/cancel/expiry на отдельной временной staging DB; проверяет pinned Railway project/environment/service/Volume IDs и `OWNER_CHAT_ID=425785231`, не пишет в активный `DB_PATH`.
 
-- [ ] RED/GREEN: guard отклоняет production/wrong IDs/активный DB_PATH, drill не меняет staging user DB и проверяет события/доступ/rollback.
-- [ ] Полный suite, code review, `git diff --check`, внешний online backup/restore, миграция на копии; commit snapshot и `python -m scripts.staging_deploy --deploy` только после проверки target=staging.
-- [ ] Проверить terminal `SUCCESS`, active target, `/healthz`, закрытые API, testbot identity, `schema_versions`/`integrity_check`; запустить закрытый temp-DB drill. Записать реальные результаты и ограничения; затем двигаться к R6.
+- [x] RED/GREEN: guard отклоняет production/wrong IDs/активный DB_PATH, drill не меняет staging user DB и проверяет события/доступ/rollback; 3 tests, 7 subtests.
+- [x] Полный suite и code review, `git diff --cached --check`, внешний online backup/restore и миграция на копии; commit snapshot `fd17d34`, deploy guard только после `active_target_ok=true`.
+- [x] Gate 1082 passed, 2 skipped, 317 subtests; deployment `fa758200-bb09-47d0-9cca-fdeab33b204f` terminal `SUCCESS`, active target; `/healthz` 200, закрытые API 401, `TwitchSignalTestbot`, `r5_001` и `integrity_check=ok`. Temp-DB drill прошёл; активная DB сохранила 0 billing rows. Evidence `docs/audits/2026-10-01-r5-mock-billing-staging.md`; далее R6.
 
 ## Самопроверка плана
 
