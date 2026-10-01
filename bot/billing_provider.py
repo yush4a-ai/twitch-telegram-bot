@@ -34,6 +34,8 @@ class VerifiedPaymentEvent:
 
 
 class PaymentProvider(Protocol):
+    provider_id: str
+
     async def create_checkout(self, order_id: str, units: int, currency: str) -> CheckoutSession: ...
 
     def verify_webhook(

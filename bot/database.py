@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
 
+from .billing_models import BillingOrder
 from .streamer_template import StreamerTemplate, validate_streamer_template
 
 if TYPE_CHECKING:
@@ -619,6 +620,7 @@ class Database:
         await self._migrate_streamer_communities_schema()
         await self._migrate_streamer_template_schema()
         await self._migrate_streamer_stats_schema()
+        await self._migrate_billing_schema()
         await self.conn.commit()
 
     async def _migrate_growth_schema(self) -> None:
@@ -795,6 +797,188 @@ class Database:
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
             "VALUES ('r4_004_streamer_stats', ?)", (time.time(),)
         )
+
+    async def _migrate_billing_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS billing_orders ("
+            "order_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, "
+            "telegram_user_id INTEGER NOT NULL, broadcaster_id TEXT NOT NULL, "
+            "plan TEXT NOT NULL, provider TEXT NOT NULL, "
+            "status TEXT NOT NULL CHECK(status IN ('pending','paid','cancelled','refunded','expired')), "
+            "units INTEGER NOT NULL CHECK(units > 0), currency TEXT NOT NULL, "
+            "duration_seconds INTEGER NOT NULL CHECK(duration_seconds BETWEEN 60 AND 2678400), "
+            "created_at REAL NOT NULL, checkout_expires_at REAL NOT NULL, "
+            "checkout_reference TEXT, paid_at REAL, closed_at REAL, grant_id TEXT UNIQUE, "
+            "CHECK(checkout_expires_at > created_at))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_billing_orders_pending_expiry "
+            "ON billing_orders(status, checkout_expires_at)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_billing_orders_owner "
+            "ON billing_orders(telegram_user_id, created_at)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS billing_payments ("
+            "provider TEXT NOT NULL, payment_id TEXT NOT NULL, order_id TEXT NOT NULL, "
+            "status TEXT NOT NULL CHECK(status IN ('captured','refunded')), "
+            "units INTEGER NOT NULL CHECK(units > 0), currency TEXT NOT NULL, "
+            "captured_at REAL NOT NULL, refunded_at REAL, "
+            "PRIMARY KEY(provider,payment_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_billing_payments_order "
+            "ON billing_payments(order_id)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS billing_webhook_events ("
+            "provider TEXT NOT NULL, event_id TEXT NOT NULL, body_sha256 TEXT NOT NULL, "
+            "order_id TEXT NOT NULL, event_type TEXT NOT NULL, processed_at REAL NOT NULL, "
+            "result_status TEXT NOT NULL, "
+            "PRIMARY KEY(provider,event_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS billing_audit ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT NOT NULL, "
+            "action TEXT NOT NULL, happened_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_billing_audit_order "
+            "ON billing_audit(order_id,id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r5_001_billing_ledger', ?)", (time.time(),)
+        )
+
+    @staticmethod
+    def _billing_order_from_row(row: tuple | None) -> BillingOrder | None:
+        return BillingOrder(*row) if row is not None else None
+
+    async def get_billing_order(self, order_id: str) -> BillingOrder | None:
+        cursor = await self.conn.execute(
+            "SELECT * FROM billing_orders WHERE order_id = ?", (order_id,),
+        )
+        return self._billing_order_from_row(await cursor.fetchone())
+
+    async def get_billing_order_by_request_key(self, request_key: str) -> BillingOrder | None:
+        cursor = await self.conn.execute(
+            "SELECT * FROM billing_orders WHERE request_key = ?", (request_key,),
+        )
+        return self._billing_order_from_row(await cursor.fetchone())
+
+    @_serialized
+    async def create_billing_order(
+        self, order_id: str, request_key: str, telegram_user_id: int,
+        duration_seconds: int, *, now: float,
+    ) -> BillingOrder:
+        if (
+            not isinstance(order_id, str) or not re.fullmatch(r"[0-9a-f]{32}", order_id)
+            or not isinstance(request_key, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_key) is None
+            or type(telegram_user_id) is not int or telegram_user_id <= 0
+            or type(duration_seconds) is not int or not 60 <= duration_seconds <= 2678400
+            or not isinstance(now, (int, float)) or not math.isfinite(now)
+        ):
+            raise ValueError("invalid billing order")
+        identity = await self.get_streamer_identity(telegram_user_id)
+        if identity is None:
+            raise PermissionError("streamer identity is not linked")
+        existing = await self.get_billing_order_by_request_key(request_key)
+        if existing is not None:
+            if (
+                existing.telegram_user_id != telegram_user_id
+                or existing.broadcaster_id != identity[0]
+                or existing.duration_seconds != duration_seconds
+                or existing.plan != "streamer_plus" or existing.provider != "mock"
+                or existing.units != 1 or existing.currency != "TEST"
+            ):
+                raise ValueError("billing request key conflict")
+            return existing
+        await self.conn.execute(
+            "INSERT INTO billing_orders "
+            "(order_id,request_key,telegram_user_id,broadcaster_id,plan,provider,status,"
+            "units,currency,duration_seconds,created_at,checkout_expires_at) "
+            "VALUES (?,?,?,?, 'streamer_plus','mock','pending',1,'TEST',?,?,?)",
+            (order_id, request_key, telegram_user_id, identity[0], duration_seconds,
+             now, now + 900),
+        )
+        await self.conn.execute(
+            "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'created',?)",
+            (order_id, now),
+        )
+        await self.conn.commit()
+        return (await self.get_billing_order(order_id))
+
+    @_serialized
+    async def save_billing_checkout_reference(
+        self, order_id: str, reference: str, *, now: float,
+    ) -> BillingOrder:
+        if not isinstance(reference, str) or not 1 <= len(reference) <= 256:
+            raise ValueError("invalid checkout reference")
+        cursor = await self.conn.execute(
+            "UPDATE billing_orders SET checkout_reference = ? "
+            "WHERE order_id = ? AND status = 'pending' "
+            "AND checkout_expires_at > ? AND checkout_reference IS NULL",
+            (reference, order_id, now),
+        )
+        order = await self.get_billing_order(order_id)
+        if cursor.rowcount != 1 and (order is None or order.checkout_reference != reference):
+            await self.conn.rollback()
+            raise ValueError("checkout reference conflict")
+        await self.conn.commit()
+        return order
+
+    @_serialized
+    async def cancel_billing_order(
+        self, telegram_user_id: int, order_id: str, *, now: float,
+    ) -> bool:
+        order = await self.get_billing_order(order_id)
+        if order is None or order.telegram_user_id != telegram_user_id:
+            raise PermissionError("billing order is not owned by Telegram user")
+        if order.status in {"cancelled", "expired"}:
+            return False
+        if order.status != "pending":
+            raise ValueError("only pending billing orders can be cancelled")
+        status = "cancelled" if now < order.checkout_expires_at else "expired"
+        cursor = await self.conn.execute(
+            "UPDATE billing_orders SET status = ?, closed_at = ? "
+            "WHERE order_id = ? AND status = 'pending'",
+            (status, now, order_id),
+        )
+        if cursor.rowcount == 1:
+            await self.conn.execute(
+                "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,?,?)",
+                (order_id, status, now),
+            )
+        await self.conn.commit()
+        return status == "cancelled" and cursor.rowcount == 1
+
+    @_serialized
+    async def expire_pending_billing_orders(self, *, now: float) -> int:
+        if not isinstance(now, (int, float)) or not math.isfinite(now):
+            raise ValueError("invalid expiry time")
+        cursor = await self.conn.execute(
+            "SELECT order_id FROM billing_orders "
+            "WHERE status = 'pending' AND checkout_expires_at <= ?",
+            (now,),
+        )
+        order_ids = [row[0] for row in await cursor.fetchall()]
+        if not order_ids:
+            return 0
+        await self.conn.executemany(
+            "UPDATE billing_orders SET status='expired', closed_at=? "
+            "WHERE order_id=? AND status='pending'",
+            [(now, order_id) for order_id in order_ids],
+        )
+        await self.conn.executemany(
+            "INSERT INTO billing_audit(order_id,action,happened_at) "
+            "VALUES (?,'expired',?)",
+            [(order_id, now) for order_id in order_ids],
+        )
+        await self.conn.commit()
+        return len(order_ids)
 
     async def get_streamer_delivery_stats(
         self, telegram_user_id: int, *, since: float,

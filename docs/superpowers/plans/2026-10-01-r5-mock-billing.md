@@ -40,13 +40,13 @@
 
 ### Task 2: Order/payment ledger и checkout
 
-**Files:** Modify `bot/database.py`; Create `bot/billing.py`; Test `tests/test_billing_orders.py`; Modify `tests/test_growth_schema.py`.
+**Files:** Modify `bot/database.py`; Create `bot/billing.py`, `bot/billing_models.py`; Test `tests/test_billing_orders.py`; Modify `tests/test_growth_schema.py`.
 
 **Interfaces:** `BillingOrder` и `PaymentRecord` typed dataclasses; `BillingService(db: Database, provider: PaymentProvider)` с `async create_checkout(telegram_user_id:int,request_key:str,duration_seconds:int,now:float|None=None)->CheckoutSession`; DB методы `create_billing_order`, `save_billing_checkout_reference`, `get_billing_order`, `cancel_billing_order`, `expire_pending_billing_orders` и миграция `r5_001_billing_ledger`.
 
-- [ ] RED: новая/старая DB migration, подтверждённая Telegram/Twitch связка через `streamer_identities`, idempotent request key и конфликт owner/duration, provider failure/retry того же order ID, redirect не даёт Plus, reopen сохраняет order.
-- [ ] GREEN: additive schema `billing_orders`, `billing_payments`, `billing_webhook_events`, `billing_audit`, уникальные ключи и индексы; checkout reference сохранять после provider call; отказ на неподтверждённый broadcaster.
-- [ ] RED/GREEN: pending cancel и 900-секундный expiry; owner check, paid нельзя cancel, provider cancel failure не меняет состояние. Проверить focused + migration tests, commit.
+- [x] RED: новая/старая DB migration, подтверждённая Telegram/Twitch связка, idempotent request key и конфликт owner/duration, provider failure/retry того же order ID, checkout без Plus, reopen сохраняет order.
+- [x] GREEN: additive schema `billing_orders`, `billing_payments`, `billing_webhook_events`, `billing_audit`, уникальные ключи и индексы; checkout reference сохраняется после provider call.
+- [x] RED/GREEN: pending cancel, 900-секундный expiry, чужой owner, provider cancel failure и audit failure rollback. Focused совместно с R4: 19 passed, 16 subtests; commit пакета.
 
 ### Task 3: Проверенное событие и entitlement
 
