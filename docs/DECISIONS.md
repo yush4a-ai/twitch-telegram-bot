@@ -166,3 +166,11 @@
 - **Решение:** `/streamer` использует отдельные подписанные Telegram WebApp/Login проверки, session cookie и profile API; R2 owner cookie/key не даёт streamer доступ. Сервер выводит Twitch account только из DB-связи после проверки Telegram ID. В Railway маршруты монтируются только при точном совпадении pinned staging ID.
 - **Основание:** отрицательные/положительные локальные HTTP тесты и staging smoke: `/streamer/api/profile` 401 без session, `/admin/api/snapshot` 401, `/streamer` только login без админ-метки.
 - **Граница:** реальный Telegram Login Widget на staging по-прежнему зависит от BotFather domain; тест с подписью не заменяет реальный UI E2E. Кабинет пока без сообществ и конструктора — это следующие пакеты R4.
+
+## D-022 — оформление Streamer Plus привязано к текущему Helix broadcaster ID
+
+- **Дата:** 2026-10-01.
+- **Решение:** версия шаблона хранится для пары `(broadcaster_id, chat_id)` и пишется только после подписанного Telegram-входа, действующего test Plus и свежей проверки прав пользователя/бота в сообществе. При публикации и обновлении очередь применяет шаблон только если Helix `user_id` текущего эфира совпадает с подтверждённой связкой broadcaster ID/login; при отсутствии ID, завершении эфира, отзыве/истечении Plus или превышении 1024 UTF-16 единиц применяется базовый пост. Ссылка на Twitch остаётся. Каждый poll обновляет или очищает ID, включая reconnect.
+- **Основание:** TDD на два сообщества, опасные ссылки/HTML, прямой URL и чужую сессию, потерю прав, конфликт версии, подмену/missing ID, revoke, preview composition и migration; gate 1064 passed, 2 skipped, 299 subtests. Перед deployment `a1577af8-919e-42b5-b5e0-d08a17a9b2b2` внешний backup/restore и миграция на копии прошли. Staging `r4_002–r4_004`, `integrity_check=ok`, HTTP smoke и testbot identity подтверждены.
+- **Статистика:** `streamer_post_events` фиксирует успешную установку текущего Telegram message ID в той же транзакции и только при совпадении Twitch ID/login. За 30 дней считаются подтверждённые публикации, не `done` queue jobs и не просмотры Telegram.
+- **Граница:** реальные `/streamer_connect`, Telegram Login Widget и положительный UI путь в staging не пройдены; активная DB содержит 0 identity/grants/templates. R4 принят как инженерный staging checkpoint, не как пользовательский pilot.
