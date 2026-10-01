@@ -112,11 +112,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** `category_alert_store.py`, `notification_queue.py`, `poller.py` и фактический handler отправки; UI `viewer.js`; new `tests/test_category_alert_delivery.py`.
 **Interfaces:** job kind `viewer_category_change`, unique key `(verified viewer ID, transition ID)`. `async enqueue_for_transition(transition_id: str, *, now: float) -> int`; конечный handler возвращает существующий `NotificationOutcome` и использует текущий rate budget.
-- [ ] Написать RED: Free получает 0 category jobs, Plus opt-in получает 1; viewer toggle off/notify off/exclusion/quiet-hours запрещают; новый go-live не дублируется category job.
-- [ ] Написать RED fake-clock: в 299 s следующий category send запрещён, после 300 s возможна только актуальная последняя смена; старое событие после offline/revoke/unfollow не отправляется; repeat enqueue/retry/restart не дублирует известный успех.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_category_alert_delivery.py tests/test_notification_queue.py tests/test_notification_worker.py tests/test_viewer_delivery.py -q`.
-- [ ] Реализовать атомарные transition/enqueue и fenced dispatch с повторной проверкой доступа/текущей категории. UI показывает отдельный выключенный по умолчанию toggle и «любая / выбранные категории».
-- [ ] Проверить отказы между enqueue/send, таймаут после потенциального send и честный статус неизвестного результата; нет новых бесконтрольных внешних retries. PASS, commit, временная DB с fake sender.
+- [x] Написать RED: Free получает 0 category jobs, Plus opt-in получает 1; viewer toggle off/notify off/exclusion/quiet-hours запрещают; новый go-live не дублируется category job.
+- [x] Написать RED fake-clock: в 299 s следующий category send запрещён, после 300 s возможна только актуальная последняя смена; старое событие после offline/revoke/unfollow не отправляется; repeat enqueue/retry/restart не дублирует известный успех.
+- [x] Запустить связанные `tests/test_category_alert_delivery.py`, queue/worker/viewer, growth schema и API тесты: 63 passed/2 subtests до последней узкой оптимизации, 32 passed/2 subtests на финальном коде. Никакой реальной отправки.
+- [x] Реализовать атомарные transition/enqueue и fenced dispatch с повторной проверкой доступа/текущей категории. UI показывает отдельный выключенный по умолчанию toggle и «любая / выбранные категории».
+- [x] Проверить отказы между enqueue/send, таймаут после потенциального send и честный статус неизвестного результата; нет новых бесконтрольных внешних retries. PASS, commit `74052df`, временная DB с fake sender и browser QA.
 
 ## T9. Нативное подключение стримера и бесплатного сообщества
 
