@@ -35,7 +35,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_site_is_absent_without_stage_binding(self):
         base = await self.start()
-        for path in ("/site", "/site/for-viewers", "/site/site.css", "/robots.txt"):
+        for path in ("/site", "/site/for-viewers", "/site/site.css", "/site/demo-poster.png", "/site/demo-landscape.mp4", "/robots.txt"):
             with self.subTest(path=path):
                 async with self.session.get(base + path) as response:
                     self.assertEqual(response.status, 404)
@@ -116,6 +116,29 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.get(base + "/site/for-streamers") as response:
             streamer = await response.text()
         self.assertIn("тестовый plus", streamer.lower())
+
+    async def test_video_is_user_controlled_and_supports_partial_load(self):
+        base = await self.start(username="TwitchSignalTestbot")
+        async with self.session.get(base + "/site") as response:
+            html = await response.text()
+        self.assertIn('poster="/site/demo-poster.png"', html)
+        self.assertIn('src="/site/demo-landscape.mp4"', html)
+        self.assertRegex(html, r"<video[^>]+controls")
+        self.assertIn('preload="none"', html)
+        self.assertNotIn("autoplay", html)
+        self.assertIn("синтетическое демо", html.lower())
+        for path, content_type in (
+            ("/site/demo-poster.png", "image/png"),
+            ("/site/demo-landscape.mp4", "video/mp4"),
+            ("/site/demo-portrait.mp4", "video/mp4"),
+        ):
+            with self.subTest(path=path):
+                async with self.session.get(base + path, headers={"Range": "bytes=0-15"}) as response:
+                    self.assertEqual(response.status, 206)
+                    self.assertIn(content_type, response.headers["Content-Type"])
+                    self.assertTrue(response.headers["Content-Range"].startswith("bytes 0-15/"))
+                    self.assertEqual(response.headers["X-Robots-Tag"], "noindex, nofollow")
+                    self.assertEqual(len(await response.read()), 16)
 
 
 if __name__ == "__main__":

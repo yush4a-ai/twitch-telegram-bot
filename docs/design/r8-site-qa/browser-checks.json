@@ -1,75 +1,62 @@
 {
   "date": "2026-10-01",
-  "environment": "local stage-bound HTML, not Railway",
+  "environment": "local stage-bound HTML with Remotion asset",
   "browser": "Chromium Playwright 1.57",
   "widths": [
     {
       "viewport": 360,
       "scrollWidth": 345,
-      "fontLoaded": true,
       "logoLoaded": true,
-      "roles": [
-        "Я зритель",
-        "Я стример"
-      ],
-      "demoInside": true
+      "fontLoaded": true,
+      "video": true,
+      "poster": "/site/demo-poster.png",
+      "readyState": 0
     },
     {
       "viewport": 390,
       "scrollWidth": 375,
-      "fontLoaded": true,
       "logoLoaded": true,
-      "roles": [
-        "Я зритель",
-        "Я стример"
-      ],
-      "demoInside": true
+      "fontLoaded": true,
+      "video": true,
+      "poster": "/site/demo-poster.png",
+      "readyState": 0
     },
     {
       "viewport": 768,
       "scrollWidth": 753,
-      "fontLoaded": true,
       "logoLoaded": true,
-      "roles": [
-        "Я зритель",
-        "Я стример"
-      ],
-      "demoInside": true
+      "fontLoaded": true,
+      "video": true,
+      "poster": "/site/demo-poster.png",
+      "readyState": 0
     },
     {
       "viewport": 1440,
       "scrollWidth": 1425,
-      "fontLoaded": true,
       "logoLoaded": true,
-      "roles": [
-        "Я зритель",
-        "Я стример"
-      ],
-      "demoInside": true
+      "fontLoaded": true,
+      "video": true,
+      "poster": "/site/demo-poster.png",
+      "readyState": 0
     }
   ],
-  "firstFocus": "skip-link",
+  "noMediaRequestBeforePlay": true,
+  "playing": {
+    "paused": false,
+    "time": 0.156762,
+    "width": 1280,
+    "height": 720
+  },
+  "paused": true,
+  "mediaRequests": [
+    {
+      "url": "http://127.0.0.1:8765/site/demo-landscape.mp4",
+      "range": "bytes=0-"
+    }
+  ],
   "motion": {
     "scroll": "auto",
     "transition": "0s"
   },
-  "statuses": [
-    {
-      "link": "/site",
-      "status": 200
-    },
-    {
-      "link": "/site/for-viewers",
-      "status": 200
-    },
-    {
-      "link": "/site/for-streamers",
-      "status": 200
-    },
-    {
-      "link": "/site/help",
-      "status": 200
-    }
-  ],
   "errors": []
 }

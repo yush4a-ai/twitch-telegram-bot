@@ -101,6 +101,13 @@ h1 { font-size: clamp(56px, 6.5vw, 96px); line-height: .94; letter-spacing: -.07
 .step-number { color: var(--blue); }
 .journey-step h3 { font-size: 27px; margin: 7px 0 4px; letter-spacing: -.05em; }
 .journey-step p { color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 290px; }
+.demo-section { border-top: 1px solid var(--line); padding: 65px 0 100px; display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 70px; align-items: center; }
+.demo-copy h2 { font-size: clamp(34px, 3.8vw, 48px); letter-spacing: -.055em; line-height: 1.05; margin-bottom: 18px; }
+.demo-copy > p:not(.eyebrow) { color: var(--muted); font-size: 16px; line-height: 1.55; max-width: 480px; }
+.demo-copy .small-note { font-size: 12px !important; }
+.demo-figure { min-width: 0; margin: 0; }
+.demo-figure video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; background: var(--ink); box-shadow: 0 14px 35px #10192a16; }
+.demo-figure figcaption { color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 12px; }
 .inner { padding-bottom: 90px; }
 .breadcrumb { display: flex; gap: 10px; align-items: center; margin-top: 20px; color: var(--muted); font-size: 12px; }
 .breadcrumb a { text-decoration: none; }
@@ -128,6 +135,7 @@ h1 { font-size: clamp(56px, 6.5vw, 96px); line-height: .94; letter-spacing: -.07
   .aside-note { right: 0; }
   .journey-grid { gap: 20px; }
   .journey-step:not(:last-child)::after { right: -20px; }
+  .demo-section { gap: 32px; }
 }
 @media (max-width: 640px) {
   .wrap { width: calc(100% - 36px); }
@@ -157,6 +165,8 @@ h1 { font-size: clamp(56px, 6.5vw, 96px); line-height: .94; letter-spacing: -.07
   .message-bubble { display: none; }
   .journey-step h3 { font-size: 23px; margin: 4px 0; }
   .journey-step p { font-size: 12px; }
+  .demo-section { grid-template-columns: 1fr; padding: 50px 0 75px; }
+  .demo-copy h2 { font-size: 32px; }
   .inner-hero { padding: 52px 0 50px; }
   .inner-hero h1 { font-size: clamp(43px, 10.5vw, 60px); }
   .text-card { min-height: 0; }

@@ -75,9 +75,9 @@
 **Interfaces:** `install_growth_site(app, bot_username:str, public_base_url:str)` mounts четыре HTML routes, CSS и `/robots.txt` only if stage flag/exact testbot username; `OAuthCallbackServer` gets optional site values from `main`.
 
 - [x] RED: 4 ожидаемых failure до site interface; отсутствие маршрутов без привязки, отказ production username, testbot `src_site`, уникальные title/description/H1/canonical, HTTP+HTML noindex, robots Allow `/site`, правдивая JSON-LD, отсутствие admin label. После реализации focused 4 passed, 12 subtests.
-- [x] GREEN: серверный HTML/CSS в выбранной системе с явной карточкой «ДЕМО»; R8/R2 regression 26 passed, 29 subtests. Code packet ещё ожидает commit.
+- [x] GREEN: серверный HTML/CSS в выбранной системе с явной карточкой «ДЕМО»; R8/R2 regression 26 passed, 29 subtests. Site packet `4b39485` сохранён.
 - [x] Browser QA 360/390/768/1440, клавиатура, контраст, reduced motion, длинный русский текст и переполнение: `docs/design/r8-site-qa/browser-checks.json`, четыре скриншота, browser errors 0. Из найденного исправлены CSP для локальных шрифтов и обрезанная мобильная карточка.
-- [x] Одиночный фиксированный mobile lab `docs/design/r8-site-qa/mobile-lab.json`; loopback RTT не подтверждён фактическим TTFB, поэтому field CWV не заявляются. `docs/audits/2026-10-01-r8-seo-launch-checklist.md` фиксирует reversal проверки для будущего публичного релиза, staging noindex не снят.
+- [x] Одиночный фиксированный mobile lab `docs/design/r8-site-qa/mobile-lab.json` повторён после видео; loopback RTT не подтверждён фактическим TTFB, поэтому field CWV не заявляются. `docs/audits/2026-10-01-r8-seo-launch-checklist.md` фиксирует reversal проверки для будущего публичного релиза, staging noindex не снят.
 
 ## Task 6: Isolated Remotion demo
 
@@ -85,9 +85,9 @@
 
 **Interfaces:** site consumes poster and user-controlled lightweight video; bot preview pipeline remains separate and unchanged.
 
-- [ ] Read pinned official Remotion SKILL and selected references; pin package versions/licensing notes. Write storyboard and frame sketches for synthetic live → Telegram post → preview → watch; distinguish marketing preview from actual Telegram Animation.
-- [ ] Build small isolated project, inspect short local Studio preview when available, render both aspect ratios locally with bounded concurrency and no unlicensed media/audio. Record duration/resolution/bytes/safe margins.
-- [ ] Add poster, accessible play/pause and reduced-motion fallback to site without autoplay dependency; verify HTML remains useful without video, site assets package and focused tests pass. Commit packet.
+- [x] Pinned official Remotion SKILL and selected references прочитаны; `docs/design/r8-video-storyboard.md` и licensing note записаны. Все Remotion-пакеты закреплены на `4.0.530` после проверки дефекта официального архива `4.0.531`.
+- [x] Изолированный проект собран, Studio открыта, осмотрены кадры 30/90/150/210 двух композиций; оба формата локально отрендерены с concurrency 2 без аудио и чужих медиа. Размеры, длительность и safe area в `docs/audits/2026-10-01-r8-video-local.md`.
+- [x] Постер и native controls без autoplay/preload добавлены; reduced-motion и текстовый fallback сохранены. TDD video test 5 passed/17 subtests, browser playback/Range проверены, `python -m scripts.verify_r8_video` проходит. Пакет ожидает commit.
 
 ## Task 7: Staging acceptance
 

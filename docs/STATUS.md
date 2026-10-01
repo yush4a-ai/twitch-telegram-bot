@@ -12,7 +12,7 @@
 | R5 Payments foundation | engineering acceptance на staging; mock/test без денег | deployment `fa758200-bb09-47d0-9cca-fdeab33b204f` из `fd17d34` `SUCCESS`; gate 1082 passed, 2 skipped, 317 subtests; `r5_001`, `integrity=ok`, временный checkout/capture/refund/cancel/expiry и rollback; `docs/audits/2026-10-01-r5-mock-billing-staging.md` |
 | R6 Pilot simulation | engineering acceptance на staging, без реальных участников | deployment `31086fa4-21ca-4190-bedb-6d79d95a267e` из `ff04f37` `SUCCESS`; gate 1084 passed, 2 skipped, 334 subtests; 8 synthetic journeys, 16 ожидаемых отказов, 0 unexpected errors, активная DB 0 pilot rows; `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` |
 | R7 Telegram Mini App + Viewer Plus | engineering acceptance на staging; реальный вход в Mini App остаётся непроверенным | deployment `8cf965e2-abea-4536-b2b1-e2f06189a501` из `1c78801` `SUCCESS`; guard 1099 passed, 2 skipped, 347 subtests; `r7_001`, `integrity=ok`; signed owner/non-owner API, краткий test grant/revoke, R2 admin scopes и browser shell 390/1440 проверены; `docs/audits/2026-10-01-r7-viewer-mini-app-staging.md` |
-| R8 Growth / SEO / referrals | в работе | first-touch ledger `0a0039d`, private testbot entry/activation `1f87bd7`, owner-воронка `9990a87`; срез 4 альтернатив и 28 гипотез/7 задач; владелец выбрал светлый B + пути ролей из A + переданный логотип. Локальный staging-only site на 4 страницах реализован, TDD 4 passed/12 subtests, связанные R8/R2 26 passed/29 subtests; Chromium 360/390/768/1440, клавиатура, reduced motion, ссылки и CSP проверены, скриншоты и замер сохранены в `docs/audits/2026-10-01-r8-site-local.md`. R8 Railway deploy и Remotion ещё не выполнены |
+| R8 Growth / SEO / referrals | локальная реализация, ожидает staging gate | first-touch ledger `0a0039d`, private testbot entry/activation `1f87bd7`, owner-воронка `9990a87`; срез 4 альтернатив и 28 гипотез/7 задач; владелец выбрал светлый B + пути ролей из A + переданный логотип. Четыре страницы `4b39485` и отдельное 8-секундное Remotion demo в двух форматах собраны локально; site TDD 5 passed/17 subtests, связанные R8/R2 26 passed/29 subtests до добавления видео, Chromium 360/390/768/1440, play/pause, клавиатура, reduced motion и CSP проверены. `docs/audits/2026-10-01-r8-site-local.md`, `docs/audits/2026-10-01-r8-video-local.md`. Полный suite и R8 Railway deploy ещё не выполнены |
 | R9 Scale validation | не начат | staging-only synthetic 20k/30k/40k |
 
 ## Проверенное в R1
@@ -37,7 +37,7 @@
 
 ## Следующий шаг
 
-Продолжить R8: датированный небольшой срез конкурентов и поисковых задач, два визуальных направления и многостраничный SEO prototype на staging, затем отдельное Remotion demo video. Полный Telegram Login/Mini App owner и streamer E2E после сообщённого владельцем `/setdomain` остаётся непроверенным; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
+Завершить R8 gate: полный suite, code review, проверка точного staging target, backup/restore на копии, deployment и smoke сайта/видео/testbot, затем обновить audit и перейти к R9. Полный Telegram Login/Mini App owner и streamer E2E после сообщённого владельцем `/setdomain` остаётся непроверенным; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
 
 ## Проверенное в R2
 

@@ -117,6 +117,22 @@ def _home() -> str:
     </ol>
   </section>
 
+  <section class="demo-section wrap" id="demo" aria-labelledby="demo-title">
+    <div class="demo-copy">
+      <p class="eyebrow">Видео · синтетическое демо</p>
+      <h2 id="demo-title">Увидеть путь сигнала</h2>
+      <p>За восемь секунд покажем эфир, пост и личное сообщение. Кадры созданы для объяснения: это не запись настоящего стрима и не пример скорости доставки.</p>
+      <p class="small-note">Видео запускается только по вашему выбору. Текст и ссылки выше доступны без воспроизведения.</p>
+    </div>
+    <figure class="demo-figure">
+      <video controls preload="none" playsinline poster="/site/demo-poster.png" aria-describedby="demo-caption">
+        <source src="/site/demo-landscape.mp4" type="video/mp4">
+        <p>Браузер не поддерживает видео. <a href="/site/demo-landscape.mp4">Открыть MP4</a>.</p>
+      </video>
+      <figcaption id="demo-caption">Синтетическое демо · 8 секунд · без звука. Telegram Animation превью эфира работает отдельно и может быть недоступно.</figcaption>
+    </figure>
+  </section>
+
 </main>"""
 
 
@@ -239,6 +255,19 @@ def install_growth_site(app: web.Application, bot_username: str, public_base_url
             content_type="image/png", headers=_HEADERS,
         )
 
+    media_types = {
+        "demo-poster.png": "image/png",
+        "demo-landscape.mp4": "video/mp4",
+        "demo-portrait.mp4": "video/mp4",
+    }
+
+    async def media(request: web.Request) -> web.FileResponse:
+        name = request.path.rsplit("/", 1)[-1]
+        return web.FileResponse(
+            _ASSETS / name,
+            headers={**_HEADERS, "Content-Type": media_types[name]},
+        )
+
     async def font(request: web.Request) -> web.Response:
         return web.Response(
             body=(_ASSETS / request.path.rsplit("/", 1)[-1]).read_bytes(),
@@ -256,6 +285,8 @@ def install_growth_site(app: web.Application, bot_username: str, public_base_url
         app.router.add_get(path, page)
     app.router.add_get("/site/site.css", css)
     app.router.add_get("/site/brand-logo.png", logo)
+    for name in media_types:
+        app.router.add_get(f"/site/{name}", media)
     for name in ("golos-cyrillic.woff2", "golos-latin.woff2"):
         app.router.add_get(f"/site/{name}", font)
     app.router.add_get("/robots.txt", robots)
