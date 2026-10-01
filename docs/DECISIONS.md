@@ -273,3 +273,10 @@
 - **Решение:** `BillingService` оставляет прежний streamer-вызов и принимает `plan='viewer_plus'` только в разрешённом mock-контракте. Viewer subject — проверенный Telegram ID; streamer subject — подтверждённый Twitch broadcaster. Старые R5 заказы получают тип `streamer` через транзакционную migration, а refund отзывает связанный grant своего заказа.
 - **Основание:** RED→PASS `tests/test_billing_viewer_product.py`, связанные billing и synthetic probe тесты: 24 passed, 18 subtests; временная legacy DB `integrity_check=ok`; commit `34b3966`, tree `12b3a67b88b90ee3a1397739a45e531727149a76`.
 - **Граница:** этот внутренний mock-контракт не является публичным checkout в Mini App; T11 ещё должен ограничить тестовую активацию allowlist и вывести только реальные состояния. Цены, периоды реальной покупки и деньги не определены.
+
+## D-037 — Mini App использует отдельный проверяемый вход на общем веб-сервере
+
+- **Дата:** 2026-10-01.
+- **Решение:** новый `/app` монтировать только при `mini_app_enabled` локально и на pinned staging; private menu ведёт на него, старые `/viewer` и `/streamer` остаются совместимыми. `bootstrap` выдаёт лишь собственный Telegram ID и рассчитанные сервером capabilities. Режим и сохранённый выбор вкладки являются только интерфейсным состоянием. Два вида Telegram safe-area отступов объединяются максимальным значением для каждой стороны, чтобы не удваивать область.
+- **Основание:** commit `a6ab8f8`, tree `b2018a4fea0d1b2b64663c405fcbf3f4d73e12b8`; auth/menu RED→PASS, 29 passed, 15 subtests; browser PASS 20 переходов и 8 снимков.
+- **Граница:** синтетический SDK/browser не подтверждает реальный клиент Telegram. Сами Free/Plus данные и действия ещё не подключены; восстановление черновиков форм, настоящий вход Main Mini App и staging требуют следующих этапов.

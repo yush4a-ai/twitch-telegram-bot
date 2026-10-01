@@ -73,11 +73,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `mini_app_web.py`, `mini_app_ui/{index.html,app.css,app.js,telegram.js,router.js,api.js,components.js}`; `oauth.py`, `config.py`, `handlers/streams.py`, `main.py`; new `tests/test_mini_app_auth.py`, `tests/test_mini_app_shell.py`, browser fixture.
 **Interfaces:** `install_mini_app_routes(app, db, bot_token, *, bot, capability_service)`; `/app` public shell, POST `/app/api/bootstrap` with existing verified init-data convention returns own profile/capabilities only. `telegram.js` owns one set of SDK handlers; router owns mode/tab/back stack/scroll.
-- [ ] Написать RED auth: missing/tampered/expired/duplicate fields 401/403, чужой ID не выбирает данные, /admin остаётся изолированным, production flags не монтируют /app.
-- [ ] Написать browser RED: оба режима/три вкладки, BackButton с одним handler после 20 переходов, восстановление прокрутки, отсутствие mock JS на рабочем маршруте.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_auth.py tests/test_mini_app_shell.py tests/test_admin_entry.py tests/test_admin_telegram_auth.py -q`.
-- [ ] Реализовать shell и адаптер SDK по spec §9. Старые /viewer и /streamer не удалять. На истекшем входе восстановить безопасный черновик после переоткрытия, не увеличивать max-age.
-- [ ] Прогнать focused/browser checks; сохранить фактические скриншоты в `docs/design/mini-app-qa/`. Commit. Отдельно записать, что кнопки Main Mini App/BotFather на настоящем клиенте ещё требуют проверки.
+- [x] Написать RED auth: missing/tampered/expired/duplicate fields 401/403, чужой ID не выбирает данные, /admin остаётся изолированным, production flags не монтируют /app.
+- [x] Добавить browser scenario: оба режима/три вкладки, BackButton с одним handler после 20 переходов, восстановление прокрутки, отсутствие mock JS на рабочем маршруте. Browser-сценарий создан после auth RED и до финального shell review; отдельный browser RED не зафиксирован.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_auth.py tests/test_mini_app_shell.py tests/test_admin_entry.py tests/test_admin_telegram_auth.py -q` и связанные viewer/streamer тесты.
+- [ ] Реализовать shell и адаптер SDK по spec §9. Старые /viewer и /streamer не удалять. На истекшем входе восстановить безопасный черновик после переоткрытия, не увеличивать max-age. Shell/SDK и сохранение навигации готовы; восстановление черновиков форм зависит от T5/T9 и остаётся открытым.
+- [x] Прогнать focused/browser checks; сохранить фактические скриншоты в `docs/design/mini-app-qa/`. Commit. Кнопки Main Mini App/BotFather на настоящем клиенте ещё требуют проверки.
 
 ## T5. Зрительский Free-сценарий от начала до конца
 
