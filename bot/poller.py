@@ -44,6 +44,7 @@ from .notification_queue import NotificationJob, NotificationQueue
 from .notification_worker import (
     NotificationOutcome, NotificationRetryAfter, NotificationTerminalError,
 )
+from .viewer_filter import matches_viewer_filter
 from .streamer_post import compose_streamer_post
 
 logger = logging.getLogger(__name__)
@@ -374,6 +375,7 @@ class StreamPoller:
         preview_observer: PreviewObserver | None = None,
         telegram_channel_username_cache: TelegramChannelUsernameCache | None = None,
         notification_queue_enabled: bool = False,
+        viewer_filters_enabled: bool = False,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -399,6 +401,7 @@ class StreamPoller:
             telegram_channel_username_cache or TelegramChannelUsernameCache()
         )
         self._notification_queue_enabled = notification_queue_enabled
+        self._viewer_filters_enabled = viewer_filters_enabled
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -413,6 +416,15 @@ class StreamPoller:
         self, cache: TelegramChannelUsernameCache
     ) -> None:
         self._telegram_channel_username_cache = cache
+
+    async def _viewer_allows_private_alert(
+        self, chat_id: int, login: str, title: str | None,
+        game_name: str | None,
+    ) -> bool:
+        if not self._viewer_filters_enabled or chat_id <= 0:
+            return True
+        rule = await self._db.get_effective_viewer_filter(chat_id, login)
+        return rule is None or matches_viewer_filter(rule, game_name, title)
 
     def health_snapshot(self, now: float | None = None) -> dict[str, object]:
         snapshot_at = time.time() if now is None else now
@@ -1121,11 +1133,15 @@ class StreamPoller:
                             message_kind = fresh_post.message_kind
                             queue_waiting = True
                         else:
-                            message_id = await self._notify(
-                                chat_id, login, title, stream.viewer_count, game_name, return_note,
-                                silent=True,
-                                include_track_link=include_track_link,
-                                include_video_submission_link=include_video_submission_link,
+                            message_id = (
+                                await self._notify(
+                                    chat_id, login, title, stream.viewer_count, game_name, return_note,
+                                    silent=True,
+                                    include_track_link=include_track_link,
+                                    include_video_submission_link=include_video_submission_link,
+                                ) if await self._viewer_allows_private_alert(
+                                    chat_id, login, title, game_name,
+                                ) else None
                             )
                             message_kind = "text"
                     else:
@@ -1198,12 +1214,18 @@ class StreamPoller:
                                         continue
                         if self._notification_queue_enabled:
                             message_id = None
-                            queue_go_live = True
+                            queue_go_live = await self._viewer_allows_private_alert(
+                                chat_id, login, title, game_name,
+                            )
                         else:
-                            message_id = await self._notify(
-                                chat_id, login, title, stream.viewer_count, game_name, return_note,
-                                include_track_link=include_track_link,
-                                include_video_submission_link=include_video_submission_link,
+                            message_id = (
+                                await self._notify(
+                                    chat_id, login, title, stream.viewer_count, game_name, return_note,
+                                    include_track_link=include_track_link,
+                                    include_video_submission_link=include_video_submission_link,
+                                ) if await self._viewer_allows_private_alert(
+                                    chat_id, login, title, game_name,
+                                ) else None
                             )
                         message_kind = "text"
 
@@ -2282,6 +2304,10 @@ class StreamPoller:
         _login, title, viewers, game_name = current
         if viewers is None:
             raise RuntimeError("queued live sample is not ready")
+        if not await self._viewer_allows_private_alert(
+            job.chat_id, job.twitch_login, title, game_name,
+        ):
+            return NotificationOutcome.STALE
         include_track_link = await self._db.is_telegram_channel(job.chat_id)
         include_video_submission_link = (
             self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
@@ -2445,7 +2471,12 @@ class StreamPoller:
         include_track_link: bool = False,
         include_video_submission_link: bool = False,
         direct: bool = False,
+        respect_viewer_filter: bool = True,
     ) -> int | None:
+        if respect_viewer_filter and not await self._viewer_allows_private_alert(
+            chat_id, login, title, game_name,
+        ):
+            return None
         if not include_track_link:
             if chat_id > 0:
                 text = await self._build_private_live_text(
@@ -2686,4 +2717,5 @@ class StreamPoller:
                 silent=True,
                 include_track_link=include_track_link,
                 include_video_submission_link=include_video_submission_link,
+                respect_viewer_filter=False,
             )

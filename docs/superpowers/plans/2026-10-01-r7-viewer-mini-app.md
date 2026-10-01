@@ -26,9 +26,9 @@
 
 **Files:** `bot/poller.py`, queue send path, tests `tests/test_viewer_delivery.py` и регрессии.
 
-- [ ] RED/GREEN: личный новый live post отфильтровывается до queue/direct send, state/sample сохраняется; group/channel и Free не меняются.
-- [ ] RED/GREEN: queued worker повторно проверяет правило после его изменения, без retry loop/утечки; expiry/revoke возвращает Free поведение. Существующий quiet-hours digest отражает флаг Mini App.
-- [ ] Focused suite, review и commit.
+- [x] RED/GREEN: личный новый live post отфильтровывается до queue/direct send, state и stream sample сохраняются; group/channel и Free не меняются.
+- [x] RED/GREEN: queued worker повторно проверяет правило после изменения и завершает исключённый job как stale; revoke возвращает Free поведение. Замена уже отправленного поста обходится без потери при позднем фильтре. Существующий quiet-hours digest читает флаг, который меняет Mini App.
+- [x] Focused queue/R7/R2 suite 50 passed, 7 subtests; review и commit пакета.
 
 ## Task 4: Staging acceptance
 

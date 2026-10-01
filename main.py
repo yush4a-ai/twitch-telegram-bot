@@ -628,6 +628,7 @@ async def main() -> None:
                     preview_observer=preview_manager,
                     telegram_channel_username_cache=channel_username_cache,
                     notification_queue_enabled=getattr(config, "notification_queue_enabled", False),
+                    viewer_filters_enabled=getattr(config, "viewer_plus_enabled", False),
                 )
                 notification_worker = _make_notification_worker(config, db, poller)
                 dp["poller"] = poller
