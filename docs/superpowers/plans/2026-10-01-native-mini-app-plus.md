@@ -132,11 +132,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** `mini_app_streamer.py`, UI `streamer.js`; `streamer_template.py`, `streamer_post.py`, `live_post.py` и точка выдачи preview; new `tests/test_mini_app_streamer_plus.py`; existing preview/template tests.
 **Interfaces:** `/app/api/streamer/template`, `/post-example`, `/stats`; template uses existing version and verified broadcaster/chat. Preview provider сохраняет свой API, доступ контролируется у потребителя и до dispatch.
-- [ ] Написать RED: Free имеет стандартный пост без нового custom/animation; Plus видит/применяет свой шаблон; чужой broadcaster/placement не использует чужой Plus; plain default refresh работает у Free.
-- [ ] Написать RED: expiry между render и send запрещает новую анимацию/кастом, сохраняет данные шаблона и Free delivery. Статистика — подтверждённые публикации, не Telegram просмотры; локальный пример не отправляет сообщения.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_streamer_plus.py tests/test_streamer_template.py tests/test_streamer_stats.py tests/test_live_post_media_lifecycle.py tests/test_live_preview_provider.py -q`.
-- [ ] Реализовать inline example+редактор, текущие ограничения safe HTML/HTTPS/buttons/UTF-16, права перед применением и отправкой. Не менять pipeline 24 s и не создавать массовые delete/repost при downgrade.
-- [ ] Проверить generic Free → Plus → expired → Plus на fake sender. PASS/commit и screenshots двух визуальных состояний.
+- [x] Написать RED: Free имеет стандартный пост без нового custom/animation; Plus видит/применяет свой шаблон; чужой broadcaster/placement не использует чужой Plus; plain default refresh работает у Free.
+- [x] Написать RED: expiry между render и send запрещает новую анимацию/кастом, сохраняет данные шаблона и Free delivery. Статистика — подтверждённые публикации, не Telegram просмотры; локальный пример не отправляет сообщения.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_streamer_plus.py tests/test_streamer_template.py tests/test_streamer_stats.py tests/test_live_post_media_lifecycle.py tests/test_live_preview_provider.py -q`.
+- [x] Реализовать inline example+редактор, текущие ограничения safe HTML/HTTPS/buttons/UTF-16, права перед применением и отправкой. Не менять pipeline 24 s и не создавать массовые delete/repost при downgrade.
+- [x] Проверить generic Free → Plus → expired → Plus на fake sender. PASS/commit и screenshots двух визуальных состояний.
 
 ## T11. Подписка и управление тестовым доступом внутри Mini App
 
@@ -153,6 +153,7 @@ T1 verification note: `git diff --check` для собственных изме�
 **Files:** reusable browser journeys/fixtures, `docs/audits/2026-10-01-mini-app-acceptance.md`, `docs/design/mini-app-qa/*`, STATUS/DECISIONS; existing deployment guard/runbook.
 - [ ] Запустить независимый обзор доступного diff по spec: auth/права/доставка/платежи/миграции. Для frontend — web-design-guidelines, для русского текста — stop-slop. Один reviewer за раз; его замечания проверять, а не применять слепо.
 - [ ] Выполнить браузерную матрицу spec; сохранить screenshots и результаты с точным tree/окружением. Один общий визуальный обзор → пакет исправлений → подтверждение; функциональные ошибки не закрывать лимитом косметических правок.
+- [ ] По `mini-app/2026-10-01-production-journey-audit.md` повторить на новой копии старые preview callbacks и effective media-права, raid в тихие часы и состояние MenuButton после restart. Исправить подтвердившиеся расхождения локально/staging, сохранить HTML-отчёты/экспорт и старые Free-права. Не внедрять предложенный новый onboarding или новую платность отчётов без решения владельца.
 - [ ] Запустить `.venv\Scripts\python.exe -m pytest -q` на финальном коде и `git diff --check`. Нужен exit 0; старые 1126 passed не переносятся на новую версию. Не удалять тесты/не добавлять skip ради зелёного результата.
 - [ ] Прочитать `scripts/staging_deploy.py --help`, runbook и pinned target; сделать внешний staging backup, restore/migration на копии. Убедиться, что hooks/scripts не отправляют внешние сообщения. Deploy только проверенного commit через существующий guard и с явным staging target.
 - [ ] Независимо проверить active deployment/SHA, testbot identity, routes, Free/Plus API и отсутствие admin leak. Реальный Telegram client/контролируемое live-событие провести только с согласованным аккаунтом и получателем.
