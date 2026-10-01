@@ -20,6 +20,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from .billing_models import BillingOrder, PaymentRecord
 from .billing_provider import VerifiedPaymentEvent
 from .streamer_template import StreamerTemplate, validate_streamer_template
+from .viewer_filter import ViewerFilter, validate_viewer_filter
 
 if TYPE_CHECKING:
     from .oauth import UserTokenResult
@@ -622,7 +623,22 @@ class Database:
         await self._migrate_streamer_template_schema()
         await self._migrate_streamer_stats_schema()
         await self._migrate_billing_schema()
+        await self._migrate_viewer_schema()
         await self.conn.commit()
+
+    async def _migrate_viewer_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_alert_filters ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "games_json TEXT NOT NULL, title_keywords_json TEXT NOT NULL, "
+            "exclude_keywords_json TEXT NOT NULL, version INTEGER NOT NULL, "
+            "updated_at REAL NOT NULL, PRIMARY KEY(telegram_user_id,twitch_login)) "
+            "WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('r7_001_viewer_filters',?)", (time.time(),)
+        )
 
     async def _migrate_growth_schema(self) -> None:
         """Add R3 tables inside the caller's BEGIN IMMEDIATE boundary."""
@@ -889,6 +905,176 @@ class Database:
         )
         row = await cursor.fetchone()
         return (row[0], row[1]) if row is not None else None
+
+    async def has_viewer_plus(self, telegram_user_id: int, *, now: float | None = None) -> bool:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            return False
+        at = time.time() if now is None else now
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM entitlement_grants WHERE subject_kind='viewer' "
+            "AND subject_id=? AND plan='viewer_plus' AND revoked_at IS NULL "
+            "AND starts_at <= ? AND expires_at > ? LIMIT 1",
+            (str(telegram_user_id), at, at),
+        )
+        return await cursor.fetchone() is not None
+
+    @_serialized
+    async def issue_test_viewer_plus(
+        self, telegram_user_id: int, request_key: str, *, starts_at: float,
+        expires_at: float, issued_by: int, now: float | None = None,
+    ) -> str:
+        at = time.time() if now is None else now
+        if (
+            type(telegram_user_id) is not int or telegram_user_id <= 0
+            or type(issued_by) is not int or issued_by <= 0
+            or not isinstance(request_key, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_key) is None
+            or any(not isinstance(value, (int, float)) or not math.isfinite(value)
+                   for value in (starts_at, expires_at, at))
+            or expires_at <= starts_at
+        ):
+            raise ValueError("invalid test Viewer Plus grant")
+        cursor = await self.conn.execute(
+            "SELECT grant_id,subject_kind,subject_id,plan,source,starts_at,expires_at,issued_by "
+            "FROM entitlement_grants WHERE request_key=?", (request_key,),
+        )
+        existing = await cursor.fetchone()
+        expected = ("viewer", str(telegram_user_id), "viewer_plus", "test",
+                    starts_at, expires_at, issued_by)
+        if existing is not None:
+            if existing[1:] != expected:
+                raise ValueError("test Viewer Plus request key conflict")
+            return existing[0]
+        grant_id = uuid.uuid4().hex
+        await self.conn.execute(
+            "INSERT INTO entitlement_grants "
+            "(grant_id,request_key,subject_kind,subject_id,plan,source,"
+            "starts_at,expires_at,issued_by,created_at) "
+            "VALUES (?,?,'viewer',?,'viewer_plus','test',?,?,?,?)",
+            (grant_id, request_key, str(telegram_user_id), starts_at,
+             expires_at, issued_by, at),
+        )
+        await self.conn.execute(
+            "INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) "
+            "VALUES (?,'grant',?,?)", (grant_id, issued_by, at),
+        )
+        await self.conn.commit()
+        return grant_id
+
+    @_serialized
+    async def revoke_test_viewer_plus(
+        self, grant_id: str, *, revoked_at: float, issued_by: int,
+    ) -> bool:
+        if (
+            not isinstance(grant_id, str) or not grant_id
+            or type(issued_by) is not int or issued_by <= 0
+            or not isinstance(revoked_at, (int, float)) or not math.isfinite(revoked_at)
+        ):
+            raise ValueError("invalid test Viewer Plus revoke")
+        cursor = await self.conn.execute(
+            "UPDATE entitlement_grants SET revoked_at=? WHERE grant_id=? "
+            "AND subject_kind='viewer' AND plan='viewer_plus' "
+            "AND source='test' AND revoked_at IS NULL",
+            (revoked_at, grant_id),
+        )
+        if cursor.rowcount != 1:
+            await self.conn.rollback()
+            return False
+        await self.conn.execute(
+            "INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) "
+            "VALUES (?,'revoke',?,?)", (grant_id, issued_by, revoked_at),
+        )
+        await self.conn.commit()
+        return True
+
+    async def get_viewer_filter(
+        self, telegram_user_id: int, twitch_login: str,
+    ) -> tuple[int, ViewerFilter] | None:
+        cursor = await self.conn.execute(
+            "SELECT version,games_json,title_keywords_json,exclude_keywords_json "
+            "FROM viewer_alert_filters WHERE telegram_user_id=? AND twitch_login=?",
+            (telegram_user_id, twitch_login.lower()),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        return (row[0], validate_viewer_filter(
+            json.loads(row[1]), json.loads(row[2]), json.loads(row[3]),
+        ))
+
+    async def get_effective_viewer_filter(
+        self, telegram_user_id: int, twitch_login: str, *, now: float | None = None,
+    ) -> ViewerFilter | None:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0 or not isinstance(twitch_login, str):
+            return None
+        at = time.time() if now is None else now
+        cursor = await self.conn.execute(
+            "SELECT f.games_json,f.title_keywords_json,f.exclude_keywords_json "
+            "FROM viewer_alert_filters f WHERE f.telegram_user_id=? AND f.twitch_login=? "
+            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
+            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(f.telegram_user_id AS TEXT) "
+            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
+            "AND g.starts_at <= ? AND g.expires_at > ?) LIMIT 1",
+            (telegram_user_id, twitch_login.lower(), at, at),
+        )
+        row = await cursor.fetchone()
+        return (validate_viewer_filter(
+            json.loads(row[0]), json.loads(row[1]), json.loads(row[2]),
+        ) if row is not None else None)
+
+    @_serialized
+    async def save_viewer_filter(
+        self, telegram_user_id: int, twitch_login: str, *, expected_version: int,
+        games: object, title_keywords: object, exclude_keywords: object,
+        now: float | None = None,
+    ) -> int | None:
+        rule = validate_viewer_filter(games, title_keywords, exclude_keywords)
+        at = time.time() if now is None else now
+        if (
+            type(telegram_user_id) is not int or telegram_user_id <= 0
+            or not isinstance(twitch_login, str)
+            or re.fullmatch(r"[A-Za-z0-9_]{2,25}", twitch_login) is None
+            or type(expected_version) is not int or expected_version < 0
+            or not isinstance(at, (int, float)) or not math.isfinite(at)
+        ):
+            raise ValueError("invalid Viewer Plus filter write")
+        if not await self.has_viewer_plus(telegram_user_id, now=at):
+            raise PermissionError("Viewer Plus is required")
+        login = twitch_login.lower()
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM tracked_channels WHERE chat_id=? AND twitch_login=?",
+            (telegram_user_id, login),
+        )
+        if await cursor.fetchone() is None:
+            return None
+        values = (
+            json.dumps(rule.games, ensure_ascii=False),
+            json.dumps(rule.title_keywords, ensure_ascii=False),
+            json.dumps(rule.exclude_keywords, ensure_ascii=False),
+        )
+        if expected_version == 0:
+            cursor = await self.conn.execute(
+                "INSERT INTO viewer_alert_filters "
+                "(telegram_user_id,twitch_login,games_json,title_keywords_json,"
+                "exclude_keywords_json,version,updated_at) "
+                "VALUES (?,?,?,?,?,1,?) "
+                "ON CONFLICT(telegram_user_id,twitch_login) DO NOTHING",
+                (telegram_user_id, login, *values, at),
+            )
+            version = 1
+        else:
+            cursor = await self.conn.execute(
+                "UPDATE viewer_alert_filters SET games_json=?,title_keywords_json=?,"
+                "exclude_keywords_json=?,version=version+1,updated_at=? "
+                "WHERE telegram_user_id=? AND twitch_login=? AND version=?",
+                (*values, at, telegram_user_id, login, expected_version),
+            )
+            version = expected_version + 1
+        if cursor.rowcount != 1:
+            await self.conn.rollback()
+            return None
+        await self.conn.commit()
+        return version
 
     @_serialized
     async def create_billing_order(
@@ -1649,6 +1835,11 @@ class Database:
             "DELETE FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
         )
+        if chat_id > 0:
+            await self.conn.execute(
+                "DELETE FROM viewer_alert_filters WHERE telegram_user_id=? AND twitch_login=?",
+                (chat_id, twitch_login),
+            )
         await self.conn.commit()
         return cursor.rowcount > 0
 
@@ -1664,6 +1855,10 @@ class Database:
             "DELETE FROM tracked_channels WHERE chat_id = ?", (chat_id,)
         )
         removed = cursor.rowcount
+        if chat_id > 0:
+            await self.conn.execute(
+                "DELETE FROM viewer_alert_filters WHERE telegram_user_id=?", (chat_id,)
+            )
         for table in (
             "telegram_channels", "stats_recipients", "quiet_hours",
             "quiet_hours_digest_sent", "stream_chat_meta", "user_timezones",
