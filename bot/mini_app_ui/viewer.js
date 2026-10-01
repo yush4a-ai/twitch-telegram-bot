@@ -3,7 +3,7 @@ import { element, panel, action } from './components.js';
 
 const fallbackName = (login) => login.charAt(0).toUpperCase() + login.slice(1);
 
-export function createViewerFeature(api, getSession, getRouter, telegram) {
+export function createViewerFeature(api, getRouter, telegram) {
   let data = null;
   let loading = false;
   let requested = false;
@@ -15,6 +15,9 @@ export function createViewerFeature(api, getSession, getRouter, telegram) {
   let searchVersion = 0;
   let feedback = '';
   let lastLoadedAt = 0;
+  let quietDraft = null;
+  let profileFeedback = '';
+  const filterDrafts = new Map();
   const names = new Map();
   try { searchDraft = (localStorage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
   const nameOf = (login) => names.get(login) || fallbackName(login);
@@ -207,6 +210,15 @@ export function createViewerFeature(api, getSession, getRouter, telegram) {
     });
     settings.append(label, status);
     target.append(settings);
+    if (data.viewer_plus_active) {
+      const rule = element('div', 'panel feature-panel');
+      rule.append(element('h2', '', 'Фильтр эфиров'));
+      rule.append(element('p', 'muted', explainFilter(row.filter)));
+      rule.append(action('Настроить фильтр', () => getRouter().openDetail(`filter:${login}`), true));
+      target.append(rule);
+    } else {
+      target.append(panel('Фильтр эфиров · Viewer Plus', 'Viewer Plus открывает фильтр по категориям и словам в названии.'));
+    }
     const actions = element('div', 'actions');
     const twitchLink = element('a', 'button secondary', 'Открыть Twitch');
     twitchLink.href = `https://www.twitch.tv/${login}`;
@@ -231,9 +243,213 @@ export function createViewerFeature(api, getSession, getRouter, telegram) {
     }, true));
     target.append(actions);
   }
+  function explainFilter(rule) {
+    if (!rule || (!rule.games.length && !rule.title_keywords.length && !rule.exclude_keywords.length)) {
+      return 'Дополнительных условий нет. Вы получите обычное оповещение.';
+    }
+    const conditions = [];
+    if (rule.games.length) conditions.push(`категория — ${rule.games.join(' или ')}`);
+    if (rule.title_keywords.length) conditions.push(`название содержит ${rule.title_keywords.join(' или ')}`);
+    const start = conditions.length
+      ? `Бот пришлёт оповещение, когда ${conditions.join(' и ')}.`
+      : 'Бот пришлёт обычное оповещение.';
+    return rule.exclude_keywords.length
+      ? `${start} Названия со словами ${rule.exclude_keywords.join(' или ')} бот пропустит.`
+      : start;
+  }
+  function renderFilter(target, login) {
+    const row = data.subscriptions.find((item) => item.login === login);
+    if (!row) { heading(target, 'Зритель', 'Стример не найден', 'Вернитесь к подпискам.'); return; }
+    heading(target, 'Viewer Plus', `Фильтр · ${nameOf(login)}`, 'Выберите условия для оповещений об эфирах.');
+    if (!data.viewer_plus_active) {
+      target.append(panel('Доступ к фильтру завершился', 'Правило сохранено. Бот не применяет его без Viewer Plus.'));
+      return;
+    }
+    let draft = filterDrafts.get(login);
+    if (!draft) {
+      const saved = row.filter;
+      draft = {
+        version: saved?.version || 0,
+        games: [...(saved?.games || [])],
+        title_keywords: [...(saved?.title_keywords || [])],
+        exclude_keywords: [...(saved?.exclude_keywords || [])],
+        inputs: { games: '', title_keywords: '', exclude_keywords: '' },
+        feedback: '',
+      };
+      filterDrafts.set(login, draft);
+    }
+    const specs = [
+      ['games', 'Категория', 'Добавить категорию'],
+      ['title_keywords', 'Слова в названии', 'Добавить слово'],
+      ['exclude_keywords', 'Исключить слова', 'Добавить исключение'],
+    ];
+    for (const [key, labelText, addText] of specs) {
+      const field = element('section', 'token-field panel');
+      const headingNode = element('h2', '', labelText);
+      const tokens = element('div', 'tokens');
+      for (const term of draft[key]) {
+        const chip = element('span', 'chip');
+        chip.append(element('span', '', term));
+        const remove = action('×', () => {
+          draft[key] = draft[key].filter((item) => item !== term);
+          refresh();
+        }, true);
+        remove.setAttribute('aria-label', `Убрать ${term} из ${labelText.toLowerCase()}`);
+        chip.append(remove);
+        tokens.append(chip);
+      }
+      const inputRow = element('div', 'token-input-row');
+      const input = element('input', 'input');
+      input.type = 'text'; input.name = key; input.maxLength = 40;
+      input.autocomplete = 'off'; input.value = draft.inputs[key];
+      input.setAttribute('aria-label', labelText);
+      input.addEventListener('input', () => { draft.inputs[key] = input.value; });
+      const addButton = action('Добавить', () => {
+        const term = input.value.trim();
+        if (term.length < 2 || term.length > 40 || draft[key].length >= 5
+            || draft[key].some((item) => item.toLocaleLowerCase() === term.toLocaleLowerCase())) {
+          draft.feedback = 'Для каждого поля можно выбрать до 5 разных значений длиной от 2 до 40 символов.';
+          refresh();
+          return;
+        }
+        draft[key].push(term);
+        draft.inputs[key] = '';
+        draft.feedback = '';
+        refresh();
+      }, true);
+      addButton.setAttribute('aria-label', addText);
+      inputRow.append(input, addButton);
+      field.append(headingNode, tokens, inputRow);
+      target.append(field);
+    }
+    const explanation = element('p', 'notice', explainFilter(draft));
+    target.append(explanation);
+    if (draft.feedback) banner(target, draft.feedback, draft.feedback !== 'Фильтр сохранён');
+    target.append(action('Сохранить фильтр', async () => {
+      try {
+        const saved = await api.post('/app/api/viewer/filter', {
+          login, expected_version: draft.version,
+          games: draft.games, title_keywords: draft.title_keywords,
+          exclude_keywords: draft.exclude_keywords,
+        });
+        draft.version = saved.version;
+        row.filter = {
+          version: saved.version, games: [...draft.games],
+          title_keywords: [...draft.title_keywords], exclude_keywords: [...draft.exclude_keywords],
+        };
+        draft.feedback = 'Фильтр сохранён';
+        refresh();
+      } catch (cause) {
+        if (cause instanceof ApiError && cause.status === 409) {
+          await load();
+          const currentRow = data?.subscriptions.find((item) => item.login === login);
+          draft.version = currentRow?.filter?.version || 0;
+          draft.feedback = 'Правило изменилось в другом окне. Проверьте значения и сохраните ещё раз.';
+        } else if (cause instanceof ApiError && cause.status === 403) {
+          await load();
+          draft.feedback = 'Доступ Viewer Plus завершился. Правило сохранено, но сейчас не применяется.';
+        } else {
+          draft.feedback = 'Не удалось сохранить фильтр. Проверьте значения и попробуйте ещё раз.';
+        }
+        refresh();
+      }
+    }));
+  }
+  const minuteText = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+  const parseTime = (text) => {
+    if (!/^\d{2}:\d{2}$/.test(text)) return null;
+    const [hours, minutes] = text.split(':').map(Number);
+    return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
+  };
   function renderProfile(target) {
     heading(target, 'Зритель', 'Профиль', 'Настройки и доступ.');
-    target.append(panel('Ваши возможности', `${data.subscriptions.length} из ${data.channel_limit} отслеживаемых стримеров. ${getSession().capabilities.viewer_plus_active ? 'Viewer Plus активен.' : 'Основные оповещения доступны бесплатно.'}`));
+    target.append(panel('Ваши возможности', `${data.subscriptions.length} из ${data.channel_limit} отслеживаемых стримеров. ${data.viewer_plus_active ? 'Viewer Plus активен.' : 'Основные оповещения доступны бесплатно.'}`));
+    const quiet = data.quiet_hours;
+    if (!quietDraft || !quietDraft.dirty) {
+      const offset = quiet?.utc_offset_minutes ?? -new Date().getTimezoneOffset();
+      quietDraft = {
+        start: quiet ? minuteText((quiet.start_minute + offset + 1440) % 1440) : '23:00',
+        end: quiet ? minuteText((quiet.end_minute + offset + 1440) % 1440) : '08:00',
+        dirty: false,
+      };
+    }
+    const section = element('section', 'panel quiet-panel');
+    section.append(element('h2', '', 'Тихие часы'));
+    section.append(element('p', 'muted', 'В это время бот не присылает обычные оповещения. Время берём из часового пояса устройства при сохранении.'));
+    const form = element('div', 'time-fields');
+    for (const [key, labelText] of [['start', 'Начало тихих часов'], ['end', 'Конец тихих часов']]) {
+      const label = element('label', '', labelText);
+      const input = element('input', 'input');
+      input.type = 'time'; input.name = key; input.value = quietDraft[key];
+      input.addEventListener('input', () => { quietDraft[key] = input.value; quietDraft.dirty = true; });
+      label.append(input);
+      form.append(label);
+    }
+    section.append(form);
+    const buttons = element('div', 'actions');
+    const saveQuiet = action('Сохранить', async () => {
+      const start = parseTime(quietDraft.start);
+      const end = parseTime(quietDraft.end);
+      if (start === null || end === null || start === end) {
+        profileFeedback = 'Укажите разное время начала и конца.';
+        refresh();
+        return;
+      }
+      const offset = -new Date().getTimezoneOffset();
+      try {
+        const response = await api.post('/app/api/viewer/quiet-hours', {
+          start_minute: (start - offset + 1440) % 1440,
+          end_minute: (end - offset + 1440) % 1440,
+          utc_offset_minutes: offset,
+        });
+        data.quiet_hours = response.quiet_hours;
+        quietDraft.dirty = false;
+        profileFeedback = 'Тихие часы сохранены';
+      } catch { profileFeedback = 'Не удалось сохранить тихие часы. Попробуйте ещё раз.'; }
+      refresh();
+    });
+    saveQuiet.setAttribute('aria-label', 'Сохранить тихие часы');
+    buttons.append(saveQuiet);
+    if (quiet) buttons.append(action('Выключить', async () => {
+      try {
+        await api.post('/app/api/viewer/quiet-hours', { clear: true });
+        data.quiet_hours = null;
+        quietDraft.dirty = false;
+        profileFeedback = 'Тихие часы выключены';
+      } catch { profileFeedback = 'Не удалось выключить тихие часы. Попробуйте ещё раз.'; }
+      refresh();
+    }, true));
+    section.append(buttons);
+    const digestLabel = element('label', 'switch-row');
+    const digest = element('input', '');
+    digest.type = 'checkbox'; digest.name = 'digest';
+    digest.checked = Boolean(quiet?.digest_enabled);
+    digest.disabled = !quiet;
+    digestLabel.append(digest, element('span', '', 'Сводка после тихих часов'));
+    section.append(digestLabel);
+    const digestStatus = element('p', 'muted', quiet
+      ? (quiet.digest_enabled ? 'Сводка включена' : 'Сводка выключена')
+      : 'Сначала сохраните тихие часы.');
+    section.append(digestStatus);
+    digest.addEventListener('change', async () => {
+      const enabled = digest.checked;
+      digest.disabled = true;
+      try {
+        await api.post('/app/api/viewer/digest', { enabled });
+        data.quiet_hours.digest_enabled = enabled;
+        digestStatus.textContent = enabled ? 'Сводка включена' : 'Сводка выключена';
+      } catch {
+        digest.checked = !enabled;
+        digestStatus.textContent = 'Не удалось сохранить сводку. Попробуйте ещё раз.';
+      } finally { digest.disabled = false; }
+    });
+    if (profileFeedback) {
+      const note = element('p', 'notice', profileFeedback);
+      note.setAttribute('role', 'status');
+      section.append(note);
+      profileFeedback = '';
+    }
+    target.append(section);
   }
   return {
     render(target, route) {
@@ -249,7 +465,8 @@ export function createViewerFeature(api, getSession, getRouter, telegram) {
         return;
       }
       if (error) banner(target, error, true);
-      if (route.detail) renderDetail(target, route.detail);
+      if (route.detail?.startsWith('filter:')) renderFilter(target, route.detail.slice(7));
+      else if (route.detail) renderDetail(target, route.detail);
       else if (route.tab === 'home') renderHome(target);
       else if (route.tab === 'streamers') renderStreamers(target);
       else renderProfile(target);

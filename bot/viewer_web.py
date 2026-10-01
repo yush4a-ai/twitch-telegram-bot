@@ -143,11 +143,8 @@ def install_viewer_routes(app: web.Application, db: Database, bot_token: str) ->
         enabled = values.get("enabled")
         if type(enabled) is not bool:
             return web.json_response({"error": "invalid_settings"}, status=400)
-        if not await db.has_viewer_plus(user_id):
-            return web.json_response({"error": "plus_required"}, status=403)
-        if await db.get_quiet_hours(user_id) is None:
+        if not await db.set_quiet_hours_notify_after(user_id, enabled):
             return web.json_response({"error": "quiet_hours_required"}, status=409)
-        await db.set_quiet_hours_notify_after(user_id, enabled)
         return web.json_response({"digest_enabled": enabled})
 
     app.router.add_get("/viewer", shell)

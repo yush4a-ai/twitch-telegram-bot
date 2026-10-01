@@ -1077,6 +1077,22 @@ class Database:
             json.loads(row[1]), json.loads(row[2]), json.loads(row[3]),
         ))
 
+    async def list_viewer_filters(
+        self, telegram_user_id: int,
+    ) -> dict[str, tuple[int, ViewerFilter]]:
+        cursor = await self.conn.execute(
+            "SELECT twitch_login,version,games_json,title_keywords_json,exclude_keywords_json "
+            "FROM viewer_alert_filters WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        rows = await cursor.fetchall()
+        return {
+            row[0]: (row[1], validate_viewer_filter(
+                json.loads(row[2]), json.loads(row[3]), json.loads(row[4]),
+            ))
+            for row in rows
+        }
+
     async def get_effective_viewer_filter(
         self, telegram_user_id: int, twitch_login: str, *, now: float | None = None,
     ) -> ViewerFilter | None:
@@ -2513,12 +2529,13 @@ class Database:
         return row[0], row[1], row[2], bool(row[3])
 
     @_serialized
-    async def set_quiet_hours_notify_after(self, chat_id: int, enabled: bool) -> None:
-        await self.conn.execute(
+    async def set_quiet_hours_notify_after(self, chat_id: int, enabled: bool) -> bool:
+        cursor = await self.conn.execute(
             "UPDATE quiet_hours SET notify_after_enabled = ? WHERE chat_id = ?",
             (int(enabled), chat_id),
         )
         await self.conn.commit()
+        return cursor.rowcount == 1
 
     async def all_quiet_hours_chat_ids(self) -> list[int]:
         cursor = await self.conn.execute("SELECT chat_id FROM quiet_hours")

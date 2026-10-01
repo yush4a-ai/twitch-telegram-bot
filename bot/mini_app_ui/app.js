@@ -17,7 +17,7 @@ const telegram = createTelegramAdapter(() => router.back(), (theme) => {
 });
 const api = createApi(telegram.initData);
 router = createRouter(render);
-viewerFeature = createViewerFeature(api, () => session, () => router, telegram);
+viewerFeature = createViewerFeature(api, () => router, telegram);
 window.addEventListener('pagehide', () => telegram.dispose(), { once: true });
 
 function render(state, canBack) {

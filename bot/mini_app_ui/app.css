@@ -62,6 +62,16 @@ p { margin: 0; }
 .switch-row { display: flex; align-items: center; gap: 12px; min-height: 44px; font-weight: 650; }
 .switch-row input { width: 20px; height: 20px; accent-color: var(--accent); }
 .settings { display: grid; gap: 12px; }
+.feature-panel, .quiet-panel, .token-field { display: grid; gap: 14px; margin-top: 16px; }
+.feature-panel .button { justify-self: start; }
+.time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.time-fields label { display: grid; gap: 6px; min-width: 0; font-size: 14px; font-weight: 650; }
+.token-input-row { display: flex; gap: 8px; }
+.token-input-row .input { min-width: 0; }
+.token-input-row .button { flex-shrink: 0; }
+.tokens { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 4px 3px 9px; border-radius: 8px; background: var(--soft); color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.chip .button { min-height: 32px; padding: 0 7px; font-size: 12px; }
 .text-link { color: var(--accent); font-size: 14px; font-weight: 700; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 .tab-bar { position: fixed; z-index: 2; bottom: 0; left: 50%; display: flex; width: min(100%, 760px); transform: translateX(-50%); padding: 9px 12px calc(9px + var(--bottom-inset)); border-top: 1px solid var(--line); background: var(--surface); }

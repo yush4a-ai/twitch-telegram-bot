@@ -70,6 +70,8 @@ def install_mini_app_viewer_routes(
         now = time.time()
         flags = await capabilities.for_user(user_id, now=now)
         rows = await db.list_personal_channel_status(user_id)
+        filters = await db.list_viewer_filters(user_id) if flags.viewer_filters else {}
+        quiet = await db.get_quiet_hours(user_id)
         live = {
             login: {"title": title, "viewer_count": viewers, "category": category}
             for login, title, viewers, category in await db.list_live_channels(user_id)
@@ -85,6 +87,15 @@ def install_mini_app_viewer_routes(
                 ),
                 "observed_at": observed_at if is_live else None,
                 "live": live.get(login) if is_live else None,
+                "filter": (
+                    {
+                        "version": filters[login][0],
+                        "games": list(filters[login][1].games),
+                        "title_keywords": list(filters[login][1].title_keywords),
+                        "exclude_keywords": list(filters[login][1].exclude_keywords),
+                    }
+                    if login in filters else None
+                ),
             }
             for login, notify_enabled, is_live, observed_at in rows
         ]
@@ -92,7 +103,78 @@ def install_mini_app_viewer_routes(
             "subscriptions": subscriptions,
             "channel_limit": flags.viewer_channel_limit,
             "viewer_plus_active": flags.viewer_plus_active,
+            "quiet_hours": (
+                {
+                    "start_minute": quiet[0], "end_minute": quiet[1],
+                    "utc_offset_minutes": quiet[2], "digest_enabled": quiet[3],
+                }
+                if quiet is not None else None
+            ),
         })
+
+    async def save_filter(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        login = normalize_twitch_login(values.get("login"))
+        version = values.get("expected_version")
+        if login is None or type(version) is not int or version < 0:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        if login not in await db.list_channels(user_id):
+            return web.json_response({"error": "not_subscribed"}, status=404)
+        flags = await capabilities.for_user(user_id, now=time.time())
+        if not flags.viewer_filters:
+            return web.json_response({"error": "plus_required"}, status=403)
+        try:
+            saved = await db.save_viewer_filter(
+                user_id, login, expected_version=version,
+                games=values.get("games"),
+                title_keywords=values.get("title_keywords"),
+                exclude_keywords=values.get("exclude_keywords"),
+            )
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        except ValueError:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        if saved is None:
+            return web.json_response({"error": "version_conflict"}, status=409)
+        return web.json_response({"version": saved})
+
+    async def quiet_hours(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if values.get("clear") is True:
+            await db.clear_quiet_hours(user_id)
+            return web.json_response({"quiet_hours": None})
+        start = values.get("start_minute")
+        end = values.get("end_minute")
+        offset = values.get("utc_offset_minutes")
+        if (
+            type(start) is not int or not 0 <= start < 1440
+            or type(end) is not int or not 0 <= end < 1440 or start == end
+            or type(offset) is not int or not -720 <= offset <= 840
+        ):
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        await db.set_quiet_hours(user_id, start, end, offset)
+        stored = await db.get_quiet_hours(user_id)
+        return web.json_response({
+            "quiet_hours": {
+                "start_minute": stored[0], "end_minute": stored[1],
+                "utc_offset_minutes": stored[2], "digest_enabled": stored[3],
+            },
+        })
+
+    async def digest(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        enabled = values.get("enabled")
+        if type(enabled) is not bool:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        if not await db.set_quiet_hours_notify_after(user_id, enabled):
+            return web.json_response({"error": "quiet_hours_required"}, status=409)
+        return web.json_response({"digest_enabled": enabled})
 
     async def search(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -185,3 +267,6 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/follow", follow)
     app.router.add_post("/app/api/viewer/unfollow", unfollow)
     app.router.add_post("/app/api/viewer/notify", notify)
+    app.router.add_post("/app/api/viewer/filter", save_filter)
+    app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)
+    app.router.add_post("/app/api/viewer/digest", digest)

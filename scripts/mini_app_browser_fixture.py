@@ -4,6 +4,7 @@ import asyncio
 import json
 import signal
 import tempfile
+import time
 from pathlib import Path
 
 from aiohttp import web
@@ -31,6 +32,12 @@ async def main() -> None:
     with tempfile.TemporaryDirectory(prefix="ts-mini-app-browser-") as directory:
         db = Database(str(Path(directory) / "fixture.db"))
         await db.connect()
+        await db.add_channel(501, "alpha")
+        now = time.time()
+        await db.issue_test_viewer_plus(
+            501, "browser-plus-fixture", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
+        )
         app = web.Application()
         install_mini_app_routes(app, db, "123456:test-telegram-token", twitch=FixtureTwitch())
         runner = web.AppRunner(app)
