@@ -128,6 +128,59 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
             row = (await response.json())["subscriptions"][0]
             self.assertEqual(row["reminder"]["status"], "cancelled")
 
+    async def test_folder_routes_keep_ownership_and_saved_state_after_expiry(self):
+        now = time.time()
+        async with self.request("/app/api/viewer/folder/create", name="Игры") as response:
+            self.assertEqual(response.status, 403)
+        grant_id = await self.db.issue_test_viewer_plus(
+            101, "folder-route", starts_at=now - 1, expires_at=now + 3600,
+            issued_by=OWNER_ID, now=now,
+        )
+        async with self.request("/app/api/viewer/folder/create", name="Игры") as response:
+            self.assertEqual(response.status, 200)
+            folder = (await response.json())["folder"]
+        async with self.request("/app/api/viewer/folder/create", name="Разговоры") as response:
+            self.assertEqual(response.status, 200)
+            other = (await response.json())["folder"]
+        async with self.request("/app/api/viewer/folder/rename", folder_id=other["id"],
+                                name="Игры", expected_version=other["version"]) as response:
+            self.assertEqual(response.status, 409)
+            self.assertEqual((await response.json())["error"], "folder_name_taken")
+        async with self.request("/app/api/viewer/folder/move", actor_id=202,
+                                login="beta", folder_id=folder["id"],
+                                expected_folder_id=None) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request("/app/api/viewer/folder/move", login="alpha",
+                                folder_id=folder["id"],
+                                expected_folder_id=None) as response:
+            self.assertEqual(response.status, 200)
+        async with self.request("/app/api/viewer/folder/rule", folder_id=folder["id"],
+                                expected_version=folder["version"], games=["Minecraft"],
+                                title_keywords=[], exclude_keywords=[]) as response:
+            self.assertEqual(response.status, 200)
+            folder = (await response.json())["folder"]
+        async with self.request("/app/api/viewer/state") as response:
+            payload = await response.json()
+            self.assertEqual(payload["subscriptions"][0]["folder_id"], folder["id"])
+            self.assertEqual(payload["folders"][0]["games"], ["Minecraft"])
+        async with self.request(
+            "/app/api/viewer/filter", login="alpha", expected_version=0,
+            games=[], title_keywords=[], exclude_keywords=[],
+        ) as response:
+            self.assertEqual(response.status, 200)
+        async with self.request("/app/api/viewer/filter/reset", login="alpha",
+                                expected_version=1) as response:
+            self.assertEqual(response.status, 200)
+        self.assertEqual((await self.db.get_effective_viewer_filter(101, "alpha"))
+                         .games, ("Minecraft",))
+        await self.db.revoke_test_viewer_plus(grant_id, revoked_at=time.time(),
+                                              issued_by=OWNER_ID)
+        async with self.request("/app/api/viewer/state") as response:
+            payload = await response.json()
+            self.assertFalse(payload["viewer_plus_active"])
+            self.assertEqual(payload["folders"][0]["name"], "Игры")
+            self.assertEqual(payload["subscriptions"][0]["folder_id"], folder["id"])
+
     async def test_filter_save_requires_current_viewer_plus_and_owned_subscription(self):
         rule = dict(login="alpha", expected_version=0, games=["Minecraft"],
                     title_keywords=["speedrun"], exclude_keywords=[])

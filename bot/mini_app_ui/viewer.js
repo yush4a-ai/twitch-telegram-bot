@@ -22,8 +22,13 @@ export function createViewerFeature(api, getRouter, telegram) {
   let planFeedback = '';
   let reminderFeedback = '';
   let reminderSaving = false;
+  let folderNameDraft = '';
+  let folderFeedback = '';
+  let folderSaving = false;
   let lastDetail = null;
   const filterDrafts = new Map();
+  const folderDrafts = new Map();
+  const folderMoveDrafts = new Map();
   const categoryDrafts = new Map();
   const names = new Map();
   try { searchDraft = (localStorage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
@@ -183,6 +188,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     if (data.viewer_plus_active) {
       target.append(element('p', 'muted', `Видеопревью: ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`));
     }
+    renderFolders(target);
     if (!rows.length) { target.append(panel('Добавьте первого стримера', 'Найдите его по нику Twitch или вставьте ссылку на канал.')); return; }
     const list = element('div', 'list');
     for (const row of rows) {
@@ -191,10 +197,52 @@ export function createViewerFeature(api, getRouter, telegram) {
       copy.append(element('strong', '', nameOf(row.login)), element('small', '', row.paused_by_plan
         ? 'Приостановлен по лимиту тарифа'
         : row.notify_enabled ? 'Уведомления включены' : 'Уведомления выключены'));
+      const folder = data.folders?.find((entry) => entry.id === row.folder_id);
+      if (folder) copy.append(element('small', '', `Папка: ${folder.name}`));
       item.append(copy, action(`Настройки ${nameOf(row.login)}`, () => getRouter().openDetail(row.login), true));
       list.append(item);
     }
     target.append(list);
+  }
+  function renderFolders(target) {
+    if (!data.viewer_plus_active && !(data.folders || []).length) return;
+    const section = element('section', 'panel feature-panel');
+    section.append(element('h2', '', 'Папки'));
+    section.append(element('p', 'muted', data.viewer_plus_active
+      ? 'Группируйте стримеров и задавайте общее правило оповещений.'
+      : 'Папки сохранены. Их правила снова заработают с Viewer Plus.'));
+    for (const folder of data.folders || []) {
+      const count = data.subscriptions.filter((row) => row.folder_id === folder.id).length;
+      section.append(action(`${folder.name} · ${count}`, () => getRouter().openDetail(`folder:${folder.id}`), true));
+    }
+    if (data.viewer_plus_active) {
+      const field = element('div', 'search-field');
+      const input = element('input', 'input');
+      input.type = 'text'; input.maxLength = 40; input.value = folderNameDraft;
+      input.setAttribute('aria-label', 'Название новой папки');
+      input.addEventListener('input', () => { folderNameDraft = input.value; });
+      const create = action('Создать папку', async () => {
+        if (folderSaving) return;
+        folderSaving = true; create.disabled = true;
+        try {
+          const response = await api.post('/app/api/viewer/folder/create', { name: input.value });
+          folderNameDraft = ''; folderFeedback = '';
+          await load();
+          getRouter().openDetail(`folder:${response.folder.id}`);
+        } catch (cause) {
+          folderFeedback = cause instanceof ApiError && cause.code === 'folder_limit'
+            ? 'Мест для папок больше нет. Удалите пустую папку и повторите.'
+            : cause instanceof ApiError && cause.code === 'folder_name_taken'
+            ? 'Папка с таким названием уже есть.'
+            : 'Не удалось создать папку. Проверьте название и попробуйте ещё раз.';
+          refresh();
+        } finally { folderSaving = false; }
+      });
+      field.append(input, create);
+      section.append(field);
+    }
+    if (folderFeedback) section.append(element('p', 'notice error', folderFeedback));
+    target.append(section);
   }
   function renderDetail(target, login) {
     const row = data.subscriptions.find((item) => item.login === login);
@@ -222,6 +270,42 @@ export function createViewerFeature(api, getRouter, telegram) {
     });
     settings.append(label, status);
     target.append(settings);
+    if (data.viewer_plus_active && (data.folders || []).length) {
+      const section = element('section', 'panel feature-panel');
+      section.append(element('h2', '', 'Папка'));
+      const selector = element('select', 'input');
+      selector.setAttribute('aria-label', 'Папка стримера');
+      const empty = element('option', '', 'Без папки'); empty.value = '';
+      selector.append(empty);
+      for (const folder of data.folders) {
+        const option = element('option', '', folder.name); option.value = folder.id;
+        selector.append(option);
+      }
+      selector.value = folderMoveDrafts.get(login) ?? row.folder_id ?? '';
+      selector.addEventListener('change', () => { folderMoveDrafts.set(login, selector.value); });
+      const save = action('Сохранить папку', async () => {
+        if (folderSaving) return;
+        folderSaving = true; save.disabled = true;
+        try {
+          await api.post('/app/api/viewer/folder/move', {
+            login, folder_id: selector.value || null,
+            expected_folder_id: row.folder_id || null,
+          });
+          folderMoveDrafts.delete(login);
+          folderFeedback = '';
+          await load();
+        } catch (cause) {
+          if (cause instanceof ApiError && cause.status === 409) await load();
+          folderFeedback = cause instanceof ApiError && cause.status === 409
+            ? 'Папка изменилась в другом окне. Проверьте выбор.'
+            : 'Не удалось сохранить папку. Попробуйте ещё раз.';
+          refresh();
+        } finally { folderSaving = false; }
+      });
+      section.append(selector, save);
+      if (folderFeedback) section.append(element('p', 'notice error', folderFeedback));
+      target.append(section);
+    }
     if (row.paused_by_plan) {
       const paused = element('div', 'panel feature-panel');
       paused.append(element('h2', '', 'Приостановлено по лимиту'));
@@ -318,7 +402,11 @@ export function createViewerFeature(api, getRouter, telegram) {
     if (data.viewer_plus_active) {
       const rule = element('div', 'panel feature-panel');
       rule.append(element('h2', '', 'Фильтр эфиров'));
-      rule.append(element('p', 'muted', explainFilter(row.filter)));
+      const inherited = data.folders?.find((entry) => entry.id === row.folder_id);
+      rule.append(element('p', 'muted', row.filter
+        ? explainFilter(row.filter)
+        : inherited ? `Правило папки «${inherited.name}»: ${explainFilter(inherited)}`
+        : explainFilter(null)));
       rule.append(action('Настроить фильтр', () => getRouter().openDetail(`filter:${login}`), true));
       target.append(rule);
     } else {
@@ -623,6 +711,186 @@ export function createViewerFeature(api, getRouter, telegram) {
         refresh();
       }
     }));
+    if (row.filter) {
+      target.append(action(row.folder_id ? 'Использовать правило папки' : 'Убрать личный фильтр', async () => {
+        try {
+          await api.post('/app/api/viewer/filter/reset', {
+            login, expected_version: row.filter.version,
+          });
+          filterDrafts.delete(login);
+          await load();
+          getRouter().back();
+        } catch (cause) {
+          if (cause instanceof ApiError && cause.status === 409) await load();
+          draft.feedback = cause instanceof ApiError && cause.status === 409
+            ? 'Личный фильтр изменился в другом окне. Проверьте его перед удалением.'
+            : 'Не удалось убрать личный фильтр. Попробуйте ещё раз.';
+          refresh();
+        }
+      }, true));
+    }
+  }
+  function renderFolder(target, folderId) {
+    const folder = data.folders?.find((item) => item.id === folderId);
+    if (!folder) {
+      heading(target, 'Зритель', 'Папка не найдена', 'Вернитесь к списку стримеров.');
+      return;
+    }
+    heading(target, 'Viewer Plus', folder.name, 'Папка и общее правило для её стримеров.');
+    const members = data.subscriptions.filter((row) => row.folder_id === folder.id);
+    const memberPanel = element('section', 'panel feature-panel');
+    memberPanel.append(element('h2', '', 'Стримеры'));
+    memberPanel.append(element('p', 'muted', members.length
+      ? `${members.length} в папке. Перенести стримера можно в его настройках.`
+      : 'Папка пока пустая. Откройте настройки стримера, чтобы добавить его.'));
+    for (const member of members) {
+      memberPanel.append(action(nameOf(member.login), () => getRouter().openDetail(member.login), true));
+    }
+    target.append(memberPanel);
+    if (!data.viewer_plus_active) {
+      target.append(panel('Правило сохранено', 'Без Viewer Plus оно не влияет на оповещения. Подписки и папка останутся на месте.'));
+      return;
+    }
+    let draft = folderDrafts.get(folderId);
+    if (!draft) {
+      draft = {
+        version: folder.version, name: folder.name,
+        games: [...folder.games], title_keywords: [...folder.title_keywords],
+        exclude_keywords: [...folder.exclude_keywords],
+        inputs: { games: '', title_keywords: '', exclude_keywords: '' },
+        feedback: '', busy: false, conflict: false,
+      };
+      folderDrafts.set(folderId, draft);
+    }
+    if (folder.version !== draft.version && !draft.busy) draft.conflict = true;
+    if (draft.conflict) {
+      const conflict = element('section', 'panel feature-panel');
+      conflict.append(element('h2', '', 'Папка изменилась'));
+      conflict.append(element('p', 'muted', 'Здесь остался ваш черновик. Загрузите текущие данные перед новой правкой.'));
+      conflict.append(action('Загрузить текущую версию', () => {
+        draft.version = folder.version; draft.name = folder.name;
+        draft.games = [...folder.games];
+        draft.title_keywords = [...folder.title_keywords];
+        draft.exclude_keywords = [...folder.exclude_keywords];
+        draft.inputs = { games: '', title_keywords: '', exclude_keywords: '' };
+        draft.conflict = false; draft.feedback = '';
+        refresh();
+      }));
+      target.append(conflict);
+    }
+    const renamePanel = element('section', 'panel feature-panel');
+    renamePanel.append(element('h2', '', 'Название'));
+    const nameInput = element('input', 'input');
+    nameInput.value = draft.name; nameInput.maxLength = 40;
+    nameInput.setAttribute('aria-label', 'Название папки');
+    nameInput.addEventListener('input', () => { draft.name = nameInput.value; });
+    renamePanel.append(nameInput);
+    const saveName = action('Сохранить название', async () => {
+      if (draft.busy || draft.conflict) return;
+      draft.busy = true;
+      try {
+        const response = await api.post('/app/api/viewer/folder/rename', {
+          folder_id: folderId, name: draft.name, expected_version: draft.version,
+        });
+        draft.version = response.folder.version;
+        draft.feedback = 'Название сохранено';
+        await load();
+      } catch (cause) { await folderSaveError(cause, draft, folderId); }
+      finally { draft.busy = false; refresh(); }
+    });
+    saveName.disabled = draft.conflict;
+    renamePanel.append(saveName);
+    target.append(renamePanel);
+    const rule = element('section', 'panel feature-panel');
+    rule.append(element('h2', '', 'Общее правило'));
+    rule.append(element('p', 'muted', 'Действует, если у стримера нет собственного фильтра. Выключение уведомлений действует отдельно; папка не меняет настройки тихих часов.'));
+    for (const [key, labelText] of [
+      ['games', 'Категории'], ['title_keywords', 'Слова в названии'],
+      ['exclude_keywords', 'Исключить слова'],
+    ]) {
+      const field = element('div', 'token-field');
+      field.append(element('h3', '', labelText));
+      const tokens = element('div', 'tokens');
+      for (const term of draft[key]) {
+        const chip = element('span', 'chip');
+        chip.append(element('span', '', term));
+        const remove = action('×', () => {
+          draft[key] = draft[key].filter((value) => value !== term);
+          refresh();
+        }, true);
+        remove.setAttribute('aria-label', `Убрать ${term} из ${labelText.toLowerCase()}`);
+        chip.append(remove); tokens.append(chip);
+      }
+      const inputRow = element('div', 'token-input-row');
+      const input = element('input', 'input');
+      input.maxLength = 40; input.value = draft.inputs[key];
+      input.setAttribute('aria-label', labelText);
+      input.addEventListener('input', () => { draft.inputs[key] = input.value; });
+      const add = action('Добавить', () => {
+        const term = input.value.trim();
+        if (term.length < 2 || term.length > 40 || draft[key].length >= 5
+            || draft[key].some((value) => value.toLocaleLowerCase() === term.toLocaleLowerCase())) {
+          draft.feedback = 'Для каждого поля: до пяти разных значений от 2 до 40 символов.';
+        } else {
+          draft[key].push(term); draft.inputs[key] = ''; draft.feedback = '';
+        }
+        refresh();
+      }, true);
+      inputRow.append(input, add);
+      field.append(tokens, inputRow);
+      rule.append(field);
+    }
+    rule.append(element('p', 'notice', explainFilter(draft)));
+    const saveRule = action('Сохранить правило', async () => {
+      if (draft.busy || draft.conflict) return;
+      draft.busy = true;
+      try {
+        const response = await api.post('/app/api/viewer/folder/rule', {
+          folder_id: folderId, expected_version: draft.version,
+          games: draft.games, title_keywords: draft.title_keywords,
+          exclude_keywords: draft.exclude_keywords,
+        });
+        draft.version = response.folder.version;
+        draft.feedback = 'Правило сохранено';
+        await load();
+      } catch (cause) { await folderSaveError(cause, draft, folderId); }
+      finally { draft.busy = false; refresh(); }
+    });
+    saveRule.disabled = draft.conflict;
+    rule.append(saveRule);
+    if (draft.feedback) rule.append(element('p', 'notice', draft.feedback));
+    target.append(rule);
+    target.append(action('Удалить папку', async () => {
+      const sdk = window.Telegram?.WebApp;
+      const confirmed = sdk?.showConfirm
+        ? await new Promise((resolve) => sdk.showConfirm(`Удалить папку «${folder.name}»? Подписки останутся.`, resolve))
+        : window.confirm(`Удалить папку «${folder.name}»? Подписки останутся.`);
+      if (!confirmed || draft.busy) return;
+      draft.busy = true;
+      try {
+        await api.post('/app/api/viewer/folder/delete', {
+          folder_id: folderId, expected_version: draft.version,
+        });
+        folderDrafts.delete(folderId);
+        await load();
+        getRouter().back();
+      } catch (cause) { await folderSaveError(cause, draft, folderId); refresh(); }
+      finally { draft.busy = false; }
+    }, true));
+  }
+  async function folderSaveError(cause, draft, folderId) {
+    if (cause instanceof ApiError && cause.code === 'folder_name_taken') {
+      draft.feedback = 'Папка с таким названием уже есть. Выберите другое.';
+    } else if (cause instanceof ApiError && cause.status === 409) {
+      await load();
+      draft.conflict = true;
+      draft.feedback = 'Папка изменилась в другом окне. Черновик не сохранён.';
+    } else if (cause instanceof ApiError && cause.status === 403) {
+      await load();
+      draft.feedback = 'Доступ Viewer Plus завершился. Папка сохранена, правило сейчас не действует.';
+    } else {
+      draft.feedback = 'Не удалось сохранить папку. Проверьте значения и попробуйте ещё раз.';
+    }
   }
   const minuteText = (minute) => `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
   const parseTime = (text) => {
@@ -742,7 +1010,8 @@ export function createViewerFeature(api, getRouter, telegram) {
         return;
       }
       if (error) banner(target, error, true);
-      if (route.detail?.startsWith('filter:')) renderFilter(target, route.detail.slice(7));
+      if (route.detail?.startsWith('folder:')) renderFolder(target, route.detail.slice(7));
+      else if (route.detail?.startsWith('filter:')) renderFilter(target, route.detail.slice(7));
       else if (route.detail) renderDetail(target, route.detail);
       else if (route.tab === 'home') renderHome(target);
       else if (route.tab === 'streamers') renderStreamers(target);

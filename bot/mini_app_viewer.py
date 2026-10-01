@@ -15,6 +15,7 @@ from .database import Database
 from .deep_links import TWITCH_LOGIN_RE
 from .mini_app_auth import verified_payload
 from .viewer_reminders import ReminderInFlightError, ViewerReminderService
+from .viewer_folders import FolderConflict, FolderLimit, FolderNameTaken, ViewerFolderService
 
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,15 @@ def install_mini_app_viewer_routes(
     search_times: dict[int, deque[float]] = {}
     category_store = CategoryAlertStore(db, poll_interval=60)
     reminders = ViewerReminderService(db)
+    folders = ViewerFolderService(db)
+
+    def folder_payload(saved) -> dict[str, object]:
+        return {
+            "id": saved.id, "name": saved.name, "version": saved.version,
+            "games": list(saved.rule.games),
+            "title_keywords": list(saved.rule.title_keywords),
+            "exclude_keywords": list(saved.rule.exclude_keywords),
+        }
 
     def reminder_payload(saved) -> dict[str, object] | None:
         if saved is None:
@@ -108,6 +118,8 @@ def install_mini_app_viewer_routes(
         }
         video = await db.get_video_selection(user_id, now=now)
         own_reminders = await reminders.for_user(user_id)
+        own_folders = await folders.list_folders(user_id)
+        folder_memberships = await folders.memberships(user_id)
         filters = await db.list_viewer_filters(user_id) if flags.viewer_filters else {}
         quiet = await db.get_quiet_hours(user_id)
         live = {
@@ -126,6 +138,7 @@ def install_mini_app_viewer_routes(
                     effective=(login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids),
                 ),
                 "reminder": reminder_payload(own_reminders.get(login)),
+                "folder_id": folder_memberships.get(login),
                 "is_live": is_live,
                 "status": (
                     "live" if is_live and observed_at is not None and now - observed_at <= 300
@@ -156,6 +169,7 @@ def install_mini_app_viewer_routes(
             "subscriptions": subscriptions,
             "channel_limit": flags.viewer_channel_limit,
             "viewer_plus_active": flags.viewer_plus_active,
+            "folders": [folder_payload(folder) for folder in own_folders],
             "video_selection": {
                 "version": video.version, "selected_ids": list(video.selected_ids),
                 "selected_logins": list(video.selected_logins),
@@ -197,6 +211,28 @@ def install_mini_app_viewer_routes(
         if saved is None:
             return web.json_response({"error": "version_conflict"}, status=409)
         return web.json_response({"version": saved})
+
+    async def reset_filter(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "login", "expected_version"}:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        login = normalize_twitch_login(values["login"])
+        version = values["expected_version"]
+        if login is None or type(version) is not int or version < 1:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        try:
+            removed = await db.delete_viewer_filter(
+                user_id, login, expected_version=version, now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        if not removed:
+            return web.json_response({"error": "version_conflict"}, status=409)
+        return web.json_response({"filter": None})
 
     async def category_search(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -491,6 +527,115 @@ def install_mini_app_viewer_routes(
             return web.json_response({"error": "invalid_reminder"}, status=400)
         return web.json_response({"reminder": reminder_payload(saved)})
 
+    async def create_folder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "name"}:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        try:
+            saved = await folders.create(user_id, values["name"], now=time.time())
+        except ValueError:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        except FolderNameTaken:
+            return web.json_response({"error": "folder_name_taken"}, status=409)
+        except FolderConflict:
+            return web.json_response({"error": "folder_conflict"}, status=409)
+        except FolderLimit:
+            return web.json_response({"error": "folder_limit"}, status=409)
+        return web.json_response({"folder": folder_payload(saved)})
+
+    async def rename_folder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "folder_id", "name", "expected_version"}:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        if type(values["expected_version"]) is not int or values["expected_version"] < 1:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        try:
+            saved = await folders.rename(
+                user_id, values["folder_id"], values["name"],
+                expected_version=values["expected_version"], now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "folder_denied"}, status=403)
+        except FolderNameTaken:
+            return web.json_response({"error": "folder_name_taken"}, status=409)
+        except FolderConflict:
+            return web.json_response({"error": "folder_conflict"}, status=409)
+        return web.json_response({"folder": folder_payload(saved)})
+
+    async def folder_rule(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "folder_id", "expected_version", "games", "title_keywords", "exclude_keywords"}:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        if type(values["expected_version"]) is not int or values["expected_version"] < 1:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        try:
+            saved = await folders.save_rule(
+                user_id, values["folder_id"],
+                expected_version=values["expected_version"],
+                games=values["games"], title_keywords=values["title_keywords"],
+                exclude_keywords=values["exclude_keywords"], now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "folder_denied"}, status=403)
+        except FolderConflict:
+            return web.json_response({"error": "folder_conflict"}, status=409)
+        return web.json_response({"folder": folder_payload(saved)})
+
+    async def move_folder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "login", "folder_id", "expected_folder_id"}:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        login = normalize_twitch_login(values["login"])
+        if login is None:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        try:
+            folder_id = await folders.move(
+                user_id, login, values["folder_id"],
+                expected_folder_id=values["expected_folder_id"], now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "folder_denied"}, status=403)
+        except FolderConflict:
+            return web.json_response({"error": "folder_conflict"}, status=409)
+        return web.json_response({"folder_id": folder_id})
+
+    async def delete_folder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "folder_id", "expected_version"}:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        if type(values["expected_version"]) is not int or values["expected_version"] < 1:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        try:
+            await folders.delete(
+                user_id, values["folder_id"],
+                expected_version=values["expected_version"], now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_folder"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "folder_denied"}, status=403)
+        except FolderConflict:
+            return web.json_response({"error": "folder_conflict"}, status=409)
+        return web.json_response({"deleted": True})
+
     async def cancel_reminder(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
         if error is not None:
@@ -515,11 +660,17 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/unfollow", unfollow)
     app.router.add_post("/app/api/viewer/notify", notify)
     app.router.add_post("/app/api/viewer/filter", save_filter)
+    app.router.add_post("/app/api/viewer/filter/reset", reset_filter)
     app.router.add_post("/app/api/viewer/category-search", category_search)
     app.router.add_post("/app/api/viewer/category-alert", category_alert)
     app.router.add_post("/app/api/viewer/video-selection", video_selection)
     app.router.add_post("/app/api/viewer/plan-activate", plan_activate)
     app.router.add_post("/app/api/viewer/reminder", set_reminder)
     app.router.add_post("/app/api/viewer/reminder/cancel", cancel_reminder)
+    app.router.add_post("/app/api/viewer/folder/create", create_folder)
+    app.router.add_post("/app/api/viewer/folder/rename", rename_folder)
+    app.router.add_post("/app/api/viewer/folder/rule", folder_rule)
+    app.router.add_post("/app/api/viewer/folder/move", move_folder)
+    app.router.add_post("/app/api/viewer/folder/delete", delete_folder)
     app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)
     app.router.add_post("/app/api/viewer/digest", digest)

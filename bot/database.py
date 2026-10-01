@@ -680,6 +680,7 @@ class Database:
         await self._migrate_viewer_schema()
         await self._migrate_viewer_preferences_schema()
         await self._migrate_viewer_reminder_schema()
+        await self._migrate_viewer_folder_schema()
         await self._migrate_category_alert_schema()
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
@@ -774,6 +775,34 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_005_viewer_reminders',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_folder_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_folders ("
+            "id TEXT PRIMARY KEY, telegram_user_id INTEGER NOT NULL, "
+            "name TEXT NOT NULL, name_key TEXT NOT NULL, version INTEGER NOT NULL, "
+            "games_json TEXT NOT NULL, title_keywords_json TEXT NOT NULL, "
+            "exclude_keywords_json TEXT NOT NULL, updated_at REAL NOT NULL, "
+            "UNIQUE(telegram_user_id,name_key)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_viewer_folders_owner "
+            "ON viewer_folders(telegram_user_id,name_key)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_folder_memberships ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "folder_id TEXT NOT NULL, updated_at REAL NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,twitch_login)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_viewer_folder_memberships_folder "
+            "ON viewer_folder_memberships(folder_id,telegram_user_id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_006_viewer_folders',?)", (time.time(),)
         )
 
     async def _migrate_category_alert_schema(self) -> None:
@@ -1388,16 +1417,25 @@ class Database:
         if type(telegram_user_id) is not int or telegram_user_id <= 0 or not isinstance(twitch_login, str):
             return None
         at = time.time() if now is None else now
+        if not await self.has_viewer_plus(telegram_user_id, now=at):
+            return None
         cursor = await self.conn.execute(
             "SELECT f.games_json,f.title_keywords_json,f.exclude_keywords_json "
-            "FROM viewer_alert_filters f WHERE f.telegram_user_id=? AND f.twitch_login=? "
-            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
-            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(f.telegram_user_id AS TEXT) "
-            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-            "AND g.starts_at <= ? AND g.expires_at > ?) LIMIT 1",
-            (telegram_user_id, twitch_login.lower(), at, at),
+            "FROM viewer_alert_filters f WHERE f.telegram_user_id=? AND f.twitch_login=? LIMIT 1",
+            (telegram_user_id, twitch_login.lower()),
         )
         row = await cursor.fetchone()
+        if row is None:
+            cursor = await self.conn.execute(
+                "SELECT f.games_json,f.title_keywords_json,f.exclude_keywords_json "
+                "FROM viewer_folder_memberships m JOIN viewer_folders f "
+                "ON f.id=m.folder_id AND f.telegram_user_id=m.telegram_user_id "
+                "JOIN tracked_channels c ON c.chat_id=m.telegram_user_id "
+                "AND c.twitch_login=m.twitch_login "
+                "WHERE m.telegram_user_id=? AND m.twitch_login=? LIMIT 1",
+                (telegram_user_id, twitch_login.lower()),
+            )
+            row = await cursor.fetchone()
         return (validate_viewer_filter(
             json.loads(row[0]), json.loads(row[1]), json.loads(row[2]),
         ) if row is not None else None)
@@ -1455,6 +1493,36 @@ class Database:
             return None
         await self.conn.commit()
         return version
+
+    @_serialized
+    async def delete_viewer_filter(
+        self, telegram_user_id: int, twitch_login: str, *,
+        expected_version: int, now: float | None = None,
+    ) -> bool:
+        at = time.time() if now is None else now
+        if (
+            type(telegram_user_id) is not int or telegram_user_id <= 0
+            or not isinstance(twitch_login, str)
+            or re.fullmatch(r"[A-Za-z0-9_]{2,25}", twitch_login) is None
+            or type(expected_version) is not int or expected_version < 1
+            or not isinstance(at, (int, float)) or not math.isfinite(at)
+        ):
+            raise ValueError("invalid Viewer Plus filter reset")
+        if not await self.has_viewer_plus(telegram_user_id, now=at):
+            raise PermissionError("Viewer Plus is required")
+        cursor = await self.conn.execute(
+            "DELETE FROM viewer_alert_filters WHERE telegram_user_id=? "
+            "AND twitch_login=? AND version=? AND EXISTS "
+            "(SELECT 1 FROM tracked_channels WHERE chat_id=? AND twitch_login=?) "
+            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
+            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(? AS TEXT) "
+            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
+            "AND g.starts_at<=? AND g.expires_at>?)",
+            (telegram_user_id, twitch_login.lower(), expected_version,
+             telegram_user_id, twitch_login.lower(), telegram_user_id, at, at),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
 
     @_serialized
     async def create_billing_order(
@@ -2525,6 +2593,10 @@ class Database:
                 "DELETE FROM viewer_plan_priority WHERE telegram_user_id=? AND twitch_login=?",
                 (chat_id, twitch_login),
             )
+            await self.conn.execute(
+                "DELETE FROM viewer_folder_memberships WHERE telegram_user_id=? "
+                "AND twitch_login=?", (chat_id, twitch_login),
+            )
             deleted = await self.conn.execute(
                 "DELETE FROM viewer_video_selections WHERE telegram_user_id=? AND twitch_login=?",
                 (chat_id, twitch_login),
@@ -2558,6 +2630,9 @@ class Database:
             )
             await self.conn.execute(
                 "DELETE FROM viewer_plan_priority WHERE telegram_user_id=?", (chat_id,)
+            )
+            await self.conn.execute(
+                "DELETE FROM viewer_folder_memberships WHERE telegram_user_id=?", (chat_id,)
             )
             await self.conn.execute(
                 "DELETE FROM viewer_video_selections WHERE telegram_user_id=?", (chat_id,)
