@@ -76,7 +76,7 @@ async function assertNoOverflow(page, label) {
     const late = await owner.request.post(new URL('/_qa/complete-community', target).href, { data: { intent_id: cancelledIntent } });
     if ((await late.json()).connected) throw new Error('Late callback connected cancelled community');
     await owner.locator('#tab-bar button').nth(1).click();
-    await owner.getByText('Это локальный пример.').waitFor();
+    await owner.getByText('Локальный пример. Сообщение в Telegram не отправляется.').waitFor();
     await owner.screenshot({ path: path.join(screenshotDir, 't9-390-posts-light.png'), fullPage: true });
     await owner.locator('#tab-bar button').nth(2).click();
     await owner.getByText('Обычный пост и подключение сообщества доступны бесплатно.').waitFor();

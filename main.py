@@ -19,6 +19,8 @@ from aiogram.types import (
     BotCommandScopeAllPrivateChats,
     BotCommandScopeChat,
     MenuButtonCommands,
+    MenuButtonWebApp,
+    WebAppInfo,
 )
 from aiogram.utils.token import TokenValidationError
 
@@ -125,6 +127,28 @@ def _private_bot_commands(
     if owner:
         commands.append(BotCommand(command="admin", description="🛡️ Админ-панель"))
     return commands
+
+
+def _menu_button_for_config(config) -> MenuButtonCommands | MenuButtonWebApp:
+    base_url = str(getattr(config, "oauth_public_base_url", "") or "").rstrip("/")
+    if (
+        getattr(config, "mini_app_enabled", False)
+        and getattr(config, "pinned_staging", False)
+        and str(getattr(config, "admin_telegram_bot_username", "") or "").casefold()
+        == "twitchsignaltestbot"
+        and base_url.startswith("https://")
+    ):
+        return MenuButtonWebApp(text="Приложение", web_app=WebAppInfo(url=f"{base_url}/app"))
+    return MenuButtonCommands()
+
+
+async def _verify_staging_bot_identity(bot: Bot, config) -> None:
+    if not (getattr(config, "mini_app_enabled", False)
+            and getattr(config, "pinned_staging", False)):
+        return
+    identity = await bot.get_me()
+    if str(getattr(identity, "username", "") or "").casefold() != "twitchsignaltestbot":
+        raise ConfigError("Mini App staging token должен принадлежать TwitchSignalTestbot")
 
 
 async def _with_startup_retry(coro_factory, description: str) -> None:
@@ -495,6 +519,10 @@ async def main() -> None:
             token=config.telegram_bot_token,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
+        await _with_startup_retry(
+            lambda: _verify_staging_bot_identity(bot, config),
+            "Проверка личности тестового бота",
+        )
         live_post_updater = LivePostUpdater(bot, db)
         telegram_send_budget = TelegramSendBudget()
         channel_username_cache = TelegramChannelUsernameCache()
@@ -547,7 +575,7 @@ async def main() -> None:
                 "Регистрация команд (владелец)",
             )
         await _with_startup_retry(
-            lambda: bot.set_chat_menu_button(menu_button=MenuButtonCommands()),
+            lambda: bot.set_chat_menu_button(menu_button=_menu_button_for_config(config)),
             "Установка кнопки меню",
         )
 

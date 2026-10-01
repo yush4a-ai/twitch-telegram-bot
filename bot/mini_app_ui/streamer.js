@@ -518,7 +518,8 @@ export function createStreamerFeature(api, getRouter, telegram) {
       : 'Варианты сохранены и снова станут доступны для применения с Streamer Plus.'));
     if (canEdit && postDraft) {
       const field = element('label', 'template-field', 'Название варианта');
-      const input = element('input', 'input'); input.maxLength = 40; input.value = presetName;
+      const input = element('input', 'input'); input.name = 'preset_name'; input.autocomplete = 'off';
+      input.maxLength = 40; input.value = presetName;
       input.addEventListener('input', () => { presetName = input.value; });
       field.append(input); box.append(field);
       const save = action('Сохранить вариант', () => void savePreset());

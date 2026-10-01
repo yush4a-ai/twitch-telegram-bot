@@ -71,7 +71,7 @@ p { margin: 0; }
 .token-input-row .button { flex-shrink: 0; }
 .tokens { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 4px 3px 9px; border-radius: 8px; background: var(--soft); color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
-.chip .button { min-height: 32px; padding: 0 7px; font-size: 12px; }
+.chip .button { min-width: 44px; min-height: 44px; padding: 0 7px; font-size: 12px; }
 .post-community-select, .template-field { display: grid; gap: 7px; font-size: 14px; font-weight: 650; }
 .post-community-select { margin-bottom: 16px; }
 .post-preview-text { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--canvas); white-space: pre-wrap; overflow-wrap: anywhere; }

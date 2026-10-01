@@ -66,6 +66,10 @@ async function openApp(browser, id) {
     await plus.getByRole('button', { name: 'Добавить категорию' }).click();
     await plus.getByLabel('Слова в названии').fill('speedrun');
     await plus.getByRole('button', { name: 'Добавить слово' }).click();
+    const removeSize = await plus.getByRole('button', { name: /Убрать Minecraft/ }).boundingBox();
+    if (!removeSize || removeSize.width < 44 || removeSize.height < 44) {
+      throw new Error(`Filter removal target below 44px: ${JSON.stringify(removeSize)}`);
+    }
     await plus.getByRole('button', { name: 'Сохранить фильтр' }).click();
     await plus.getByText('Фильтр сохранён').waitFor();
     await plus.evaluate(() => scrollTo(0, 0));

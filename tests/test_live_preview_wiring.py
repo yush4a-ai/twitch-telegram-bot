@@ -655,6 +655,7 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
             poll_interval_seconds=60,
             owner_chat_id=None,
             oauth_public_base_url="https://example.test",
+            admin_telegram_bot_username="TwitchSignalTestbot",
             oauth_host="127.0.0.1",
             oauth_port=0,
             auto_track=(),
@@ -736,6 +737,7 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
             start=AsyncMock(),
             stop=AsyncMock(),
             set_health_provider=Mock(),
+            set_preview_observer=Mock(),
         )
 
         async def execute(factory, _description):
@@ -775,6 +777,9 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
         build_mock.assert_awaited_once()
         start_mock.assert_awaited_once_with(manager, capture_service)
         shutdown_mock.assert_awaited_once_with(manager, capture_service)
+        oauth_server.set_preview_observer.assert_called_once_with(manager)
+        menu_button = bot.set_chat_menu_button.await_args.kwargs["menu_button"]
+        self.assertIsInstance(menu_button, application.MenuButtonCommands)
         self.assertIs(dispatcher_state["preview_manager"], manager)
         self.assertEqual(events, ["build", "poller", "start", "shutdown"])
 

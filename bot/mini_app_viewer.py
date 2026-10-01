@@ -460,10 +460,15 @@ def install_mini_app_viewer_routes(
         owned = set(await db.list_channels(user_id))
         if any(login not in owned for login in normalized):
             return web.json_response({"error": "not_subscribed"}, status=400)
-        if twitch is None:
+        current = await db.get_video_selection(user_id)
+        saved_ids = dict(zip(current.selected_logins, current.selected_ids))
+        if twitch is None and any(login not in saved_ids for login in normalized):
             return web.json_response({"error": "lookup_unavailable"}, status=503)
         try:
-            choices = [(await twitch.get_user_id(login), login) for login in normalized]
+            choices = [
+                (saved_ids[login] if login in saved_ids else await twitch.get_user_id(login), login)
+                for login in normalized
+            ]
         except Exception:
             logger.exception("Mini App Twitch identity lookup failed")
             return web.json_response({"error": "lookup_unavailable"}, status=503)

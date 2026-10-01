@@ -219,7 +219,8 @@ export function createViewerFeature(api, getRouter, telegram) {
     if (data.viewer_plus_active) {
       const field = element('div', 'search-field');
       const input = element('input', 'input');
-      input.type = 'text'; input.maxLength = 40; input.value = folderNameDraft;
+      input.type = 'text'; input.name = 'folder_name'; input.autocomplete = 'off';
+      input.maxLength = 40; input.value = folderNameDraft;
       input.setAttribute('aria-label', 'Название новой папки');
       input.addEventListener('input', () => { folderNameDraft = input.value; });
       const create = action('Создать папку', async () => {
@@ -544,7 +545,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     const inputRow = element('div', 'token-input-row');
     const input = element('input', 'input');
     input.type = 'search'; input.name = 'category-query'; input.maxLength = 80;
-    input.placeholder = 'Найти категорию Twitch'; input.value = draft.query;
+    input.autocomplete = 'off'; input.placeholder = 'Найти категорию Twitch…'; input.value = draft.query;
     input.setAttribute('aria-label', 'Найти категорию Twitch');
     input.addEventListener('input', () => { draft.query = input.value; });
     inputRow.append(input, action('Найти', async () => {
@@ -782,6 +783,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     const renamePanel = element('section', 'panel feature-panel');
     renamePanel.append(element('h2', '', 'Название'));
     const nameInput = element('input', 'input');
+    nameInput.name = 'folder_name'; nameInput.autocomplete = 'off';
     nameInput.value = draft.name; nameInput.maxLength = 40;
     nameInput.setAttribute('aria-label', 'Название папки');
     nameInput.addEventListener('input', () => { draft.name = nameInput.value; });
@@ -824,6 +826,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       }
       const inputRow = element('div', 'token-input-row');
       const input = element('input', 'input');
+      input.name = `folder_${key}`; input.autocomplete = 'off';
       input.maxLength = 40; input.value = draft.inputs[key];
       input.setAttribute('aria-label', labelText);
       input.addEventListener('input', () => { draft.inputs[key] = input.value; });

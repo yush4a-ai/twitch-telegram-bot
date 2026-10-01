@@ -5,6 +5,7 @@ import os
 import tempfile
 import time
 import unittest
+from unittest.mock import AsyncMock
 
 import aiohttp
 
@@ -76,6 +77,18 @@ class ViewerPreviewSlotTests(unittest.IsolatedAsyncioTestCase):
         selected = await self.db.get_video_selection(101)
         self.assertEqual(selected.version, 2)
         self.assertEqual(selected.selected_ids, ("1000", "1001", "1002", "1003", "1005"))
+
+    async def test_removal_uses_saved_identity_when_twitch_lookup_is_unavailable(self):
+        await self.grant()
+        self.assertEqual((await self.save([f"user{i}" for i in range(5)], 0))[0], 200)
+        self.twitch.get_user_id = AsyncMock(side_effect=RuntimeError("Twitch unavailable"))
+        status, removed = await self.save(["user0", "user1", "user2", "user3"], 1)
+        self.assertEqual(status, 200)
+        self.assertEqual(removed["selected_ids"], ["1000", "1001", "1002", "1003"])
+        self.twitch.get_user_id.assert_not_awaited()
+        self.assertEqual((await self.save(["user0", "user1", "user2", "user3", "user5"], 2))[0], 503)
+        self.assertEqual((await self.db.get_video_selection(101)).selected_ids,
+                         ("1000", "1001", "1002", "1003"))
 
     async def test_ownership_notify_pause_unfollow_and_expiry(self):
         await self.grant()

@@ -820,8 +820,16 @@ class StreamPoller:
             f"«{html.escape(old_name)}» → «{html.escape(new_name)}»."
         )
         for chat_id in await self._db.chats_for_login(login):
+            if await self._private_alert_blocked(chat_id, login):
+                continue
+
+            async def send_rename(recipient: int = chat_id):
+                if await self._private_alert_blocked(recipient, login):
+                    return None
+                return await self._bot.send_message(recipient, text)
+
             await self._tg_call(
-                lambda: self._bot.send_message(chat_id, text),
+                send_rename,
                 f"Алерт о переименовании канала в {mask_chat_id(chat_id)}",
             )
 
@@ -851,8 +859,18 @@ class StreamPoller:
         for chat_id in await self._db.chats_for_login(login):
             if not await self._db.get_raid_detection_enabled(chat_id, login):
                 continue
+            if await self._private_alert_blocked(chat_id, login):
+                continue
+
+            async def send_raid(recipient: int = chat_id):
+                if not await self._db.get_raid_detection_enabled(recipient, login):
+                    return None
+                if await self._private_alert_blocked(recipient, login):
+                    return None
+                return await self._bot.send_message(recipient, text)
+
             await self._tg_call(
-                lambda: self._bot.send_message(chat_id, text),
+                send_raid,
                 f"Уведомление о рейде в {mask_chat_id(chat_id)}",
             )
 
@@ -1813,6 +1831,20 @@ class StreamPoller:
         start_minute, end_minute, _utc_offset, _notify_after = quiet_hours
         return _is_within_quiet_hours(start_minute, end_minute, datetime.now(timezone.utc))
 
+    async def _private_alert_in_quiet_hours(self, chat_id: int, login: str) -> bool:
+        return (
+            chat_id > 0
+            and not await self._db.get_quiet_hours_exempt(chat_id, login)
+            and await self._is_recipient_in_quiet_hours(chat_id)
+        )
+
+    async def _private_alert_blocked(self, chat_id: int, login: str) -> bool:
+        if chat_id <= 0:
+            return False
+        if not await self._db.is_personal_channel_active(chat_id, login):
+            return True
+        return await self._private_alert_in_quiet_hours(chat_id, login)
+
     async def _send_stats(
         self,
         chat_id: int,
@@ -2418,6 +2450,8 @@ class StreamPoller:
             job.chat_id, job.twitch_login, title, game_name,
         ):
             return NotificationOutcome.STALE
+        if await self._private_alert_in_quiet_hours(job.chat_id, job.twitch_login):
+            raise NotificationRetryAfter(60.0)
         include_track_link = await self._db.is_telegram_channel(job.chat_id)
         include_video_submission_link = (
             self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
@@ -2704,9 +2738,21 @@ class StreamPoller:
         base_content = LivePostContent(html=text, reply_markup=keyboard)
 
         async def send():
+            if chat_id > 0 and not await self._db.is_personal_channel_active(chat_id, login):
+                return None
+            if await self._private_alert_in_quiet_hours(chat_id, login):
+                if direct:
+                    raise NotificationRetryAfter(60.0)
+                return None
             # Queue/rate-limit waits can outlive a Plus grant. Resolve the current
             # template at the actual Telegram dispatch boundary.
             content = await self._with_streamer_template(chat_id, login, base_content)
+            if chat_id > 0 and not await self._db.is_personal_channel_active(chat_id, login):
+                return None
+            if await self._private_alert_in_quiet_hours(chat_id, login):
+                if direct:
+                    raise NotificationRetryAfter(60.0)
+                return None
             return await self._bot.send_message(
                 chat_id,
                 content.html,
