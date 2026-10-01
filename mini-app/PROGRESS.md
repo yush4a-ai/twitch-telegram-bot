@@ -5,7 +5,8 @@
 | Этап | Состояние | Проверка / следующий шаг |
 | --- | --- | --- |
 | T1 Free baseline | завершён локально | Сверены HEAD/процессы, 31 SHA256, существующие пути; baseline и surface brief. Подготовительный commit отмечен в git; продуктовые тесты не требовались для docs-only этапа. |
-| T2–T6 | ожидает | Capabilities → оба тестовых продукта → shell → Free journey → Viewer Plus настройки. |
+| T2 | завершён локально | `d7d78d2`, tree `b7996dcefa01b253a98f5c72821aa6f1f8d07db3`; RED 5 отсутствующих поведений, затем 17 passed + 3 subtests в focused/related тестах, staged diff check 0. |
+| T3–T6 | ожидает | Оба тестовых продукта → shell → Free journey → Viewer Plus настройки. |
 | T13 | ожидает | 50/200 и атомарный выбор пяти видеоканалов. |
 | T7–T11 | ожидает | Category detector/delivery, Free streamer connect, Streamer Plus, подписка. |
 | T14–T17 | ожидает | Общая media-доставка и нагрузка, напоминания, отдельные удобства и trial. |

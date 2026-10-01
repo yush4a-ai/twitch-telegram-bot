@@ -53,11 +53,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `bot/plan_catalog.py`, `bot/capabilities.py`, `tests/test_mini_app_capabilities.py`; affected existing access helpers.
 **Interfaces:** `CapabilityService(db)`; `async for_user(telegram_user_id: int, *, now: float) -> UserCapabilities`; `async for_placement(broadcaster_id: str, chat_id: int, *, now: float) -> PlacementCapabilities`. Result types frozen, имена возможностей: `viewer_filters`, `viewer_category_alerts`, `viewer_video_slots` (5 для Plus/0 Free), `viewer_channel_limit` (200/50), `streamer_preview`, `streamer_custom_post`, `streamer_post_stats`.
-- [ ] Написать `test_free_keeps_basic_notifications`, `test_viewer_and_streamer_products_are_independent`, `test_placement_cannot_borrow_other_broadcaster_plus`, `test_expiry_is_effective_without_ui_refresh`, `test_backend_access_failure_does_not_enable_plus` с соответствующими true/false asserts.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_capabilities.py -q`; получить ожидаемый RED отсутствующего контракта.
-- [ ] Реализовать слой над существующими grants. Тестовый каталог не содержит выдуманных реальных цен; viewer и streamer subjects вычисляются сервером. Базовые функции не зависят от успешной загрузки платного экрана.
-- [ ] Повторить этот тест и `tests/test_viewer_access.py tests/test_streamer_access.py`; требуется PASS без ослабления тестов.
-- [ ] Проверить diff на клиентское/межканальное повышение прав, сохранить commit `feat: centralize mini app capabilities` и checkpoint.
+- [x] Написать `test_free_keeps_basic_notifications`, `test_viewer_and_streamer_products_are_independent`, `test_placement_cannot_borrow_other_broadcaster_plus`, `test_expiry_is_effective_without_ui_refresh`, `test_backend_access_failure_does_not_enable_plus` с соответствующими true/false asserts.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_capabilities.py -q`; получить ожидаемый RED отсутствующего контракта.
+- [x] Реализовать слой над существующими grants. Тестовый каталог не содержит выдуманных реальных цен; viewer и streamer subjects вычисляются сервером. Базовые функции не зависят от успешной загрузки платного экрана.
+- [x] Повторить этот тест и `tests/test_viewer_access.py tests/test_streamer_access.py`; требуется PASS без ослабления тестов.
+- [x] Проверить diff на клиентское/межканальное повышение прав, сохранить commit `feat: centralize mini app capabilities` и checkpoint.
 
 ## T3. Полный тестовый цикл подписки для обоих продуктов
 
