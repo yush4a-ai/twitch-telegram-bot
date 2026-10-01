@@ -27,6 +27,11 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "mini_002_category_alerts",
                             "mini_003_category_delivery",
                             "mini_004_streamer_intents",
+                            "mini_005_viewer_reminders",
+                            "mini_006_viewer_folders",
+                            "mini_007_viewer_history",
+                            "mini_008_streamer_presets",
+                            "mini_009_viewer_trial",
                             "r10_001_billing_subjects",
                             "r3_001_observations", "r3_002_notification_jobs",
                             "r3_003_live_update_revision",
@@ -54,7 +59,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 reopened = Database(path)
                 await reopened.connect()
                 try:
-                    self.assertEqual(len(await reopened.schema_versions()), 15)
+                    self.assertEqual(len(await reopened.schema_versions()), 20)
                 finally:
                     await reopened.close()
 

@@ -239,6 +239,7 @@ async def run_preview_profile(
             database, Updater(), Provider(), enabled=True,
             initial_delay_seconds=0, interval_seconds=3600,
             max_concurrent_jobs=concurrency, job_timeout_seconds=10,
+            max_active_sessions=stream_count,
             poll_interval_seconds=60,
             build_content=lambda *_: LivePostContent("synthetic", None),
         )
@@ -256,12 +257,25 @@ async def run_preview_profile(
             observations = []
             for index in range(stream_count):
                 login = f"synthetic_preview_{index}"
-                await database.add_channel(1_000_000 + index, login)
-                await database.set_preview_enabled(1_000_000 + index, login, True)
-                await database.set_live_state(
-                    1_000_000 + index, login, True, f"synthetic-{index}",
-                    2_000_000 + index, "Synthetic", last_seen_live_at=time.time(),
+                viewer_id = 1_000_000 + index
+                broadcaster_id = str(3_000_000 + index)
+                await database.add_channel(viewer_id, login)
+                await database.set_preview_enabled(viewer_id, login, True)
+                granted_at = time.time()
+                await database.issue_test_viewer_plus(
+                    viewer_id, f"preview-load-{index}", starts_at=granted_at - 5,
+                    expires_at=granted_at + 3600, issued_by=425785231, now=granted_at,
                 )
+                await database.replace_video_selection(
+                    viewer_id, [(broadcaster_id, login)], expected_version=0,
+                )
+                await database.set_live_state(
+                    viewer_id, login, True, f"synthetic-{index}",
+                    2_000_000 + index, "Synthetic", last_seen_live_at=time.time(),
+                    broadcaster_id=broadcaster_id,
+                )
+                if not (await database.get_preview_destination_state(viewer_id, login)).preview_enabled:
+                    raise RuntimeError("synthetic preview grant did not become effective")
                 observations.append(PreviewObservation(
                     login, True, f"synthetic-{index}", "Synthetic", "Synthetic", 42,
                     "2026-01-01T00:00:00Z",

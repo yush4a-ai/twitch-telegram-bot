@@ -458,6 +458,7 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
                         "idx_stream_history_stream_retention",
                         "idx_follow_event_counts_retention",
                         "idx_follow_event_ids_retention",
+                        "idx_viewer_event_history_retention",
                     },
                 )
             finally:
@@ -6789,6 +6790,7 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             twitch_client_id="client", twitch_client_secret="secret",
             poll_interval_seconds=60, owner_chat_id=None,
             oauth_public_base_url="https://example.test",
+            admin_telegram_bot_username="TwitchSignalTestbot",
             oauth_host="127.0.0.1", oauth_port=0, auto_track=(),
         )
         db = SimpleNamespace(
@@ -8035,10 +8037,9 @@ class AutoReportOptInTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("Формат отчёта: 📄 Кратко", labels)
             self.assertIn("toggleautoreport:1:channel", callbacks)
             self.assertIn("управляются независимо", text)
-            self.assertLess(
-                labels.index("🎞 Живое превью: ❌ выкл"),
-                labels.index("📊 Автоотчёт после стрима: ❌ выкл"),
-            )
+            self.assertNotIn("togglepreview:1:channel", callbacks)
+            self.assertLess(callbacks.index("togglenotify:1:channel"),
+                            callbacks.index("toggleautoreport:1:channel"))
             self.assertLess(
                 labels.index("📊 Автоотчёт после стрима: ❌ выкл"),
                 labels.index("Формат отчёта: 📄 Кратко"),

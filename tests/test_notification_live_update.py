@@ -128,7 +128,7 @@ class QueuedLiveUpdateTests(unittest.IsolatedAsyncioTestCase):
         self.bot.edit_message_media.assert_awaited_once()
         self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "photo")
 
-    async def test_animation_replacement_after_claim_is_not_overwritten_by_thumbnail(self):
+    async def test_animation_after_claim_returns_to_photo_without_plus(self):
         self.stream.thumbnail_url = "https://example.test/{width}x{height}.jpg"
         await self.poll()
         job = await self.claim()
@@ -137,8 +137,12 @@ class QueuedLiveUpdateTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(await self.poller.send_queued_job(job), NotificationOutcome.SENT)
         self.bot.edit_message_caption.assert_awaited_once()
-        self.bot.edit_message_media.assert_not_awaited()
-        self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "animation")
+        self.bot.edit_message_media.assert_awaited_once()
+        self.assertEqual(
+            self.bot.edit_message_media.await_args.kwargs["media"].type,
+            "photo",
+        )
+        self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "photo")
 
     async def test_offline_after_text_edit_prevents_late_thumbnail(self):
         self.stream.thumbnail_url = "https://example.test/{width}x{height}.jpg"

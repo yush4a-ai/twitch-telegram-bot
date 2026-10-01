@@ -1,6 +1,7 @@
 """A blocked preview provider must not hold the poll or normal delivery path."""
 
 import asyncio
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -22,9 +23,18 @@ class GrowthPreviewIsolationTests(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(db.close)
         await db.add_channel(1, "alpha")
         await db.set_preview_enabled(1, "alpha", True)
-        await db.set_live_state(
-            1, "alpha", True, "s1", 701, "Live", last_seen_live_at=1000.0
+        self.assertFalse((await db.get_preview_destination_state(1, "alpha")).preview_enabled)
+        now = time.time()
+        await db.issue_test_viewer_plus(
+            1, "preview-isolation", starts_at=now - 5,
+            expires_at=now + 3600, issued_by=425785231, now=now,
         )
+        await db.replace_video_selection(1, [("1001", "alpha")], expected_version=0)
+        await db.set_live_state(
+            1, "alpha", True, "s1", 701, "Live", last_seen_live_at=1000.0,
+            broadcaster_id="1001",
+        )
+        self.assertTrue((await db.get_preview_destination_state(1, "alpha")).preview_enabled)
         await db.add_channel(2, "beta")
 
         clock = ManualClock()
@@ -50,6 +60,7 @@ class GrowthPreviewIsolationTests(unittest.IsolatedAsyncioTestCase):
                 login: StreamInfo(
                     login, "s1", "Live", "Game", 42,
                     "2026-01-01T00:00:00Z",
+                    broadcaster_id="1001" if login == "alpha" else "1002",
                 ) for login in ("alpha", "beta")
             }
             twitch = SimpleNamespace(get_live_streams=AsyncMock(return_value=streams))
@@ -61,6 +72,7 @@ class GrowthPreviewIsolationTests(unittest.IsolatedAsyncioTestCase):
             poller._notify = AsyncMock(return_value=321)
             with patch("bot.poller.time.time", return_value=1000.0):
                 await asyncio.wait_for(poller._check_streams(), 3.0)
+            self.assertTrue((await db.get_preview_destination_state(1, "alpha")).preview_enabled)
             worker = NotificationWorker(
                 NotificationQueue(db), poller.send_queued_job,
                 max_concurrency=1, per_chat_interval=0,
