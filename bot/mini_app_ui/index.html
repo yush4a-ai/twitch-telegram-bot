@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f9fc">
+  <title>Приложение · TwitchSignalBot</title>
+  <link rel="stylesheet" href="/app/app.css">
+  <script src="https://telegram.org/js/telegram-web-app.js?63" defer></script>
+  <script type="module" src="/app/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">К содержанию</a>
+  <div id="app" class="app-shell">
+    <header class="app-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>TwitchSignal</span></div>
+      <div id="mode-switch" class="mode-switch" role="group" aria-label="Режим приложения"></div>
+    </header>
+    <main id="content" tabindex="-1" aria-live="polite">
+      <div class="status-panel"><span class="status-dot" aria-hidden="true"></span><p>Открываем приложение…</p></div>
+    </main>
+    <nav id="tab-bar" class="tab-bar" aria-label="Разделы"></nav>
+  </div>
+</body>
+</html>

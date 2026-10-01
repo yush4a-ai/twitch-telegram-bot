@@ -161,7 +161,10 @@ def _main_menu_keyboard(
         )
         if viewer_url:
             rows.append([
-                InlineKeyboardButton(text="🔔 Мои оповещения", web_app=WebAppInfo(url=viewer_url))
+                InlineKeyboardButton(
+                    text="Приложение" if viewer_url.endswith("/app") else "🔔 Мои оповещения",
+                    web_app=WebAppInfo(url=viewer_url),
+                )
             ])
     rows.append([InlineKeyboardButton(text="ℹ️ Что умею", callback_data="menu:about")])
     if chat_type == ChatType.PRIVATE and admin_url:
@@ -188,12 +191,16 @@ def _viewer_url(message: Message, config: Config | None, *, actor_id: int | None
     if actor_id is None:
         actor_id = message.from_user.id if message.from_user is not None else None
     if (
-        config is None or not getattr(config, "viewer_plus_enabled", False)
+        config is None or not (
+            getattr(config, "mini_app_enabled", False)
+            or getattr(config, "viewer_plus_enabled", False)
+        )
         or message.chat.type != ChatType.PRIVATE or actor_id is None
         or message.chat.id != actor_id
     ):
         return None
-    return f"{config.oauth_public_base_url}/viewer"
+    path = "/app" if getattr(config, "mini_app_enabled", False) else "/viewer"
+    return f"{config.oauth_public_base_url}{path}"
 
 
 def _channels_keyboard(
