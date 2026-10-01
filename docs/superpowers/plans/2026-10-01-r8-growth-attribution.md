@@ -26,14 +26,14 @@
 
 ## Task 1: Deep links и DB ledger
 
-**Files:** `bot/deep_links.py`, new `bot/growth.py`, `bot/database.py`; tests `tests/test_growth_links.py`, `tests/test_growth_ledger.py`, existing deep-link regressions.
+**Files:** `bot/deep_links.py`, `bot/database.py`; tests `tests/test_growth_links.py`, `tests/test_growth_ledger.py`, existing deep-link regressions.
 
 **Interfaces:** `parse_growth_start_payload(payload: str) -> tuple[str,str] | None`; `build_growth_deep_link(bot_username: str, payload: str) -> str`; `Database.get_or_create_growth_referral_code(user_id:int, *,now:float|None=None)->str`; `Database.record_growth_touch(user_id:int,payload:str,*,now:float|None=None)->bool`; `Database.growth_funnel_snapshot()->list[dict[str,int|str]]` in Task 3.
 
-- [ ] RED: valid `src_site`/ref code, invalid length/alphabet/unknown prefix, safe bot username and 64-byte limit; run focused test and confirm expected failure.
-- [ ] GREEN: pure parser/builder; `build_track_deep_link(login, bot_username=...)` accepts validated username while default remains production-compatible; focused tests pass.
-- [ ] RED: fresh/legacy migration, one code per owner, random-code collision, unknown/self/repeat/active touch and positive user ID at DB boundary; confirm expected failure. Private-chat actor is verified by the Task 2 handler.
-- [ ] GREEN: `r8_001_growth_attribution`, referral and attribution tables with bounded indexes; DB methods validate code ownership/source and first-touch atomically; focused tests pass. Commit this packet.
+- [x] RED: `tests/test_growth_links.py` дал 2 ожидаемых failure на отсутствующих функциях; valid `src_site`/ref code, invalid length/alphabet/unknown prefix, safe bot username и 64-byte limit.
+- [x] GREEN: pure parser/builder и explicit `build_track_deep_link(..., bot_username=...)`; 8 focused/deep-link regression tests, 16 subtests passed.
+- [x] RED: `tests/test_growth_ledger.py` дал 3 ожидаемых failure на отсутствующих методах/версии; один код на owner, коллизия, unknown/self/repeat/active touch и положительный ID. Private actor проверит Task 2.
+- [x] GREEN: `r8_001_growth_attribution`, referral/attribution tables, код и first-touch атомарны; migration old/new и focused suite 8 passed, 13 subtests. Commit пакета.
 
 ## Task 2: Bot entry and activation
 

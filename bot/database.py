@@ -8,6 +8,7 @@ import logging
 import math
 import os
 import re
+import secrets
 import sqlite3
 import time
 import uuid
@@ -19,6 +20,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from .billing_models import BillingOrder, PaymentRecord
 from .billing_provider import VerifiedPaymentEvent
+from .deep_links import REFERRAL_CODE_RE, parse_growth_start_payload
 from .streamer_template import StreamerTemplate, validate_streamer_template
 from .viewer_filter import ViewerFilter, validate_viewer_filter
 
@@ -624,7 +626,30 @@ class Database:
         await self._migrate_streamer_stats_schema()
         await self._migrate_billing_schema()
         await self._migrate_viewer_schema()
+        await self._migrate_growth_attribution_schema()
         await self.conn.commit()
+
+    async def _migrate_growth_attribution_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS growth_referral_codes ("
+            "code TEXT PRIMARY KEY, owner_user_id INTEGER NOT NULL UNIQUE, "
+            "created_at REAL NOT NULL) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS growth_attributions ("
+            "telegram_user_id INTEGER PRIMARY KEY, source_kind TEXT NOT NULL "
+            "CHECK(source_kind IN ('site','referral')), source_code TEXT NOT NULL, "
+            "referrer_user_id INTEGER, first_seen_at REAL NOT NULL, "
+            "activated_at REAL) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_growth_source "
+            "ON growth_attributions(source_kind,activated_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('r8_001_growth_attribution',?)", (time.time(),)
+        )
 
     async def _migrate_viewer_schema(self) -> None:
         await self.conn.execute(
@@ -1778,6 +1803,76 @@ class Database:
     def conn(self) -> aiosqlite.Connection:
         assert self._conn is not None, "Database.connect() ещё не вызван"
         return self._conn
+
+    @_serialized
+    async def get_or_create_growth_referral_code(
+        self, user_id: int, *, now: float | None = None,
+    ) -> str:
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError("invalid referral owner")
+        at = time.time() if now is None else now
+        if not isinstance(at, (int, float)) or not math.isfinite(at):
+            raise ValueError("invalid referral timestamp")
+        cursor = await self.conn.execute(
+            "SELECT code FROM growth_referral_codes WHERE owner_user_id=?", (user_id,)
+        )
+        row = await cursor.fetchone()
+        if row is not None:
+            return row[0]
+        for _ in range(8):
+            code = secrets.token_urlsafe(9)
+            if REFERRAL_CODE_RE.fullmatch(code) is None:
+                continue
+            cursor = await self.conn.execute(
+                "INSERT OR IGNORE INTO growth_referral_codes(code,owner_user_id,created_at) "
+                "VALUES (?,?,?)", (code, user_id, at),
+            )
+            if cursor.rowcount == 1:
+                await self.conn.commit()
+                return code
+        await self.conn.rollback()
+        raise RuntimeError("could not allocate referral code")
+
+    @_serialized
+    async def record_growth_touch(
+        self, user_id: int, payload: str, *, now: float | None = None,
+    ) -> bool:
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError("invalid attribution user")
+        at = time.time() if now is None else now
+        if not isinstance(at, (int, float)) or not math.isfinite(at):
+            raise ValueError("invalid attribution timestamp")
+        parsed = parse_growth_start_payload(payload)
+        if parsed is None:
+            return False
+        source_kind, source_code = parsed
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM growth_attributions WHERE telegram_user_id=?", (user_id,)
+        )
+        if await cursor.fetchone() is not None:
+            return False
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM tracked_channels WHERE chat_id=? LIMIT 1", (user_id,)
+        )
+        if await cursor.fetchone() is not None:
+            return False
+        referrer_id = None
+        if source_kind == "referral":
+            cursor = await self.conn.execute(
+                "SELECT owner_user_id FROM growth_referral_codes WHERE code=?", (source_code,)
+            )
+            row = await cursor.fetchone()
+            if row is None or row[0] == user_id:
+                return False
+            referrer_id = row[0]
+        cursor = await self.conn.execute(
+            "INSERT OR IGNORE INTO growth_attributions "
+            "(telegram_user_id,source_kind,source_code,referrer_user_id,first_seen_at) "
+            "VALUES (?,?,?,?,?)",
+            (user_id, source_kind, source_code, referrer_id, at),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
 
     @_serialized
     async def add_channel(self, chat_id: int, twitch_login: str) -> bool:
