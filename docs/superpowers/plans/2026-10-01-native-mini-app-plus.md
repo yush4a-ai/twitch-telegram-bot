@@ -142,11 +142,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `mini_app_billing.py`, UI `subscription.js`; T2/T3 contracts; new `tests/test_mini_app_subscription.py`.
 **Interfaces:** own `/app/api/subscription/state` and own order history; simulated checkout only for pinned staging and authorized tester. Ни один UI endpoint не принимает доверенный grant/price/subject от клиента.
-- [ ] Написать RED: Free/Viewer/Streamer/оба продукта отображаются раздельно; viewer без Twitch допустим; wrong-user order 403; тестовая активация по клиентскому callback запрещена.
-- [ ] Написать RED: pending/cancel/error/verified-active/expired/refunded; закрытие экрана возвращает к действию, не теряет ввод; серверный grant открывает возможность без перезапуска приложения; неизвестный ответ не выдаётся за успех.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_subscription.py tests/test_billing_viewer_product.py tests/test_billing_lifecycle.py -q`.
-- [ ] Реализовать компактный экран одной возможности и «Профиль → Подписка». Показать тестовый источник/срок и «Деньги не списываются». Не рисовать реальную цену, скидку, карточный checkout и работающий switch автопродления.
-- [ ] Прогнать оба продукта вместе и независимый refund, stop-slop для подписей; PASS/commit. Основные экраны не превращать в рекламу Plus.
+- [x] RED: Free/Viewer/Streamer/оба продукта раздельно; viewer без Twitch; wrong-user 403; клиентский `paid` не выдаёт grant. Начальный RED: 3 failed из-за отсутствующих billing-параметров маршрута.
+- [x] PASS: pending/cancel/error/verified-active/expired/refunded, возврат и черновик; server grant открывает редактор без перезапуска. Поздние проверки error/expired добавлены после основного RED, не представлены как отдельный RED.
+- [x] Запустить связанный набор: 40 passed, 15 subtests на финальном коде; browser PASS, 6 снимков.
+- [x] Реализовать экран «Доступ» из возможности и профиля; источник/срок и «Деньги не списываются» без реальной цены, скидки, карт и автопродления.
+- [x] Проверить оба продукта и независимый refund; обзор подписей выполнен, код/QA зафиксированы `db47b43` и `8e40b48`. Native/staging остаются T12.
 
 ## T12. Итоговая приёмка и guarded staging
 
