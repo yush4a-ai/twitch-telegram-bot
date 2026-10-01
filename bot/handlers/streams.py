@@ -131,7 +131,10 @@ def _callback_chat_id(callback: CallbackQuery) -> int | None:
     return callback.message.chat.id
 
 
-def _main_menu_keyboard(chat_type: str, *, admin_url: str | None = None) -> InlineKeyboardMarkup:
+def _main_menu_keyboard(
+    chat_type: str, *, admin_url: str | None = None,
+    viewer_url: str | None = None,
+) -> InlineKeyboardMarkup:
     # сгруппировано по смыслу: каналы -> отчёты -> настройки чата -> справка,
     # вместо плоского списка из разнородных пунктов
     rows = [
@@ -155,6 +158,10 @@ def _main_menu_keyboard(chat_type: str, *, admin_url: str | None = None) -> Inli
         rows.append(
             [InlineKeyboardButton(text="🌙 Тихие часы", callback_data="menu:quiet_hours")]
         )
+        if viewer_url:
+            rows.append([
+                InlineKeyboardButton(text="🔔 Мои оповещения", web_app=WebAppInfo(url=viewer_url))
+            ])
     rows.append([InlineKeyboardButton(text="ℹ️ Что умею", callback_data="menu:about")])
     if chat_type == ChatType.PRIVATE and admin_url:
         rows.append([InlineKeyboardButton(text="🛡️ Админ-панель", web_app=WebAppInfo(url=admin_url))])
@@ -174,6 +181,18 @@ def _owner_admin_url(message: Message, config: Config | None, *, actor_id: int |
     ):
         return None
     return f"{config.oauth_public_base_url}/admin"
+
+
+def _viewer_url(message: Message, config: Config | None, *, actor_id: int | None = None) -> str | None:
+    if actor_id is None:
+        actor_id = message.from_user.id if message.from_user is not None else None
+    if (
+        config is None or not getattr(config, "viewer_plus_enabled", False)
+        or message.chat.type != ChatType.PRIVATE or actor_id is None
+        or message.chat.id != actor_id
+    ):
+        return None
+    return f"{config.oauth_public_base_url}/viewer"
 
 
 def _channels_keyboard(
@@ -468,6 +487,7 @@ async def cmd_start_link(
     state: FSMContext,
     db: Database,
     twitch: TwitchClient,
+    config: Config | None = None,
 ) -> None:
     if message.chat.type == ChatType.PRIVATE:
         await db.mark_known_private_user(message.chat.id)
@@ -478,7 +498,7 @@ async def cmd_start_link(
             message.chat.type != ChatType.PRIVATE
             or not await _message_can_manage_chat(message)
         ):
-            await cmd_start(message, state, db)
+            await cmd_start(message, state, db, config)
             return
 
         await state.clear()
@@ -487,7 +507,9 @@ async def cmd_start_link(
             await message.answer(
                 "Не удалось прочитать ссылку подключения. Открой актуальную ссылку "
                 "из live-поста ещё раз.",
-                reply_markup=_main_menu_keyboard(message.chat.type),
+                reply_markup=_main_menu_keyboard(
+                    message.chat.type, viewer_url=_viewer_url(message, config)
+                ),
             )
             return
 
@@ -515,14 +537,18 @@ async def cmd_start_link(
                 "Twitch временно не отвечает. Ничего не добавлено — попробуй "
                 "открыть ссылку чуть позже."
             )
-        await message.answer(text, reply_markup=_main_menu_keyboard(message.chat.type))
+        await message.answer(
+            text, reply_markup=_main_menu_keyboard(
+                message.chat.type, viewer_url=_viewer_url(message, config)
+            ),
+        )
         return
 
     if payload.startswith("link_") and message.chat.type == ChatType.PRIVATE:
         try:
             source_chat_id = int(payload.removeprefix("link_"))
         except ValueError:
-            await cmd_start(message, state, db)
+            await cmd_start(message, state, db, config)
             return
 
         # ссылку можно собрать вручную, зная chat_id группы (он не секрет — виден
@@ -530,7 +556,7 @@ async def cmd_start_link(
         # действительно состоит в этом чате. Иначе посторонний увёл бы себе все
         # итоговые отчёты чужой группы, и владелец бы этого не заметил
         if message.from_user is None:
-            await cmd_start(message, state, db)
+            await cmd_start(message, state, db, config)
             return
         status = await _chat_member_status(message.bot, source_chat_id, message.from_user.id)
         if status not in MEMBER_STATUSES:
@@ -560,7 +586,7 @@ async def cmd_start_link(
             "будут приходить сюда, в личку (живые посты о начале стрима остаются в чате)."
         )
         return
-    await cmd_start(message, state, db)
+    await cmd_start(message, state, db, config)
 
 
 @router.message(Command("start"))
@@ -568,7 +594,10 @@ async def cmd_start(message: Message, state: FSMContext, db: Database, config: C
     await state.clear()
     if message.chat.type == ChatType.PRIVATE:
         await db.mark_known_private_user(message.chat.id)
-    await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(message.chat.type, admin_url=_owner_admin_url(message, config)))
+    await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(
+        message.chat.type, admin_url=_owner_admin_url(message, config),
+        viewer_url=_viewer_url(message, config),
+    ))
 
 
 @router.message(Command("admin"))
@@ -859,7 +888,11 @@ async def on_bot_membership_changed(
 @router.callback_query(lambda c: c.data == "menu:home")
 async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Config | None = None) -> None:
     await state.clear()
-    await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(callback.message.chat.type, admin_url=_owner_admin_url(callback.message, config, actor_id=callback.from_user.id)))
+    await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(
+        callback.message.chat.type,
+        admin_url=_owner_admin_url(callback.message, config, actor_id=callback.from_user.id),
+        viewer_url=_viewer_url(callback.message, config, actor_id=callback.from_user.id),
+    ))
     await callback.answer()
 
 

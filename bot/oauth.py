@@ -15,6 +15,7 @@ from .admin_auth import AdminAccess
 from .admin_web import SnapshotProvider, install_admin_routes
 from .streamer_auth import StreamerAccess
 from .streamer_web import install_streamer_routes
+from .viewer_web import install_viewer_routes
 from .database import Database
 
 from .twitch import (
@@ -181,6 +182,8 @@ class OAuthCallbackServer:
         streamer_access: StreamerAccess | None = None,
         streamer_db: Database | None = None,
         streamer_bot=None,
+        viewer_db: Database | None = None,
+        viewer_bot_token: str | None = None,
     ) -> None:
         self.redirect_uri = redirect_uri
         self._host = host
@@ -194,6 +197,8 @@ class OAuthCallbackServer:
         self._streamer_access = streamer_access
         self._streamer_db = streamer_db
         self._streamer_bot = streamer_bot
+        self._viewer_db = viewer_db
+        self._viewer_bot_token = viewer_bot_token
         self._admin_snapshot_provider: SnapshotProvider | None = None
 
     def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
@@ -222,6 +227,8 @@ class OAuthCallbackServer:
             install_admin_routes(app, self._admin_access, _snapshot)
         if self._streamer_access is not None and self._streamer_db is not None:
             install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot)
+        if self._viewer_db is not None and self._viewer_bot_token is not None:
+            install_viewer_routes(app, self._viewer_db, self._viewer_bot_token)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)

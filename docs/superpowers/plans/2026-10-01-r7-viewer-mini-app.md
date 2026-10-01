@@ -18,9 +18,9 @@
 
 **Files:** new `bot/viewer_web.py`, `bot/viewer_ui/*`; `bot/oauth.py`, `main.py`, `bot/config.py`, `bot/handlers/streams.py`; tests `tests/test_viewer_web.py`, existing R2 menu/auth tests.
 
-- [ ] RED/GREEN: без initData/подделка/direct URL/чужие подписки отклоняются, owner и обычный подписанный пользователь видят только свои данные; Free может менять базовый notify, Plus — versioned filter.
-- [ ] RED/GREEN: UI мобильный/desktop без admin entry; кнопка только в private pinned staging, не в группах/каналах и без `/admin` в общих командах.
-- [ ] Синхронное чтение/изменение `notify_enabled` и quiet-hours digest через существующую DB, без отдельной копии настроек; focused suite и commit.
+- [x] RED/GREEN: без initData/подделка/устаревание/direct URL/чужие подписки отклоняются, owner и обычный подписанный пользователь видят только свои данные; Free меняет базовый notify, Plus — versioned filter.
+- [x] RED/GREEN: UI shell/активы без admin entry; кнопка только в private pinned staging, не в группах/каналах и без `/admin` в общих командах. Мобильная/desktop визуальная проверка будет на staging.
+- [x] Синхронное чтение/изменение `notify_enabled` и quiet-hours digest через существующую DB, без отдельной копии настроек; focused HTTP/menu/auth suite 17 passed, 5 subtests; commit пакета.
 
 ## Task 3: Доставка и сводка
 

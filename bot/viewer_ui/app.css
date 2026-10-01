@@ -1,0 +1,26 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--tg-theme-text-color, #17212b);
+  background: var(--tg-theme-bg-color, #f5f7fa);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+.page { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+.intro { padding: 12px 4px 20px; }
+.eyebrow { margin: 0 0 8px; color: var(--tg-theme-hint-color, #5d7184); font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 7vw, 2.6rem); line-height: 1.1; }
+.intro > p:last-child { margin: 0; color: var(--tg-theme-hint-color, #5d7184); }
+#message { min-height: 1.5em; margin: 0 4px 16px; color: var(--tg-theme-hint-color, #5d7184); }
+.card { margin: 12px 0; padding: 18px; border-radius: 16px; background: var(--tg-theme-secondary-bg-color, #fff); box-shadow: 0 3px 20px rgb(17 38 58 / 6%); }
+.card h2 { margin: 0 0 8px; font-size: 1.12rem; }
+.card p { margin: 0 0 16px; color: var(--tg-theme-hint-color, #5d7184); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.row label { font-weight: 600; }
+input[type="checkbox"] { width: 24px; height: 24px; accent-color: var(--tg-theme-button-color, #2a78cc); }
+.filter { margin-top: 18px; padding-top: 18px; border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.filter label { display: block; margin: 14px 0 6px; font-size: .92rem; font-weight: 600; }
+.filter input { width: 100%; padding: 12px; border: 1px solid #a9b7c5; border-radius: 10px; color: inherit; background: transparent; font: inherit; }
+button { margin-top: 16px; padding: 11px 18px; border: 0; border-radius: 10px; color: var(--tg-theme-button-text-color, #fff); background: var(--tg-theme-button-color, #2a78cc); font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .55; cursor: wait; }
+.empty { padding: 16px 4px; color: var(--tg-theme-hint-color, #5d7184); }

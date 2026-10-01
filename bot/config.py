@@ -265,6 +265,7 @@ class Config:
     admin_telegram_bot_username: str = ""
     notification_queue_enabled: bool = False
     streamer_plus_enabled: bool = False
+    viewer_plus_enabled: bool = False
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -354,4 +355,5 @@ def load_config() -> Config:
         admin_telegram_bot_username=admin_telegram_bot_username,
         notification_queue_enabled=notification_queue_enabled,
         streamer_plus_enabled=not railway or pinned_staging,
+        viewer_plus_enabled=not railway or pinned_staging,
     )

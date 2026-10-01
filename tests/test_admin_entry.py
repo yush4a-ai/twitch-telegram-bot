@@ -27,6 +27,20 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("Админ-панель", str(keyboard))
             self.assertNotIn("/admin", str(keyboard))
 
+    def test_viewer_entry_is_private_and_never_exposes_admin(self):
+        private = _main_menu_keyboard(
+            ChatType.PRIVATE, viewer_url="https://staging.example.test/viewer",
+        )
+        self.assertIn("Мои оповещения", str(private))
+        self.assertNotIn("Админ-панель", str(private))
+        for chat_type in (ChatType.GROUP, ChatType.SUPERGROUP, ChatType.CHANNEL):
+            with self.subTest(chat_type=chat_type):
+                menu = _main_menu_keyboard(
+                    chat_type, viewer_url="https://staging.example.test/viewer",
+                )
+                self.assertNotIn("Мои оповещения", str(menu))
+                self.assertNotIn("Админ-панель", str(menu))
+
     async def test_non_owner_and_group_command_have_no_answer(self):
         for message in (fake_message(OWNER_ID + 1, OWNER_ID + 1, ChatType.PRIVATE), fake_message(OWNER_ID, -100123, ChatType.SUPERGROUP), fake_message(OWNER_ID, -100123, ChatType.CHANNEL)):
             await cmd_admin(message, CONFIG)
@@ -51,6 +65,21 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
             await cmd_start(message, state, db, CONFIG)
         self.assertIn("Админ-панель", str(owner.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))
+
+    async def test_staging_viewer_start_menu_keeps_owner_admin_isolated(self):
+        state = SimpleNamespace(clear=AsyncMock())
+        db = SimpleNamespace(mark_known_private_user=AsyncMock())
+        config = SimpleNamespace(**vars(CONFIG), viewer_plus_enabled=True)
+        owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
+        regular = fake_message(101, 101, ChatType.PRIVATE)
+        group = fake_message(101, -100123, ChatType.SUPERGROUP)
+        for message in (owner, regular, group):
+            await cmd_start(message, state, db, config)
+        self.assertIn("Мои оповещения", str(owner.answer.await_args.kwargs["reply_markup"]))
+        self.assertIn("Мои оповещения", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Мои оповещения", str(group.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))
 
 
