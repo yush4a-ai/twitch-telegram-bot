@@ -12,7 +12,7 @@
 | R5 Payments foundation | engineering acceptance на staging; mock/test без денег | deployment `fa758200-bb09-47d0-9cca-fdeab33b204f` из `fd17d34` `SUCCESS`; gate 1082 passed, 2 skipped, 317 subtests; `r5_001`, `integrity=ok`, временный checkout/capture/refund/cancel/expiry и rollback; `docs/audits/2026-10-01-r5-mock-billing-staging.md` |
 | R6 Pilot simulation | engineering acceptance на staging, без реальных участников | deployment `31086fa4-21ca-4190-bedb-6d79d95a267e` из `ff04f37` `SUCCESS`; gate 1084 passed, 2 skipped, 334 subtests; 8 synthetic journeys, 16 ожидаемых отказов, 0 unexpected errors, активная DB 0 pilot rows; `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` |
 | R7 Telegram Mini App + Viewer Plus | engineering acceptance на staging; реальный вход в Mini App остаётся непроверенным | deployment `8cf965e2-abea-4536-b2b1-e2f06189a501` из `1c78801` `SUCCESS`; guard 1099 passed, 2 skipped, 347 subtests; `r7_001`, `integrity=ok`; signed owner/non-owner API, краткий test grant/revoke, R2 admin scopes и browser shell 390/1440 проверены; `docs/audits/2026-10-01-r7-viewer-mini-app-staging.md` |
-| R8 Growth / SEO / referrals | в работе | spec/plan обновлены по owner-approved дополнению о двух концептах, Taste/Impeccable, четырёх SEO skills и отдельном Remotion; пакет first-touch ledger `0a0039d` локально: 8 tests, 13 subtests; staging deploy R8 ещё не выполнялся |
+| R8 Growth / SEO / referrals | в работе | first-touch ledger `0a0039d`, private testbot entry/activation `1f87bd7`, агрегированная owner-воронка `9990a87`; последняя R8-focused проверка 33 passed, 17 subtests, отдельные deep-link regressions 84 passed, 15 subtests; два дополнительных project-local SEO skills проверены по 6 SHA256 файлам, spec/plan учитывают конкурентное исследование и исправленную noindex/robots политику; staging deploy R8 ещё не выполнялся |
 | R9 Scale validation | не начат | staging-only synthetic 20k/30k/40k |
 
 ## Проверенное в R1
@@ -37,7 +37,7 @@
 
 ## Следующий шаг
 
-Продолжить R8: обработчики attribution/activation, агрегат owner-панели, два визуальных направления и многостраничный SEO prototype на staging, затем отдельное Remotion demo video. После сообщения владельца о `/setdomain` проверить полный Telegram Login/Mini App owner и streamer E2E; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
+Продолжить R8: датированный небольшой срез конкурентов и поисковых задач, два визуальных направления и многостраничный SEO prototype на staging, затем отдельное Remotion demo video. Полный Telegram Login/Mini App owner и streamer E2E после сообщённого владельцем `/setdomain` остаётся непроверенным; production не менять. В R9 измерить полную смешанную нагрузку и реальную задержку Telegram; текущие synthetic прогоны не подтверждают 20–40k SLA.
 
 ## Проверенное в R2
 

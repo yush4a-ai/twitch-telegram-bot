@@ -1,0 +1,44 @@
+{
+  "source": "coreyhaines31/marketingskills",
+  "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022",
+  "review": "Docs only. No install scripts/dependencies executed. Paid enrichments not authorized. Follow project override for no paid APIs, truthful claims and staging-only.",
+  "license_sha256": "b70d71e24e40fce5da8f4b6f9cd862096a048e433db7f3c8cac5e348e6d34591",
+  "files": [
+    {
+      "path": "skills/competitor-profiling/SKILL.md",
+      "sha256": "3e775491484a9e6fddce1db4e03415a900a5026d898ef146161f6fea017eafcf",
+      "git_blob": "615aba793ebbcadf1ef69796e6a1edd984381413",
+      "bytes": 14558
+    },
+    {
+      "path": "skills/competitor-profiling/references/templates.md",
+      "sha256": "710d78cb519012eb7e39f63643e22d7b9026c91c569262b44c45535c10717a91",
+      "git_blob": "0a5ad331fa8393bd97de4e8f3144bf59cd76ecbb",
+      "bytes": 4668
+    },
+    {
+      "path": "skills/competitor-profiling/references/tool-reference.md",
+      "sha256": "37defe4f29d15a74b10e9b0c17d798f62effaa025e2ff8fece377171adbb658a",
+      "git_blob": "ef3dd3656d79de7c3526aac53ac0ea47bcc82cbf",
+      "bytes": 7082
+    },
+    {
+      "path": "skills/cro/SKILL.md",
+      "sha256": "199016bec3b44bc6a7507b111b6028f6550cc852cd54c7d0df789f15d6f814c4",
+      "git_blob": "74a2394f838e0f07a5a5f06eee99047b8a5adcd6",
+      "bytes": 6101
+    },
+    {
+      "path": "skills/cro/references/experiments.md",
+      "sha256": "bbcc356c0af36cfaa4556bf9e929deac30c65cafb37f909d7c51d4777fe254ca",
+      "git_blob": "abc31c716ec966c9c6c9a12ca3e8b076ce3ea320",
+      "bytes": 7850
+    },
+    {
+      "path": "skills/cro/references/form.md",
+      "sha256": "e3115b0fdfb3968915b8e3acdc32a6e5f1d2c6a335ebbed25bee9b601ec573d7",
+      "git_blob": "470aeb11108c4a6ed34758b471889090034ae73d",
+      "bytes": 10312
+    }
+  ]
+}

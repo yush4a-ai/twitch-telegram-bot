@@ -7,6 +7,7 @@
 **Tech Stack:** Python 3.12, aiogram, aiosqlite, aiohttp, HTML/CSS, pytest/unittest; без новых внешних сервисов.
 
 **Spec:** `docs/superpowers/specs/2026-10-01-r8-growth-attribution-design.md`.
+**SEO refinement:** `docs/workflows/2026-10-01-r8-competitive-seo.md`, pinned `docs/workflows/2026-10-01-r8-seo-competition-skills-lock.json`.
 
 ## Global Constraints
 
@@ -14,6 +15,7 @@
 - Telegram `/start` payload до 64 ASCII URL-safe символов; только `src_site` и выданный `ref_<12-char code>`.
 - Первый допустимый touch и первая успешная private subscription; повтор, group, self-referral, unknown code и уже активный пользователь не получают attribution.
 - Никаких реальных денег, наград, цен, marketing cookies/pixels и публичной индексации staging.
+- Никаких SEO rank guarantees, платных API/доменов, автоматического мониторинга или смены бренда. `src_site` не раскрывает органический запрос.
 - R2 owner-only auth, R7 Viewer API, существующие `track_` и `link_` сохраняют границы.
 
 ## Review Focus
@@ -57,13 +59,14 @@
 
 ## Task 4: Surface brief, content map и два визуальных варианта
 
-**Files:** `docs/design/public-site.md`, два лёгких прототипа в `docs/design/r8-concepts/`; SEO checklist `docs/audits/2026-10-01-r8-seo-launch-checklist.md`.
+**Files:** `docs/design/public-site.md`, два лёгких прототипа в `docs/design/r8-concepts/`; `docs/audits/2026-10-01-r8-competitors.md`, `docs/audits/2026-10-01-r8-search-intents.md`, SEO checklist `docs/audits/2026-10-01-r8-seo-launch-checklist.md`.
 
 **Interfaces:** выбранная композиция и страницы `/site`, `/site/for-viewers`, `/site/for-streamers`, `/site/help` передаются Task 5; исходные варианты сохраняются для обратимого пересмотра.
 
 - [ ] Применить закреплённые `site-architecture`, `content-strategy`, `seo-audit`, `schema` и Taste Skill после чтения SKILL; карта страниц, реальные функции/ограничения, темы-гипотезы без выдуманного спроса и Google/Яндекс checklist.
+- [ ] Снять датированный небольшой срез собственных публичных страниц 2 hosted Telegram сервисов и 1 self-hosted проекта; отдельно записать подтверждённые функции, цены/онбординг/help и неизвестные метрики. Сверить 20–30 query hypotheses с видимыми RU SERP, сгруппировать в 6–8 задач и назначить полезную страницу каждой задаче; никакого заявления о глобальном рейтинге.
 - [ ] Сформулировать design read и два действительно разных первых экрана («Сигнал эфира» и «Из эфира в Telegram»); использовать доступный image generation для лёгких mockup, сохранить оба и выбрать один с мотивировкой. Не строить две полные версии сайта.
-- [ ] Проверить copy через stop-slop, выбранную композицию через Impeccable, зафиксировать typography/palette/motion/reduced-motion и commit документов/вариантов.
+- [ ] Проверить copy через stop-slop, ясность добровольного перехода через CRO и композицию через Impeccable; зафиксировать typography/palette/motion/reduced-motion и commit документов/вариантов. Не использовать выдуманный social proof или манипулятивные CTA.
 
 ## Task 5: Многостраничный staging SEO site
 
@@ -71,9 +74,10 @@
 
 **Interfaces:** `install_growth_site(app, bot_username:str, public_base_url:str)` mounts четыре HTML routes, CSS и `/robots.txt` only if stage flag/exact testbot username; `OAuthCallbackServer` gets optional site values from `main`.
 
-- [ ] RED: no site route outside stage config; staging CTA testbot `src_site`, unique title/description/H1/canonical, HTTP+HTML noindex/nofollow, robots disallow, truthful JSON-LD, working internal links, no tracking/admin label; confirm failure.
+- [ ] RED: no site route outside stage config; staging CTA testbot `src_site`, unique title/description/H1/canonical, HTTP+HTML noindex/nofollow, robots **allow `/site/` so noindex is readable**, truthful JSON-LD, working internal links, no tracking/admin label; confirm failure.
 - [ ] GREEN: responsive server HTML/CSS in selected visual system with demo explicitly marked; focused HTTP tests and JS/CSS checks pass. Commit code packet.
 - [ ] Browser QA at 360/390/768/1440, keyboard, contrast, reduced-motion, long Russian copy, no horizontal scroll, desktop/mobile visual review and one bounded fix pass; record screenshots/evidence.
+- [ ] Fixed-condition mobile lab report (URL/build/device/viewport/network/CPU/profile and date), status/metadata/internal link/asset checks. Distinguish lab LCP/CLS from absent field CWV and query demand; prepare public-launch reversal checks for noindex/robots/canonical/duplicate origin/auth only in docs, without removing staging noindex.
 
 ## Task 6: Isolated Remotion demo
 
@@ -90,6 +94,7 @@
 - [ ] Spec/plan self-review без placeholders/противоречий; полный suite и code review, `git diff --check`, внешний staging backup/restore и migration drill на копии.
 - [ ] Чистый commit и pinned target check; guarded staging deploy с terminal SUCCESS; testbot identity, schema/integrity, `/site` metadata/robots/video assets, admin direct denial, stage link target.
 - [ ] Temp-DB journey `src_site`/ref → first activation → test Plus aggregation и replay/self/group rejection без изменения active user data; обновить `docs/STATUS.md`, `docs/DECISIONS.md`, R8 audit и перейти к R9.
+- [ ] Сохранить датированный SEO checklist и короткий план после запуска: Search Console/Яндекс только после подтверждения домена/аккаунтов, недельный отчёт как шаблон без automation; domain/Twitch mark risk и отсутствие реальных метрик явно оставить открытыми.
 
 ## Самопроверка плана
 
