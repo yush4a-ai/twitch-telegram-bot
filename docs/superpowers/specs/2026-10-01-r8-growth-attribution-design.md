@@ -1,0 +1,30 @@
+# R8 — Attribution, referrals и SEO prototype: design
+
+Дата: 2026-10-01. Основание: утверждённый `docs/ROADMAP.md` и инженерная приёмка R0–R7. Реализация и публикация только на закреплённом Railway staging с `@TwitchSignalTestbot`; production, реальные платежи, награды и внешняя индексация не входят в этот этап.
+
+## Цель и проверяемый результат
+
+Проследить в тестовом контуре переход конкретного пользователя от безопасного Telegram deep link к первому подключению Twitch-канала и последующему тестовому Plus entitlement. Дать обычному пользователю реферальную ссылку без ID в URL, владельцу — только агрегированную воронку по источникам, а для будущего SEO — статические страницы с содержательными заголовками/описаниями и навигацией. На staging страницы явно закрыты от индексации. События измеряют действия в боте, не просмотры сайта, клики без `/start`, доход или количество реальных продаж.
+
+## Подход и границы данных
+
+- Выбран первый допустимый touch: `src_site` для прототипа сайта или `ref_<opaque>` для выданного ботом реферального кода. Telegram документирует private `/start` parameter до 64 символов; код ограничивается ASCII URL-safe алфавитом и этой длиной ([Telegram Bot Features](https://core.telegram.org/bots/features#deep-linking)). Другие/неизвестные параметры сохраняют прежний `/start` flow, без attribution. Существующие `track_` и `link_` обрабатываются раньше и не меняют семантику.
+- `growth_referral_codes` хранит единственный случайный 12-символьный base64url код на Telegram user ID. Код создаётся по `/invite` только в личном чате на pinned staging, возвращается тому же пользователю и не содержит ID. Не выдаются деньги, скидки, приоритеты и права Plus. Код можно открыть повторно, но новый код для того же referrer не выпускается. Самореферал, несуществующий код, группа/канал, несовпадение `from_user.id` и private `chat.id` и повторный touch не создают referral credit. Ответ `/start` остаётся обычным, чтобы не делать oracle по кодам.
+- `growth_attributions` содержит только `(telegram_user_id, source_kind, source_code, referrer_user_id|null, first_seen_at, activated_at|null)`. Запись создаётся только для ранее не активированного private пользователя без `tracked_channels`, один раз на ID; дальнейшие `/start` не перезаписывают источник. Для `src_site` допустим ровно зарегистрированный статический код `site`, без произвольных UTM и user IDs. Первый успешный `add_channel`/`add_channel_with_limit` ставит `activated_at` в той же DB транзакции, поэтому duplicate/limit/Twitch error не считаются активацией. Удаление канала не стирает историческое событие.
+- Plus conversion считается агрегатно из существующих `entitlement_grants` после `activated_at`: `viewer_plus` по Telegram user ID и `streamer_plus` по текущей `streamer_identities` связи. Считать уникального пользователя один раз, включая позже отозванный/истёкший тестовый grant, как **ever test entitlement**, а не активный платёж или доход. При смене Twitch identity историческая streamer conversion может быть не видна через текущую связь; эта граница отражается в отчёте. Личные ID и реферальные коды не возвращаются в owner dashboard.
+- Публичный site не ставит cookies, пиксели и сторонние скрипты; нет IP/UA логики attribution. Если Telegram `/start` не пришёл, посещение сайта не считается. Тестовые данные staging не копируются из production.
+
+## Интерфейсы и изоляция
+
+- Флаг R8 включается локально и только при точном pinned Railway staging ID; production Railway отвергает функциональность. В личном testbot `/invite` выдаёт ссылку `https://t.me/TwitchSignalTestbot?start=ref_<code>`. Общие bot commands и групповые меню не получают `/admin` или управленческих ссылок. Attribution handler принимает только private Telegram actor из проверенного update, никогда ID из URL/JSON.
+- Staging live-пост с кнопкой «Подключить уведомления» должен направлять к testbot, а не к production username: `build_track_deep_link` получает проверенный bot username из runtime; локальные вызовы без параметра сохраняют прежнее значение для совместимости. Это отдельная регрессия staging boundary.
+- Сайт монтируется на `/site` и `/site/for-streamers` только на staging. Статический HTML/CSS содержит канонический URL для каждой страницы, уникальные `<title>`/description, понятный текст о Free и тестовых возможностях, ссылку на testbot `?start=src_site`. Никаких цен, реальной оплаты, гарантий масштаба, персональных данных или обещаний SEO-позиций. `/site/*` получает `X-Robots-Tag: noindex, nofollow`, а staging `/robots.txt` запрещает crawling сайта. Sitemap и регистрация в поисковых системах откладываются до решения о production domain/content. CSS/markup проверяются на мобильной и desktop ширине.
+- Read-only owner dashboard добавляет агрегатную таблицу `source → touched → activated → ever test Plus` (кампания site и referrals как тип, без кода/referrer ID). Те же данные идут через существующий `/admin/api/snapshot`, с прежней owner auth; обычный пользователь и прямой URL не получают их. Ошибка growth SQL помечает блок недоступным, не ломая health snapshot.
+
+## Проверка и rollout
+
+TDD для URL-safe parser/builder и testbot username, unknown/self/group/replay referral, first-touch и атомарной activation, duplicate/limit, Plus aggregation без ID, owner auth, noindex/canonical/site link и старых `track_`/`link_`. После полного suite — внешний staging backup, restore/migration на копии, чистый commit и pinned deploy guard; затем signed/admin, bot identity, site/robots и temp-DB journeys в staging. Реферальный E2E через реальный клиент и SEO indexability не объявляются проверенными по synthetic тестам. Rollback остаётся с additive schema; code-only revert не стирает исторические growth rows, а тестовые attribution данные допускают сохранение в staging.
+
+## Самопроверка
+
+Первый touch, activation и Plus имеют разные наблюдаемые основания. Неизвестные ссылки не создают источник и не меняют подключение. Реферальный код не даёт прав/денег и не раскрывает ID. Сайт закрыт от индексации на staging, а CTA ведёт только к testbot. Owner-only R2 auth и R7 Viewer API не расширяются; production не меняется.
