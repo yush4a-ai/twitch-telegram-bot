@@ -44,3 +44,23 @@ R0–R9 прошли инженерные staging checkpoints. Для следу
 - Read-only dashboard показывает Telegram, Twitch и preview отдельно; аудиторию, live, очереди, ошибки и ресурсы процесса. На staging browser smoke в ширинах 390/1440 px без переполнения; старая ошибка clock domain preview исправлена и проверена локальным тестом, staging preview остаётся без успешного capture.
 - Нормальная страница входа содержит только Telegram Login и попытку `initData` из Mini App. Прямой API без cookie — 401, неподписанный Mini App — 403, прежний `/admin/login` — 404. Отдельный скрытый emergency route прошёл вход/API/logout без вывода ключа.
 - Production deployment, production variables/DB и `main` не менялись. Последний R2 deploy выполнен из commit snapshot через guard с точными staging project/environment/service ID.
+
+## Подготовка следующего Mini App + Plus этапа — 01.10.2026
+
+Пользователь одобрил два режима и светлый минималистичный интерфейс; дополнительно запросил работающие Free/Viewer Plus/Streamer Plus и category-change уведомления в Plus. Подготовлены `docs/superpowers/specs/2026-10-01-native-mini-app-plus-design.md` и план `docs/superpowers/plans/2026-10-01-native-mini-app-plus.md` (T1–T12), а также `docs/workflows/2026-10-01-mini-app-codex-handoff.md`.
+Четыре новых справочных навыка установлены project-locally; источники/хеши и исключённые helpers записаны в `docs/workflows/2026-10-01-mini-app-skills-lock.json`, правила применения — в `docs/workflows/2026-10-01-mini-app-skills.md`. Глобальные навыки не менялись; helpers/runtime dependencies не запускались/не устанавливались.
+Baseline при подготовке — `69a980b`; продуктовый код, работающий бот и deployment не менялись. Это подготовка документов и скиллов, не реализация T1–T12. Новый pytest не запускался; прежние результаты относятся к R0–R9. Документы/скиллы оставлены незакоммиченными для единственного исполнителя Codex.
+Следующий шаг: пользователь передаёт план в видимый Codex. Исполнитель перечитывает фактический git status/HEAD и начинает T1, не повторяя выполненные R0–R9. Реальные деньги, цены/сроки, production и внешние тестовые публикации остаются отдельными решениями.
+
+## Разрешён запуск нового контекста «Мини-апп» — 01.10.2026
+
+Пользователь попросил начать разработку в новом контексте и включить до пяти выбранных автоматических видеопревью Viewer Plus. Новый вход: `mini-app/START-HERE.md`, уточнение `mini-app/2026-10-01-scope-update.md`, план дополнения `mini-app/IMPLEMENTATION-ADDENDUM.md`, команда запуска `mini-app/CODEX-PROMPT.md`.
+Прежнее ожидание передачи плана отменено этим разрешением. Видимый чат «Мини-апп» в TwitchSignalBot использует тот же репозиторий/ветку; старый roadmap-чат остаётся историей. Физическая папка mini-app содержит handoff, не копию продукта.
+План включает T1–T17; основной T12 выполняется последним. Утверждены Free 50 / Viewer Plus 200, пять выбранных видео (считая offline), напоминания и следующие удобства Plus. Официальный рабочий стек сверён: aiogram, не python-telegram-bot. Справочные 31 файла скиллов заново проверены по хешам.
+На момент подготовки запуска HEAD `69a980b`, продуктовый diff пуст, `git diff --check` — 0. Это проверка документов/скиллов, не прохождение тестов приложения. Исполнитель должен подтвердить фактический запуск и обновлять задачи по доказательствам. Никаких новых production deploy/оплат/Telegram-отправок при подготовке не выполнялось.
+
+## Новый контекст «Мини-апп»: T1 baseline — 01.10.2026
+
+Исполнитель проверил фактические `cwd`, ветку `autonomous/twitchsignal-roadmap`, HEAD `69a980b`, отсутствие чужих staged изменений и активного `pytest`/deploy процесса в этой рабочей папке. Сохранены все незакоммиченные handoff-документы и project-local skills; повторного whole-repository graphify не было. SHA256 и размер всех 31 файлов нового skills manifest совпали. R0–R9 не запускались повторно.
+
+Подготовлены `docs/audits/2026-10-01-mini-app-free-baseline.md`, отдельный `docs/design/mini-app.md` и видимый `mini-app/PROGRESS.md`. В текущем коде зафиксированы два расхождения со scope: Plus-gate на `/viewer/api/digest` при бесплатном bot-сценарии и Plus-gate на `/streamer/api/communities` при согласованном Free-подключении. Старый личный `preview_enabled` не является новым пятислотовым Viewer Plus выбором. Исправления поставлены в T6, T9 и T13–T14 соответственно. Новый продуктовый код и staging пока не менялись, новый suite не запускался; следующий шаг — T2 RED-тесты единого расчёта прав.

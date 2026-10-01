@@ -1,7 +1,7 @@
 # TwitchSignalBot working rules
 
 ## Scope and authority
-Use the existing visible app chat "Продолжить roadmap TwitchSignalBot" and branch `autonomous/twitchsignal-roadmap`. One implementation owner; no hidden parallel CLI development or second controller.
+Use the owner-requested NEW visible app chat "Мини-апп" in the existing TwitchSignalBot project and branch `autonomous/twitchsignal-roadmap`. One implementation owner; no hidden parallel CLI development or second controller.
 The owner approved the roadmap and delegated reversible staging decisions. Continue spec -> plan -> implementation -> tests -> staging evidence without routine approval pauses. Actual owner visual acceptance remains pending.
 Only `@TwitchSignalTestbot` and verified test recipients. Never push/merge main or master, deploy to production, alter production data/config/secrets, or change CigilBot/Media.
 Real payments/provider choice, public promotion, purchases and paid infrastructure upgrades are deferred. Use mocks/local alternatives and record external blockers; continue independent work.
@@ -30,3 +30,8 @@ For R8 and final product-copy review, read `docs/workflows/2026-10-01-r8-stop-sl
 
 ## R8 public site, SEO and demo videos
 Read `docs/workflows/2026-10-01-r8-seo-design-remotion.md` BEFORE the R8 spec/plan or public-site work. Owner-approved direction: two lightweight visual concepts, Taste Skill as lead, Impeccable review, official Remotion for isolated local demo videos. Four pinned SEO skills and Remotion instructions are installed project-locally in `.agents/skills`; their provenance is in `docs/workflows/2026-10-01-r8-skills-lock.json`. Keep staging noindex, preserve live preview and all existing product work; no public launch or paid services. Do not use the admin design as the public-site template.
+
+## Next user Mini App + Plus stage (2026-10-01)
+The owner approved the two-mode minimal user app and requested a Codex implementation plan including Free/Viewer Plus/Streamer Plus. Read `docs/superpowers/specs/2026-10-01-native-mini-app-plus-design.md`, `docs/superpowers/plans/2026-10-01-native-mini-app-plus.md` and `docs/workflows/2026-10-01-mini-app-skills.md` before this stage. Handoff: `docs/workflows/2026-10-01-mini-app-codex-handoff.md`.
+The owner now explicitly authorizes implementation in a NEW visible chat "Мини-апп". Read `mini-app/START-HERE.md`, the approved scope update and IMPLEMENTATION-ADDENDUM (T13–T17) in addition to T1–T12. Old chat is history, not a second writer. T12 is the final gate after all extensions. Do not restart R0–R9.
+The skills workflow overrides conflicting community examples: keep existing strict auth, no production/dev mocks on live routes, no downloaded helper execution, no real payments. Existing global skills remain unchanged. Approved personal limits are Free 50 / Viewer Plus 200 tracked streamers and 5 selected video-preview streamers. Prices, real purchase durations and other limits remain separate owner decisions.
