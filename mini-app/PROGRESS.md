@@ -22,7 +22,7 @@
 | T16b | завершён локально | `60d9f53`, tree `8c3648cbb3d8697345584ebc93c1feade3eeaca1`; 47 related passed; browser PASS 2 снимка 390/360 light/dark, собственная/пустая история, Free gate, Back и истёкшая Telegram-сессия. Scoped review закрыт. |
 | T16c | завершён локально | `d48d064`, tree `6e8baf0b6724a1d6ac002ce76249e100d0ca0f55`; 28 related passed; browser PASS 2 снимка 390/360 light/dark, явное применение, удаление, два сообщества, версии и поздние ответы. Scoped review закрыт. |
 | T16d | завершён локально | `dcfca4a`, tree `1bfbfa14a4a4e79043849124c98f786899596a0c`; 29 related passed; browser PASS 2 снимка 390/360 light/dark, явное включение, delayed state, повтор, allowlist, Back. Scoped review закрыт. Только temp DB/synthetic SDK. |
-| T17 | следующий | Смешанная media-нагрузка на fake sender/temp DB с ограничителями ресурсов. |
+| T17 | нагрузочная часть завершена локально; сценарная сверка в T12 | `ecc4f46`, tree `dcc2a77515e7bda4e75217e50bb5e0629419d43b`; 33 related passed; H.264 профили 1×1000 остановлен на 25 с после 463 fake edit, 100×10 и 1000×5 admission PASS с 2 capture/encode. Temp DB удалена, внешних отправок 0. UI 4→5→6 и restart — T12. |
 | T12 | последний | Полный suite на финальном snapshot, review, browser/security, backup/restore, guarded staging и честная граница native E2E. |
 
 Известные расхождения на старте: `/viewer/api/digest` требовал Plus при бесплатном bot-сценарии (устранено T6); `/streamer/api/communities` POST требовал Plus при согласованном Free подключении (устранено T9); старый личный `preview_enabled` не даёт media-право с T14. Никакой внешний Telegram send или OAuth не выполнялся.

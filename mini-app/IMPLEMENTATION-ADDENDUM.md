@@ -49,10 +49,10 @@ Interface: `async set_reminder(user_id: int, broadcaster_id: str, logical_stream
 ## T17. Смешанная нагрузка фото/видео/обычных сигналов
 
 Files: отдельный reusable `scripts/mini_app_media_load.py`, `tests/test_mini_app_media_load.py`, `docs/audits/2026-10-01-mini-app-media-load.md`.
-- [ ] RED/PASS самого harness: только новая temp DB/fake Twitch/fake Telegram; обязательные resource stop и cleanup. Запрет активной/production DB и публичной массовой отправки проверяется тестом.
-- [ ] Последовательные профили: 1 stream×1000 recipients; 100 streams×10 recipients; 1000 viewers×5 selected с максимально разными потоками. Числа обозначают synthetic input, не фактически создаваемые 5000 capture: admission обязан ограничить работу/очередь.
-- [ ] Измерить max capture/encode/tasks/queue, RSS/CPU/temp disk, p95 задержки новых go-live при фоновых edits, cache hit/reuse, expired-slot cancellations. Сначала local, staging только в разрешённых ресурсах; не увеличивать оплату/replica самостоятельно.
-- [ ] При превышении ресурса зафиксировать предел и безопасный fallback, не форсировать больший профиль. По synthetic цифрам не заявлять SLA и не скрывать native/capture/send E2E ограничения.
+- [x] RED/PASS самого harness: только новая temp DB/fake Twitch/fake Telegram; обязательные resource stop и cleanup. Запрет активной/production DB и публичной массовой отправки проверяется тестом.
+- [x] Последовательные профили: 1 stream×1000 recipients; 100 streams×10 recipients; 1000 viewers×5 selected с максимально разными потоками. Числа обозначают synthetic input, не фактически создаваемые 5000 capture: admission обязан ограничить работу/очередь.
+- [x] Измерить max capture/encode/tasks/queue, RSS/CPU/temp disk, p95 задержки новых go-live при фоновых edits, cache hit/reuse, expired-slot cancellations. Сначала local, staging только в разрешённых ресурсах; не увеличивать оплату/replica самостоятельно.
+- [x] При превышении ресурса зафиксировать предел и безопасный fallback, не форсировать больший профиль. По synthetic цифрам не заявлять SLA и не скрывать native/capture/send E2E ограничения.
 - [ ] Пройти очередное отключение/возобновление приложения, 4→5→6 UI, смену слота, expiry→photo, возобновление Plus, две сессии пользователя. Проверить честные статусы и отсутствие сохранённых secrets/initData в артефактах.
 - [ ] После T13–T17 выполнить основной T12 целиком: review, функциональные/browser/security тесты, полный suite на финальном коде, backup/restore, точный staging deploy, реальная проверка только разрешённых внешних сценариев. Нет «готово» только по макету или health 200.
 
