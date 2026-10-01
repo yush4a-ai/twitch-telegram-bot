@@ -1701,6 +1701,23 @@ class Database:
     async def has_streamer_plus(self, telegram_user_id: int, *, now: float | None = None) -> bool:
         return await self.get_streamer_plus_expiry(telegram_user_id, now=now) is not None
 
+    async def get_streamer_placement_capabilities(
+        self, broadcaster_id: str, chat_id: int, *, now: float
+    ) -> tuple[bool, bool]:
+        """Return verified placement and its own current Streamer Plus grant."""
+        cursor = await self.conn.execute(
+            "SELECT EXISTS(SELECT 1 FROM entitlement_grants g "
+            "WHERE g.subject_kind='streamer' AND g.subject_id=c.broadcaster_id "
+            "AND g.plan='streamer_plus' AND g.revoked_at IS NULL "
+            "AND g.starts_at <= ? AND g.expires_at > ?) "
+            "FROM streamer_communities c JOIN streamer_identities i "
+            "ON i.broadcaster_id=c.broadcaster_id "
+            "WHERE c.broadcaster_id=? AND c.chat_id=? LIMIT 1",
+            (now, now, broadcaster_id, chat_id),
+        )
+        row = await cursor.fetchone()
+        return (True, bool(row[0])) if row is not None else (False, False)
+
     async def get_streamer_plus_expiry(
         self, telegram_user_id: int, *, now: float | None = None,
     ) -> float | None:
