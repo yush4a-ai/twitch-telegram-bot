@@ -34,9 +34,9 @@
 
 **Interfaces:** `CheckoutSession(order_id, reference)`, `VerifiedPaymentEvent(provider,event_id,order_id,payment_id,event_type,units,currency)`, `PaymentProvider` protocol; `MockPaymentProvider(secret: bytes)` реализует `async create_checkout(order_id,units,currency)`, `verify_webhook(body,headers,now)`, `async request_refund(payment_id,request_key)`, `async cancel_checkout(reference)`, `sign_test_event(event,now) -> (bytes,dict[str,str])`.
 
-- [ ] RED: `test_checkout_reference_has_no_external_payment_url`, `test_valid_capture_and_refund_signature`, `test_bad_signature_stale_timestamp_and_extra_fields_rejected`, `test_payload_size_limit`; убедиться в ожидаемом отсутствии интерфейса.
-- [ ] GREEN: только typed contract, HMAC verifier и mock без сети; `sign_test_event` разрешён лишь в mock/harness.
-- [ ] Проверить `.venv/Scripts/python.exe -m pytest tests/test_billing_provider.py -q -p no:cacheprovider`, просмотреть отсутствие реальных URL/ключей, commit.
+- [x] RED: checkout reference, independently signed capture/refund, bad/stale signature и schema/body size; отсутствие модуля подтверждено.
+- [x] GREEN: typed contract, HMAC verifier и mock без сети; malformed event type дал отдельный RED→GREEN.
+- [x] Focused suite `3 passed, 11 subtests`, без реальных URL/ключей; commit пакета.
 
 ### Task 2: Order/payment ledger и checkout
 
