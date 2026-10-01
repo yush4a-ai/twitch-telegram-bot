@@ -1,0 +1,75 @@
+{
+  "synthetic": true,
+  "runtime": {
+    "environment": "local",
+    "python": "3.12.10",
+    "sqlite": "3.49.1",
+    "os": "Windows"
+  },
+  "profile": {
+    "synthetic": true,
+    "network_requests": 0,
+    "destinations": 20000,
+    "rounds": 2,
+    "seed": 20261001,
+    "distinct_logins": 200,
+    "shared_observations": 400,
+    "jobs_total": 20000,
+    "jobs_done": 20000,
+    "jobs_pending": 0,
+    "jobs_leased": 0,
+    "jobs_failed": 0,
+    "max_revision": 2,
+    "queue_depth_max": 20000,
+    "lease_reclaimed": true,
+    "stale_ack_accepted": false,
+    "integrity": "ok",
+    "backup_integrity": "ok",
+    "backup_restored_tables": 39,
+    "snapshot_ms": {
+      "count": 2,
+      "p50_ms": 53.194,
+      "p95_ms": 61.688,
+      "p99_ms": 61.688,
+      "max_ms": 61.688
+    },
+    "observation_write_ms": {
+      "count": 400,
+      "p50_ms": 2.577,
+      "p95_ms": 3.415,
+      "p99_ms": 14.216,
+      "max_ms": 26.164
+    },
+    "request_updates_ms": {
+      "count": 2,
+      "p50_ms": 530.945,
+      "p95_ms": 962.077,
+      "p99_ms": 962.077,
+      "max_ms": 962.077
+    },
+    "db_read_ms": {
+      "count": 20000,
+      "p50_ms": 3.179,
+      "p95_ms": 4.057,
+      "p99_ms": 4.432,
+      "max_ms": 6.94
+    },
+    "queue_latency_ms": {
+      "count": 20000,
+      "p50_ms": 29429.175,
+      "p95_ms": 54268.782,
+      "p99_ms": 56467.076,
+      "max_ms": 56987.5
+    },
+    "seed_seconds": 95.868,
+    "drain_seconds": 54.825,
+    "wall_seconds": 154.24,
+    "process_cpu_seconds": 38.688,
+    "peak_rss_bytes": 196657152,
+    "db_bytes": 15454208,
+    "wal_bytes": 6509632,
+    "temp_disk_free_bytes": 232829779968,
+    "fake_send_completions_per_second": 364.799,
+    "telegram_40ms_start_lower_bound_seconds": 800.0
+  }
+}

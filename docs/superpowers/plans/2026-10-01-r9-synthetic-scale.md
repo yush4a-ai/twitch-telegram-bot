@@ -50,9 +50,9 @@
 
 **Files:** machine outputs в `docs/audits/2026-10-01-r9-local-20k.json`, `...-30k.json`, `...-40k.json`, первый audit draft `docs/audits/2026-10-01-r9-scale.md`.
 
-- [ ] По одному процессу и новому output на 20k, 30k, 40k; не запускать параллельно. Записать p50/p95/p99 observation/queue/DB и wall/CPU/RSS/DB/WAL/free disk; явно отметить остановленные профили.
-- [ ] Сравнить R3 shared-only baseline без утверждения acceleration/SLA; посчитать аналитический нижний предел Telegram 40ms starts и отдельно фактический fake throughput.
-- [ ] Review аномалий: повторить только конкретно неустойчивый профиль при диагностированном шуме, не переписывать все цифры ради красивого результата.
+- [x] По одному процессу и новому output на 20k, 30k, 40k; все три локально завершились без resource stop. JSON содержат p50/p95/p99 observation/queue/DB, wall/CPU/RSS/DB/WAL/free disk.
+- [x] R3 shared-only baseline используется только как контекст; аналитический предел Telegram 40 ms равен 800/1200/1600 s, измеренный fake drain 54,825/128,770/130,905 s. Ни один из них не является реальной доставкой или SLA.
+- [x] Аномалия 30k: drain throughput 233/s против 365/s при 20k и 306/s при 40k; monotonic regression не подтверждён 40k. Причина без trace не установлена, повторять профиль только ради сглаживания цифр не требуется; сохранить все исходные JSON.
 
 ## Task 4: Staging validation
 

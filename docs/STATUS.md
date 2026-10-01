@@ -13,7 +13,7 @@
 | R6 Pilot simulation | engineering acceptance на staging, без реальных участников | deployment `31086fa4-21ca-4190-bedb-6d79d95a267e` из `ff04f37` `SUCCESS`; gate 1084 passed, 2 skipped, 334 subtests; 8 synthetic journeys, 16 ожидаемых отказов, 0 unexpected errors, активная DB 0 pilot rows; `docs/audits/2026-10-01-r6-pilot-simulation-staging.md` |
 | R7 Telegram Mini App + Viewer Plus | engineering acceptance на staging; реальный вход в Mini App остаётся непроверенным | deployment `8cf965e2-abea-4536-b2b1-e2f06189a501` из `1c78801` `SUCCESS`; guard 1099 passed, 2 skipped, 347 subtests; `r7_001`, `integrity=ok`; signed owner/non-owner API, краткий test grant/revoke, R2 admin scopes и browser shell 390/1440 проверены; `docs/audits/2026-10-01-r7-viewer-mini-app-staging.md` |
 | R8 Growth / SEO / referrals | engineering acceptance на staging; реальный Telegram account E2E и публичные метрики не подтверждены | deployment `1f86e28e-4b3b-4e93-ba82-62fc9dd0bf9d` из `6af8253` `SUCCESS`; локальный suite 1120 passed, 2 skipped, 378 subtests, guard повторил 1120/2/378; backup/restore и R8 migration на копии, `integrity=ok`, testbot identity. Четыре страницы с логотипом владельца, выбором ролей, SEO metadata и `noindex`, два 8-секундных Remotion MP4 проверены локально и на Railway; staging Chromium 390/1440 без ошибок, видео play/pause. Временная stage DB прошла attribution/referral → activation → test Plus, активная DB 0 growth rows; owner/non-owner auth и command scopes подтверждены. `docs/audits/2026-10-01-r8-growth-staging.md`, `docs/audits/2026-10-01-r8-copy-review.md` |
-| R9 Scale validation | Task 1 mixed harness в commit `b9f0632`; Task 2 preview/mock billing probes проверены локально | spec/plan `fda245a`; 1000/5000 synthetic destinations завершены с одним job на destination, revision=2, integrity=ok и без сети; 5000: 33,49 s, peak RSS 185 270 272 B. R5/preview regression 499 passed, 2 skipped, 225 subtests; 24s synthetic encode 854×480 H.264, 3 244 466 B, audio=0; 100 mock replays → 1 payment/grant, refund revokes. 20/30/40k и staging ещё не запускались |
+| R9 Scale validation | Task 1 `b9f0632`, Task 2 `d53b782`; локальные 20k/30k/40k завершены; staging впереди | Все N jobs done, backlog 0, revision=2, recovery/restore/integrity OK, zero network. 20k/30k/40k wall 154,24/249,92/293,42 s, peak RSS 196,7/209,2/219,8 MB, fake drain 54,83/128,77/130,91 s; 30k throughput аномально ниже 40k. R5/preview regression 499 passed, 2 skipped, 225 subtests; 24s encode 854×480 H.264/no audio 3 244 466 B; 100 mock replays → 1 payment/grant, refund revokes. `docs/audits/2026-10-01-r9-scale.md` |
 
 ## Проверенное в R1
 
@@ -37,7 +37,7 @@
 
 ## Следующий шаг
 
-Закончить R9 preview/mock billing probes, затем последовательно выполнить локальные synthetic 20k/30k/40k и безопасную staging проверку на временных данных. Полный Telegram Login/Mini App owner и streamer E2E после сообщённого владельцем `/setdomain` остаётся непроверенным; production не менять. Текущие synthetic прогоны не подтверждают 20–40k SLA или реальную задержку Telegram.
+Провести полный suite, pinned staging check и новый backup/restore, затем guarded staging deploy и последовательные synthetic 20k/30k/40k на временных данных. Полный Telegram Login/Mini App owner и streamer E2E после сообщённого владельцем `/setdomain` остаётся непроверенным; production не менять. Локальные synthetic прогоны не подтверждают SLA или реальную задержку Telegram.
 
 ## Проверенное в R2
 
