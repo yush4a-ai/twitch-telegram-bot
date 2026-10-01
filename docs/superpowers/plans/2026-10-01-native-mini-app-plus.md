@@ -122,11 +122,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `mini_app_streamer.py`, UI `streamer.js`; existing `streamer_auth.py`, `streamer_community.py`, `streamer_web.py`, handlers; new `tests/test_mini_app_streamer_connect.py`.
 **Interfaces:** `/app/api/streamer/profile`, `/connect-intent`, `/community-intent`, `/community-intent/status`, `/communities`; single-use intent belongs to verified user, expires after 600 s. Return verified identity/placement only after server completion.
-- [ ] Написать RED: Free может подключить стандартное размещение; выбор чужого chat ID/чужой intent/просроченный intent отклоняется; callback success без свежей проверки прав не подключает.
-- [ ] Написать RED SDK paths: 9.6+ `requestChat` получает серверный prepared request; старый клиент предлагает безопасный переход к reply-keyboard выбора чата; пользовательская отмена не оставляет ложное connected.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_streamer_connect.py tests/test_streamer_communities.py tests/test_streamer_access.py -q`.
-- [ ] Реализовать связку через текущий Twitch OAuth и membership-checks. Basic onboarding не требует Plus. Подключение не отправляет тестовый пост само по себе.
-- [ ] Прогнать возврат в Mini App, потерю прав и истечение входа; PASS/commit. Реальный owner OAuth/Telegram-путь оставить NOT TESTED до разрешения.
+- [x] Написать RED: Free может подключить стандартное размещение; выбор чужого chat ID/чужой intent/просроченный intent отклоняется; callback success без свежей проверки прав не подключает.
+- [x] Написать RED SDK paths: 9.6+ `requestChat` получает серверный prepared request; старый клиент предлагает безопасный переход к reply-keyboard выбора чата; пользовательская отмена не оставляет ложное connected.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_streamer_connect.py tests/test_streamer_communities.py tests/test_streamer_access.py -q`.
+- [x] Реализовать связку через текущий Twitch OAuth и membership-checks. Basic onboarding не требует Plus. Подключение не отправляет тестовый пост само по себе.
+- [x] Прогнать возврат в Mini App, потерю прав и истечение входа; PASS/commit. Реальный owner OAuth/Telegram-путь оставить NOT TESTED до разрешения.
 
 ## T10. Оформление, preview и статистика Streamer Plus
 
