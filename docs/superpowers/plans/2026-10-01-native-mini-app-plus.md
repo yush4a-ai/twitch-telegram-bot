@@ -151,13 +151,13 @@ T1 verification note: `git diff --check` для собственных изме�
 ## T12. Итоговая приёмка и guarded staging
 
 **Files:** reusable browser journeys/fixtures, `docs/audits/2026-10-01-mini-app-acceptance.md`, `docs/design/mini-app-qa/*`, STATUS/DECISIONS; existing deployment guard/runbook.
-- [ ] Запустить независимый обзор доступного diff по spec: auth/права/доставка/платежи/миграции. Для frontend — web-design-guidelines, для русского текста — stop-slop. Один reviewer за раз; его замечания проверять, а не применять слепо.
-- [ ] Выполнить браузерную матрицу spec; сохранить screenshots и результаты с точным tree/окружением. Один общий визуальный обзор → пакет исправлений → подтверждение; функциональные ошибки не закрывать лимитом косметических правок.
-- [ ] По `mini-app/2026-10-01-production-journey-audit.md` повторить на новой копии старые preview callbacks и effective media-права, raid в тихие часы и состояние MenuButton после restart. Исправить подтвердившиеся расхождения локально/staging, сохранить HTML-отчёты/экспорт и старые Free-права. Не внедрять предложенный новый onboarding или новую платность отчётов без решения владельца.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest -q` на финальном коде и `git diff --check`. Нужен exit 0; старые 1126 passed не переносятся на новую версию. Не удалять тесты/не добавлять skip ради зелёного результата.
-- [ ] Прочитать `scripts/staging_deploy.py --help`, runbook и pinned target; сделать внешний staging backup, restore/migration на копии. Убедиться, что hooks/scripts не отправляют внешние сообщения. Deploy только проверенного commit через существующий guard и с явным staging target.
-- [ ] Независимо проверить active deployment/SHA, testbot identity, routes, Free/Plus API и отсутствие admin leak. Реальный Telegram client/контролируемое live-событие провести только с согласованным аккаунтом и получателем.
-- [ ] Записать выполненные T1–T12, commit/tree, локальные и staging доказательства, entry point, screenshots, тестовые ограничения и недоступные native checks. Без подтверждённого account E2E статус «инженерно проверено; native E2E ожидает», не «готово без ограничений».
+- [x] Запустить независимый обзор доступного diff по spec: auth/права/доставка/платежи/миграции. Для frontend — web-design-guidelines, для русского текста — stop-slop. Один reviewer за раз; его замечания проверять, а не применять слепо.
+- [x] Выполнить браузерную матрицу spec; сохранить screenshots и результаты с точным tree/окружением. Один общий визуальный обзор → пакет исправлений → подтверждение; функциональные ошибки не закрывать лимитом косметических правок.
+- [x] По `mini-app/2026-10-01-production-journey-audit.md` повторить на новой копии старые preview callbacks и effective media-права, raid в тихие часы и состояние MenuButton после restart. Исправить подтвердившиеся расхождения локально/staging, сохранить HTML-отчёты/экспорт и старые Free-права. Не внедрять предложенный новый onboarding или новую платность отчётов без решения владельца.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest -q` на финальном коде и `git diff --check`. Нужен exit 0; старые 1126 passed не переносятся на новую версию. Не удалять тесты/не добавлять skip ради зелёного результата.
+- [x] Прочитать `scripts/staging_deploy.py --help`, runbook и pinned target; сделать внешний staging backup, restore/migration на копии. Убедиться, что hooks/scripts не отправляют внешние сообщения. Deploy только проверенного commit через существующий guard и с явным staging target.
+- [ ] Независимо проверить active deployment/SHA, testbot identity, routes, Free/Plus API и отсутствие admin leak. SHA, identity, menu, routes, unsigned 401 и локальные Free/Plus/admin негативные тесты проверены; положительный Plus API на активной staging DB и native account E2E не проводились без отдельной тестовой личности/получателя.
+- [x] Записать выполненные T1–T12, commit/tree, локальные и staging доказательства, entry point, screenshots, тестовые ограничения и недоступные native checks. Без подтверждённого account E2E статус «инженерно проверено; native E2E ожидает», не «готово без ограничений».
 
 ## Итог передачи
 

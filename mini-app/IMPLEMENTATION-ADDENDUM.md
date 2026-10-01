@@ -53,8 +53,8 @@ Files: отдельный reusable `scripts/mini_app_media_load.py`, `tests/test
 - [x] Последовательные профили: 1 stream×1000 recipients; 100 streams×10 recipients; 1000 viewers×5 selected с максимально разными потоками. Числа обозначают synthetic input, не фактически создаваемые 5000 capture: admission обязан ограничить работу/очередь.
 - [x] Измерить max capture/encode/tasks/queue, RSS/CPU/temp disk, p95 задержки новых go-live при фоновых edits, cache hit/reuse, expired-slot cancellations. Сначала local, staging только в разрешённых ресурсах; не увеличивать оплату/replica самостоятельно.
 - [x] При превышении ресурса зафиксировать предел и безопасный fallback, не форсировать больший профиль. По synthetic цифрам не заявлять SLA и не скрывать native/capture/send E2E ограничения.
-- [ ] Пройти очередное отключение/возобновление приложения, 4→5→6 UI, смену слота, expiry→photo, возобновление Plus, две сессии пользователя. Проверить честные статусы и отсутствие сохранённых secrets/initData в артефактах.
-- [ ] После T13–T17 выполнить основной T12 целиком: review, функциональные/browser/security тесты, полный suite на финальном коде, backup/restore, точный staging deploy, реальная проверка только разрешённых внешних сценариев. Нет «готово» только по макету или health 200.
+- [x] Пройти локально reload/возобновление, 4→5→6 UI, смену слота, expiry→photo, повторный Plus и два окна пользователя. Проверить честные статусы и отсутствие сохранённых secrets/initData в артефактах. Native закрытие/повторное открытие приложения остаётся NOT TESTED.
+- [x] После T13–T17 выполнить основной T12 в разрешённой инженерной части: review, функциональные/browser/security тесты, полный suite на финальном коде, backup/restore, точный staging deploy, реальные проверки только read-only. Положительный account/Plus API E2E и нативные Telegram-сценарии остаются открытыми; результат не основан на одном макете или health 200.
 
 ## Чек покрытия
 
