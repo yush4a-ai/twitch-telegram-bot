@@ -58,10 +58,10 @@
 
 **Files:** `docs/audits/2026-10-01-r9-scale.md`, `docs/STATUS.md`, `docs/DECISIONS.md`.
 
-- [ ] Полный suite на финальном коде, code review и чистый commit; pinned target check, новый consistent staging online backup + внешний restore, migration drill на копии.
-- [ ] Guarded staging deploy с terminal SUCCESS; подтвердить `getMe=TwitchSignalTestbot`, active DB integrity и production deployment identity без изменений.
-- [ ] Последовательно выполнить 20k/30k/40k на staging в `/tmp`; после resource stop не форсировать больший профиль. Preview/billing probes на временных данных. Зафиксировать каждый JSON и после эксперимента active DB integrity/row counts.
-- [ ] Закрыть audit с реальными цифрами, метриками/ограничениями, R9 decision об SQLite/очереди/preview и честным списком внешних непроверенных условий. Обновить STATUS/DECISIONS и commit docs.
+- [x] Полный suite на `ccb958d`: 1126 passed, 2 skipped, 383 subtests локально и повторно в guard; код review/clean Git, pinned target. Online staging backup 688 128 B, внешний SHA match/restore и migration drill 39 tables/10 versions.
+- [x] Guarded staging deployment `729e0070-709e-4dc7-a04f-40cef6031447` terminal/active `SUCCESS`; `getMe=TwitchSignalTestbot`, active DB integrity OK; production deployment `2d440603-b74f-4c03-ba42-a5d53a491c02` без изменений.
+- [x] Последовательно 20k/30k/40k в `/tmp` staging, все завершились без resource stop и без внешнего трафика. Три stage JSON сохранены; preview/FFmpeg и mock billing probes прошли, active DB после нагрузки `integrity=ok`, 39 tables, growth/billing rows 0.
+- [x] Аудит фиксирует цифры, пределы метрик, решение об SQLite/очереди/preview и непроверенные реальные условия; STATUS/DECISIONS обновлены, шесть JSON сверены. Результаты входят в отдельный docs-only commit.
 
 ## Самопроверка плана
 
