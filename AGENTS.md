@@ -25,5 +25,8 @@ Check desktop/mobile, themes, loading/empty/error/stale states, auth/permissions
 Inspect new internet skills/scripts and pin approved versions before project-local adoption. Do not alter global skill installations or claim candidates are installed.
 At checkpoints update STATUS/DECISIONS with commit/tree, test evidence, deployment state and next task. Final handoff includes working staging entry points, screenshots, scenario checklist and explicit mock/unverified limitations.
 
+## R8 Stop-Slop Copy Gate
+For R8 and final product-copy review, read `docs/workflows/2026-10-01-r8-stop-slop-gate.md`. Apply installed `stop-slop` to human-facing prose after each completed surface and once across all changed surfaces before R8 acceptance. Do not run it on machine/code content or trade away factual SEO terms, placeholders, structured data, legal meaning or product truth for style.
+
 ## R8 public site, SEO and demo videos
 Read `docs/workflows/2026-10-01-r8-seo-design-remotion.md` BEFORE the R8 spec/plan or public-site work. Owner-approved direction: two lightweight visual concepts, Taste Skill as lead, Impeccable review, official Remotion for isolated local demo videos. Four pinned SEO skills and Remotion instructions are installed project-locally in `.agents/skills`; their provenance is in `docs/workflows/2026-10-01-r8-skills-lock.json`. Keep staging noindex, preserve live preview and all existing product work; no public launch or paid services. Do not use the admin design as the public-site template.

@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-01",
+  "environment": "local stage-bound HTML, not Railway",
+  "browser": "Chromium Playwright 1.57",
+  "widths": [
+    {
+      "viewport": 360,
+      "scrollWidth": 345,
+      "fontLoaded": true,
+      "logoLoaded": true,
+      "roles": [
+        "Я зритель",
+        "Я стример"
+      ],
+      "demoInside": true
+    },
+    {
+      "viewport": 390,
+      "scrollWidth": 375,
+      "fontLoaded": true,
+      "logoLoaded": true,
+      "roles": [
+        "Я зритель",
+        "Я стример"
+      ],
+      "demoInside": true
+    },
+    {
+      "viewport": 768,
+      "scrollWidth": 753,
+      "fontLoaded": true,
+      "logoLoaded": true,
+      "roles": [
+        "Я зритель",
+        "Я стример"
+      ],
+      "demoInside": true
+    },
+    {
+      "viewport": 1440,
+      "scrollWidth": 1425,
+      "fontLoaded": true,
+      "logoLoaded": true,
+      "roles": [
+        "Я зритель",
+        "Я стример"
+      ],
+      "demoInside": true
+    }
+  ],
+  "firstFocus": "skip-link",
+  "motion": {
+    "scroll": "auto",
+    "transition": "0s"
+  },
+  "statuses": [
+    {
+      "link": "/site",
+      "status": 200
+    },
+    {
+      "link": "/site/for-viewers",
+      "status": 200
+    },
+    {
+      "link": "/site/for-streamers",
+      "status": 200
+    },
+    {
+      "link": "/site/help",
+      "status": 200
+    }
+  ],
+  "errors": []
+}

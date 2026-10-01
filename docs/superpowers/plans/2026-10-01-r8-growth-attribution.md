@@ -66,18 +66,18 @@
 - [x] Закреплённые `site-architecture`, `content-strategy`, `seo-audit`, `schema` и Taste Skill прочитаны; карта четырёх страниц и реальные границы записаны в `docs/design/public-site.md`, SEO checklist дополняется при site QA.
 - [x] `docs/audits/2026-10-01-r8-competitors.md`: 3 hosted Telegram сервиса и 1 self-hosted README с датой, источниками, ценовой видимостью и неизвестными метриками. `docs/audits/2026-10-01-r8-search-intents.md`: 28 гипотез, 7 задач, 4 страницы; поисковый инструмент не фиксировал регион, поэтому RU ranking/demand не заявляются.
 - [x] Design read и два первых экрана созданы image generation и сохранены в `docs/design/r8-concepts/`. Владелец выбрал светлый «Из эфира в Telegram» и отдельно попросил включить «Я зритель»/«Я стример» из тёмного варианта; решение записано в `docs/design/public-site.md`.
-- [ ] Проверить copy через stop-slop, ясность добровольного перехода через CRO и композицию через Impeccable; зафиксировать typography/palette/motion/reduced-motion и commit документов/вариантов. Не использовать выдуманный social proof или манипулятивные CTA.
+- [x] Copy светлого сайта проверена через Stop-Slop (42/50), добровольный переход через CRO: ясный тезис, один тип CTA, два ролевых пути без срочности и выдуманного social proof. Impeccable detector указал на боковую толстую рамку; исправлено, повторный вывод `[]`. Типографика Golos, палитра, reduced motion и скриншоты зафиксированы в `docs/audits/2026-10-01-r8-site-local.md`. Два варианта и выбор владельца сохранены в предыдущем commit.
 
 ## Task 5: Многостраничный staging SEO site
 
-**Files:** new `bot/growth_site.py`, `bot/growth_ui/index.html`, `bot/growth_ui/for-viewers.html`, `bot/growth_ui/for-streamers.html`, `bot/growth_ui/help.html`, `bot/growth_ui/site.css`; `bot/oauth.py`, `main.py`; tests `tests/test_growth_site.py`, deployment packaging и R2 auth tests.
+**Files:** new `bot/growth_site.py` with four server-rendered HTML bodies, `bot/growth_ui/site.css`, local font files/license and owner-provided logo; `bot/oauth.py`, `main.py`; tests `tests/test_growth_site.py`, deployment packaging и R2 auth tests. Отдельные HTML-файлы не нужны: Python собирает страницы один раз при старте сервера и не делает файловый I/O на каждый запрос.
 
 **Interfaces:** `install_growth_site(app, bot_username:str, public_base_url:str)` mounts четыре HTML routes, CSS и `/robots.txt` only if stage flag/exact testbot username; `OAuthCallbackServer` gets optional site values from `main`.
 
-- [ ] RED: no site route outside stage config; staging CTA testbot `src_site`, unique title/description/H1/canonical, HTTP+HTML noindex/nofollow, robots **allow `/site/` so noindex is readable**, truthful JSON-LD, working internal links, no tracking/admin label; confirm failure.
-- [ ] GREEN: responsive server HTML/CSS in selected visual system with demo explicitly marked; focused HTTP tests and JS/CSS checks pass. Commit code packet.
-- [ ] Browser QA at 360/390/768/1440, keyboard, contrast, reduced-motion, long Russian copy, no horizontal scroll, desktop/mobile visual review and one bounded fix pass; record screenshots/evidence.
-- [ ] Fixed-condition mobile lab report (URL/build/device/viewport/network/CPU/profile and date), status/metadata/internal link/asset checks. Distinguish lab LCP/CLS from absent field CWV and query demand; prepare public-launch reversal checks for noindex/robots/canonical/duplicate origin/auth only in docs, without removing staging noindex.
+- [x] RED: 4 ожидаемых failure до site interface; отсутствие маршрутов без привязки, отказ production username, testbot `src_site`, уникальные title/description/H1/canonical, HTTP+HTML noindex, robots Allow `/site`, правдивая JSON-LD, отсутствие admin label. После реализации focused 4 passed, 12 subtests.
+- [x] GREEN: серверный HTML/CSS в выбранной системе с явной карточкой «ДЕМО»; R8/R2 regression 26 passed, 29 subtests. Code packet ещё ожидает commit.
+- [x] Browser QA 360/390/768/1440, клавиатура, контраст, reduced motion, длинный русский текст и переполнение: `docs/design/r8-site-qa/browser-checks.json`, четыре скриншота, browser errors 0. Из найденного исправлены CSP для локальных шрифтов и обрезанная мобильная карточка.
+- [x] Одиночный фиксированный mobile lab `docs/design/r8-site-qa/mobile-lab.json`; loopback RTT не подтверждён фактическим TTFB, поэтому field CWV не заявляются. `docs/audits/2026-10-01-r8-seo-launch-checklist.md` фиксирует reversal проверки для будущего публичного релиза, staging noindex не снят.
 
 ## Task 6: Isolated Remotion demo
 

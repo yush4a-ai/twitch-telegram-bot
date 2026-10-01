@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-01",
+  "url": "http://127.0.0.1:8765/site",
+  "build": "local uncommitted R8 site after final visual QA",
+  "browser": "Chromium via Playwright 1.57",
+  "viewport": "390x844 CSS px, DPR 1",
+  "network": "150 ms RTT, 200000 B/s down, 75000 B/s up via CDP",
+  "cpu": "4x throttle via CDP",
+  "profile": "fresh context, one navigation; fonts awaited; no field data",
+  "metrics": {
+    "ttfbMs": 2,
+    "domContentLoadedMs": 194,
+    "loadMs": 1053,
+    "fcpMs": 744,
+    "lcpMs": 744,
+    "cls": 0.008,
+    "resourceCount": 5,
+    "resourceTransferBytes": 77293
+  }
+}

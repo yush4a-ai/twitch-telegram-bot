@@ -588,6 +588,12 @@ async def main() -> None:
                 viewer_bot_token=(
                     config.telegram_bot_token if getattr(config, "viewer_plus_enabled", False) else None
                 ),
+                growth_bot_username=(
+                    config.admin_telegram_bot_username
+                    if getattr(config, "growth_enabled", False)
+                    and config.admin_telegram_bot_username else None
+                ),
+                growth_public_base_url=config.oauth_public_base_url,
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None
