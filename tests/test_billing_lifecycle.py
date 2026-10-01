@@ -98,6 +98,7 @@ class BillingLifecycleTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(await self.service.handle_webhook(refunded, refund_headers, now=122), "refunded")
         self.assertEqual(await self.service.handle_webhook(refunded, refund_headers, now=123), "refunded")
+        self.assertEqual(await self.service.handle_webhook(body, headers, now=124), "paid")
         self.assertTrue(await self.db.has_streamer_plus(101, now=124))
         cursor = await self.db.conn.execute(
             "SELECT source,revoked_at FROM entitlement_grants ORDER BY source"

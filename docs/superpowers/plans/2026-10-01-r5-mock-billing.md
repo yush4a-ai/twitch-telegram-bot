@@ -52,7 +52,7 @@
 
 **Files:** Modify `bot/billing.py`, `bot/database.py`; Test `tests/test_billing_lifecycle.py`.
 
-**Interfaces:** `BillingService.handle_webhook(body:bytes,headers:Mapping[str,str],now:float|None=None)->str`, `request_refund(telegram_user_id:int,order_id:str,request_key:str)->None`; DB `apply_verified_billing_event(event,body_sha256,now)->str` одной serialized транзакцией. Возвращается фактический order status.
+**Interfaces:** `BillingService.handle_webhook(body:bytes,headers:Mapping[str,str],now:float|None=None)->str`, `request_refund(telegram_user_id:int,order_id:str,request_key:str)->str`; DB `apply_verified_billing_event(event,body_sha256,now)->str` одной serialized транзакцией. Для нового события возвращается результат перехода, для точного replay — сохранённый результат события; запрос refund возвращает reference.
 
 - [x] RED: capture выдаёт один `source='mock'` grant и audit; точный replay не удваивает; конфликт event ID/body, wrong order/payment, late capture и refund before capture отказывают. Mock verifier отдельно отвергает wrong amount/currency.
 - [x] GREEN: event dedupe, payment transition и entitlement grant/revoke в одной serialized write-транзакции; отдельные источники grant не тронуты.
