@@ -41,6 +41,8 @@ from .token_store import TokenStore
 from .follow_listener import FollowEventListener
 from .twitch import ClipInfo, StreamInfo, TwitchClient
 from .notification_queue import NotificationJob, NotificationQueue
+from .category_alerts import CategoryObservation
+from .category_alert_store import CategoryAlertStore
 from .notification_worker import (
     NotificationOutcome, NotificationRetryAfter, NotificationTerminalError,
 )
@@ -382,6 +384,10 @@ class StreamPoller:
         self._db = db
         self._twitch = twitch
         self._interval = interval_seconds
+        self._category_alert_store = (
+            CategoryAlertStore(db, poll_interval=interval_seconds)
+            if isinstance(interval_seconds, (int, float)) and interval_seconds > 0 else None
+        )
         self._token_store = token_store
         self._chat_listener = chat_listener
         self._follow_listener = follow_listener
@@ -878,6 +884,25 @@ class StreamPoller:
                     stream.title or "(без названия)", stream.game_name or "—",
                     sampled_chats,
                 )
+                if (
+                    self._category_alert_store is not None
+                    and stream.broadcaster_id
+                    and getattr(stream, "game_id", None)
+                ):
+                    try:
+                        await self._category_alert_store.observe(CategoryObservation(
+                            broadcaster_id=stream.broadcaster_id,
+                            logical_stream_id=logical_stream_id,
+                            category_id=stream.game_id,
+                            category_name=stream.game_name,
+                            observed_at=sampled_at,
+                            is_live=True,
+                        ))
+                    except Exception as error:
+                        logger.warning(
+                            "Category observation skipped after stored stream sample: %s",
+                            type(error).__name__,
+                        )
                 del by_logical_stream[logical_stream_id]
             del pending_samples[login]
 
@@ -919,6 +944,7 @@ class StreamPoller:
                     or now - previous_refresh[1] >= stream_thumbnail.REFRESH_SECONDS
                 )
             thumbnail_attempted = False
+            category_offline_observed = False
             sampled_chat_ids: dict[str, list[int]] = {}
             update_requests: list[tuple[int, str, str, int, str | None]] = []
             if stream is not None:
@@ -941,6 +967,7 @@ class StreamPoller:
                     notify_enabled,
                     followers_at_start,
                     stats_sent,
+                    last_broadcaster_id,
                 ) = states[(chat_id, login)]
 
                 if stream is not None:
@@ -1323,6 +1350,24 @@ class StreamPoller:
                     )
                 else:
                     if was_live:
+                        if (
+                            not category_offline_observed
+                            and self._category_alert_store is not None
+                            and last_broadcaster_id and last_stream_id
+                        ):
+                            category_offline_observed = True
+                            try:
+                                await self._category_alert_store.observe(CategoryObservation(
+                                    broadcaster_id=last_broadcaster_id,
+                                    logical_stream_id=last_stream_id,
+                                    category_id=None, category_name=None,
+                                    observed_at=now, is_live=False,
+                                ))
+                            except Exception as error:
+                                logger.warning(
+                                    "Category offline observation skipped: %s",
+                                    type(error).__name__,
+                                )
                         # Пока только отмечаем offline. Удаление поста и финализация
                         # логической сессии выполняются независимыми таймерами.
                         await self._db.set_live_state(

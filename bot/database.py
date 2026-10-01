@@ -654,6 +654,7 @@ class Database:
         await self._migrate_billing_subject_schema()
         await self._migrate_viewer_schema()
         await self._migrate_viewer_preferences_schema()
+        await self._migrate_category_alert_schema()
         await self._migrate_growth_attribution_schema()
         await self.conn.commit()
 
@@ -723,6 +724,33 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_001_viewer_preferences',?)", (time.time(),)
+        )
+
+    async def _migrate_category_alert_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS category_alert_state ("
+            "broadcaster_id TEXT PRIMARY KEY, logical_stream_id TEXT NOT NULL, "
+            "baseline_id TEXT NOT NULL, baseline_name TEXT, candidate_id TEXT, "
+            "candidate_name TEXT, candidate_since REAL, "
+            "candidate_count INTEGER NOT NULL, last_observed_at REAL NOT NULL, "
+            "sequence INTEGER NOT NULL, is_live INTEGER NOT NULL DEFAULT 1) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS category_transitions ("
+            "transition_id TEXT PRIMARY KEY, broadcaster_id TEXT NOT NULL, "
+            "logical_stream_id TEXT NOT NULL, sequence INTEGER NOT NULL, "
+            "from_category_id TEXT NOT NULL, from_category_name TEXT, "
+            "to_category_id TEXT NOT NULL, to_category_name TEXT, "
+            "observed_at REAL NOT NULL, "
+            "UNIQUE(broadcaster_id,logical_stream_id,sequence)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_category_transitions_broadcaster "
+            "ON category_transitions(broadcaster_id,observed_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_002_category_alerts',?)", (time.time(),)
         )
 
     async def _migrate_growth_schema(self) -> None:
@@ -2893,7 +2921,7 @@ class Database:
             "SELECT tc.chat_id, tc.twitch_login, tc.is_live, tc.last_stream_id, tc.last_message_id, "
             "tc.last_message_kind, tc.last_title, tc.offline_since, tc.stream_started_at, "
             "tc.last_seen_live_at, tc.peak_viewers, tc.notify_enabled, tc.followers_at_start, tc.stats_sent, "
-            "tc.added_at, COALESCE(p.priority,0) "
+            "tc.added_at, COALESCE(p.priority,0), tc.last_broadcaster_id "
             "FROM tracked_channels tc LEFT JOIN viewer_plan_priority p "
             "ON p.telegram_user_id=tc.chat_id AND p.twitch_login=tc.twitch_login "
             "ORDER BY tc.twitch_login, tc.chat_id"
@@ -2927,6 +2955,7 @@ class Database:
             states[(chat_id, login)] = (
                 bool(row[2]), row[3], row[4], row[5], row[6], row[7], row[8],
                 row[9], row[10], bool(row[11]) and not paused, row[12], bool(row[13]),
+                row[16],
             )
         return chats_by_login, states
 
