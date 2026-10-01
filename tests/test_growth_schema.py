@@ -27,6 +27,8 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "r3_003_live_update_revision",
                             "r4_001_streamer_access",
                             "r4_002_streamer_communities",
+                            "r4_003_streamer_templates",
+                            "r4_004_streamer_stats",
                         ],
                     )
                     cursor = await db.conn.execute(
@@ -44,7 +46,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 reopened = Database(path)
                 await reopened.connect()
                 try:
-                    self.assertEqual(len(await reopened.schema_versions()), 5)
+                    self.assertEqual(len(await reopened.schema_versions()), 7)
                 finally:
                     await reopened.close()
 

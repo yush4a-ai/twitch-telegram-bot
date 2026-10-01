@@ -3,6 +3,7 @@
 import asyncio
 import errno
 import functools
+import json
 import logging
 import math
 import os
@@ -15,6 +16,8 @@ from typing import TYPE_CHECKING
 
 import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
+
+from .streamer_template import StreamerTemplate, validate_streamer_template
 
 if TYPE_CHECKING:
     from .oauth import UserTokenResult
@@ -614,6 +617,8 @@ class Database:
         await self._migrate_growth_schema()
         await self._migrate_streamer_schema()
         await self._migrate_streamer_communities_schema()
+        await self._migrate_streamer_template_schema()
+        await self._migrate_streamer_stats_schema()
         await self.conn.commit()
 
     async def _migrate_growth_schema(self) -> None:
@@ -754,6 +759,69 @@ class Database:
             "VALUES ('r4_002_streamer_communities', ?)", (time.time(),)
         )
 
+    async def _migrate_streamer_template_schema(self) -> None:
+        cursor = await self.conn.execute("PRAGMA table_info(tracked_channels)")
+        tracked_columns = {row[1] for row in await cursor.fetchall()}
+        if "last_broadcaster_id" not in tracked_columns:
+            await self.conn.execute(
+                "ALTER TABLE tracked_channels ADD COLUMN last_broadcaster_id TEXT"
+            )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_post_templates ("
+            "broadcaster_id TEXT NOT NULL, chat_id INTEGER NOT NULL, "
+            "version INTEGER NOT NULL CHECK(version > 0), "
+            "headline TEXT NOT NULL, body TEXT NOT NULL, "
+            "buttons_json TEXT NOT NULL, updated_at REAL NOT NULL, "
+            "PRIMARY KEY(broadcaster_id, chat_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r4_003_streamer_templates', ?)", (time.time(),)
+        )
+
+    async def _migrate_streamer_stats_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_post_events ("
+            "broadcaster_id TEXT NOT NULL, chat_id INTEGER NOT NULL, "
+            "twitch_login TEXT NOT NULL, stream_id TEXT NOT NULL, "
+            "message_id INTEGER NOT NULL, published_at REAL NOT NULL, "
+            "PRIMARY KEY(chat_id, twitch_login, stream_id, message_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_streamer_post_events_owner_time "
+            "ON streamer_post_events(broadcaster_id, published_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+            "VALUES ('r4_004_streamer_stats', ?)", (time.time(),)
+        )
+
+    async def get_streamer_delivery_stats(
+        self, telegram_user_id: int, *, since: float,
+    ) -> dict[str, int | float | None]:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid Telegram user ID")
+        if not isinstance(since, (int, float)) or not math.isfinite(since):
+            raise ValueError("invalid start time")
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM streamer_communities c "
+            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+            "WHERE i.telegram_user_id = ?", (telegram_user_id,),
+        )
+        connected = int((await cursor.fetchone())[0])
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*), MAX(e.published_at) FROM streamer_post_events e "
+            "JOIN streamer_identities i ON i.broadcaster_id = e.broadcaster_id "
+            "WHERE i.telegram_user_id = ? AND e.chat_id < 0 "
+            "AND e.published_at >= ?", (telegram_user_id, since),
+        )
+        count, latest = await cursor.fetchone()
+        return {
+            "connected_communities": connected,
+            "published_posts": int(count),
+            "latest_published_at": latest,
+        }
+
     @_serialized
     async def link_streamer_identity(
         self, telegram_user_id: int, broadcaster_id: str, twitch_login: str,
@@ -846,6 +914,101 @@ class Database:
             (telegram_user_id,),
         )
         return [tuple(row) for row in await cursor.fetchall()]
+
+    @_serialized
+    async def save_streamer_template(
+        self, telegram_user_id: int, chat_id: int, *, expected_version: int,
+        headline: str, body: str, buttons: object, now: float | None = None,
+    ) -> int | None:
+        template = validate_streamer_template(headline, body, buttons)
+        if type(expected_version) is not int or expected_version < 0:
+            raise ValueError("invalid template version")
+        at = time.time() if now is None else now
+        if not isinstance(at, (int, float)) or not math.isfinite(at):
+            raise ValueError("invalid update time")
+        cursor = await self.conn.execute(
+            "SELECT i.broadcaster_id FROM streamer_identities i "
+            "JOIN streamer_communities c ON c.broadcaster_id = i.broadcaster_id "
+            "AND c.chat_id = ? WHERE i.telegram_user_id = ? AND EXISTS ("
+            "SELECT 1 FROM entitlement_grants g WHERE g.subject_kind = 'streamer' "
+            "AND g.subject_id = i.broadcaster_id AND g.plan = 'streamer_plus' "
+            "AND g.revoked_at IS NULL AND g.starts_at <= ? AND g.expires_at > ?)",
+            (chat_id, telegram_user_id, at, at),
+        )
+        owner = await cursor.fetchone()
+        if owner is None:
+            return None
+        broadcaster_id = owner[0]
+        buttons_json = json.dumps(
+            [{"label": button.label, "url": button.url} for button in template.buttons],
+            ensure_ascii=False, separators=(",", ":"),
+        )
+        if expected_version == 0:
+            cursor = await self.conn.execute(
+                "INSERT INTO streamer_post_templates "
+                "(broadcaster_id, chat_id, version, headline, body, buttons_json, updated_at) "
+                "VALUES (?, ?, 1, ?, ?, ?, ?) "
+                "ON CONFLICT(broadcaster_id, chat_id) DO NOTHING",
+                (broadcaster_id, chat_id, template.headline, template.body, buttons_json, at),
+            )
+            version = 1
+        else:
+            cursor = await self.conn.execute(
+                "UPDATE streamer_post_templates SET version = version + 1, "
+                "headline = ?, body = ?, buttons_json = ?, updated_at = ? "
+                "WHERE broadcaster_id = ? AND chat_id = ? AND version = ?",
+                (template.headline, template.body, buttons_json, at,
+                 broadcaster_id, chat_id, expected_version),
+            )
+            version = expected_version + 1
+        if cursor.rowcount != 1:
+            await self.conn.rollback()
+            return None
+        await self.conn.commit()
+        return version
+
+    async def get_streamer_template(
+        self, telegram_user_id: int, chat_id: int,
+    ) -> tuple[int, str, str, list[dict[str, str]]] | None:
+        cursor = await self.conn.execute(
+            "SELECT t.version, t.headline, t.body, t.buttons_json "
+            "FROM streamer_post_templates t JOIN streamer_identities i "
+            "ON i.broadcaster_id = t.broadcaster_id "
+            "JOIN streamer_communities c ON c.broadcaster_id = t.broadcaster_id "
+            "AND c.chat_id = t.chat_id "
+            "WHERE i.telegram_user_id = ? AND t.chat_id = ?",
+            (telegram_user_id, chat_id),
+        )
+        row = await cursor.fetchone()
+        return (row[0], row[1], row[2], json.loads(row[3])) if row else None
+
+    async def get_active_streamer_template_for_destination(
+        self, chat_id: int, twitch_login: str, *, now: float | None = None,
+    ) -> StreamerTemplate | None:
+        at = time.time() if now is None else now
+        cursor = await self.conn.execute(
+            "SELECT t.headline, t.body, t.buttons_json "
+            "FROM tracked_channels tc JOIN streamer_identities i "
+            "ON i.broadcaster_id = tc.last_broadcaster_id "
+            "AND i.twitch_login = tc.twitch_login "
+            "JOIN streamer_communities c ON c.broadcaster_id = i.broadcaster_id "
+            "AND c.chat_id = tc.chat_id "
+            "JOIN streamer_post_templates t ON t.broadcaster_id = i.broadcaster_id "
+            "AND t.chat_id = tc.chat_id "
+            "WHERE tc.chat_id = ? AND tc.twitch_login = ? AND tc.is_live = 1 "
+            "AND EXISTS(SELECT 1 FROM entitlement_grants g "
+            "WHERE g.subject_kind = 'streamer' AND g.subject_id = i.broadcaster_id "
+            "AND g.plan = 'streamer_plus' AND g.revoked_at IS NULL "
+            "AND g.starts_at <= ? AND g.expires_at > ?) LIMIT 1",
+            (chat_id, twitch_login, at, at),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        try:
+            return validate_streamer_template(row[0], row[1], json.loads(row[2]))
+        except (ValueError, TypeError):
+            return None
 
     @_serialized
     async def save_verified_streamer_connection(
@@ -2069,6 +2232,7 @@ class Database:
         message_kind: str = "text",
         queued_go_live: bool = False,
         preserve_live_message: bool = False,
+        broadcaster_id: str | None = None,
     ) -> None:
         # при старте нового стрима (is_live=True и меняется stream_id) обнуляем накопленную
         # сумму зрителей — CASE проверяет, отличается ли stream_id от того, что уже в базе.
@@ -2091,6 +2255,7 @@ class Database:
             "THEN last_message_id ELSE ? END, "
             "last_title = ?, offline_since = ?, "
             "stream_started_at = ?, "
+            "last_broadcaster_id = ?, "
             "last_seen_live_at = CASE "
             "    WHEN ? IS NOT NULL THEN ? "
             "    WHEN ? AND (last_stream_id IS NULL OR last_stream_id != ?) THEN NULL "
@@ -2115,6 +2280,7 @@ class Database:
                 int(preserve_live_message), message_id,
                 title, offline_since,
                 stream_started_at,
+                broadcaster_id,
                 last_seen_live_at, last_seen_live_at, int(is_live), stream_id,
                 peak_viewers, peak_viewers, int(is_live), stream_id,
                 int(is_live),
@@ -2152,14 +2318,30 @@ class Database:
     async def set_live_message_if_current(
         self, chat_id: int, twitch_login: str, stream_id: str, message_id: int
     ) -> bool:
-        cursor = await self.conn.execute(
-            "UPDATE tracked_channels SET last_message_id = ?, last_message_kind = 'text' "
-            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
-            "AND is_live = 1 AND notify_enabled = 1 AND last_message_id IS NULL",
-            (message_id, chat_id, twitch_login, stream_id),
-        )
-        await self.conn.commit()
-        return cursor.rowcount == 1
+        try:
+            cursor = await self.conn.execute(
+                "UPDATE tracked_channels SET last_message_id = ?, last_message_kind = 'text' "
+                "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id = ? "
+                "AND is_live = 1 AND notify_enabled = 1 AND last_message_id IS NULL",
+                (message_id, chat_id, twitch_login, stream_id),
+            )
+            if cursor.rowcount == 1:
+                await self.conn.execute(
+                    "INSERT OR IGNORE INTO streamer_post_events "
+                    "(broadcaster_id, chat_id, twitch_login, stream_id, message_id, published_at) "
+                    "SELECT tc.last_broadcaster_id, tc.chat_id, tc.twitch_login, "
+                    "tc.last_stream_id, ?, ? FROM tracked_channels tc "
+                    "JOIN streamer_identities i ON i.broadcaster_id = tc.last_broadcaster_id "
+                    "AND i.twitch_login = tc.twitch_login "
+                    "WHERE tc.chat_id = ? AND tc.twitch_login = ? "
+                    "AND tc.last_stream_id = ?",
+                    (message_id, time.time(), chat_id, twitch_login, stream_id),
+                )
+            await self.conn.commit()
+            return cursor.rowcount == 1
+        except Exception:
+            await self.conn.rollback()
+            raise
 
     @_serialized
     async def record_viewer_sample(self, chat_id: int, twitch_login: str, viewer_count: int) -> None:

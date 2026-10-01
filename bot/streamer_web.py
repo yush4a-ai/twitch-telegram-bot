@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from html import escape
 from pathlib import Path
 
@@ -158,6 +159,17 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             "plus_expires_at": expiry,
         })
 
+    async def stats(request: web.Request) -> web.Response:
+        user_id = _user(request)
+        if user_id is None:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        if await db.get_streamer_identity(user_id) is None or not await db.has_streamer_plus(user_id):
+            return web.json_response({"error": "plus_required"}, status=403)
+        values = await db.get_streamer_delivery_stats(
+            user_id, since=time.time() - 30 * 86400,
+        )
+        return web.json_response({"period_days": 30, **values})
+
     async def communities(request: web.Request) -> web.Response:
         user_id = _user(request)
         if user_id is None:
@@ -216,11 +228,79 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             "chat_type": verified.chat_type,
         }, status=201)
 
+    async def _template_access(request: web.Request) -> tuple[int, int] | web.Response:
+        user_id = _user(request)
+        if user_id is None:
+            return web.json_response({"error": "unauthorized"}, status=401)
+        try:
+            chat_id = int(request.match_info["chat_id"])
+        except ValueError:
+            return web.json_response({"error": "invalid_chat"}, status=400)
+        if chat_id >= 0:
+            return web.json_response({"error": "invalid_chat"}, status=400)
+        if bot is None:
+            return web.json_response({"error": "unavailable"}, status=503)
+        if await db.get_streamer_identity(user_id) is None or not await db.has_streamer_plus(user_id):
+            return web.json_response({"error": "plus_required"}, status=403)
+        stored = await db.list_streamer_communities(user_id)
+        if not any(item[0] == chat_id for item in stored):
+            return web.json_response({"error": "permission_denied"}, status=403)
+        if await verify_community_permission(bot, chat_id, user_id) is None:
+            return web.json_response({"error": "permission_denied"}, status=403)
+        return user_id, chat_id
+
+    async def get_template(request: web.Request) -> web.Response:
+        permitted = await _template_access(request)
+        if isinstance(permitted, web.Response):
+            return permitted
+        user_id, chat_id = permitted
+        row = await db.get_streamer_template(user_id, chat_id)
+        if row is None:
+            return web.json_response({"version": 0, "headline": "", "body": "", "buttons": []})
+        return web.json_response({
+            "version": row[0], "headline": row[1], "body": row[2], "buttons": row[3],
+        })
+
+    async def put_template(request: web.Request) -> web.Response:
+        permitted = await _template_access(request)
+        if isinstance(permitted, web.Response):
+            return permitted
+        user_id, chat_id = permitted
+        origin = request.headers.get("Origin")
+        if origin and origin.rstrip("/") != (access.public_base_url or str(request.url.origin())):
+            return web.json_response({"error": "origin_denied"}, status=403)
+        if request.content_type != "application/json":
+            return web.json_response({"error": "invalid_content_type"}, status=415)
+        try:
+            if request.content_length is not None and request.content_length > 4096:
+                return web.json_response({"error": "invalid_request"}, status=413)
+            body = await request.content.read(4097)
+            if len(body) > 4096:
+                return web.json_response({"error": "invalid_request"}, status=413)
+            payload = json.loads(body)
+            if not isinstance(payload, dict) or set(payload) != {
+                "version", "headline", "body", "buttons"
+            }:
+                return web.json_response({"error": "invalid_request"}, status=400)
+            version = await db.save_streamer_template(
+                user_id, chat_id, expected_version=payload["version"],
+                headline=payload["headline"], body=payload["body"],
+                buttons=payload["buttons"],
+            )
+        except (ValueError, TypeError, UnicodeError):
+            return web.json_response({"error": "invalid_template"}, status=400)
+        if version is None:
+            return web.json_response({"error": "stale_template"}, status=409)
+        return web.json_response({"version": version})
+
     app.router.add_get("/streamer", index)
     app.router.add_get("/streamer/{name:login\\.css|login\\.js|panel\\.css|panel\\.js}", asset)
     app.router.add_post("/streamer/telegram-webapp", webapp_login)
     app.router.add_get("/streamer/telegram-login", widget_login)
     app.router.add_post("/streamer/logout", logout)
     app.router.add_get("/streamer/api/profile", profile)
+    app.router.add_get("/streamer/api/stats", stats)
     app.router.add_get("/streamer/api/communities", communities)
     app.router.add_post("/streamer/api/communities", connect_community)
+    app.router.add_get("/streamer/api/templates/{chat_id}", get_template)
+    app.router.add_put("/streamer/api/templates/{chat_id}", put_template)

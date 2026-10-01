@@ -24,13 +24,13 @@
 
 ## Пакет 4 — сообщества и конструктор
 
-- [ ] RED: Telegram user/bot member checks, stale permission denial, два сообщества, чужой chat ID, опасный URL, HTML/UTF-16 limit, optimistic version conflict, expiry fallback.
-- [ ] GREEN: verified community binding, versioned template, controlled buttons; integrate current template into R3 go-live/live-update worker with Free fallback.
+- [x] RED: Telegram user/bot member checks, stale permission denial, чужой chat ID, опасный URL, HTML/UTF-16 limit, optimistic version conflict, expiry/revoke fallback и отсутствие Helix broadcaster ID.
+- [x] GREEN: verified community binding, versioned template, controlled buttons; integrate current template into R3 go-live/live-update worker with Free fallback. Community binding commit `42b6c50`; template package ожидает общий gate и commit.
 - [ ] Regression on text/photo/animation/retry/stale jobs, full suite, review; commit.
 
 ## Пакет 5 — статистика и staging acceptance
 
-- [ ] RED/GREEN: свои агрегаты по queue/history, период и пустые данные; не называть просмотры поста доставкой.
+- [x] RED/GREEN: собственный атомарный журнал подтверждённых публикаций, период 30 дней и пустые данные; stale `done` queue jobs не выдаются за публикацию или просмотр.
 - [ ] Внешний staging snapshot + restore, reviewed diff, полный gate, pinned staging deploy, health/auth/testbot E2E и cleanup.
 - [ ] Обновить `docs/STATUS.md`, `docs/DECISIONS.md`, staging audit и явно отметить не прошедшие реальные UI/OAuth пути.
 

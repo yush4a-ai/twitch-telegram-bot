@@ -17,6 +17,10 @@ h1 { margin: 0; font-size: clamp(2rem, 6vw, 3.6rem); letter-spacing: -.045em; }
 .community-form small { color: #aaa7c1; line-height: 1.5; }
 .form-row { display: flex; flex-wrap: wrap; gap: 10px; }
 .form-row input { min-width: min(100%, 260px); flex: 1; font: inherit; color: #f2f0ff; background: #101324; border: 1px solid #675e88; border-radius: 12px; padding: 10px 14px; }
+.template-form { display: grid; gap: 12px; margin-top: 22px; }
+.template-form label { font-weight: 700; margin-top: 8px; }
+.template-form > input, .template-form textarea { width: 100%; font: inherit; color: #f2f0ff; background: #101324; border: 1px solid #675e88; border-radius: 12px; padding: 10px 14px; }
+.template-form .form-row input { min-width: min(100%, 260px); }
 .community-list { padding: 0; margin: 12px 0 0; list-style: none; display: grid; gap: 8px; }
 .community-list li { background: #25243c; border: 1px solid #4c4568; border-radius: 10px; padding: 12px 16px; overflow-wrap: anywhere; }
 button { font: inherit; color: #f2f0ff; border: 1px solid #7662c6; background: #362663; border-radius: 12px; padding: 10px 16px; cursor: pointer; }

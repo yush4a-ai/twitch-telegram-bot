@@ -154,6 +154,92 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.get(self.base + "/streamer/api/communities") as response:
             self.assertEqual((await response.json())["communities"], [])
 
+    async def test_template_requires_signed_owner_plus_and_fresh_community_rights(self):
+        template_url = self.base + "/streamer/api/templates/-1001"
+        payload = {"version": 0, "headline": "Live", "body": "Join",
+                   "buttons": [{"label": "Site", "url": "https://example.com/"}]}
+        async with self.session.get(template_url) as response:
+            self.assertEqual(response.status, 401)
+        async with self.session.put(template_url, json=payload) as response:
+            self.assertEqual(response.status, 401)
+        async with self.session.post(
+            self.base + "/streamer/telegram-webapp",
+            data={"init_data": signed_webapp(101)}, allow_redirects=False,
+        ) as response:
+            self.assertEqual(response.status, 303)
+        async with self.session.put(template_url, json=payload) as response:
+            self.assertEqual(response.status, 403)
+        await self.db.issue_test_streamer_plus(
+            "11", "grant-templates", starts_at=time.time() - 5,
+            expires_at=time.time() + 600, issued_by=425785231,
+        )
+        await self.db.add_streamer_community(101, -1001, "Group", "supergroup")
+        self.user_admin = False
+        async with self.session.put(template_url, json=payload) as response:
+            self.assertEqual(response.status, 403)
+        self.user_admin = True
+        async with self.session.put(template_url, json=payload) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["version"], 1)
+        async with self.session.get(template_url) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["headline"], "Live")
+        async with self.session.put(template_url, json=payload) as response:
+            self.assertEqual(response.status, 409)
+        async with self.session.put(template_url, json={**payload, "version": 1},
+                                    headers={"Origin": "https://other.example"}) as response:
+            self.assertEqual(response.status, 403)
+        async with self.session.put(template_url, json={**payload, "version": 1,
+                                                        "buttons": [{"label": "Bad", "url": "http://bad.example"}]}) as response:
+            self.assertEqual(response.status, 400)
+        async with self.session.put(template_url, json={**payload, "body": "x" * 5000}) as response:
+            self.assertEqual(response.status, 413)
+        self.user_admin = False
+        async with self.session.get(template_url) as response:
+            self.assertEqual(response.status, 403)
+        self.user_admin = True
+        async with self.session.post(self.base + "/streamer/logout", allow_redirects=False):
+            pass
+        async with self.session.get(template_url) as response:
+            self.assertEqual(response.status, 401)
+        await self.db.link_streamer_identity(202, "22", "beta", verified_at=100)
+        await self.db.issue_test_streamer_plus(
+            "22", "grant-other", starts_at=time.time() - 5,
+            expires_at=time.time() + 600, issued_by=425785231,
+        )
+        async with self.session.post(
+            self.base + "/streamer/telegram-webapp",
+            data={"init_data": signed_webapp(202)}, allow_redirects=False,
+        ) as response:
+            self.assertEqual(response.status, 303)
+        async with self.session.get(template_url) as response:
+            self.assertEqual(response.status, 403)
+
+    async def test_stats_expose_only_signed_streamers_own_published_posts(self):
+        await self.db.add_channel(-1001, "alpha")
+        await self.db.set_live_state(-1001, "alpha", True, "s1", broadcaster_id="11")
+        await self.db.set_live_message_if_current(-1001, "alpha", "s1", 701)
+        stats_url = self.base + "/streamer/api/stats"
+        async with self.session.get(stats_url) as response:
+            self.assertEqual(response.status, 401)
+        async with self.session.post(
+            self.base + "/streamer/telegram-webapp",
+            data={"init_data": signed_webapp(101)}, allow_redirects=False,
+        ) as response:
+            self.assertEqual(response.status, 303)
+        async with self.session.get(stats_url) as response:
+            self.assertEqual(response.status, 403)
+        await self.db.issue_test_streamer_plus(
+            "11", "grant-stats", starts_at=time.time() - 5,
+            expires_at=time.time() + 600, issued_by=425785231,
+        )
+        async with self.session.get(stats_url) as response:
+            self.assertEqual(response.status, 200)
+            stats = await response.json()
+            self.assertEqual(stats["published_posts"], 1)
+            self.assertEqual(stats["period_days"], 30)
+            self.assertNotIn("telegram_user_id", stats)
+
 
 class StreamerRuntimeGateTests(unittest.TestCase):
     def test_only_pinned_staging_enables_streamer_web_on_railway(self):

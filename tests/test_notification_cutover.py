@@ -42,6 +42,23 @@ class NotificationCutoverTests(unittest.IsolatedAsyncioTestCase):
         self.poller._notify.assert_not_awaited()
         self.assertEqual((await NotificationQueue(self.db).depth_snapshot(1060.0))["pending_jobs"], 1)
 
+    async def test_poll_persists_verified_broadcaster_and_clears_it_for_unknown_new_stream(self):
+        self.stream.broadcaster_id = "11"
+        with patch("bot.poller.time.time", return_value=1000.0):
+            await self.poller._check_streams()
+        cursor = await self.db.conn.execute(
+            "SELECT last_broadcaster_id FROM tracked_channels WHERE chat_id = 1 AND twitch_login = 'alpha'"
+        )
+        self.assertEqual((await cursor.fetchone())[0], "11")
+        self.stream.stream_id = "s2"
+        self.stream.broadcaster_id = None
+        with patch("bot.poller.time.time", return_value=2000.0):
+            await self.poller._check_streams()
+        cursor = await self.db.conn.execute(
+            "SELECT last_broadcaster_id FROM tracked_channels WHERE chat_id = 1 AND twitch_login = 'alpha'"
+        )
+        self.assertIsNone((await cursor.fetchone())[0])
+
     async def test_worker_send_sets_message_only_for_current_stream(self):
         with patch("bot.poller.time.time", return_value=1000.0):
             await self.poller._check_streams()

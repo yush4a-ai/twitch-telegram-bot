@@ -44,6 +44,7 @@ from .notification_queue import NotificationJob, NotificationQueue
 from .notification_worker import (
     NotificationOutcome, NotificationRetryAfter, NotificationTerminalError,
 )
+from .streamer_post import compose_streamer_post
 
 logger = logging.getLogger(__name__)
 
@@ -1229,6 +1230,8 @@ class StreamPoller:
                         message_kind=message_kind,
                         **({"queued_go_live": True} if queue_go_live else {}),
                         **({"preserve_live_message": True} if queue_waiting else {}),
+                        **({"broadcaster_id": stream.broadcaster_id}
+                           if stream.broadcaster_id else {}),
                     )
                     if (
                         not self._notification_queue_enabled
@@ -2462,10 +2465,13 @@ class StreamPoller:
                 include_video_submission_link=include_video_submission_link,
             )
         keyboard = await self._build_keyboard(login)
+        content = await self._with_streamer_template(
+            chat_id, login, LivePostContent(html=text, reply_markup=keyboard),
+        )
         send = lambda: self._bot.send_message(
                 chat_id,
-                text,
-                reply_markup=keyboard,
+                content.html,
+                reply_markup=content.reply_markup,
                 disable_web_page_preview=True,
                 disable_notification=silent,
             )
@@ -2574,6 +2580,7 @@ class StreamPoller:
                 include_track_link=include_track_link,
                 include_video_submission_link=include_video_submission_link,
                 private_chat=chat_id > 0,
+                chat_id=chat_id,
             ),
             require_live=require_live,
             propagate_retry_after=propagate_retry_after,
@@ -2590,27 +2597,34 @@ class StreamPoller:
         include_track_link: bool,
         include_video_submission_link: bool = False,
         private_chat: bool = False,
+        chat_id: int | None = None,
     ) -> LivePostContent:
         if private_chat:
-            return LivePostContent(
+            content = LivePostContent(
                 html=await self._build_private_live_text(
                     login, title, game_name, viewer_count, return_note
                 ),
                 reply_markup=await self._build_keyboard(login),
             )
-        return LivePostContent(
-            html=await self._build_live_text(
-                login,
-                title,
-                game_name,
-                viewer_count,
-                return_note,
-                include_track_link=include_track_link,
-                is_channel=include_track_link,
-                include_video_submission_link=include_video_submission_link,
-            ),
-            reply_markup=await self._build_keyboard(login),
-        )
+        else:
+            content = LivePostContent(
+                html=await self._build_live_text(
+                    login, title, game_name, viewer_count, return_note,
+                    include_track_link=include_track_link,
+                    is_channel=include_track_link,
+                    include_video_submission_link=include_video_submission_link,
+                ),
+                reply_markup=await self._build_keyboard(login),
+            )
+        return await self._with_streamer_template(chat_id, login, content)
+
+    async def _with_streamer_template(
+        self, chat_id: int | None, login: str, content: LivePostContent,
+    ) -> LivePostContent:
+        if not self._notification_queue_enabled or chat_id is None or chat_id >= 0:
+            return content
+        template = await self._db.get_active_streamer_template_for_destination(chat_id, login)
+        return compose_streamer_post(content, template) if template else content
 
     async def build_preview_content(
         self,
@@ -2629,6 +2643,7 @@ class StreamPoller:
                 == "papapavertv"
             ),
             private_chat=(destination.chat_id > 0 and not destination.include_track_link),
+            chat_id=destination.chat_id,
         )
 
     async def _replace_live_post_if_current(

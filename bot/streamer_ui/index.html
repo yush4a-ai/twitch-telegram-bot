@@ -26,6 +26,12 @@
         <h2 id="plus-title">—</h2>
         <p id="plus-expiry">—</p>
       </section>
+      <section class="card wide" id="stats-card" hidden aria-labelledby="stats-title">
+        <p class="label">Доставка · последние 30 дней</p>
+        <h2 id="stats-title">Статистика Streamer Plus</h2>
+        <p id="stats-content">Загружаем статистику…</p>
+        <small>Считаются только подтверждённые публикации в сообществах. Число просмотров Telegram бот не получает.</small>
+      </section>
       <section class="card wide" aria-labelledby="next-title">
         <p class="label">Сообщества</p>
         <h2 id="next-title">Подключить сообщество</h2>
@@ -37,6 +43,24 @@
         </form>
         <p id="community-message" role="status">Проверяем доступные сообщества…</p>
         <ul id="community-list" class="community-list"></ul>
+      </section>
+      <section class="card wide" id="template-card" hidden aria-labelledby="template-title">
+        <p class="label">Streamer Plus</p>
+        <h2 id="template-title">Оформление live-поста</h2>
+        <p>Настройка применяется к новому и обновляемому посту выбранного сообщества при активном тестовом доступе. Основная ссылка на Twitch сохраняется.</p>
+        <p id="template-community"></p>
+        <form id="template-form" class="template-form">
+          <label for="template-headline">Короткий заголовок</label>
+          <input id="template-headline" maxlength="60" required placeholder="Сегодня в эфире">
+          <label for="template-body">Дополнительный текст</label>
+          <textarea id="template-body" maxlength="140" rows="3" placeholder="Присоединяйся к трансляции"></textarea>
+          <label for="template-button-1-label">Кнопка 1 · название и HTTPS-ссылка</label>
+          <div class="form-row"><input id="template-button-1-label" maxlength="24" placeholder="Сообщество"><input id="template-button-1-url" type="url" placeholder="https://example.com/"></div>
+          <label for="template-button-2-label">Кнопка 2 · название и HTTPS-ссылка</label>
+          <div class="form-row"><input id="template-button-2-label" maxlength="24" placeholder="Расписание"><input id="template-button-2-url" type="url" placeholder="https://example.com/schedule"></div>
+          <button type="submit">Сохранить оформление</button>
+        </form>
+        <p id="template-message" role="status"></p>
       </section>
     </div>
     <button class="refresh" id="refresh" type="button">Обновить</button>
