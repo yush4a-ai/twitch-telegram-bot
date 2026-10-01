@@ -30,11 +30,11 @@
 
 **Files:** создать `scripts/r9_mixed_load.py`, `scripts/r9_scale_validation.py`, `tests/test_r9_mixed_load.py`, `tests/test_r9_guard.py`.
 
-**Interfaces:** `run_mixed_profile(destinations:int, *, rounds:int=2, seed:int=20261001, max_rss_bytes:int=268435456, max_seconds:float=900) -> dict`; `validate_r9_runtime(environ:Mapping[str,str]) -> None`; CLI `python -m scripts.r9_scale_validation --destinations 20000 --output <new.json> [--staging]`.
+**Interfaces:** `run_mixed_profile(destinations:int, *, rounds:int=2, seed:int=20261001, temp_root:Path|None=None, max_rss_bytes:int=268435456, max_seconds:float=900) -> dict`; `validate_r9_runtime(environ:Mapping[str,str]) -> None`; CLI `python -m scripts.r9_scale_validation --destinations 20000 --output <new.json> [--staging]`.
 
-- [ ] RED: тесты на недопустимый N/rounds, temp-only DB, pinned stage runtime, один job после двух updates, shared observation count `N/100`, lease reopen/stale ack, final done=N/depth=0 и integrity. Проверить ожидаемое падение до реализации.
-- [ ] GREEN: компактный dataset, фазовые таймеры, bounded queues/worker, CPU/RSS/disk snapshots, backup/restore временной DB, result schema с seed/versions/no network. Малый focused suite и R3 queue regressions проходят.
-- [ ] Review: проверка закрытия DB/TemporaryDirectory на исключении, отсутствия токенов/ID в JSON, `git diff --check`; commit.
+- [x] RED: 2 ожидаемых import error до новых модулей; тесты на недопустимый N/rounds, temp-only DB, pinned stage runtime, один job после двух updates, shared observation count `N/100`, lease reopen/stale ack, final done=N/depth=0 и integrity.
+- [x] GREEN: компактный dataset, фазовые таймеры, bounded queues/worker, CPU/RSS/disk snapshots, backup/restore временной DB, result schema с seed/no network. Focused 3 passed/5 subtests, связанные R3 queue regressions 20 passed/8 subtests; 1000 destinations дали 1000 done, 20 shared observations, revision=2, integrity=ok.
+- [x] Review: DB и TemporaryDirectory закрываются в `finally`/context manager, output агрегирован без токенов/ID; `git diff --check` и 5k calibration (5000 done, revision=2, integrity=ok, 33.49 s, peak RSS 185 270 272 B) пройдены. Пакет готов к commit.
 
 ## Task 2: Preview и mock billing probes
 
