@@ -76,8 +76,9 @@ async def main() -> None:
             expires_at=now + 3600, issued_by=425785231, now=now,
         )
         preview_status = os.getenv("MINI_APP_QA_PREVIEW_STATUS", "")
-        if preview_status:
-            await db.replace_video_selection(501, [("1000", "alpha")], expected_version=0)
+        if preview_status or os.getenv("MINI_APP_QA_REMINDER"):
+            if preview_status:
+                await db.replace_video_selection(501, [("1000", "alpha")], expected_version=0)
             await db.set_live_state(
                 501, "alpha", True, "fixture-live", 701, "Тестовый эфир",
                 broadcaster_id="1000", last_seen_live_at=now,

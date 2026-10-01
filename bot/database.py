@@ -679,6 +679,7 @@ class Database:
         await self._migrate_billing_subject_schema()
         await self._migrate_viewer_schema()
         await self._migrate_viewer_preferences_schema()
+        await self._migrate_viewer_reminder_schema()
         await self._migrate_category_alert_schema()
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
@@ -751,6 +752,28 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_001_viewer_preferences',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_reminder_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_reminders ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "broadcaster_id TEXT NOT NULL, logical_stream_id TEXT NOT NULL, "
+            "delay_minutes INTEGER NOT NULL CHECK(delay_minutes IN (15,30)), "
+            "due_at REAL NOT NULL, version INTEGER NOT NULL, "
+            "queued_version INTEGER NOT NULL DEFAULT 0, "
+            "status TEXT NOT NULL CHECK(status IN "
+            "('scheduled','sending','cancelled','sent','suppressed','unknown')), "
+            "updated_at REAL NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,twitch_login)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_viewer_reminders_due "
+            "ON viewer_reminders(status,due_at,telegram_user_id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_005_viewer_reminders',?)", (time.time(),)
         )
 
     async def _migrate_category_alert_schema(self) -> None:

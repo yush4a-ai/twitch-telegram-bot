@@ -169,6 +169,49 @@ class NotificationQueue:
         if not 1 <= limit <= 100 or lease_seconds <= 0:
             raise ValueError("claim limits must be positive and bounded")
         async with self._transaction() as conn:
+            # An expired external send has an uncertain outcome. Never claim it
+            # again, even if the process died before recording the response.
+            await conn.execute(
+                "UPDATE viewer_reminders SET status='unknown',updated_at=? "
+                "WHERE status='sending' AND EXISTS (SELECT 1 FROM notification_jobs j "
+                "WHERE j.kind='viewer_reminder' AND j.status='leased' "
+                "AND j.lease_until<=? AND j.chat_id=viewer_reminders.telegram_user_id "
+                "AND j.twitch_login=viewer_reminders.twitch_login "
+                "AND j.payload_version=viewer_reminders.version)",
+                (now, now),
+            )
+            await conn.execute(
+                "UPDATE notification_jobs SET status='failed',lease_until=NULL,"
+                "last_error_class='UnknownOutcome',updated_at=? "
+                "WHERE kind='viewer_reminder' AND status='leased' AND lease_until<=? "
+                "AND EXISTS (SELECT 1 FROM viewer_reminders r WHERE "
+                "r.telegram_user_id=notification_jobs.chat_id AND "
+                "r.twitch_login=notification_jobs.twitch_login AND "
+                "r.version=notification_jobs.payload_version AND r.status='unknown')",
+                (now, now),
+            )
+            reminders = await conn.execute(
+                "SELECT telegram_user_id,twitch_login,logical_stream_id,version,due_at "
+                "FROM viewer_reminders WHERE status='scheduled' AND due_at<=? "
+                "AND queued_version<version ORDER BY due_at,telegram_user_id LIMIT ?",
+                (now, limit),
+            )
+            for user_id, login, stream_id, version, due_at in await reminders.fetchall():
+                await conn.execute(
+                    "INSERT INTO notification_jobs "
+                    "(kind,chat_id,twitch_login,logical_stream_id,payload_version,"
+                    "due_at,status,attempt_count,lease_until,created_at,updated_at) "
+                    "VALUES ('viewer_reminder',?,?,?,?,?,'pending',0,NULL,?,?) "
+                    "ON CONFLICT(kind,chat_id,twitch_login,logical_stream_id,payload_version) "
+                    "DO NOTHING",
+                    (user_id, login, stream_id, version, due_at, now, now),
+                )
+                await conn.execute(
+                    "UPDATE viewer_reminders SET queued_version=? "
+                    "WHERE telegram_user_id=? AND twitch_login=? AND version=? "
+                    "AND status='scheduled'",
+                    (version, user_id, login, version),
+                )
             cursor = await conn.execute(
                 "SELECT id FROM notification_jobs WHERE due_at <= ? "
                 "AND (status = 'pending' OR (status = 'leased' AND lease_until <= ?)) "
@@ -276,6 +319,14 @@ class NotificationQueue:
                 "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
                 (error_class, now, job_id, attempt_count),
             )
+            if cursor.rowcount == 1 and row[0] == "viewer_reminder" and error_class == "UnknownOutcome":
+                await conn.execute(
+                    "UPDATE viewer_reminders SET status='unknown',updated_at=? "
+                    "WHERE status IN ('scheduled','sending') AND "
+                    "(telegram_user_id,twitch_login,version) IN "
+                    "(SELECT chat_id,twitch_login,payload_version FROM notification_jobs "
+                    "WHERE id=?)", (now, job_id),
+                )
             return cursor.rowcount == 1
 
     async def depth_snapshot(self, now: float) -> dict[str, int | float | None]:

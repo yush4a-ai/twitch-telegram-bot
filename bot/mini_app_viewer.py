@@ -14,6 +14,7 @@ from .category_alert_store import CategoryAlertPreference, CategoryAlertStore
 from .database import Database
 from .deep_links import TWITCH_LOGIN_RE
 from .mini_app_auth import verified_payload
+from .viewer_reminders import ReminderInFlightError, ViewerReminderService
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,15 @@ def install_mini_app_viewer_routes(
 ) -> None:
     search_times: dict[int, deque[float]] = {}
     category_store = CategoryAlertStore(db, poll_interval=60)
+    reminders = ViewerReminderService(db)
+
+    def reminder_payload(saved) -> dict[str, object] | None:
+        if saved is None:
+            return None
+        return {
+            "delay_minutes": saved.delay_minutes, "due_at": saved.due_at,
+            "version": saved.version, "status": saved.status,
+        }
 
     async def video_delivery_status(
         user_id: int, login: str, *, is_live: bool, effective: bool,
@@ -97,6 +107,7 @@ def install_mini_app_viewer_routes(
             for row in rows
         }
         video = await db.get_video_selection(user_id, now=now)
+        own_reminders = await reminders.for_user(user_id)
         filters = await db.list_viewer_filters(user_id) if flags.viewer_filters else {}
         quiet = await db.get_quiet_hours(user_id)
         live = {
@@ -114,6 +125,7 @@ def install_mini_app_viewer_routes(
                     user_id, login, is_live=is_live,
                     effective=(login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids),
                 ),
+                "reminder": reminder_payload(own_reminders.get(login)),
                 "is_live": is_live,
                 "status": (
                     "live" if is_live and observed_at is not None and now - observed_at <= 300
@@ -447,6 +459,56 @@ def install_mini_app_viewer_routes(
             return web.json_response({"error": result}, status=404)
         return web.json_response({"result": result})
 
+    async def set_reminder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "login", "delay_minutes"}:
+            return web.json_response({"error": "invalid_reminder"}, status=400)
+        login = normalize_twitch_login(values.get("login"))
+        delay = values.get("delay_minutes")
+        if login is None or type(delay) is not int or delay not in (15, 30):
+            return web.json_response({"error": "invalid_reminder"}, status=400)
+        now = time.time()
+        if not await db.has_viewer_plus(user_id, now=now):
+            return web.json_response({"error": "plus_required"}, status=403)
+        cursor = await db.conn.execute(
+            "SELECT last_broadcaster_id,last_stream_id FROM tracked_channels "
+            "WHERE chat_id=? AND twitch_login=?", (user_id, login),
+        )
+        identity = await cursor.fetchone()
+        if identity is None or not identity[0] or not identity[1]:
+            return web.json_response({"error": "live_unavailable"}, status=409)
+        try:
+            saved = await reminders.set_reminder(
+                user_id, identity[0], identity[1], delay, now=now,
+            )
+        except ReminderInFlightError:
+            return web.json_response({"error": "reminder_in_flight"}, status=409)
+        except PermissionError:
+            return web.json_response({"error": "live_unavailable"}, status=409)
+        except ValueError:
+            return web.json_response({"error": "invalid_reminder"}, status=400)
+        return web.json_response({"reminder": reminder_payload(saved)})
+
+    async def cancel_reminder(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "login"}:
+            return web.json_response({"error": "invalid_reminder"}, status=400)
+        login = normalize_twitch_login(values.get("login"))
+        if login is None:
+            return web.json_response({"error": "invalid_reminder"}, status=400)
+        try:
+            cancelled = await reminders.cancel_reminder(user_id, login, now=time.time())
+        except ReminderInFlightError:
+            return web.json_response({"error": "reminder_in_flight"}, status=409)
+        if not cancelled:
+            return web.json_response({"error": "reminder_not_scheduled"}, status=404)
+        saved = (await reminders.for_user(user_id))[login]
+        return web.json_response({"reminder": reminder_payload(saved)})
+
     app.router.add_post("/app/api/viewer/state", state)
     app.router.add_post("/app/api/viewer/search", search)
     app.router.add_post("/app/api/viewer/follow", follow)
@@ -457,5 +519,7 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/category-alert", category_alert)
     app.router.add_post("/app/api/viewer/video-selection", video_selection)
     app.router.add_post("/app/api/viewer/plan-activate", plan_activate)
+    app.router.add_post("/app/api/viewer/reminder", set_reminder)
+    app.router.add_post("/app/api/viewer/reminder/cancel", cancel_reminder)
     app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)
     app.router.add_post("/app/api/viewer/digest", digest)

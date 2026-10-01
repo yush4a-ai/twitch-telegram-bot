@@ -87,6 +87,47 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
         async with self.request("/app/api/viewer/state") as response:
             self.assertEqual((await response.json())["subscriptions"][0]["video_delivery_status"], "returning_photo")
 
+    async def test_reminder_route_resolves_current_stream_on_server_and_cancels(self):
+        now = time.time()
+        await self.db.set_live_state(
+            101, "alpha", True, "stream-1", 700, "Title",
+            broadcaster_id="1001", last_seen_live_at=now,
+        )
+        async with self.request(
+            "/app/api/viewer/reminder", login="alpha", delay_minutes=15,
+        ) as response:
+            self.assertEqual(response.status, 403)
+        await self.db.issue_test_viewer_plus(
+            101, "reminder-route", starts_at=now - 5, expires_at=now + 3600,
+            issued_by=OWNER_ID, now=now,
+        )
+        async with self.request(
+            "/app/api/viewer/reminder", login="alpha", delay_minutes=15,
+            broadcaster_id="forged",
+        ) as response:
+            self.assertEqual(response.status, 400)
+        async with self.request(
+            "/app/api/viewer/reminder", login="alpha", delay_minutes=15,
+        ) as response:
+            self.assertEqual(response.status, 200)
+            saved = await response.json()
+            self.assertEqual(saved["reminder"]["delay_minutes"], 15)
+            self.assertEqual(saved["reminder"]["status"], "scheduled")
+        async with self.request("/app/api/viewer/state") as response:
+            row = (await response.json())["subscriptions"][0]
+            self.assertEqual(row["reminder"]["version"], saved["reminder"]["version"])
+        async with self.request("/app/api/viewer/reminder/cancel", actor_id=202,
+                                login="alpha") as response:
+            self.assertEqual(response.status, 404)
+        async with self.request("/app/api/viewer/state") as response:
+            self.assertEqual((await response.json())["subscriptions"][0]
+                             ["reminder"]["status"], "scheduled")
+        async with self.request("/app/api/viewer/reminder/cancel", login="alpha") as response:
+            self.assertEqual(response.status, 200)
+        async with self.request("/app/api/viewer/state") as response:
+            row = (await response.json())["subscriptions"][0]
+            self.assertEqual(row["reminder"]["status"], "cancelled")
+
     async def test_filter_save_requires_current_viewer_plus_and_owned_subscription(self):
         rule = dict(login="alpha", expected_version=0, games=["Minecraft"],
                     title_keywords=["speedrun"], exclude_keywords=[])

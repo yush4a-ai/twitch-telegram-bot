@@ -49,6 +49,7 @@ from .notification_worker import (
 from .viewer_filter import matches_viewer_filter
 from .streamer_post import compose_streamer_post
 from .telegram_send_budget import TelegramSendBudget
+from .viewer_reminders import ViewerReminderService
 
 logger = logging.getLogger(__name__)
 
@@ -381,6 +382,7 @@ class StreamPoller:
         viewer_filters_enabled: bool = False,
         bot_username: str = TELEGRAM_BOT_USERNAME,
         telegram_send_budget: TelegramSendBudget | None = None,
+        reminder_clock=time.time,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -413,6 +415,8 @@ class StreamPoller:
         self._viewer_filters_enabled = viewer_filters_enabled
         self._bot_username = bot_username
         self._telegram_send_budget = telegram_send_budget
+        self._viewer_reminders = ViewerReminderService(db)
+        self._reminder_clock = reminder_clock
         self._paused_media_cleanup_task: asyncio.Task | None = None
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
@@ -2362,6 +2366,8 @@ class StreamPoller:
     async def send_queued_job(self, job: NotificationJob) -> NotificationOutcome:
         if job.kind == "offline_cleanup":
             return await self._send_queued_offline_cleanup(job)
+        if job.kind == "viewer_reminder":
+            return await self._send_queued_reminder(job)
         if job.chat_id > 0 and not await self._db.is_personal_channel_active(
             job.chat_id, job.twitch_login,
         ):
@@ -2422,6 +2428,35 @@ class StreamPoller:
             except Exception as error:
                 logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
             return NotificationOutcome.STALE
+        return NotificationOutcome.SENT
+
+    async def _send_queued_reminder(self, job: NotificationJob) -> NotificationOutcome:
+        now = self._reminder_clock()
+        if not await self._viewer_reminders.ready_for_delivery(job, now=now):
+            return NotificationOutcome.STALE
+        login = html.escape(job.twitch_login)
+        link = html.escape(f"https://www.twitch.tv/{job.twitch_login}", quote=True)
+        text = f"<b>{login}</b> ещё в эфире.\n<a href=\"{link}\">Смотреть эфир</a>"
+        if not await self._viewer_reminders.begin_delivery(
+            job, now=self._reminder_clock(),
+        ):
+            return NotificationOutcome.STALE
+        try:
+            await self._bot.send_message(
+                job.chat_id, text, parse_mode="HTML", disable_web_page_preview=True,
+            )
+        except TelegramRetryAfter:
+            await self._viewer_reminders.mark_retryable(
+                job, now=self._reminder_clock(),
+            )
+            raise
+        except TelegramNetworkError:
+            await self._viewer_reminders.mark_unknown(job, now=self._reminder_clock())
+            return NotificationOutcome.STALE
+        except (TelegramBadRequest, TelegramForbiddenError):
+            await self._viewer_reminders.mark_suppressed(job, now=self._reminder_clock())
+            return NotificationOutcome.STALE
+        await self._viewer_reminders.mark_sent(job, now=self._reminder_clock())
         return NotificationOutcome.SENT
 
     async def _restore_paused_media(

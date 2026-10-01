@@ -20,6 +20,8 @@ export function createViewerFeature(api, getRouter, telegram) {
   let videoFeedback = '';
   let videoSaving = false;
   let planFeedback = '';
+  let reminderFeedback = '';
+  let reminderSaving = false;
   let lastDetail = null;
   const filterDrafts = new Map();
   const categoryDrafts = new Map();
@@ -279,6 +281,40 @@ export function createViewerFeature(api, getRouter, telegram) {
     if (row.video_delivery_status === 'returning_photo') {
       target.append(element('p', 'notice', 'Возвращаем фото в текущее сообщение.'));
     }
+    if (data.viewer_plus_active && (row.status === 'live' || row.reminder)) {
+      const reminder = element('div', 'panel feature-panel');
+      reminder.append(element('h2', '', 'Напоминание об эфире'));
+      const saved = row.reminder;
+      const statusText = saved?.status === 'scheduled' && Number(saved.due_at) <= Date.now() / 1000
+        ? 'Срок наступил. Напоминание ожидает проверки эфира; доставка может задержаться.'
+        : saved?.status === 'scheduled'
+        ? `Запланировано через ${saved.delay_minutes} минут от выбора. Если эфир закончится, сообщение не придёт.`
+        : saved?.status === 'sending' ? 'Отправляем напоминание. Сейчас изменить его нельзя.'
+        : saved?.status === 'sent' ? 'Напоминание отправлено.'
+        : saved?.status === 'cancelled' ? 'Напоминание отменено.'
+        : saved?.status === 'suppressed' ? 'Напоминание не отправлено: условия изменились.'
+        : saved?.status === 'unknown' ? 'Не удалось подтвердить доставку напоминания.'
+        : 'Выберите время, пока стример в эфире.';
+      reminder.append(element('p', 'muted', statusText));
+      if (row.status === 'live' && !row.paused_by_plan && row.notify_enabled && saved?.status !== 'sending') {
+        const controls = element('div', 'actions');
+        for (const minutes of [15, 30]) {
+          const button = action(`Через ${minutes} минут`, () => void saveReminder(login, minutes), minutes === 30);
+          button.disabled = reminderSaving;
+          controls.append(button);
+        }
+        reminder.append(controls);
+      }
+      if (saved?.status === 'scheduled') {
+        const cancel = action('Отменить напоминание', () => void cancelReminder(login), true);
+        cancel.disabled = reminderSaving;
+        reminder.append(cancel);
+      }
+      if (reminderFeedback) reminder.append(element('p', 'notice error', reminderFeedback));
+      target.append(reminder);
+    } else if (row.status === 'live') {
+      target.append(panel('Напоминание · Viewer Plus', 'Во время эфира можно попросить напомнить через 15 или 30 минут.'));
+    }
     if (data.viewer_plus_active) {
       const rule = element('div', 'panel feature-panel');
       rule.append(element('h2', '', 'Фильтр эфиров'));
@@ -313,6 +349,38 @@ export function createViewerFeature(api, getRouter, telegram) {
       }
     }, true));
     target.append(actions);
+  }
+  async function saveReminder(login, delayMinutes) {
+    if (reminderSaving) return;
+    reminderSaving = true;
+    reminderFeedback = '';
+    refresh();
+    try {
+      await api.post('/app/api/viewer/reminder', { login, delay_minutes: delayMinutes });
+      await load();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'reminder_in_flight') await load();
+      reminderFeedback = cause instanceof ApiError && cause.code === 'reminder_in_flight'
+        ? 'Отправка уже началась. Проверьте статус через минуту.'
+        : cause instanceof ApiError && cause.status === 409
+        ? 'Эфир изменился. Обновите страницу и попробуйте снова.'
+        : 'Не удалось сохранить напоминание. Попробуйте ещё раз.';
+    } finally { reminderSaving = false; refresh(); }
+  }
+  async function cancelReminder(login) {
+    if (reminderSaving) return;
+    reminderSaving = true;
+    reminderFeedback = '';
+    refresh();
+    try {
+      await api.post('/app/api/viewer/reminder/cancel', { login });
+      await load();
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.code === 'reminder_in_flight') await load();
+      reminderFeedback = cause instanceof ApiError && cause.code === 'reminder_in_flight'
+        ? 'Отправка уже началась. Проверьте статус через минуту.'
+        : 'Не удалось отменить напоминание. Попробуйте ещё раз.';
+    } finally { reminderSaving = false; refresh(); }
   }
   async function saveVideoSelection(selectedLogins) {
     if (videoSaving) return;
