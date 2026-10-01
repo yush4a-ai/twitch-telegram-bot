@@ -16,6 +16,7 @@ from .deep_links import TWITCH_LOGIN_RE
 from .mini_app_auth import verified_payload
 from .viewer_reminders import ReminderInFlightError, ViewerReminderService
 from .viewer_folders import FolderConflict, FolderLimit, FolderNameTaken, ViewerFolderService
+from .viewer_history import ViewerHistoryService
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ def install_mini_app_viewer_routes(
     category_store = CategoryAlertStore(db, poll_interval=60)
     reminders = ViewerReminderService(db)
     folders = ViewerFolderService(db)
+    history = ViewerHistoryService(db)
 
     def folder_payload(saved) -> dict[str, object]:
         return {
@@ -547,6 +549,35 @@ def install_mini_app_viewer_routes(
             return web.json_response({"error": "folder_limit"}, status=409)
         return web.json_response({"folder": folder_payload(saved)})
 
+    async def viewer_history(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if not set(values) <= {"init_data", "limit", "before_id"} or "init_data" not in values:
+            return web.json_response({"error": "invalid_history_page"}, status=400)
+        try:
+            page = await history.list_events(
+                user_id, before_id=values.get("before_id"),
+                limit=values.get("limit", 20), now=time.time(),
+            )
+        except ValueError:
+            return web.json_response({"error": "invalid_history_page"}, status=400)
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        return web.json_response({
+            "events": [
+                {
+                    "id": event.id, "kind": event.kind, "login": event.login,
+                    "logical_stream_id": event.logical_stream_id,
+                    "category_name": event.category_name,
+                    "outcome": event.outcome,
+                    "happened_at": event.happened_at,
+                }
+                for event in page.events
+            ],
+            "next_before_id": page.next_before_id,
+        })
+
     async def rename_folder(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
         if error is not None:
@@ -672,5 +703,6 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/folder/rule", folder_rule)
     app.router.add_post("/app/api/viewer/folder/move", move_folder)
     app.router.add_post("/app/api/viewer/folder/delete", delete_folder)
+    app.router.add_post("/app/api/viewer/history", viewer_history)
     app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)
     app.router.add_post("/app/api/viewer/digest", digest)

@@ -181,6 +181,45 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(payload["folders"][0]["name"], "Игры")
             self.assertEqual(payload["subscriptions"][0]["folder_id"], folder["id"])
 
+    async def test_history_route_reads_only_own_confirmed_events(self):
+        from bot.viewer_history import ViewerHistoryService
+
+        now = time.time()
+        async with self.request("/app/api/viewer/history", limit=20) as response:
+            self.assertEqual(response.status, 403)
+        grant_id = await self.db.issue_test_viewer_plus(
+            101, "history-route", starts_at=now - 1, expires_at=now + 3600,
+            issued_by=OWNER_ID, now=now,
+        )
+        await self.db.issue_test_viewer_plus(
+            202, "history-route-other", starts_at=now - 1,
+            expires_at=now + 3600, issued_by=OWNER_ID, now=now,
+        )
+        await self.db.set_live_state(101, "alpha", True, "stream-1", 900,
+                                     "Title", broadcaster_id="1001")
+        self.assertTrue(await ViewerHistoryService(self.db).record_direct_live(
+            101, "alpha", "stream-1", 900, now=now,
+        ))
+        async with self.request("/app/api/viewer/history", limit=20) as response:
+            self.assertEqual(response.status, 200)
+            payload = await response.json()
+            self.assertEqual([(event["login"], event["outcome"])
+                              for event in payload["events"]], [("alpha", "sent")])
+        async with self.request("/app/api/viewer/history", actor_id=202,
+                                limit=20) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["events"], [])
+        async with self.request("/app/api/viewer/history", limit=20,
+                                telegram_user_id=202) as response:
+            self.assertEqual(response.status, 400)
+        async with self.request("/app/api/viewer/history", limit=20,
+                                before_id="1") as response:
+            self.assertEqual(response.status, 400)
+        await self.db.revoke_test_viewer_plus(grant_id, revoked_at=time.time(),
+                                              issued_by=OWNER_ID)
+        async with self.request("/app/api/viewer/history", limit=20) as response:
+            self.assertEqual(response.status, 403)
+
     async def test_filter_save_requires_current_viewer_plus_and_owned_subscription(self):
         rule = dict(login="alpha", expected_version=0, games=["Minecraft"],
                     title_keywords=["speedrun"], exclude_keywords=[])

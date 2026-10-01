@@ -50,6 +50,7 @@ from .viewer_filter import matches_viewer_filter
 from .streamer_post import compose_streamer_post
 from .telegram_send_budget import TelegramSendBudget
 from .viewer_reminders import ViewerReminderService
+from .viewer_history import ViewerHistoryService
 
 logger = logging.getLogger(__name__)
 
@@ -416,6 +417,7 @@ class StreamPoller:
         self._bot_username = bot_username
         self._telegram_send_budget = telegram_send_budget
         self._viewer_reminders = ViewerReminderService(db)
+        self._viewer_history = ViewerHistoryService(db)
         self._reminder_clock = reminder_clock
         self._paused_media_cleanup_task: asyncio.Task | None = None
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
@@ -650,6 +652,9 @@ class StreamPoller:
                     time.time() - REPORT_DATA_RETENTION_SECONDS
                 ),
             ),
+            ("viewer history cleanup", lambda: self._viewer_history.purge_expired(
+                now=time.time(),
+            )),
         )
         for name, operation in steps:
             try:
@@ -1308,6 +1313,17 @@ class StreamPoller:
                         **({"broadcaster_id": stream.broadcaster_id}
                            if stream.broadcaster_id else {}),
                     )
+                    if (
+                        not self._notification_queue_enabled and chat_id > 0
+                        and message_id is not None and message_id != last_message_id
+                    ):
+                        try:
+                            await self._viewer_history.record_direct_live(
+                                chat_id, login, effective_stream_id, message_id,
+                                now=now,
+                            )
+                        except Exception as error:
+                            logger.warning("Viewer history write failed: %s", type(error).__name__)
                     if (
                         not self._notification_queue_enabled
                         and

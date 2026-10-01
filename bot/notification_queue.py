@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from .database import Database
+from .viewer_history import record_job_outcome
 
 
 _SAFE_CLASS = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,79}\Z")
@@ -180,6 +181,16 @@ class NotificationQueue:
                 "AND j.payload_version=viewer_reminders.version)",
                 (now, now),
             )
+            expired = await conn.execute(
+                "SELECT j.id,j.chat_id,j.twitch_login,j.logical_stream_id,r.status "
+                "FROM notification_jobs j JOIN viewer_reminders r ON "
+                "r.telegram_user_id=j.chat_id AND r.twitch_login=j.twitch_login "
+                "AND r.version=j.payload_version "
+                "WHERE j.kind='viewer_reminder' AND j.status='leased' "
+                "AND j.lease_until<=? AND r.status IN ('unknown','sent')",
+                (now,),
+            )
+            expired_rows = await expired.fetchall()
             await conn.execute(
                 "UPDATE notification_jobs SET status='failed',lease_until=NULL,"
                 "last_error_class='UnknownOutcome',updated_at=? "
@@ -190,6 +201,22 @@ class NotificationQueue:
                 "r.version=notification_jobs.payload_version AND r.status='unknown')",
                 (now, now),
             )
+            await conn.execute(
+                "UPDATE notification_jobs SET status='done',lease_until=NULL,"
+                "last_error_class=NULL,updated_at=? "
+                "WHERE kind='viewer_reminder' AND status='leased' AND lease_until<=? "
+                "AND EXISTS (SELECT 1 FROM viewer_reminders r WHERE "
+                "r.telegram_user_id=notification_jobs.chat_id AND "
+                "r.twitch_login=notification_jobs.twitch_login AND "
+                "r.version=notification_jobs.payload_version AND r.status='sent')",
+                (now, now),
+            )
+            for job_id, user_id, login, stream_id, status in expired_rows:
+                await record_job_outcome(
+                    conn, job_id=job_id, kind="viewer_reminder", user_id=user_id,
+                    login=login, stream_id=stream_id,
+                    category_transition_id=None, outcome=status, now=now,
+                )
             reminders = await conn.execute(
                 "SELECT telegram_user_id,twitch_login,logical_stream_id,version,due_at "
                 "FROM viewer_reminders WHERE status='scheduled' AND due_at<=? "
@@ -241,11 +268,13 @@ class NotificationQueue:
     async def ack(
         self, job_id: int, attempt_count: int, *, now: float,
         revision: int | None = None, applied_media_url: str | None = None,
+        delivery_outcome: str | None = None,
     ) -> bool:
         self._check_time(now)
         async with self._transaction() as conn:
             cursor = await conn.execute(
-                "SELECT kind, revision FROM notification_jobs "
+                "SELECT kind,revision,chat_id,twitch_login,logical_stream_id,"
+                "category_transition_id FROM notification_jobs "
                 "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
                 (job_id, attempt_count),
             )
@@ -270,6 +299,21 @@ class NotificationQueue:
                 "updated_at = ? WHERE id = ? AND status = 'leased' AND attempt_count = ?",
                 (now, job_id, attempt_count),
             )
+            if cursor.rowcount == 1 and delivery_outcome in {"sent", "stale"}:
+                outcome = "sent" if delivery_outcome == "sent" else "suppressed"
+                if row[0] == "viewer_reminder" and outcome == "suppressed":
+                    state = await conn.execute(
+                        "SELECT status FROM viewer_reminders WHERE telegram_user_id=? "
+                        "AND twitch_login=?", (row[2], row[3]),
+                    )
+                    current = await state.fetchone()
+                    if current and current[0] == "unknown":
+                        outcome = "unknown"
+                await record_job_outcome(
+                    conn, job_id=job_id, kind=row[0], user_id=row[2],
+                    login=row[3], stream_id=row[4],
+                    category_transition_id=row[5], outcome=outcome, now=now,
+                )
             return cursor.rowcount == 1
 
     async def defer(
@@ -298,7 +342,8 @@ class NotificationQueue:
         self._check_time(now)
         async with self._transaction() as conn:
             cursor = await conn.execute(
-                "SELECT kind, revision FROM notification_jobs "
+                "SELECT kind,revision,chat_id,twitch_login,logical_stream_id,"
+                "category_transition_id FROM notification_jobs "
                 "WHERE id = ? AND status = 'leased' AND attempt_count = ?",
                 (job_id, attempt_count),
             )
@@ -326,6 +371,14 @@ class NotificationQueue:
                     "(telegram_user_id,twitch_login,version) IN "
                     "(SELECT chat_id,twitch_login,payload_version FROM notification_jobs "
                     "WHERE id=?)", (now, job_id),
+                )
+            if cursor.rowcount == 1 and row[0] in {"go_live", "viewer_category_change", "viewer_reminder"}:
+                await record_job_outcome(
+                    conn, job_id=job_id, kind=row[0], user_id=row[2],
+                    login=row[3], stream_id=row[4],
+                    category_transition_id=row[5],
+                    outcome="unknown" if error_class == "UnknownOutcome" else "suppressed",
+                    now=now,
                 )
             return cursor.rowcount == 1
 

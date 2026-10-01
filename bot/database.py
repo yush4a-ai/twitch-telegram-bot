@@ -681,6 +681,7 @@ class Database:
         await self._migrate_viewer_preferences_schema()
         await self._migrate_viewer_reminder_schema()
         await self._migrate_viewer_folder_schema()
+        await self._migrate_viewer_history_schema()
         await self._migrate_category_alert_schema()
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
@@ -803,6 +804,30 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_006_viewer_folders',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_history_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_event_history ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "telegram_user_id INTEGER NOT NULL, event_key TEXT NOT NULL UNIQUE, "
+            "kind TEXT NOT NULL CHECK(kind IN "
+            "('go_live','viewer_category_change','viewer_reminder')), "
+            "twitch_login TEXT NOT NULL, logical_stream_id TEXT NOT NULL, "
+            "category_name TEXT, outcome TEXT NOT NULL CHECK(outcome IN "
+            "('sent','suppressed','unknown')), happened_at REAL NOT NULL)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_viewer_event_history_owner "
+            "ON viewer_event_history(telegram_user_id,id DESC)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_viewer_event_history_retention "
+            "ON viewer_event_history(happened_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_007_viewer_history',?)", (time.time(),)
         )
 
     async def _migrate_category_alert_schema(self) -> None:

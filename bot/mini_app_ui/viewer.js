@@ -25,6 +25,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   let folderNameDraft = '';
   let folderFeedback = '';
   let folderSaving = false;
+  let historyState = { events: [], nextBefore: null, loaded: false, loading: false, error: '' };
   let lastDetail = null;
   const filterDrafts = new Map();
   const folderDrafts = new Map();
@@ -904,6 +905,18 @@ export function createViewerFeature(api, getRouter, telegram) {
     const access = element('div', 'actions');
     access.append(action('Доступ и история', () => getRouter().openDetail('subscription'), true));
     target.append(access);
+    const historyPanel = element('section', 'panel feature-panel');
+    historyPanel.append(element('h2', '', 'Личная история'));
+    historyPanel.append(element('p', 'muted', data.viewer_plus_active
+      ? 'Результаты оповещений об эфирах, смене категории и напоминаний.'
+      : 'Лента результатов доступна с Viewer Plus. Обычные оповещения остаются бесплатными.'));
+    if (data.viewer_plus_active) {
+      historyPanel.append(action('Открыть историю', () => {
+        historyState = { events: [], nextBefore: null, loaded: false, loading: false, error: '' };
+        getRouter().openDetail('history');
+      }, true));
+    }
+    target.append(historyPanel);
     const quiet = data.quiet_hours;
     if (!quietDraft || !quietDraft.dirty) {
       const offset = quiet?.utc_offset_minutes ?? -new Date().getTimezoneOffset();
@@ -991,6 +1004,73 @@ export function createViewerFeature(api, getRouter, telegram) {
     }
     target.append(section);
   }
+  async function loadHistory(reset = false) {
+    if (historyState.loading) return;
+    if (reset) historyState = { events: [], nextBefore: null, loaded: false, loading: false, error: '' };
+    historyState.loading = true;
+    refresh();
+    try {
+      const payload = await api.post('/app/api/viewer/history', {
+        limit: 20, before_id: historyState.nextBefore,
+      });
+      historyState.events.push(...payload.events);
+      historyState.nextBefore = payload.next_before_id;
+      historyState.loaded = true;
+      historyState.error = '';
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 403) {
+        historyState.events = [];
+        historyState.nextBefore = null;
+        if (cause.code === 'plus_required') {
+          historyState.error = 'Доступ Viewer Plus завершился. Сохранённая история недоступна без него.';
+          await load();
+        } else {
+          historyState.error = 'Сессия Telegram устарела. Закройте и откройте приложение снова.';
+        }
+      } else {
+        historyState.error = 'Не удалось загрузить историю. Попробуйте ещё раз.';
+      }
+    } finally { historyState.loading = false; historyState.loaded = true; refresh(); }
+  }
+  function renderHistory(target) {
+    heading(target, 'Зритель', 'Личная история', 'Только результаты ваших оповещений.');
+    if (!data.viewer_plus_active) {
+      target.append(panel('Viewer Plus неактивен', 'История сохранена до технической очистки, но сейчас недоступна.'));
+      target.append(action('Посмотреть доступ', () => getRouter().openDetail('subscription'), true));
+      return;
+    }
+    if (!historyState.loaded && !historyState.loading) void loadHistory();
+    if (historyState.loading && !historyState.loaded) {
+      target.append(panel('Загружаем историю…', 'Это может занять несколько секунд.'));
+    }
+    if (historyState.error) banner(target, historyState.error, true);
+    if (historyState.loaded && !historyState.events.length && !historyState.error) {
+      target.append(panel('Пока нет событий', 'Здесь появятся результаты оповещений после подтверждённых эфиров и напоминаний.'));
+    }
+    const list = element('div', 'list');
+    for (const event of historyState.events) {
+      const item = element('div', 'list-row');
+      const copy = element('div', 'row-copy');
+      const title = event.kind === 'go_live' ? 'Оповещение об эфире'
+        : event.kind === 'viewer_category_change' ? 'Смена категории'
+        : 'Напоминание об эфире';
+      const result = event.outcome === 'sent' ? 'Отправлено'
+        : event.outcome === 'suppressed' ? 'Не отправлено'
+        : 'Доставка не подтверждена';
+      copy.append(element('strong', '', `${title} · ${nameOf(event.login)}`));
+      if (event.category_name) copy.append(element('small', '', event.category_name));
+      copy.append(element('small', '', `${result} · ${new Date(event.happened_at * 1000).toLocaleString('ru-RU')}`));
+      item.append(copy); list.append(item);
+    }
+    if (historyState.events.length) target.append(list);
+    if (historyState.nextBefore !== null) {
+      const more = action(historyState.loading ? 'Загружаем…' : 'Показать ещё', () => void loadHistory(), true);
+      more.disabled = historyState.loading;
+      target.append(more);
+    } else if (historyState.error && !historyState.loading) {
+      target.append(action('Повторить', () => void loadHistory(), true));
+    }
+  }
   return {
     render(target, route) {
       if (route.detail !== lastDetail) {
@@ -1010,7 +1090,8 @@ export function createViewerFeature(api, getRouter, telegram) {
         return;
       }
       if (error) banner(target, error, true);
-      if (route.detail?.startsWith('folder:')) renderFolder(target, route.detail.slice(7));
+      if (route.detail === 'history') renderHistory(target);
+      else if (route.detail?.startsWith('folder:')) renderFolder(target, route.detail.slice(7));
       else if (route.detail?.startsWith('filter:')) renderFilter(target, route.detail.slice(7));
       else if (route.detail) renderDetail(target, route.detail);
       else if (route.tab === 'home') renderHome(target);

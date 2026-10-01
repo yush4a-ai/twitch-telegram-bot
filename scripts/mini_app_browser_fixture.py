@@ -14,6 +14,7 @@ from aiohttp import web
 from bot.database import Database
 from bot.mini_app_web import install_mini_app_routes
 from bot.mini_app_streamer import complete_community_intent
+from bot.viewer_history import ViewerHistoryService
 
 
 class FixtureBot:
@@ -76,12 +77,20 @@ async def main() -> None:
             expires_at=now + 3600, issued_by=425785231, now=now,
         )
         preview_status = os.getenv("MINI_APP_QA_PREVIEW_STATUS", "")
-        if preview_status or os.getenv("MINI_APP_QA_REMINDER"):
+        if preview_status or os.getenv("MINI_APP_QA_REMINDER") or os.getenv("MINI_APP_QA_HISTORY"):
             if preview_status:
                 await db.replace_video_selection(501, [("1000", "alpha")], expected_version=0)
             await db.set_live_state(
                 501, "alpha", True, "fixture-live", 701, "Тестовый эфир",
                 broadcaster_id="1000", last_seen_live_at=now,
+            )
+        if os.getenv("MINI_APP_QA_HISTORY"):
+            await ViewerHistoryService(db).record_direct_live(
+                501, "alpha", "fixture-live", 701, now=now,
+            )
+            await db.issue_test_viewer_plus(
+                503, "browser-history-empty", starts_at=now - 5,
+                expires_at=now + 3600, issued_by=425785231, now=now,
             )
         await db.link_streamer_identity(601, "2001", "alpha", verified_at=now)
         await db.link_streamer_identity(603, "2003", "beta", verified_at=now)

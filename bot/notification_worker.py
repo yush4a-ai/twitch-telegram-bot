@@ -206,5 +206,6 @@ class NotificationWorker:
             await self._queue.ack(
                 job.id, job.attempt_count, now=self._clock(),
                 revision=job.revision,
+                delivery_outcome=outcome.value,
                 applied_media_url=(job.media_url if outcome is NotificationOutcome.SENT else None),
             )
