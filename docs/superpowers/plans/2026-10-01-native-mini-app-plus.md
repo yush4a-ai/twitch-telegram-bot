@@ -83,11 +83,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `mini_app_viewer.py`, UI `viewer.js`; `database.py`, существующий Twitch lookup; new `tests/test_mini_app_viewer.py`, browser journeys.
 **Interfaces:** POST `/app/api/viewer/state`, `/search`, `/follow`, `/unfollow`, `/notify`; server derives Telegram ID. Переиспользовать `add_channel_with_limit`, `remove_channel`, `list_channels_with_notify`, `set_notify_enabled` и текущие проверки Twitch login.
-- [ ] Написать RED: ник и ссылка приводят к одному login; duplicate follow не плодит записи; чужие подписки недоступны; notify off не удаляет; unfollow очищает привязанные rules; Free работает без Plus.
-- [ ] Написать RED bot→app/app→bot: изменение видимо в обе стороны через одну DB; отказ сети оставляет ввод, ошибка сохранения откатывает toggle.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_viewer.py tests/test_viewer_web.py -q` и соответствующий browser scenario.
-- [ ] Реализовать поиск с ограничением частоты и отменой устаревшего ответа, страницу стримера, главную live/empty/stale, понятную паузу/удаление. Не выполнять запрос произвольного пользовательского URL на сервере.
-- [ ] Проверить Free baseline и долгие русские имена; PASS, commit и скриншоты. Это первая законченная пользовательская контрольная точка, не пустые вкладки.
+- [x] Написать RED: ник и ссылка приводят к одному login; duplicate follow не плодит записи; чужие подписки недоступны; notify off не удаляет; unfollow очищает привязанные rules; Free работает без Plus.
+- [x] Проверить bot→app/app→bot через одну DB; браузерный RED показал отсутствовавшую форму поиска, затем отказ сети оставил ввод, а ошибка сохранения откатила toggle.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_viewer.py tests/test_viewer_web.py -q` и связанные auth/access тесты; выполнить browser journey.
+- [x] Реализовать поиск с ограничением частоты и отменой устаревшего ответа, страницу стримера, главную live/empty/stale, понятную паузу/удаление. Сервер принимает только Twitch login/проверенную ссылку, не выполняет запрос произвольного URL.
+- [x] Проверить Free baseline и долгие русские имена; PASS, commit и скриншоты. Это первая законченная пользовательская контрольная точка; профиль будет дополнен общими настройками в T6.
 
 ## T6. Viewer Plus-фильтры и настройки без регрессии Free
 
