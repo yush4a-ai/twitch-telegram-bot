@@ -63,9 +63,9 @@
 
 **Interfaces:** выбранная композиция и страницы `/site`, `/site/for-viewers`, `/site/for-streamers`, `/site/help` передаются Task 5; исходные варианты сохраняются для обратимого пересмотра.
 
-- [ ] Применить закреплённые `site-architecture`, `content-strategy`, `seo-audit`, `schema` и Taste Skill после чтения SKILL; карта страниц, реальные функции/ограничения, темы-гипотезы без выдуманного спроса и Google/Яндекс checklist.
-- [ ] Снять датированный небольшой срез собственных публичных страниц 2 hosted Telegram сервисов и 1 self-hosted проекта; отдельно записать подтверждённые функции, цены/онбординг/help и неизвестные метрики. Сверить 20–30 query hypotheses с видимыми RU SERP, сгруппировать в 6–8 задач и назначить полезную страницу каждой задаче; никакого заявления о глобальном рейтинге.
-- [ ] Сформулировать design read и два действительно разных первых экрана («Сигнал эфира» и «Из эфира в Telegram»); использовать доступный image generation для лёгких mockup, сохранить оба и выбрать один с мотивировкой. Не строить две полные версии сайта.
+- [x] Закреплённые `site-architecture`, `content-strategy`, `seo-audit`, `schema` и Taste Skill прочитаны; карта четырёх страниц и реальные границы записаны в `docs/design/public-site.md`, SEO checklist дополняется при site QA.
+- [x] `docs/audits/2026-10-01-r8-competitors.md`: 3 hosted Telegram сервиса и 1 self-hosted README с датой, источниками, ценовой видимостью и неизвестными метриками. `docs/audits/2026-10-01-r8-search-intents.md`: 28 гипотез, 7 задач, 4 страницы; поисковый инструмент не фиксировал регион, поэтому RU ranking/demand не заявляются.
+- [x] Design read и два первых экрана созданы image generation и сохранены в `docs/design/r8-concepts/`. Владелец выбрал светлый «Из эфира в Telegram» и отдельно попросил включить «Я зритель»/«Я стример» из тёмного варианта; решение записано в `docs/design/public-site.md`.
 - [ ] Проверить copy через stop-slop, ясность добровольного перехода через CRO и композицию через Impeccable; зафиксировать typography/palette/motion/reduced-motion и commit документов/вариантов. Не использовать выдуманный social proof или манипулятивные CTA.
 
 ## Task 5: Многостраничный staging SEO site
