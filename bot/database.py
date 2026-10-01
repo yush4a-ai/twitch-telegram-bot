@@ -683,6 +683,7 @@ class Database:
         await self._migrate_viewer_reminder_schema()
         await self._migrate_viewer_folder_schema()
         await self._migrate_viewer_history_schema()
+        await self._migrate_viewer_trial_schema()
         await self._migrate_category_alert_schema()
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
@@ -829,6 +830,17 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_007_viewer_history',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_trial_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_test_trials ("
+            "telegram_user_id INTEGER PRIMARY KEY, grant_id TEXT NOT NULL UNIQUE, "
+            "started_at REAL NOT NULL, expires_at REAL NOT NULL) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_009_viewer_trial',?)", (time.time(),)
         )
 
     async def _migrate_category_alert_schema(self) -> None:

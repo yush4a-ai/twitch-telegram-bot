@@ -83,9 +83,11 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.get(self.base + "/app/secret.js") as response:
             self.assertEqual(response.status, 404)
 
-    async def test_test_checkout_is_disabled_by_default(self):
-        async with self.session.post(
-            self.base + "/app/api/subscription/test-checkout",
-            json={"init_data": signed_webapp(101), "product": "viewer_plus"},
-        ) as response:
-            self.assertEqual(response.status, 403)
+    async def test_test_checkout_and_trial_are_disabled_by_default(self):
+        for endpoint in ("test-checkout", "test-trial"):
+            async with self.session.post(
+                self.base + "/app/api/subscription/" + endpoint,
+                json={"init_data": signed_webapp(101), "product": "viewer_plus"}
+                if endpoint == "test-checkout" else {"init_data": signed_webapp(101)},
+            ) as response:
+                self.assertEqual(response.status, 403)

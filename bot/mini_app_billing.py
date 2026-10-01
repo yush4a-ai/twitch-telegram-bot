@@ -12,6 +12,7 @@ from .billing import BillingService
 from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
 from .mini_app_auth import verified_payload
+from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
 
 
 def install_mini_app_billing_routes(
@@ -23,6 +24,7 @@ def install_mini_app_billing_routes(
         b"mini-app-mock-billing:" + bot_token.encode("utf-8")
     ).digest()) if test_enabled else None
     service = BillingService(db, provider) if provider is not None else None
+    trial = ViewerTrialService(db)
 
     async def read(request: web.Request):
         user_id, values, status = await verified_payload(request, bot_token)
@@ -49,6 +51,7 @@ def install_mini_app_billing_routes(
         now = time.time()
         identity = await db.get_streamer_identity(user_id)
         viewer = await db.get_current_plus_grant(user_id, "viewer_plus", now=now)
+        trial_status = await trial.status(user_id, now=now)
         streamer = await db.get_current_plus_grant(user_id, "streamer_plus", now=now)
         orders = await db.list_billing_orders_for_user(user_id)
 
@@ -62,7 +65,11 @@ def install_mini_app_billing_routes(
         return web.json_response({
             "viewer": {"active": viewer is not None,
                        "expires_at": viewer[1] if viewer else None,
-                       "source": viewer[0] if viewer else None},
+                       "source": viewer[0] if viewer else None,
+                       "test_trial_available": allowed(user_id) and not trial_status.used and viewer is None,
+                       "test_trial_used": allowed(user_id) and trial_status.used,
+                       "test_trial_active": allowed(user_id) and trial_status.active,
+                       "test_trial_expires_at": trial_status.expires_at if allowed(user_id) else None},
             "streamer": {"linked": identity is not None,
                          "twitch_login": identity[1] if identity else None,
                          "active": streamer is not None,
@@ -93,6 +100,25 @@ def install_mini_app_billing_routes(
         except PermissionError:
             return web.json_response({"error": "not_linked"}, status=403)
         return web.json_response({"order_id": checkout.order_id, "status": "pending"})
+
+    async def test_trial(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if not allowed(user_id):
+            return web.json_response({"error": "test_access_denied"}, status=403)
+        if set(values) != {"init_data"}:
+            return web.json_response({"error": "invalid_trial_request"}, status=400)
+        try:
+            started = await trial.start(user_id, now=time.time())
+        except TrialAlreadyUsed:
+            return web.json_response({"error": "trial_used"}, status=409)
+        except PermissionError:
+            return web.json_response({"error": "plus_active"}, status=409)
+        return web.json_response({
+            "started_now": started.started_now, "expires_at": started.expires_at,
+            "money_charged": False,
+        })
 
     async def test_confirm(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -168,6 +194,7 @@ def install_mini_app_billing_routes(
 
     app.router.add_post("/app/api/subscription/state", state)
     app.router.add_post("/app/api/subscription/test-checkout", test_checkout)
+    app.router.add_post("/app/api/subscription/test-trial", test_trial)
     app.router.add_post("/app/api/subscription/test-confirm", test_confirm)
     app.router.add_post("/app/api/subscription/test-cancel", test_cancel)
     app.router.add_post("/app/api/subscription/test-refund", test_refund)

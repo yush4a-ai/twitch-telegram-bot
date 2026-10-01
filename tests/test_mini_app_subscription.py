@@ -42,6 +42,61 @@ class MiniAppSubscriptionTests(unittest.IsolatedAsyncioTestCase):
             json={"init_data": signed_webapp(actor), **fields},
         )
 
+    async def test_voluntary_trial_is_allowlisted_once_and_never_auto_starts(self):
+        async with self.request("/app/api/subscription/state", actor=202) as response:
+            self.assertEqual(response.status, 200)
+            state = await response.json()
+            self.assertTrue(state["viewer"]["test_trial_available"])
+            self.assertFalse(state["viewer"]["active"])
+            self.assertFalse(state["money_charged"])
+        self.assertFalse(await self.db.has_viewer_plus(202))
+        async with self.request("/app/api/subscription/test-trial", actor=303) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request("/app/api/subscription/test-trial", actor=202,
+                                paid=True) as response:
+            self.assertEqual(response.status, 400)
+        async with self.request("/app/api/subscription/test-trial", actor=202) as response:
+            self.assertEqual(response.status, 200)
+            started = await response.json()
+            self.assertTrue(started["started_now"])
+        async with self.request("/app/api/subscription/test-trial", actor=202) as response:
+            self.assertEqual(response.status, 200)
+            repeated = await response.json()
+            self.assertFalse(repeated["started_now"])
+            self.assertEqual(repeated["expires_at"], started["expires_at"])
+        async with self.request("/app/api/subscription/state", actor=202) as response:
+            state = await response.json()
+            self.assertTrue(state["viewer"]["active"])
+            self.assertTrue(state["viewer"]["test_trial_used"])
+            self.assertFalse(state["viewer"]["test_trial_available"])
+            self.assertFalse(state["money_charged"])
+        cursor = await self.db.conn.execute(
+            "SELECT COUNT(*) FROM entitlement_grants WHERE request_key='trial:v1:202'"
+        )
+        self.assertEqual((await cursor.fetchone())[0], 1)
+
+    async def test_revoked_trial_is_not_active_when_other_plus_is_active(self):
+        now = time.time()
+        async with self.request("/app/api/subscription/test-trial", actor=202) as response:
+            self.assertEqual(response.status, 200)
+        cursor = await self.db.conn.execute(
+            "SELECT grant_id FROM viewer_test_trials WHERE telegram_user_id=202"
+        )
+        trial_grant_id = (await cursor.fetchone())[0]
+        await self.db.revoke_test_viewer_plus(
+            trial_grant_id, revoked_at=now + 1, issued_by=425785231,
+        )
+        await self.db.issue_test_viewer_plus(
+            202, "separate-after-trial", starts_at=now - 1,
+            expires_at=now + 600, issued_by=425785231, now=now,
+        )
+        async with self.request("/app/api/subscription/state", actor=202) as response:
+            self.assertEqual(response.status, 200)
+            viewer = (await response.json())["viewer"]
+            self.assertTrue(viewer["active"])
+            self.assertTrue(viewer["test_trial_used"])
+            self.assertFalse(viewer["test_trial_active"])
+
     async def test_free_viewer_streamer_both_and_own_history(self):
         async with self.request("/app/api/subscription/state", actor=202) as response:
             self.assertEqual(response.status, 200)
@@ -209,8 +264,8 @@ class MiniAppSubscriptionTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(state["history"][0]["status"], "expired")
             self.assertFalse(state["viewer"]["active"])
 
-    async def test_invalid_init_data_cannot_open_state_or_order(self):
-        for endpoint in ("state", "test-checkout"):
+    async def test_invalid_init_data_cannot_open_state_order_or_trial(self):
+        for endpoint in ("state", "test-checkout", "test-trial"):
             async with self.session.post(
                 self.base + "/app/api/subscription/" + endpoint,
                 json={"init_data": "invalid", "product": "viewer_plus"} if endpoint != "state" else {"init_data": "invalid"},

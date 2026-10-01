@@ -1,4 +1,5 @@
 import { element, panel, action } from './components.js';
+import { ApiError } from './api.js';
 
 const products = {
   viewer_plus: {
@@ -20,42 +21,70 @@ const dateText = (value) => value ? new Date(value * 1000).toLocaleString('ru-RU
 export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
   let state = null;
   let loading = false;
+  let loadToken = 0;
+  let pendingLoad = null;
   let requested = false;
   let busy = false;
   let feedback = '';
   let error = '';
   const refresh = () => getRouter().refresh();
-  async function load() {
-    if (loading) return;
+  async function load({ fresh = false } = {}) {
+    if (busy && !fresh) return;
+    if (pendingLoad && !fresh) return pendingLoad;
     requested = true;
     loading = true;
-    try {
-      state = await api.post('/app/api/subscription/state');
-      error = '';
-    } catch {
-      error = state ? 'Нет связи. Показан последний загруженный статус.' : 'Не удалось загрузить доступ.';
-    } finally { loading = false; refresh(); }
+    const token = ++loadToken;
+    const request = (async () => {
+      try {
+        const loaded = await api.post('/app/api/subscription/state');
+        if (token === loadToken) { state = loaded; error = ''; }
+      } catch {
+        if (token === loadToken) error = state ? 'Нет связи. Показан последний загруженный статус.' : 'Не удалось загрузить доступ.';
+      } finally {
+        if (token === loadToken) { loading = false; pendingLoad = null; refresh(); }
+      }
+    })();
+    pendingLoad = request;
+    return request;
   }
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && getRouter().state.detail === 'subscription') void load();
   });
   async function change(path, values) {
     if (busy) return;
+    ++loadToken;
+    pendingLoad = null;
+    loading = false;
     busy = true;
     feedback = '';
     refresh();
     try {
       const result = await api.post(`/app/api/subscription/${path}`, values);
-      if (path === 'test-checkout') feedback = 'Тестовый заказ создан. Доступ ещё не активен.';
+      if (path === 'test-trial' && state) {
+        state.viewer = {
+          ...state.viewer, active: true, source: 'test',
+          expires_at: result.expires_at, test_trial_used: true,
+          test_trial_active: true, test_trial_available: false,
+          test_trial_expires_at: result.expires_at,
+        };
+      }
+      if (path === 'test-trial') feedback = result.started_now
+        ? 'Ознакомление на 7 дней включено. Деньги не списываются и продления нет.'
+        : 'Ознакомление уже включено. Срок не изменился.';
+      else if (path === 'test-checkout') feedback = 'Тестовый заказ создан. Доступ ещё не активен.';
       else if (result.status === 'paid') feedback = 'Тестовый доступ активен.';
       else if (result.status === 'refunded') feedback = 'Тестовый доступ отозван.';
       else if (result.status === 'cancelled') feedback = 'Заказ отменён.';
       else feedback = 'Статус изменился. Проверьте его ниже.';
-      await load();
-      if (path === 'test-confirm' || path === 'test-refund') onAccessChanged();
-    } catch {
-      feedback = 'Действие не выполнено. Проверьте статус и попробуйте снова.';
-      await load();
+      await load({ fresh: true });
+      if (path === 'test-trial' || path === 'test-confirm' || path === 'test-refund') onAccessChanged();
+    } catch (cause) {
+      feedback = cause instanceof ApiError && cause.code === 'trial_used'
+        ? 'Ознакомление уже использовано. Бесплатные возможности продолжают работать.'
+        : cause instanceof ApiError && cause.code === 'plus_active'
+          ? 'Viewer Plus уже активен. Ознакомление остаётся доступным позже.'
+          : 'Действие не выполнено. Проверьте статус и попробуйте снова.';
+      await load({ fresh: true });
     } finally { busy = false; refresh(); }
   }
   function renderProduct(target, key) {
@@ -69,10 +98,20 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       : 'Сейчас без Plus';
     if (key === 'streamer_plus' && !productState.linked) status += ' · сначала подключите Twitch';
     box.append(element('p', 'subscription-status', status));
+    if (key === 'viewer_plus' && productState.test_trial_available) {
+      box.append(element('p', 'muted', 'Один раз на 7 дней в тестовом окружении. Без оплаты и автопродления.'));
+      const trial = action('Попробовать 7 дней', () => void change('test-trial', {}));
+      trial.disabled = busy || loading;
+      box.append(trial);
+    } else if (key === 'viewer_plus' && productState.test_trial_used) {
+      box.append(element('p', 'muted', productState.test_trial_active
+        ? `Тестовое ознакомление до ${dateText(productState.test_trial_expires_at)}. Продления нет.`
+        : 'Тестовое ознакомление использовано. Бесплатные возможности доступны.'));
+    }
     if (state.test_checkout_available && (key === 'viewer_plus' || productState.linked)) {
       const controls = element('div', 'actions');
       const start = action('Создать тестовый заказ', () => void change('test-checkout', { product: key }), true);
-      start.disabled = busy;
+      start.disabled = busy || loading;
       controls.append(start);
       box.append(controls);
     }
@@ -88,11 +127,11 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       const controls = element('div', 'actions');
       const confirm = action('Подтвердить тест', () => void change('test-confirm', { order_id: order.order_id }));
       const cancel = action('Отменить', () => void change('test-cancel', { order_id: order.order_id }), true);
-      confirm.disabled = busy; cancel.disabled = busy;
+      confirm.disabled = busy || loading; cancel.disabled = busy || loading;
       controls.append(confirm, cancel); row.append(controls);
     } else if (state.test_checkout_available && order.status === 'paid') {
       const refund = action('Отозвать тестовый доступ', () => void change('test-refund', { order_id: order.order_id }), true);
-      refund.disabled = busy;
+      refund.disabled = busy || loading;
       row.append(refund);
     }
     target.append(row);
@@ -128,7 +167,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
         target.append(list);
       }
       const update = action('Обновить статус', () => void load(), true);
-      update.disabled = loading;
+      update.disabled = loading || busy;
       const actions = element('div', 'actions');
       actions.append(update);
       target.append(actions);

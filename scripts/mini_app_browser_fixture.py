@@ -114,7 +114,8 @@ async def main() -> None:
         install_mini_app_routes(
             app, db, "123456:test-telegram-token", bot=bot,
             twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
-            billing_test_enabled=True, billing_test_user_ids=frozenset({501, 603, 605}),
+            billing_test_enabled=True,
+            billing_test_user_ids=frozenset({501, 603, 605, 504} if os.getenv("MINI_APP_QA_TRIAL") else {501, 603, 605}),
             preview_status_provider=(
                 (lambda login: preview_status if login == "alpha" else "unknown")
                 if preview_status else None
