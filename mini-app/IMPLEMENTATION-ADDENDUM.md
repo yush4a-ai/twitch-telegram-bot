@@ -33,9 +33,9 @@ Interfaces: Viewer eligibility = verified private destination + active Viewer Pl
 
 Files: new `bot/viewer_reminders.py`, узкое расширение queue/dispatch, mini_app_viewer и UI; new `tests/test_viewer_reminders.py`.
 Interface: `async set_reminder(user_id: int, broadcaster_id: str, logical_stream_id: str, delay_minutes: Literal[15,30], *, now: float) -> ReminderState`; `/app/api/viewer/reminder`, cancel route. ID/stream сверяются сервером.
-- [ ] RED: Free отказ, Plus создаёт один job; повтор клика обновляет срок, отмена прекращает; на offline/другой stream/expiry/unfollow/quiet-hours send не идёт; потеря сети в UI не показывает ложное сохранение.
-- [ ] Run `.venv\Scripts\python.exe -m pytest tests/test_viewer_reminders.py -q` → RED; реализовать persistent state и fake-clock dispatch без отдельного бесконтрольного timer на человека.
-- [ ] PASS + notification queue/worker tests, back/scroll browser scenario, обзор и commit. Не отправлять реальные сообщения в тестах.
+  - [x] RED: Free отказ, Plus создаёт один job; повтор клика обновляет срок, отмена прекращает; на offline/другой stream/expiry/unfollow/quiet-hours send не идёт; потеря сети в UI не показывает ложное сохранение.
+  - [x] Run `.venv\Scripts\python.exe -m pytest tests/test_viewer_reminders.py -q` → RED; реализовать persistent state и fake-clock dispatch без отдельного бесконтрольного timer на человека.
+  - [x] PASS + notification queue/worker tests, back/scroll browser scenario, обзор и commit. Не отправлять реальные сообщения в тестах.
 
 ## T16. Удобства Plus и добровольное тестовое ознакомление
 
