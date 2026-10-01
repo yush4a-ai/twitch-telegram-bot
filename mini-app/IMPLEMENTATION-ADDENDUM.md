@@ -11,12 +11,12 @@
 ## T13. Тарифные лимиты и атомарный выбор пяти видеоканалов
 
 Files: `bot/plan_catalog.py`, `bot/capabilities.py`, new `bot/viewer_preferences.py`, `bot/database.py`, `bot/mini_app_viewer.py`, `bot/handlers/streams.py`, UI viewer/subscription; new `tests/test_viewer_plus_limits.py`, `tests/test_viewer_preview_slots.py`.
-Interfaces: `async replace_video_selection(user_id: int, broadcaster_ids: list[str], *, expected_version: int, now: float) -> VideoSelection`; frozen result `version`, `selected_ids`, `effective_ids`, `limit=5`. Сервер сам проверяет ID пользователя/каналов. GET-like state по текущему POST-контракту, save `/app/api/viewer/video-selection`.
-- [ ] RED: Free 50/51 и Plus 200/201 через bot и app; группы сохраняют прежний лимит; снижение тарифа сохраняет строки/ручные паузы, effective активны максимум 50. Одновременный add не превышает лимит.
-- [ ] RED: Plus выбирает 5 даже offline; 6 отклоняется; при 4 выбранных два конкурентных запроса дают <=5; stale version 409; чужой/unfollowed канал 403/400; замена атомарна; notify off не освобождает выбор, unfollow освобождает.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_viewer_plus_limits.py tests/test_viewer_preview_slots.py -q`, зафиксировать ожидаемый RED.
-- [ ] Реализовать единый серверный каталог, versioned selection и plan-paused независимо от ручного notify_enabled. Video effective только при активном Viewer Plus; сохранённый выбор после expiry не удаляется.
-- [ ] PASS тех же тестов + старые viewer/menu/access tests; обзор SQL races и всех entry points, commit/checkpoint. UI «Видеопревью: 3 из 5», фото default, шестому предложить замену.
+Interfaces: signed POST `/app/api/viewer/video-selection` принимает `selected_logins` + `expected_version`; сервер самостоятельно получает и проверяет настоящие Twitch broadcaster IDs, после чего `Database.replace_video_selection(user_id, verified_id_login_pairs, *, expected_version, now)` атомарно сохраняет их. Frozen result: `version`, `selected_ids`, `selected_logins`, `effective_ids`, `limit=5`. Клиентские broadcaster IDs не считаются доказательством. GET-like state по текущему POST-контракту.
+- [x] RED: Free 50/51 и Plus 200/201 через bot и app; группы сохраняют прежний лимит; снижение тарифа сохраняет строки/ручные паузы, effective активны максимум 50. Одновременный add не превышает лимит.
+- [x] RED: Plus выбирает 5 даже offline; 6 отклоняется; при 4 выбранных два конкурентных запроса дают <=5; stale version 409; чужой/unfollowed канал 403/400; замена атомарна; notify off не освобождает выбор, unfollow освобождает.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_viewer_plus_limits.py tests/test_viewer_preview_slots.py -q`, зафиксировать ожидаемый RED.
+- [x] Реализовать единый серверный каталог, versioned selection и plan-paused независимо от ручного notify_enabled. Video effective только при активном Viewer Plus; сохранённый выбор после expiry не удаляется.
+- [x] PASS тех же тестов + старые viewer/menu/access tests; обзор SQL races и всех entry points, commit/checkpoint. UI «Видеопревью: 3 из 5», фото default, шестому предложить замену. Доставка выбранного видео — T14.
 
 ## T14. Viewer video fan-out с ограничением ресурсов
 
