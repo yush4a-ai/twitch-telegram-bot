@@ -21,12 +21,15 @@
 | T16a | завершён локально | `362a6b7`, tree `75d5b464521a216f35b9409c1d9525fb100a7b0c`; 29 related passed/17 subtests; browser PASS 2 снимка 390/360 light/dark, наследование/сброс фильтра, перенос, конфликт двух окон, сеть и удаление без потери подписки. |
 | T16b | завершён локально | `60d9f53`, tree `8c3648cbb3d8697345584ebc93c1feade3eeaca1`; 47 related passed; browser PASS 2 снимка 390/360 light/dark, собственная/пустая история, Free gate, Back и истёкшая Telegram-сессия. Scoped review закрыт. |
 | T16c | завершён локально | `d48d064`, tree `6e8baf0b6724a1d6ac002ce76249e100d0ca0f55`; 28 related passed; browser PASS 2 снимка 390/360 light/dark, явное применение, удаление, два сообщества, версии и поздние ответы. Scoped review закрыт. |
-| T16d, T17 | следующий | Добровольное 7-дневное test-only ознакомление, затем смешанная media-нагрузка. |
+| T16d | завершён локально | `dcfca4a`, tree `1bfbfa14a4a4e79043849124c98f786899596a0c`; 29 related passed; browser PASS 2 снимка 390/360 light/dark, явное включение, delayed state, повтор, allowlist, Back. Scoped review закрыт. Только temp DB/synthetic SDK. |
+| T17 | следующий | Смешанная media-нагрузка на fake sender/temp DB с ограничителями ресурсов. |
 | T12 | последний | Полный suite на финальном snapshot, review, browser/security, backup/restore, guarded staging и честная граница native E2E. |
 
 Известные расхождения на старте: `/viewer/api/digest` требовал Plus при бесплатном bot-сценарии (устранено T6); `/streamer/api/communities` POST требовал Plus при согласованном Free подключении (устранено T9); старый личный `preview_enabled` не даёт media-право с T14. Никакой внешний Telegram send или OAuth не выполнялся.
 
 T1 проверка: локальные документы прошли staged whitespace check, 31/31 закреплённых файлов совпал по SHA256. Шесть предупреждений полного staged `git diff --check` относятся к исходным upstream reference-файлам security skills; байты оставлены неизменными.
+
+T16d: RED отсутствующего модуля trial, маршрута и серверного `test_trial_active`; после исправлений 29 связанных тестов PASS. В браузере проверены явный старт, загрузка состояния с задержкой, одноразовый срок, закрытый доступ другого ID и статус после окончания trial при отдельном Plus grant. `dcfca4a` включает два реальных screenshot-файла из локального Chromium; внешний Telegram/native, staging и реальные оплаты NOT TESTED. Денег и автосписания нет. Production `6074744`, HTML-отчёты/экспорт и Free-права не менялись.
 
 T4 серверный RED: три auth теста сначала упали из-за отсутствующего `mini_app_db`; отдельный RED входа из private menu указал прежний `/viewer`. После реализации `/app/api/bootstrap` проверены подпись, возраст, дубликаты, чужой клиентский ID и выключенный production-контур. Локальный browser fixture использовал синтетическую подпись и подмену только внешнего Telegram SDK; рабочие `/app`-ассеты не содержат mock-кода. Browser-сценарий создан после серверного RED, отдельный browser RED до реализации не зафиксирован. Screenshots относятся к shell, не к законченным Free/Plus действиям. Исходящие Telegram и OAuth не выполнялись.
 
