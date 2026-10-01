@@ -42,9 +42,9 @@
 
 **Interfaces:** `run_preview_probe() -> dict` собирает coordinator concurrency 1/2/4 и ограниченный синтетический FFmpeg H.264 854×480 без аудио; `run_billing_probe(replays:int=100) -> dict` использует только MockPaymentProvider/temp DB.
 
-- [ ] RED: fake capture concurrency не превышает лимит; FFmpeg output duration/resolution/codec/no audio проверяются ffprobe; billing verified event replay и concurrent duplicate оставляют ровно один payment/grant, refund/cancel/expiry сохраняют инварианты.
-- [ ] GREEN: ограниченные probe без реальных Twitch media/Telegram send/payment checkout; возвращать агрегаты и явные `synthetic=true`, без secret fields. Focused regression R5/preview проходят.
-- [ ] Review: внешний FFmpeg optional только при явной команде, bounded process timeout/cleanup, точный 24s preview contract не редактируется; commit.
+- [x] RED: новые модули дали ожидаемые import errors; отдельный тест CPU-метрики сначала выявил скрытый `ffmpeg -benchmark` вывод. Проверяются concurrency, ffprobe contract, concurrent billing replay, refund/cancel/expiry и подпись.
+- [x] GREEN: probe без Twitch/Telegram/real payment network, временный FFmpeg MP4 и `:memory:` mock billing; агрегаты с `synthetic=true`. Focused 3 passed; связанные R5/preview regressions 121 passed, 11 subtests перед последней правкой только FFmpeg loglevel.
+- [x] Review: после последней правки 499 passed, 2 skipped, 225 subtests; 24s encode: H.264 854×480/30 fps, 3 244 466 B, audio=0, wall 2,87 s, CPU 2,218 s; 100 concurrent billing replays дали один payment/grant. Локальный FFmpeg не сообщил maxrss, поле оставлено `null`; timeout/cleanup ограничены. Пакет готов к commit.
 
 ## Task 3: Локальные профили и интерпретация
 
