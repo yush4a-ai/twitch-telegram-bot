@@ -24,7 +24,7 @@ from .database import (
     ReportDelivery,
     StreamHistoryRecord,
 )
-from .deep_links import build_track_deep_link
+from .deep_links import TELEGRAM_BOT_USERNAME, build_track_deep_link
 from .logging_utils import mask_chat_id
 from .live_post import (
     LivePostContent,
@@ -376,6 +376,7 @@ class StreamPoller:
         telegram_channel_username_cache: TelegramChannelUsernameCache | None = None,
         notification_queue_enabled: bool = False,
         viewer_filters_enabled: bool = False,
+        bot_username: str = TELEGRAM_BOT_USERNAME,
     ) -> None:
         self._bot = bot
         self._db = db
@@ -402,6 +403,7 @@ class StreamPoller:
         )
         self._notification_queue_enabled = notification_queue_enabled
         self._viewer_filters_enabled = viewer_filters_enabled
+        self._bot_username = bot_username
         # ссылки на фоновые задачи уведомлений о рейдах: без них задача может быть
         # собрана сборщиком мусора прямо во время отправки, а её исключение — потеряно
         self._background_tasks: set[asyncio.Task] = set()
@@ -2232,7 +2234,9 @@ class StreamPoller:
         if return_note:
             text += f"\n\n{return_note}"
         if include_track_link:
-            subscribe_url = html.escape(build_track_deep_link(login), quote=True)
+            subscribe_url = html.escape(
+                build_track_deep_link(login, bot_username=self._bot_username), quote=True
+            )
             text += (
                 f'\n\n🔔 <a href="{subscribe_url}">'
                 "Подключить уведомления</a>"

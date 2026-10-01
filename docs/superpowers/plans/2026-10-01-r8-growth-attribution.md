@@ -41,10 +41,10 @@
 
 **Interfaces:** `Config.growth_enabled` is local/pinned-staging only; `StreamPoller(..., bot_username: str=TELEGRAM_BOT_USERNAME)` uses it for live-post track links. `Database.add_channel[_with_limit]` updates first activation within successful insert transaction.
 
-- [ ] RED: `/invite` private stage link has opaque code/testbot; group/prod disabled; `src_`/`ref_` `/start` records only exact private actor and keeps old `track_`/`link_` behavior. Run and confirm failure.
-- [ ] GREEN: stage flag/handlers and bot link wiring; focused handler/regression tests pass.
-- [ ] RED: only successful first add sets `activated_at`, duplicate/limit/group/replay does not; stage live-post track link points to testbot, default path remains compatible. Confirm failure.
-- [ ] GREEN: atomic activation updates and poller username injection; focused tests pass. Commit this packet.
+- [x] RED: `tests/test_growth_handlers.py` дал 3 ожидаемых failure до добавления `/invite`, private touch и команды.
+- [x] GREEN: stage flag/handlers и bot link wiring; вместе с R2 command-scope тестами 10 passed, 6 subtests. Existing deep-link regressions: 84 passed, 15 subtests.
+- [x] RED: `tests/test_growth_activation.py` дал 3 ожидаемых failure до activation и выбора testbot для live-post link.
+- [x] GREEN: activation обновляется в транзакции успешного добавления, poller использует stage username; общий focused suite 21 passed, 19 subtests. Commit пакета.
 
 ## Task 3: Aggregate owner funnel
 

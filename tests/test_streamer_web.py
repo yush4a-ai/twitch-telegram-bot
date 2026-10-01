@@ -256,12 +256,15 @@ class StreamerRuntimeGateTests(unittest.TestCase):
         with patch.dict(os.environ, base, clear=True):
             self.assertTrue(load_config().streamer_plus_enabled)
             self.assertTrue(load_config().viewer_plus_enabled)
+            self.assertTrue(load_config().growth_enabled)
         with patch.dict(os.environ, {**base, "RAILWAY_ENVIRONMENT_NAME": "production"}, clear=True):
             self.assertFalse(load_config().streamer_plus_enabled)
             self.assertFalse(load_config().viewer_plus_enabled)
+            self.assertFalse(load_config().growth_enabled)
         with patch.dict(os.environ, {**base, "RAILWAY_PROJECT_ID": "other"}, clear=True):
             self.assertFalse(load_config().streamer_plus_enabled)
             self.assertFalse(load_config().viewer_plus_enabled)
+            self.assertFalse(load_config().growth_enabled)
 
 
 if __name__ == "__main__":

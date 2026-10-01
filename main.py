@@ -32,6 +32,7 @@ from bot.config import (
     load_config,
 )
 from bot.database import Database, DatabaseConfigurationError
+from bot.deep_links import TELEGRAM_BOT_USERNAME
 from bot.handlers import register_all_handlers
 from bot.admin_auth import AdminAccess
 from bot.streamer_auth import StreamerAccess
@@ -106,7 +107,10 @@ STARTUP_RETRY_DELAY_SECONDS = 5
 SHUTDOWN_STEP_TIMEOUT_SECONDS = 3
 
 
-def _private_bot_commands(tracking_commands: list[BotCommand], *, owner: bool = False) -> list[BotCommand]:
+def _private_bot_commands(
+    tracking_commands: list[BotCommand], *, owner: bool = False,
+    growth_enabled: bool = False,
+) -> list[BotCommand]:
     commands = [
         BotCommand(command="start", description="🏠 Главное меню бота"),
         *tracking_commands,
@@ -115,6 +119,8 @@ def _private_bot_commands(tracking_commands: list[BotCommand], *, owner: bool = 
         BotCommand(command="streamer_connect", description="🎮 Подключить кабинет стримера"),
         BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
     ]
+    if growth_enabled:
+        commands.append(BotCommand(command="invite", description="🔗 Пригласить в тестовый бот"))
     if owner:
         commands.append(BotCommand(command="admin", description="🛡️ Админ-панель"))
     return commands
@@ -458,6 +464,12 @@ def _make_notification_worker(config, db, poller: StreamPoller) -> NotificationW
 
 async def main() -> None:
     config = load_config()
+    if (
+        is_railway_environment()
+        and getattr(config, "growth_enabled", False)
+        and config.admin_telegram_bot_username.casefold() != "twitchsignaltestbot"
+    ):
+        raise ConfigError("R8 staging требует username TwitchSignalTestbot")
 
     db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
     bot: Bot | None = None
@@ -501,7 +513,9 @@ async def main() -> None:
             BotCommand(command="help", description="ℹ️ Что умеет бот"),
         ]
 
-        private_commands = _private_bot_commands(tracking_commands)
+        private_commands = _private_bot_commands(
+            tracking_commands, growth_enabled=getattr(config, "growth_enabled", False),
+        )
         await _with_startup_retry(
             lambda: bot.set_my_commands(
                 private_commands,
@@ -516,7 +530,10 @@ async def main() -> None:
         if config.owner_chat_id is not None and config.admin_panel_access_key:
             await _with_startup_retry(
                 lambda: bot.set_my_commands(
-                    _private_bot_commands(tracking_commands, owner=True),
+                    _private_bot_commands(
+                        tracking_commands, owner=True,
+                        growth_enabled=getattr(config, "growth_enabled", False),
+                    ),
                     scope=BotCommandScopeChat(chat_id=config.owner_chat_id),
                 ),
                 "Регистрация команд (владелец)",
@@ -629,6 +646,12 @@ async def main() -> None:
                     telegram_channel_username_cache=channel_username_cache,
                     notification_queue_enabled=getattr(config, "notification_queue_enabled", False),
                     viewer_filters_enabled=getattr(config, "viewer_plus_enabled", False),
+                    bot_username=(
+                        config.admin_telegram_bot_username
+                        if getattr(config, "growth_enabled", False)
+                        and config.admin_telegram_bot_username
+                        else TELEGRAM_BOT_USERNAME
+                    ),
                 )
                 notification_worker = _make_notification_worker(config, db, poller)
                 dp["poller"] = poller

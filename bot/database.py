@@ -1874,6 +1874,14 @@ class Database:
         await self.conn.commit()
         return cursor.rowcount == 1
 
+    async def _mark_growth_activation(self, chat_id: int) -> None:
+        if chat_id > 0:
+            await self.conn.execute(
+                "UPDATE growth_attributions SET activated_at=? "
+                "WHERE telegram_user_id=? AND activated_at IS NULL",
+                (time.time(), chat_id),
+            )
+
     @_serialized
     async def add_channel(self, chat_id: int, twitch_login: str) -> bool:
         try:
@@ -1881,6 +1889,7 @@ class Database:
                 "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
                 (chat_id, twitch_login),
             )
+            await self._mark_growth_activation(chat_id)
             await self.conn.commit()
             return True
         except aiosqlite.IntegrityError:
@@ -1918,6 +1927,7 @@ class Database:
                 "INSERT INTO tracked_channels (chat_id, twitch_login) VALUES (?, ?)",
                 (chat_id, twitch_login),
             )
+            await self._mark_growth_activation(chat_id)
             await self.conn.commit()
             return "created"
         except aiosqlite.IntegrityError:

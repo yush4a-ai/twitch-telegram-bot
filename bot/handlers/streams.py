@@ -31,6 +31,7 @@ from ..database import Database
 from ..deep_links import (
     TRACK_START_PREFIX,
     TWITCH_LOGIN_RE,
+    build_growth_deep_link,
     parse_track_start_payload,
 )
 from ..follow_listener import FollowEventListener
@@ -544,6 +545,19 @@ async def cmd_start_link(
         )
         return
 
+    if (
+        getattr(config, "growth_enabled", False)
+        and payload.startswith(("src_", "ref_"))
+    ):
+        if (
+            message.chat.type == ChatType.PRIVATE
+            and message.from_user is not None
+            and message.from_user.id == message.chat.id
+        ):
+            await db.record_growth_touch(message.chat.id, payload)
+        await cmd_start(message, state, db, config)
+        return
+
     if payload.startswith("link_") and message.chat.type == ChatType.PRIVATE:
         try:
             source_chat_id = int(payload.removeprefix("link_"))
@@ -610,6 +624,25 @@ async def cmd_admin(message: Message, config: Config) -> None:
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Открыть админ-панель", web_app=WebAppInfo(url=url))]
         ]),
+    )
+
+
+@router.message(Command("invite"))
+async def cmd_invite(message: Message, db: Database, config: Config) -> None:
+    if (
+        not getattr(config, "growth_enabled", False)
+        or getattr(config, "admin_telegram_bot_username", "").casefold()
+        != "twitchsignaltestbot"
+        or message.chat.type != ChatType.PRIVATE
+        or message.from_user is None
+        or message.from_user.id != message.chat.id
+    ):
+        return
+    code = await db.get_or_create_growth_referral_code(message.chat.id)
+    link = build_growth_deep_link("TwitchSignalTestbot", f"ref_{code}")
+    await message.answer(
+        "Пригласи друга в тестовый бот: " + link + "\n\n"
+        "Ссылка не даёт платных прав или наград."
     )
 
 
