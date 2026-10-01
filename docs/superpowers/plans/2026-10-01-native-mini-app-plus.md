@@ -93,10 +93,10 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** UI `viewer.js`, `mini_app_viewer.py`, `viewer_filter.py`; new `tests/test_mini_app_viewer_plus.py`; existing filter/delivery tests.
 **Interfaces:** POST `/app/api/viewer/filter` retains expected_version; game/keyword/exclude contracts из R7 сохраняются, новый удобный UI не меняет семантику без теста.
-- [ ] Написать RED: Free не сохраняет Plus-правило прямым HTTP; Plus сохраняет; version conflict 409; expiry делает правило неактивным, но не удаляет; исходные quiet-hours/digest Free-права сохранены.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_viewer_plus.py tests/test_viewer_filter.py tests/test_viewer_delivery.py -q`.
-- [ ] Реализовать выбор значений и объяснение правила обычным предложением; max 5 элементов и длины текущей валидации не расширять скрыто. Формы не требуют вводить списки через запятую.
-- [ ] Прогнать права в UI/API и queued recheck; закрытие Plus-экрана сохраняет контекст. PASS и commit.
+- [x] Написать RED: Free не сохраняет Plus-правило прямым HTTP; Plus сохраняет; version conflict 409; expiry делает правило неактивным, но не удаляет; исходные quiet-hours/digest Free-права сохранены.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_mini_app_viewer_plus.py tests/test_viewer_filter.py tests/test_viewer_delivery.py -q` и связанные web/auth тесты.
+- [x] Реализовать выбор значений и объяснение правила обычным предложением; max 5 элементов и длины текущей валидации сохранены. Каждое значение добавляется отдельно, без списка через запятую.
+- [x] Прогнать права в UI/API и queued recheck; закрытие Plus-экрана сохраняет контекст. PASS и commit. Native Telegram остаётся NOT TESTED.
 
 ## T7. Устойчивый детектор смены категории
 
