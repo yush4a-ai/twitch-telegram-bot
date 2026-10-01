@@ -102,11 +102,11 @@ T1 verification note: `git diff --check` для собственных изме�
 
 **Files:** new `category_alerts.py`, `category_alert_store.py`, `tests/test_category_alerts.py`; `database.py`, `poller.py` в узком месте наблюдения.
 **Interfaces:** `CategoryObservation(broadcaster_id: str, logical_stream_id: str, category_id: str|None, category_name: str|None, observed_at: float, is_live: bool)`; `async observe(observation: CategoryObservation) -> CategoryTransition|None` возвращает только зафиксированный уникальный переход.
-- [ ] Написать RED: первая A → None; A→B при 59 s → None; B подтверждается на >=60 s и >=2 наблюдениях → один transition; A→B→A до стабильности → None; пустой ID/только title/offline → None.
-- [ ] Написать RED: duplicate observation, out-of-order timestamp, rollback DB, restart и открытие новой сессии эфира не создают дублей. Пробел больше `max(120 s, 3*configured_poll_interval)` переустанавливает baseline без catch-up-события.
-- [ ] Запустить `.venv\Scripts\python.exe -m pytest tests/test_category_alerts.py -q` и увидеть RED ожидаемых отсутствующих функций.
-- [ ] Реализовать чистую логику + persistent baseline/candidate/sequence в отдельной versioned миграции. Использовать текущие успешные stream observations; не добавлять новые EventSub регистрации ради этого этапа.
-- [ ] Проверить fake-clock/restore/integrity и существующие shared observation tests; PASS и commit. На этом этапе реальных отправок нет.
+- [x] Написать RED: первая A → None; A→B при 59 s → None; B подтверждается на >=60 s и >=2 наблюдениях → один transition; A→B→A до стабильности → None; пустой ID/только title/offline → None.
+- [x] Написать RED: duplicate observation, out-of-order timestamp, rollback DB, restart и открытие новой сессии эфира не создают дублей. Пробел больше `max(120 s, 3*configured_poll_interval)` переустанавливает baseline без catch-up-события.
+- [x] Запустить `.venv\Scripts\python.exe -m pytest tests/test_category_alerts.py -q` и увидеть RED ожидаемых отсутствующих функций.
+- [x] Реализовать чистую логику + persistent baseline/candidate/sequence в отдельной versioned миграции. Использовать текущие успешные stream observations; не добавлять новые EventSub регистрации ради этого этапа.
+- [x] Проверить fake-clock/restore/integrity и существующие shared observation tests; PASS и commit `a71da4f`. На этом этапе реальных отправок нет.
 
 ## T8. Доставка category-сигналов только Viewer Plus
 
