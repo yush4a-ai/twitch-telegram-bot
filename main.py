@@ -556,6 +556,12 @@ async def main() -> None:
             follow_listener = FollowEventListener(
                 db, token_store, config.twitch_client_id, session
             )
+            billing_test_enabled = (
+                getattr(config, "pinned_staging", False)
+                and getattr(config, "mini_app_enabled", False)
+                and config.admin_telegram_bot_username.casefold() == "twitchsignaltestbot"
+                and config.owner_chat_id is not None
+            )
             oauth_server = OAuthCallbackServer(
                 redirect_uri=f"{config.oauth_public_base_url}{REDIRECT_PATH}",
                 host=config.oauth_host,
@@ -597,6 +603,10 @@ async def main() -> None:
                 mini_app_bot_username=config.admin_telegram_bot_username or "",
                 mini_app_oauth_client_id=(config.twitch_client_id if getattr(config, "mini_app_enabled", False) else ""),
                 mini_app_oauth_client_secret=(config.twitch_client_secret if getattr(config, "mini_app_enabled", False) else ""),
+                mini_app_billing_test_enabled=billing_test_enabled,
+                mini_app_billing_test_user_ids=(
+                    frozenset({config.owner_chat_id}) if billing_test_enabled else frozenset()
+                ),
                 growth_bot_username=(
                     config.admin_telegram_bot_username
                     if getattr(config, "growth_enabled", False)

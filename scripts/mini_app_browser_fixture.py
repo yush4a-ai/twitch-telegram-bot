@@ -90,6 +90,7 @@ async def main() -> None:
         install_mini_app_routes(
             app, db, "123456:test-telegram-token", bot=bot,
             twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
+            billing_test_enabled=True, billing_test_user_ids=frozenset({501, 603}),
         )
 
         async def complete_fixture_community(request):

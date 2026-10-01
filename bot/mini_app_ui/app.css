@@ -79,6 +79,12 @@ p { margin: 0; }
 .post-preview-button { display: block; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--accent); text-align: center; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
 .template-form { display: grid; gap: 14px; }
 .template-form textarea.input { padding: 12px 14px; resize: vertical; }
+.subscription-product { display: grid; gap: 10px; margin-top: 12px; }
+.subscription-product .actions { margin-top: 6px; }
+.subscription-status { color: var(--accent); font-size: 14px; font-weight: 700; }
+.subscription-history { display: grid; gap: 8px; }
+.subscription-order { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.subscription-order .actions { margin: 0; }
 .template-form .button { justify-self: start; }
 .text-link { color: var(--accent); font-size: 14px; font-weight: 700; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }

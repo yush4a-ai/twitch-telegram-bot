@@ -268,6 +268,7 @@ class Config:
     viewer_plus_enabled: bool = False
     growth_enabled: bool = False
     mini_app_enabled: bool = False
+    pinned_staging: bool = False
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -360,4 +361,5 @@ def load_config() -> Config:
         viewer_plus_enabled=not railway or pinned_staging,
         growth_enabled=not railway or pinned_staging,
         mini_app_enabled=not railway or pinned_staging,
+        pinned_staging=pinned_staging,
     )

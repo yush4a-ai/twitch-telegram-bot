@@ -13,7 +13,7 @@ from bot.database import Database
 from bot.config import load_config
 from bot.handlers.streams import _viewer_url
 from bot.oauth import OAuthCallbackServer
-from tests.test_admin_telegram_auth import BOT_TOKEN
+from tests.test_admin_telegram_auth import BOT_TOKEN, signed_webapp
 
 
 class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
@@ -30,10 +30,13 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
         }
         with patch.dict(os.environ, base, clear=True):
             self.assertTrue(load_config().mini_app_enabled)
+            self.assertTrue(load_config().pinned_staging)
         with patch.dict(os.environ, {**base, "RAILWAY_ENVIRONMENT_NAME": "production"}, clear=True):
             self.assertFalse(load_config().mini_app_enabled)
+            self.assertFalse(load_config().pinned_staging)
         with patch.dict(os.environ, {**base, "RAILWAY_PROJECT_ID": "other"}, clear=True):
             self.assertFalse(load_config().mini_app_enabled)
+            self.assertFalse(load_config().pinned_staging)
 
     def test_private_menu_opens_new_app_when_enabled(self):
         config = SimpleNamespace(
@@ -71,7 +74,7 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('src="/app/app.js"', html)
             self.assertIn('id="mode-switch"', html)
             self.assertIn('id="tab-bar"', html)
-        for asset in ("app.css", "app.js", "telegram.js", "router.js", "api.js", "components.js", "viewer.js"):
+        for asset in ("app.css", "app.js", "telegram.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js"):
             with self.subTest(asset=asset):
                 async with self.session.get(self.base + "/app/" + asset) as response:
                     self.assertEqual(response.status, 200)
@@ -79,3 +82,10 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
                     self.assertNotIn(BOT_TOKEN, await response.text())
         async with self.session.get(self.base + "/app/secret.js") as response:
             self.assertEqual(response.status, 404)
+
+    async def test_test_checkout_is_disabled_by_default(self):
+        async with self.session.post(
+            self.base + "/app/api/subscription/test-checkout",
+            json={"init_data": signed_webapp(101), "product": "viewer_plus"},
+        ) as response:
+            self.assertEqual(response.status, 403)

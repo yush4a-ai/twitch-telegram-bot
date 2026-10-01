@@ -4,6 +4,7 @@ import { createRouter } from './router.js';
 import { element, panel } from './components.js';
 import { createViewerFeature } from './viewer.js';
 import { createStreamerFeature } from './streamer.js';
+import { createSubscriptionFeature } from './subscription.js';
 
 const content = document.getElementById('content');
 const modeSwitch = document.getElementById('mode-switch');
@@ -13,6 +14,8 @@ let authError = null;
 let router;
 let viewerFeature;
 let streamerFeature;
+let subscriptionFeature;
+let subscriptionOpen = false;
 const telegram = createTelegramAdapter(() => router.back(), (theme) => {
   document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101722' : '#f7f9fc';
@@ -21,6 +24,10 @@ const api = createApi(telegram.initData);
 router = createRouter(render);
 viewerFeature = createViewerFeature(api, () => router, telegram);
 streamerFeature = createStreamerFeature(api, () => router, telegram);
+subscriptionFeature = createSubscriptionFeature(api, () => router, () => {
+  void viewerFeature.refresh();
+  void streamerFeature.refresh();
+});
 window.addEventListener('pagehide', () => telegram.dispose(), { once: true });
 
 function render(state, canBack) {
@@ -59,6 +66,13 @@ function render(state, canBack) {
     content.append(element('div', 'status-panel', 'Проверяем вход…'));
     return;
   }
+  if (state.detail === 'subscription') {
+    if (!subscriptionOpen) void subscriptionFeature.refresh();
+    subscriptionOpen = true;
+    subscriptionFeature.render(content, state);
+    return;
+  }
+  subscriptionOpen = false;
   if (state.mode === 'viewer') {
     viewerFeature.render(content, state);
     return;

@@ -1097,6 +1097,47 @@ class Database:
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
+    async def list_billing_orders_for_user(
+        self, telegram_user_id: int, *, limit: int = 20,
+    ) -> list[BillingOrder]:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0 or type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("invalid billing history request")
+        cursor = await self.conn.execute(
+            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders "
+            "WHERE telegram_user_id=? ORDER BY created_at DESC,order_id DESC LIMIT ?",
+            (telegram_user_id, limit),
+        )
+        return [BillingOrder(*row) for row in await cursor.fetchall()]
+
+    async def get_current_plus_grant(
+        self, telegram_user_id: int, plan: str, *, now: float | None = None,
+    ) -> tuple[str, float] | None:
+        if type(telegram_user_id) is not int or telegram_user_id <= 0 or plan not in {"viewer_plus", "streamer_plus"}:
+            raise ValueError("invalid Plus subject")
+        at = time.time() if now is None else now
+        if not isinstance(at, (int, float)) or not math.isfinite(at):
+            raise ValueError("invalid Plus time")
+        if plan == "viewer_plus":
+            cursor = await self.conn.execute(
+                "SELECT source,expires_at FROM entitlement_grants "
+                "WHERE subject_kind='viewer' AND subject_id=? AND plan='viewer_plus' "
+                "AND revoked_at IS NULL AND starts_at<=? AND expires_at>? "
+                "ORDER BY expires_at DESC LIMIT 1",
+                (str(telegram_user_id), at, at),
+            )
+        else:
+            cursor = await self.conn.execute(
+                "SELECT g.source,g.expires_at FROM entitlement_grants g "
+                "JOIN streamer_identities i ON i.broadcaster_id=g.subject_id "
+                "WHERE i.telegram_user_id=? AND g.subject_kind='streamer' "
+                "AND g.plan='streamer_plus' AND g.revoked_at IS NULL "
+                "AND g.starts_at<=? AND g.expires_at>? "
+                "ORDER BY g.expires_at DESC LIMIT 1",
+                (telegram_user_id, at, at),
+            )
+        row = await cursor.fetchone()
+        return (row[0], row[1]) if row else None
+
     async def get_billing_order_by_request_key(self, request_key: str) -> BillingOrder | None:
         cursor = await self.conn.execute(
             "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders WHERE request_key = ?",

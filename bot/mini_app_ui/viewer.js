@@ -260,6 +260,9 @@ export function createViewerFeature(api, getRouter, telegram) {
       target.append(section);
     } else {
       target.append(panel('Видеопревью · Viewer Plus', 'Фото остаётся по умолчанию. С Viewer Plus можно выбрать до пяти стримеров для видео.'));
+      const access = element('div', 'actions');
+      access.append(action('Посмотреть доступ', () => getRouter().openDetail('subscription'), true));
+      target.append(access);
     }
     if (data.viewer_plus_active) {
       const rule = element('div', 'panel feature-panel');
@@ -547,6 +550,9 @@ export function createViewerFeature(api, getRouter, telegram) {
   function renderProfile(target) {
     heading(target, 'Зритель', 'Профиль', 'Настройки и доступ.');
     target.append(panel('Ваши возможности', `${data.subscriptions.length} из ${data.channel_limit} отслеживаемых стримеров. ${data.viewer_plus_active ? 'Viewer Plus активен.' : 'Основные оповещения доступны бесплатно.'}`));
+    const access = element('div', 'actions');
+    access.append(action('Доступ и история', () => getRouter().openDetail('subscription'), true));
+    target.append(access);
     const quiet = data.quiet_hours;
     if (!quietDraft || !quietDraft.dirty) {
       const offset = quiet?.utc_offset_minutes ?? -new Date().getTimezoneOffset();

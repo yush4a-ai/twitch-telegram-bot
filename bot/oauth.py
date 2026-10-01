@@ -194,6 +194,8 @@ class OAuthCallbackServer:
         mini_app_bot_username: str = "",
         mini_app_oauth_client_id: str = "",
         mini_app_oauth_client_secret: str = "",
+        mini_app_billing_test_enabled: bool = False,
+        mini_app_billing_test_user_ids: frozenset[int] = frozenset(),
         growth_bot_username: str | None = None,
         growth_public_base_url: str | None = None,
     ) -> None:
@@ -218,6 +220,8 @@ class OAuthCallbackServer:
         self._mini_app_bot_username = mini_app_bot_username
         self._mini_app_oauth_client_id = mini_app_oauth_client_id
         self._mini_app_oauth_client_secret = mini_app_oauth_client_secret
+        self._mini_app_billing_test_enabled = mini_app_billing_test_enabled
+        self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
         self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
@@ -257,6 +261,8 @@ class OAuthCallbackServer:
                 bot=self._mini_app_bot, twitch=self._mini_app_twitch,
                 bot_username=self._mini_app_bot_username,
                 oauth_server=self,
+                billing_test_enabled=self._mini_app_billing_test_enabled,
+                billing_test_user_ids=self._mini_app_billing_test_user_ids,
             )
         if self._growth_bot_username is not None:
             install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)

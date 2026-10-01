@@ -386,6 +386,9 @@ export function createStreamerFeature(api, getRouter, telegram) {
       target.append(panel('Обычный пост доступен бесплатно', template.version
         ? 'Ваше оформление сохранено и вернётся при действующем Streamer Plus.'
         : 'Дополнительный текст, кнопки и живое превью доступны с Streamer Plus.'));
+      const access = element('div', 'actions');
+      access.append(action('Посмотреть доступ', () => getRouter().openDetail('subscription'), true));
+      target.append(access);
       return;
     }
     const media = element('section', 'panel feature-panel');
@@ -436,6 +439,9 @@ export function createStreamerFeature(api, getRouter, telegram) {
     heading(target, 'Профиль', 'Подключение и доступ стримера.');
     target.append(panel('Twitch', data.connected ? data.twitch_login : 'Не подключён'));
     target.append(panel('Streamer Plus', data.plus_active ? 'Активен' : 'Обычный пост и подключение сообщества доступны бесплатно.'));
+    const access = element('div', 'actions');
+    access.append(action('Доступ и история', () => getRouter().openDetail('subscription'), true));
+    target.append(access);
   }
   return {
     render(target, route) {
@@ -446,5 +452,6 @@ export function createStreamerFeature(api, getRouter, telegram) {
       else if (route.tab === 'posts') renderPosts(target);
       else renderProfile(target);
     },
+    refresh: load,
   };
 }
