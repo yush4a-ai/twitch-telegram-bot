@@ -55,21 +55,42 @@
 - [ ] RED: site/referral cohorts, activated subset, Viewer and Streamer test grants, revoke/expiry, repeated grant, zero rows, no IDs/codes and current-identity caveat; confirm failure.
 - [ ] GREEN: single bounded aggregate SQL/query and owner snapshot; render read-only funnel card with textContent and empty/unavailable states. Focused DB/admin tests and JS syntax pass. Commit this packet.
 
-## Task 4: SEO site prototype
+## Task 4: Surface brief, content map и два визуальных варианта
 
-**Files:** new `bot/growth_site.py`, `bot/growth_ui/index.html`, `bot/growth_ui/for-streamers.html`, `bot/growth_ui/site.css`; `bot/oauth.py`, `main.py`; tests `tests/test_growth_site.py`, deployment packaging and R2 auth tests.
+**Files:** `docs/design/public-site.md`, два лёгких прототипа в `docs/design/r8-concepts/`; SEO checklist `docs/audits/2026-10-01-r8-seo-launch-checklist.md`.
 
-**Interfaces:** `install_growth_site(app, bot_username:str, public_base_url:str)` mounts `/site`, `/site/for-streamers`, `/site/site.css`, `/robots.txt` only if stage flag and exact testbot username; `OAuthCallbackServer` gets optional site values from `main`.
+**Interfaces:** выбранная композиция и страницы `/site`, `/site/for-viewers`, `/site/for-streamers`, `/site/help` передаются Task 5; исходные варианты сохраняются для обратимого пересмотра.
 
-- [ ] RED: no site route outside stage config; staging CTA testbot `src_site`, unique title/description/canonical, noindex/nofollow and robots disallow, no third-party scripts/tracking or admin label; confirm failure.
-- [ ] GREEN: static HTML/CSS and route installation with strict bot username, no user-specific data; focused HTTP tests and 390/1440 browser check pass. Commit this packet.
+- [ ] Применить закреплённые `site-architecture`, `content-strategy`, `seo-audit`, `schema` и Taste Skill после чтения SKILL; карта страниц, реальные функции/ограничения, темы-гипотезы без выдуманного спроса и Google/Яндекс checklist.
+- [ ] Сформулировать design read и два действительно разных первых экрана («Сигнал эфира» и «Из эфира в Telegram»); использовать доступный image generation для лёгких mockup, сохранить оба и выбрать один с мотивировкой. Не строить две полные версии сайта.
+- [ ] Проверить copy через stop-slop, выбранную композицию через Impeccable, зафиксировать typography/palette/motion/reduced-motion и commit документов/вариантов.
 
-## Task 5: Staging acceptance
+## Task 5: Многостраничный staging SEO site
+
+**Files:** new `bot/growth_site.py`, `bot/growth_ui/index.html`, `bot/growth_ui/for-viewers.html`, `bot/growth_ui/for-streamers.html`, `bot/growth_ui/help.html`, `bot/growth_ui/site.css`; `bot/oauth.py`, `main.py`; tests `tests/test_growth_site.py`, deployment packaging и R2 auth tests.
+
+**Interfaces:** `install_growth_site(app, bot_username:str, public_base_url:str)` mounts четыре HTML routes, CSS и `/robots.txt` only if stage flag/exact testbot username; `OAuthCallbackServer` gets optional site values from `main`.
+
+- [ ] RED: no site route outside stage config; staging CTA testbot `src_site`, unique title/description/H1/canonical, HTTP+HTML noindex/nofollow, robots disallow, truthful JSON-LD, working internal links, no tracking/admin label; confirm failure.
+- [ ] GREEN: responsive server HTML/CSS in selected visual system with demo explicitly marked; focused HTTP tests and JS/CSS checks pass. Commit code packet.
+- [ ] Browser QA at 360/390/768/1440, keyboard, contrast, reduced-motion, long Russian copy, no horizontal scroll, desktop/mobile visual review and one bounded fix pass; record screenshots/evidence.
+
+## Task 6: Isolated Remotion demo
+
+**Files:** new `marketing/video/` project, `docs/design/r8-video-storyboard.md`, rendered 16:9/9:16 files and poster in site assets; tests or deterministic render checks.
+
+**Interfaces:** site consumes poster and user-controlled lightweight video; bot preview pipeline remains separate and unchanged.
+
+- [ ] Read pinned official Remotion SKILL and selected references; pin package versions/licensing notes. Write storyboard and frame sketches for synthetic live → Telegram post → preview → watch; distinguish marketing preview from actual Telegram Animation.
+- [ ] Build small isolated project, inspect short local Studio preview when available, render both aspect ratios locally with bounded concurrency and no unlicensed media/audio. Record duration/resolution/bytes/safe margins.
+- [ ] Add poster, accessible play/pause and reduced-motion fallback to site without autoplay dependency; verify HTML remains useful without video, site assets package and focused tests pass. Commit packet.
+
+## Task 7: Staging acceptance
 
 - [ ] Spec/plan self-review без placeholders/противоречий; полный suite и code review, `git diff --check`, внешний staging backup/restore и migration drill на копии.
-- [ ] Чистый commit и pinned target check; guarded staging deploy с terminal SUCCESS; testbot identity, schema/integrity, `/site` metadata/robots, admin direct denial, stage link target.
+- [ ] Чистый commit и pinned target check; guarded staging deploy с terminal SUCCESS; testbot identity, schema/integrity, `/site` metadata/robots/video assets, admin direct denial, stage link target.
 - [ ] Temp-DB journey `src_site`/ref → first activation → test Plus aggregation и replay/self/group rejection без изменения active user data; обновить `docs/STATUS.md`, `docs/DECISIONS.md`, R8 audit и перейти к R9.
 
 ## Самопроверка плана
 
-Пакеты разделены по наблюдаемым границам: данные, bot event, агрегат, site. Каждый продуктовый пакет начинается с RED и заканчивается focused GREEN/commit; staging gate выполняется только из чистого snapshot. Referral не даёт entitlement, а site не индексируется и не использует production bot link.
+Пакеты разделены по наблюдаемым границам: данные, bot event, агрегат, визуальный brief, site и изолированный video. Каждый пакет поведения начинается с RED и заканчивается focused GREEN/commit; staging gate выполняется только из чистого snapshot. Referral не даёт entitlement, site не индексируется и не использует production bot link. Видео не входит в runtime live preview.

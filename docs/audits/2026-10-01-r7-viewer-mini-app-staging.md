@@ -17,4 +17,4 @@
 
 ## Граница приёмки
 
-Тест не подтверждает открытие Mini App в настоящем Telegram-клиенте: staging domain `worker-staging-2f74.up.railway.app` ещё не разрешён для testbot в BotFather. Успешный synthetic HMAC и browser shell не заменяют это E2E. Реальный эфир, меняющийся фильтр в очереди и Telegram fan-out покрыты кодовыми тестами, но не фактическим live smoke на testbot. Production не затрагивался; R7 принят как инженерный staging checkpoint, далее R8.
+Тест не подтверждает открытие Mini App в настоящем Telegram-клиенте. Ранее Login Widget показывал `Bot domain invalid`; после R7 smoke владелец сообщил, что выполнил `/setdomain` для testbot и затем Login popup открылось. Это owner-reported изменение состояния, но полный вход его аккаунтом и Mini App E2E не зафиксированы. Успешный synthetic HMAC и browser shell их не заменяют. Реальный эфир, меняющийся фильтр в очереди и Telegram fan-out покрыты кодовыми тестами, но не фактическим live smoke на testbot. Production не затрагивался; R7 принят как инженерный staging checkpoint, далее R8.

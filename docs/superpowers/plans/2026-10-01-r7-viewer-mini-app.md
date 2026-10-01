@@ -33,7 +33,7 @@
 ## Task 4: Staging acceptance
 
 - [x] Полный suite 1099 passed, 2 skipped, 347 subtests; `git diff --check`, внешний online backup/restore, миграция на копии, чистый commit `1c78801` и pinned target check; guard повторил те же тесты перед staging deploy.
-- [x] Deployment `8cf965e2-abea-4536-b2b1-e2f06189a501` terminal SUCCESS и active target; `/healthz`, `/viewer`, assets 200, `TwitchSignalTestbot`, `r7_001` и integrity ok. API без подписи 401, чужая подпись изолирована, подмена 403, owner Plus grant → true → revoke → false; R2 owner-only `/admin` scopes сохранены. Browser shell 390/1440 без горизонтального переполнения; реальный Telegram UI остаётся ограничен BotFather domain.
+- [x] Deployment `8cf965e2-abea-4536-b2b1-e2f06189a501` terminal SUCCESS и active target; `/healthz`, `/viewer`, assets 200, `TwitchSignalTestbot`, `r7_001` и integrity ok. API без подписи 401, чужая подпись изолирована, подмена 403, owner Plus grant → true → revoke → false; R2 owner-only `/admin` scopes сохранены. Browser shell 390/1440 без горизонтального переполнения. Позднее владелец сообщил о `/setdomain` и открывшемся Login popup; полный вход и Mini App UI всё ещё требуют E2E.
 - [x] `docs/STATUS.md`, `docs/DECISIONS.md` и R7 audit обновлены; следующий этап R8.
 
 ## Самопроверка плана

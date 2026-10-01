@@ -1,0 +1,847 @@
+{
+  "installed": [
+    {
+      "name": "site-architecture",
+      "path": ".agents/skills/site-architecture",
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a47f693c6a4f45db89276d8c341b3aa3054090cc8002dd4a2635448d7d152492",
+          "bytes": 13668
+        },
+        {
+          "path": "evals/evals.json",
+          "sha256": "64b76ab82488fd168919fad1b038b7117392ff9748a835104ddde95aac4a5cee",
+          "bytes": 6089
+        },
+        {
+          "path": "references/mermaid-templates.md",
+          "sha256": "362190c7d3f419d5f445170f1fb17beecc163937d2068922893b7a69eeb25f0f",
+          "bytes": 4922
+        },
+        {
+          "path": "references/navigation-patterns.md",
+          "sha256": "2efa772709b753e33d5018c007147ca30aaa95a04b04dc0df6227ea5a053078b",
+          "bytes": 10733
+        },
+        {
+          "path": "references/site-type-templates.md",
+          "sha256": "3c3cd7ce5e31c502dc071baf82bb58cb30f5edf4a2fd8ca052fbc8f3777db140",
+          "bytes": 9624
+        }
+      ]
+    },
+    {
+      "name": "content-strategy",
+      "path": ".agents/skills/content-strategy",
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0ad572d607884c561668810f77cd21bbe3e0508c64090f2997661a728360f946",
+          "bytes": 18711
+        },
+        {
+          "path": "evals/evals.json",
+          "sha256": "10167e7125ee77cbabe4f03953750dd99ea147f7461027fdbb0cf8e089e5506d",
+          "bytes": 10190
+        },
+        {
+          "path": "references/content-distribution.md",
+          "sha256": "1861a1aab0627ab29c279000879a9889242da1ba85e677acdc759c66a6241778",
+          "bytes": 5576
+        },
+        {
+          "path": "references/headless-cms.md",
+          "sha256": "c0a7b87f47c8f7af907ce73facf1ed4721ade811e53f86ddf22f4bc0d7ca324e",
+          "bytes": 8433
+        }
+      ]
+    },
+    {
+      "name": "seo-audit",
+      "path": ".agents/skills/seo-audit",
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9420a6c1ffcf7212766bcb618c28766ecb084631bed8045f3115d42b1230d368",
+          "bytes": 16610
+        },
+        {
+          "path": "evals/evals.json",
+          "sha256": "b808dfa7ee1e312cda39cfac57f44674bd3cee6eaa151af7008760a9514bb6cf",
+          "bytes": 9796
+        },
+        {
+          "path": "references/ai-writing-detection.md",
+          "sha256": "f1e273f56ce7e2215ff218bf903680ddcec0fd026ab90c3ebfb3439ed0edfaa4",
+          "bytes": 6528
+        },
+        {
+          "path": "references/international-seo.md",
+          "sha256": "d2fc76f40eccc422ae0f1d7e5b770095e89a045f38e1d0370811203da57996ff",
+          "bytes": 14258
+        }
+      ]
+    },
+    {
+      "name": "schema",
+      "path": ".agents/skills/schema",
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d8b7aa7bcd9727a87fb5470a6c9ee252b99a7ccb84f637d7c67c5d155b507e0b",
+          "bytes": 5248
+        },
+        {
+          "path": "evals/evals.json",
+          "sha256": "084545e9aa789dace8c4d4d5daf330ffaa4fe4c64266bd76dc6688b3f8281202",
+          "bytes": 5990
+        },
+        {
+          "path": "references/schema-examples.md",
+          "sha256": "5d55c96ae9859a5fb84cb18828c4a96dcd468e7aeec667c88fdf9032558ab318",
+          "bytes": 8229
+        }
+      ]
+    },
+    {
+      "name": "remotion-best-practices",
+      "path": ".agents/skills/remotion-best-practices",
+      "repository": "remotion-dev/skills",
+      "commit": "a9b199e165505267eda1ed3e0ef3dd3567c43411",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9eba3c47f20f77b918a1e9e41a7c047b51662094e4b619b52b3474ab2e27b514",
+          "bytes": 4215
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "752b402c013ba6f02bd827a7cc56d19e8facb159b52e2e3cecaf2d0229fdefb3",
+          "bytes": 311
+        },
+        {
+          "path": "assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-captions/display-captions.md",
+          "sha256": "d42aa87bcd90074b1988f19a7250f9bdcfa97b4ce1717b8fd7c13ed7a5359cc4",
+          "bytes": 3331
+        },
+        {
+          "path": "remotion-captions/import-srt-captions.md",
+          "sha256": "cf5988aad6cba8192a81e5a030955ebf09e97473e0b5ce209e18973bf1a60633",
+          "bytes": 2269
+        },
+        {
+          "path": "remotion-captions/REFERENCE.md",
+          "sha256": "d86aeebc69a64e5c68b5db1b0be2d69b76020fe4fd0b476f67d1a58077c78733",
+          "bytes": 1152
+        },
+        {
+          "path": "remotion-captions/transcribe-captions.md",
+          "sha256": "0e9168610d74bb38237ac5bf8fcaa5af33d28e29cbf277bda71d9de0cb7e5bcc",
+          "bytes": 5262
+        },
+        {
+          "path": "remotion-create/REFERENCE.md",
+          "sha256": "26b18abf20797d67c77198982caa51515dbfd66afa521a208e6a0c01a9cf1a56",
+          "bytes": 2973
+        },
+        {
+          "path": "remotion-create/tailwind.md",
+          "sha256": "3ef07d3225d212af6a5076e62797a04d22d394434dcdbe2c050dab0d92806f36",
+          "bytes": 386
+        },
+        {
+          "path": "remotion-create/video-layout.md",
+          "sha256": "7ad94c22e3ad87671292ebb9b22f234c544d6c7fed13f8cb112b84b0f7077d4c",
+          "bytes": 498
+        },
+        {
+          "path": "remotion-docs/REFERENCE.md",
+          "sha256": "b7280d07320df3cc4dbcfe57d4730d8edbd28f10830255b69f27d344195dae8f",
+          "bytes": 1355
+        },
+        {
+          "path": "remotion-interactivity/REFERENCE.md",
+          "sha256": "586250f32094d04e25bd8e4aa3a5e07378ca015969ca2c2bc1a032c4a6c05508",
+          "bytes": 19383
+        },
+        {
+          "path": "remotion-maps/REFERENCE.md",
+          "sha256": "bc2fbc23b0f88c3cabd60bc84a681e038d0e4ff682091ba9d48e81a6a0379a6b",
+          "bytes": 1030
+        },
+        {
+          "path": "remotion-markup/3d.md",
+          "sha256": "42cef6d68fb4a266ab495d35df0c60e03672b0d85c043f9b567f6aa7ff00dd0d",
+          "bytes": 2292
+        },
+        {
+          "path": "remotion-markup/audio-visualization.md",
+          "sha256": "0f4043de86639b6390e5ab888eaa66a24a10a8bd540f1443327cb88107eae1e9",
+          "bytes": 4892
+        },
+        {
+          "path": "remotion-markup/audio.md",
+          "sha256": "727a2518a1eeee96b5ed3a7b45f0042823f77e463b843d2c314170eb14c839b0",
+          "bytes": 4138
+        },
+        {
+          "path": "remotion-markup/calculate-metadata.md",
+          "sha256": "711743642a475970dcadddb71805939dd6ee8f348825818cc8897b6a01e1eef0",
+          "bytes": 3498
+        },
+        {
+          "path": "remotion-markup/compositions.md",
+          "sha256": "06f6b4972a99b593fdc4315f253e6a1253b740c8d38feb7fbaa23b1619177c36",
+          "bytes": 4968
+        },
+        {
+          "path": "remotion-markup/connected-compositions.md",
+          "sha256": "2dc5ea62f478f1908751be93c11d4684fe2dd07520acfbf442c3ef0f3814b993",
+          "bytes": 4448
+        },
+        {
+          "path": "remotion-markup/cropping.md",
+          "sha256": "5069d6d047df5838f8d0b285a7faa33373bc08c1b26cdd0acd755e0bcea8d334",
+          "bytes": 1312
+        },
+        {
+          "path": "remotion-markup/effects.md",
+          "sha256": "91519c859bf16fb99b8303da8c8a9c40cba9f06d00a3a9209d15d8f85914c9c9",
+          "bytes": 8954
+        },
+        {
+          "path": "remotion-markup/embedding-videos.md",
+          "sha256": "82e22fe74ab1b446e2a596a59a241156ba18cfb83feaf14001211082577f4d1f",
+          "bytes": 3824
+        },
+        {
+          "path": "remotion-markup/ffmpeg.md",
+          "sha256": "1d83085dfb63724f374acc5f01967f6c18f3aa7df62146438262a4061a839770",
+          "bytes": 1112
+        },
+        {
+          "path": "remotion-markup/gifs.md",
+          "sha256": "91e17126f7f0d57efdbdbaf34e0c234f874bd6aa66ec7854b80f17b0e32c3b22",
+          "bytes": 3783
+        },
+        {
+          "path": "remotion-markup/google-fonts.md",
+          "sha256": "fff29cf692ccab0cda263cd85255cf634dbb4d1d2d99e8372b01d9fedbd6cbfd",
+          "bytes": 1714
+        },
+        {
+          "path": "remotion-markup/html-in-canvas.md",
+          "sha256": "51c2cf24a5ab9621c84d889c70b99c106e987875deb3e9bcb52f5a49a1d150f0",
+          "bytes": 2929
+        },
+        {
+          "path": "remotion-markup/images.md",
+          "sha256": "0e6c2af8ad73483ebbc761237f230c8c0db1bd9db6b60d01d48a24b8a4059284",
+          "bytes": 1568
+        },
+        {
+          "path": "remotion-markup/light-leaks.md",
+          "sha256": "531514d4740c5a1a3798782300db69ebfe8f61191fc7852960bc5bdf5b82200b",
+          "bytes": 3148
+        },
+        {
+          "path": "remotion-markup/local-fonts.md",
+          "sha256": "fcad2a2e3a05419d4555c59a75454c4891455dbea91ad596c1095e2887d26a11",
+          "bytes": 1533
+        },
+        {
+          "path": "remotion-markup/lottie.md",
+          "sha256": "666268c8151d91042162f9efe3f02fe8c62b4c45053614eb1a9325c169428826",
+          "bytes": 1806
+        },
+        {
+          "path": "remotion-markup/measuring-dom-nodes.md",
+          "sha256": "a677b976eaf1cbc3cdd29cf29a3fd546c557b9a31e6b1fd70e473fde7e828733",
+          "bytes": 995
+        },
+        {
+          "path": "remotion-markup/measuring-text.md",
+          "sha256": "4bed81d1ea818db3975f878152dc24ecbc17e163117dcab10761dc8690c33f0c",
+          "bytes": 2801
+        },
+        {
+          "path": "remotion-markup/motion-blur.md",
+          "sha256": "5b5d975e75f5fa46532a5dfa1ec86ba6637ce3c48e8b518b562964883b3a80ff",
+          "bytes": 1964
+        },
+        {
+          "path": "remotion-markup/multi-scene-video.md",
+          "sha256": "041490b6a10f3d46c07f8880cdc5ee22939904f54c78ff1b8764a447f3c82d15",
+          "bytes": 3213
+        },
+        {
+          "path": "remotion-markup/parameters.md",
+          "sha256": "b002ac9959105b2b91da5786bcb20aa6ff4c6632ed37074b32711f248867dff0",
+          "bytes": 2403
+        },
+        {
+          "path": "remotion-markup/REFERENCE.md",
+          "sha256": "89ddbc535697830890ecd9e8a9c697b79b55dd55a145b5bd44feaf21593ee6bd",
+          "bytes": 17822
+        },
+        {
+          "path": "remotion-markup/sequencing.md",
+          "sha256": "84a67ae6742562664b2c8b1a6f50768e24575dea8d16b565780d7bdfdc099eb7",
+          "bytes": 2785
+        },
+        {
+          "path": "remotion-markup/sfx.md",
+          "sha256": "0c1c4aec8473b3da7fa6e06c51562c746154c7508e090a47d3353eb6ca41a1fe",
+          "bytes": 1808
+        },
+        {
+          "path": "remotion-markup/silence-detection.md",
+          "sha256": "7e777b141e339ade03bbdc1d002390e849781ebd3059183f60e1b24a91210f14",
+          "bytes": 2593
+        },
+        {
+          "path": "remotion-markup/text-highlights.md",
+          "sha256": "70773952286e1aec2ba02f2f54d2d776dad7799d87744df03b0c75637ebfb21f",
+          "bytes": 1851
+        },
+        {
+          "path": "remotion-markup/timing.md",
+          "sha256": "48047e758b96aea519916479ede62b832bf51f982924978e091c37f569ab4bac",
+          "bytes": 3315
+        },
+        {
+          "path": "remotion-markup/transitions.md",
+          "sha256": "198534edd0f7744a9e6fd37a149f1b2b294c770880e383af5d81a69f9939a2cb",
+          "bytes": 7600
+        },
+        {
+          "path": "remotion-markup/video-editing.md",
+          "sha256": "262542ae4a5dc1284dd9e2f4830ee7cf907fa47bf0fa49b7ae3164a522651721",
+          "bytes": 4858
+        },
+        {
+          "path": "remotion-markup/voiceover.md",
+          "sha256": "28350a793939b6170c535a219b2c4702378346ea8485540f980da5ccc5fa19fc",
+          "bytes": 3342
+        },
+        {
+          "path": "remotion-multimedia/get-audio-duration.md",
+          "sha256": "53b2e2ff232cae14ff9c0f7bb3ddf95c6137f7f1804cdaf50f7fe742befe0fd0",
+          "bytes": 1507
+        },
+        {
+          "path": "remotion-multimedia/get-video-dimensions.md",
+          "sha256": "9d4cd07f11ce8fabda258b4d826e7c9b3d6827e87ee036a2c4c8a7a5aca7db76",
+          "bytes": 1797
+        },
+        {
+          "path": "remotion-multimedia/get-video-duration.md",
+          "sha256": "6df955602cf7fb591ecb3f529fa9740d26ec1a4893a816aa08ea9b780379a8a0",
+          "bytes": 1469
+        },
+        {
+          "path": "remotion-multimedia/REFERENCE.md",
+          "sha256": "af1a111fec730d445622ae09af6649c864b421635f34c88968564176e4e220fb",
+          "bytes": 705
+        },
+        {
+          "path": "remotion-render/REFERENCE.md",
+          "sha256": "486273533c22782da3187c4781f9a8150b8332fd8c299906318995a23a27a1b7",
+          "bytes": 711
+        },
+        {
+          "path": "remotion-render/transparent-videos.md",
+          "sha256": "394ccda476e084522d544471fee92d7c65672e2cbaf2201a785c3dd5c74f31a4",
+          "bytes": 2267
+        },
+        {
+          "path": "remotion-saas/framework.md",
+          "sha256": "5e35ca3306ac15ad1df189789642cefbc62c59f4929372ffc10a67165d7b04b5",
+          "bytes": 908
+        },
+        {
+          "path": "remotion-saas/player.md",
+          "sha256": "cc2f2944f1158d6ff1ddfc421a6a790f99ae86f54bbe0f0b18ef8bc7485e1b05",
+          "bytes": 942
+        },
+        {
+          "path": "remotion-saas/REFERENCE.md",
+          "sha256": "3acf34109d326305af123e42aa0ba2fc61f5010482619bd34a052ac90787bda1",
+          "bytes": 1053
+        },
+        {
+          "path": "remotion-saas/rendering.md",
+          "sha256": "b2f30b53e0191ef9e7f2da7360b36c0c5448ab5bdcf55575e1f7e55c5bbd257f",
+          "bytes": 3343
+        },
+        {
+          "path": "remotion-studio/REFERENCE.md",
+          "sha256": "da82d9e0da922347bf80eec71763df9ca7ea48632e82a45bfe53c324996a90e8",
+          "bytes": 1611
+        },
+        {
+          "path": "remotion-upgrade/REFERENCE.md",
+          "sha256": "66d0ef3afc4983445b411830f33bef5e71b896c63fceaa6e417aaaa1d37bac8a",
+          "bytes": 1930
+        },
+        {
+          "path": "remotion-captions/agents/openai.yaml",
+          "sha256": "3b39a48bd00251cf124e80090fe1b792b73020bee858c5d48b5629256cc5f045",
+          "bytes": 305
+        },
+        {
+          "path": "remotion-captions/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-create/agents/openai.yaml",
+          "sha256": "ff3b357b492da1791c672e18ae401a23c31bd1e6f1fa6f98c5efabbb3124bd9c",
+          "bytes": 310
+        },
+        {
+          "path": "remotion-create/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-docs/agents/openai.yaml",
+          "sha256": "ab02cb3008e6fc0702d7a601bfdd2f332e1224fda3c37de0265c24311c00d456",
+          "bytes": 307
+        },
+        {
+          "path": "remotion-docs/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-interactivity/agents/openai.yaml",
+          "sha256": "84cd86b0b10e1f8b5be97bbd46677d5f618304303d922f1016ce0ea6a015d4b9",
+          "bytes": 320
+        },
+        {
+          "path": "remotion-interactivity/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-maps/agents/openai.yaml",
+          "sha256": "9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee",
+          "bytes": 293
+        },
+        {
+          "path": "remotion-maps/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/TECHNIQUE.md",
+          "sha256": "09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675",
+          "bytes": 3909
+        },
+        {
+          "path": "remotion-maps/techniques/mapbox/TECHNIQUE.md",
+          "sha256": "921ef62afc1057e66423a9fae11d3f849d4b3dcfbfa7e9970a281e0d12f37c22",
+          "bytes": 13166
+        },
+        {
+          "path": "remotion-maps/techniques/maplibre/TECHNIQUE.md",
+          "sha256": "66b3573b7188a0c9f7df6b12f0c3b84f07b3684ae78c67863e97c3aa50cda3a1",
+          "bytes": 13881
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/TECHNIQUE.md",
+          "sha256": "72896873e63d675caaab765941dbb8d668f2790090a63b94e165f254b77ef887",
+          "bytes": 4518
+        },
+        {
+          "path": "remotion-maps/techniques/static-map/TECHNIQUE.md",
+          "sha256": "1d2b15f2e09cbb2b2ba0d5a6ec54ecf619b6696acced0b7bec7e010fbe1f1f03",
+          "bytes": 1151
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/cesium-path.json",
+          "sha256": "329621928df19d115f93c472a0b7ddbd2463cad502a10722d3c23579a7441d44",
+          "bytes": 12329
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/CesiumFlythrough.tsx",
+          "sha256": "4d4a90e373176e840ae76ae91533fcd9dc445407693b17091c376bb597dbcb10",
+          "bytes": 8912
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/city-path.json",
+          "sha256": "3bb420736d196f726b856420b319e21a8d7fc24bca7e626d67e8b00b0544e630",
+          "bytes": 223
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/example-Root.tsx",
+          "sha256": "51c2df109015adc992b66b62f1ffc9801ad13f3dc47e4290de40cbe1b8e7809e",
+          "bytes": 923
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/flight-path.ts",
+          "sha256": "fab65d2d9cc0c4ca56f8a1422494d178c0e57f92a048a4720358d236ced980f0",
+          "bytes": 1240
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/assets/sample-river.geojson",
+          "sha256": "2c9f6dd35ac4aed56580078046941235ed7e1a5d432a6549dbf7fea4e8d1e9be",
+          "bytes": 6409
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/references/3d-data-sources.md",
+          "sha256": "23ac1acc576d49d599b33c812dc697b264ebe28849088c04e9827cb47b95275f",
+          "bytes": 1451
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/references/3d-flyover-architecture.md",
+          "sha256": "09e1891cec991a246eec60dbcf76c4ea84c52e0bee14321471197703395d0a91",
+          "bytes": 7887
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/references/3d-troubleshooting.md",
+          "sha256": "c803fe443f5bab1a50408f1f6aa6aded7913577eaefcb586b320c5a96c391bf2",
+          "bytes": 6741
+        },
+        {
+          "path": "remotion-maps/techniques/cesium/scripts/prep-cesium-path.mjs",
+          "sha256": "6dbb4d1ae3f5fef9f3f6eb23e2a6d58622750714bb847b088ff58a3533839463",
+          "bytes": 5561
+        },
+        {
+          "path": "remotion-maps/techniques/mapbox/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-maps/techniques/maplibre/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/CountryLabel.tsx",
+          "sha256": "6be8c7d5b3435c8d933f05394ce5e807da5fc9fe0565db94ccaee6ac049df137",
+          "bytes": 1849
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/example-Root.tsx",
+          "sha256": "e53677a7a207e37cbc04693eca8ccbab5f5f040efdc67a8b5c030c3913895e83",
+          "bytes": 1039
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/MapTilerVectorElement.ts",
+          "sha256": "c8137792824323b9db997a88c3b923e8072cf2886cd90c38d84fdbbaad8258ed",
+          "bytes": 2183
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/RiverReveal.tsx",
+          "sha256": "c3091e23dfd80178788d05c0bc43b17aee12aa4236d658f1a97c5acfb29a0f92",
+          "bytes": 10830
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/tokens.ts",
+          "sha256": "29ae05eedb4988b5b8f2eb44d241b9c472533fb6ed05d4b33df3e71e0eabc71c",
+          "bytes": 1256
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/references/map-data-sources.md",
+          "sha256": "b99680cbda8e7d70dc2cb1a8823f66247a21fc59d10c6dae0dd9ba24d2f15b80",
+          "bytes": 4798
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/references/map-explainer-architecture.md",
+          "sha256": "e09de8a4d00ea9a82b992918ec4d0302ee18979b73e6c777d584a9743092344f",
+          "bytes": 6871
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/references/map-geo-prep.md",
+          "sha256": "a97b1913f06195601889d4e090ad056db2fffb7b83918924c8cd92847b3829ef",
+          "bytes": 4098
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/scripts/prep-geo.mjs",
+          "sha256": "8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490",
+          "bytes": 7553
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/sample-data/country-meta.json",
+          "sha256": "470a76cc5a45e58e7e1702cd80f74fcacf9d6e8b1ef7b05011f69853a999ba7b",
+          "bytes": 333134
+        },
+        {
+          "path": "remotion-maps/techniques/maptiler/assets/sample-data/yarlung-flow.json",
+          "sha256": "73a99e77a2ce31cb3ac39be8fe4775d53ecf127a56137b587fca090067dfbb96",
+          "bytes": 13082
+        },
+        {
+          "path": "remotion-markup/agents/openai.yaml",
+          "sha256": "79e440561b613adf930f61b9f2ececc3284dfd92d06c4c282b73b461ffd16cb6",
+          "bytes": 310
+        },
+        {
+          "path": "remotion-markup/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-markup/remotion-maps/REFERENCE.md",
+          "sha256": "bc2fbc23b0f88c3cabd60bc84a681e038d0e4ff682091ba9d48e81a6a0379a6b",
+          "bytes": 1030
+        },
+        {
+          "path": "remotion-markup/remotion-maps/agents/openai.yaml",
+          "sha256": "9c6c75daec6eabd78cf6fbc7169be3f7dde934df1316e41df6658052056b29ee",
+          "bytes": 293
+        },
+        {
+          "path": "remotion-markup/remotion-maps/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md",
+          "sha256": "09057e77b67dcda23eed8ddbf1b5bd44541a952f380913a00b3bfddaa39ab675",
+          "bytes": 3909
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/mapbox/TECHNIQUE.md",
+          "sha256": "921ef62afc1057e66423a9fae11d3f849d4b3dcfbfa7e9970a281e0d12f37c22",
+          "bytes": 13166
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maplibre/TECHNIQUE.md",
+          "sha256": "66b3573b7188a0c9f7df6b12f0c3b84f07b3684ae78c67863e97c3aa50cda3a1",
+          "bytes": 13881
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/TECHNIQUE.md",
+          "sha256": "72896873e63d675caaab765941dbb8d668f2790090a63b94e165f254b77ef887",
+          "bytes": 4518
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/static-map/TECHNIQUE.md",
+          "sha256": "6fcb61a66084f4037a2fa0deb988500dd18e4ae7fa3c6923fb1142c1e521e9be",
+          "bytes": 1138
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/cesium-path.json",
+          "sha256": "329621928df19d115f93c472a0b7ddbd2463cad502a10722d3c23579a7441d44",
+          "bytes": 12329
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/CesiumFlythrough.tsx",
+          "sha256": "4d4a90e373176e840ae76ae91533fcd9dc445407693b17091c376bb597dbcb10",
+          "bytes": 8912
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/city-path.json",
+          "sha256": "3bb420736d196f726b856420b319e21a8d7fc24bca7e626d67e8b00b0544e630",
+          "bytes": 223
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/example-Root.tsx",
+          "sha256": "51c2df109015adc992b66b62f1ffc9801ad13f3dc47e4290de40cbe1b8e7809e",
+          "bytes": 923
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/flight-path.ts",
+          "sha256": "fab65d2d9cc0c4ca56f8a1422494d178c0e57f92a048a4720358d236ced980f0",
+          "bytes": 1240
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/assets/sample-river.geojson",
+          "sha256": "2c9f6dd35ac4aed56580078046941235ed7e1a5d432a6549dbf7fea4e8d1e9be",
+          "bytes": 6409
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/references/3d-data-sources.md",
+          "sha256": "23ac1acc576d49d599b33c812dc697b264ebe28849088c04e9827cb47b95275f",
+          "bytes": 1451
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/references/3d-flyover-architecture.md",
+          "sha256": "09e1891cec991a246eec60dbcf76c4ea84c52e0bee14321471197703395d0a91",
+          "bytes": 7887
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/references/3d-troubleshooting.md",
+          "sha256": "c803fe443f5bab1a50408f1f6aa6aded7913577eaefcb586b320c5a96c391bf2",
+          "bytes": 6741
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/cesium/scripts/prep-cesium-path.mjs",
+          "sha256": "6dbb4d1ae3f5fef9f3f6eb23e2a6d58622750714bb847b088ff58a3533839463",
+          "bytes": 5561
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/mapbox/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maplibre/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/CountryLabel.tsx",
+          "sha256": "6be8c7d5b3435c8d933f05394ce5e807da5fc9fe0565db94ccaee6ac049df137",
+          "bytes": 1849
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/example-Root.tsx",
+          "sha256": "e53677a7a207e37cbc04693eca8ccbab5f5f040efdc67a8b5c030c3913895e83",
+          "bytes": 1039
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/MapTilerVectorElement.ts",
+          "sha256": "c8137792824323b9db997a88c3b923e8072cf2886cd90c38d84fdbbaad8258ed",
+          "bytes": 2183
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/RiverReveal.tsx",
+          "sha256": "c3091e23dfd80178788d05c0bc43b17aee12aa4236d658f1a97c5acfb29a0f92",
+          "bytes": 10830
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/tokens.ts",
+          "sha256": "29ae05eedb4988b5b8f2eb44d241b9c472533fb6ed05d4b33df3e71e0eabc71c",
+          "bytes": 1256
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/references/map-data-sources.md",
+          "sha256": "b99680cbda8e7d70dc2cb1a8823f66247a21fc59d10c6dae0dd9ba24d2f15b80",
+          "bytes": 4798
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/references/map-explainer-architecture.md",
+          "sha256": "e09de8a4d00ea9a82b992918ec4d0302ee18979b73e6c777d584a9743092344f",
+          "bytes": 6871
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/references/map-geo-prep.md",
+          "sha256": "a97b1913f06195601889d4e090ad056db2fffb7b83918924c8cd92847b3829ef",
+          "bytes": 4098
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/references/render-stability.md",
+          "sha256": "96650329df3a870743b6255123e93dba866a37eb1ab1d07c8275efff0d4dead9",
+          "bytes": 3639
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/scripts/prep-geo.mjs",
+          "sha256": "8265f56bd7c27a7d1a5fa528a77bbe1b29c6acc0e6730233583ca53e2632d490",
+          "bytes": 7553
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/sample-data/country-meta.json",
+          "sha256": "470a76cc5a45e58e7e1702cd80f74fcacf9d6e8b1ef7b05011f69853a999ba7b",
+          "bytes": 333134
+        },
+        {
+          "path": "remotion-markup/remotion-maps/techniques/maptiler/assets/sample-data/yarlung-flow.json",
+          "sha256": "73a99e77a2ce31cb3ac39be8fe4775d53ecf127a56137b587fca090067dfbb96",
+          "bytes": 13082
+        },
+        {
+          "path": "remotion-multimedia/agents/openai.yaml",
+          "sha256": "74e07a383bbf02808320ede199873d00a5fc976cb99d407056456b9abdfb0cb7",
+          "bytes": 317
+        },
+        {
+          "path": "remotion-multimedia/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-render/agents/openai.yaml",
+          "sha256": "386699c32fdc63840ce7ff7412953831095dc4cdf60368648378c32895281290",
+          "bytes": 286
+        },
+        {
+          "path": "remotion-render/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-saas/agents/openai.yaml",
+          "sha256": "66be5403b3d10194c99e886372bbc1f4bdb2994fe560278bc7a39b4fbe7753a2",
+          "bytes": 283
+        },
+        {
+          "path": "remotion-saas/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-studio/agents/openai.yaml",
+          "sha256": "43afba3c8088614ece62949e33a7c8350092e76436bad87ad41e1a1ccaebea5d",
+          "bytes": 237
+        },
+        {
+          "path": "remotion-studio/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        },
+        {
+          "path": "remotion-upgrade/agents/openai.yaml",
+          "sha256": "3f3bc995d3531cfb5a714fd8f951954e118909b749217cc8418a235326d003cb",
+          "bytes": 282
+        },
+        {
+          "path": "remotion-upgrade/assets/remotion-icon.svg",
+          "sha256": "5007669bd0555b0f4565b4e7176fa191310ab0039b2ed09d867a9270f5b0ce58",
+          "bytes": 1303
+        }
+      ]
+    }
+  ],
+  "existing": [
+    {
+      "name": "design-taste-frontend",
+      "path": "C:\\Users\\yusha\\.agents\\skills\\design-taste-frontend\\SKILL.md",
+      "sha256": "2e064e92aca020b2e0bad69326fe7ea55d59005ed53d1a8cbce1bd135d44b8b3",
+      "scope": "pre-existing; unchanged"
+    },
+    {
+      "name": "impeccable",
+      "path": "C:\\Users\\yusha\\.agents\\skills\\impeccable\\SKILL.md",
+      "sha256": "89b6aa1fc9a3adc3853bcf4274cee05880e459c16ff965ad819b6a320d81a7c1",
+      "scope": "pre-existing; unchanged"
+    },
+    {
+      "name": "imagegen-frontend-web",
+      "path": "C:\\Users\\yusha\\.agents\\skills\\imagegen-frontend-web\\SKILL.md",
+      "sha256": "23e6d27ab410e97fe5e844d18db97c8e674d317abd8567f4c7726ee16f56da6e",
+      "scope": "pre-existing; unchanged"
+    },
+    {
+      "name": "image-to-code",
+      "path": "C:\\Users\\yusha\\.agents\\skills\\image-to-code\\SKILL.md",
+      "sha256": "2944189b448e2a77cbbf55014030b1890a9ec5891acc9fa97fb8c215e0008407",
+      "scope": "pre-existing; unchanged"
+    }
+  ],
+  "review": "Pinned upstream archives, instruction metadata and auxiliary scripts inspected; no upstream scripts executed. Not a complete security or license audit.",
+  "remotion_license": "Official repository invites local installation; no standalone root LICENSE found in this snapshot. Verify runtime/license terms separately before commercial distribution."
+}

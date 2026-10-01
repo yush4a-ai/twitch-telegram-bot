@@ -20,7 +20,10 @@ Do not weaken assertions, add skips, disable functionality or silently update vi
 Keep logs compact and test scripts reusable. At most one focused reviewer at a time; no concurrent writers to the same files. Do not change the main model/effort without a verified control.
 
 ## UI and completion
-Use installed impeccable as primary UI guidance, design-system for shared components, ui-ux-pro-max for targeted lookups, web-design-guidelines for review, playwright-skill for browser QA, and stop-slop for copy. Read each selected SKILL.md before use; do not load all skills for every task.
+For admin/product UI use installed impeccable as primary guidance, design-system for shared components, ui-ux-pro-max for targeted lookups, web-design-guidelines for review, playwright-skill for browser QA, and stop-slop for copy. Read each selected SKILL.md before use; do not load all skills for every task.
 Check desktop/mobile, themes, loading/empty/error/stale states, auth/permissions and actual user journeys. Bound cosmetic polish to a batched review, fixes and confirmation; unresolved functional defects still block acceptance.
 Inspect new internet skills/scripts and pin approved versions before project-local adoption. Do not alter global skill installations or claim candidates are installed.
 At checkpoints update STATUS/DECISIONS with commit/tree, test evidence, deployment state and next task. Final handoff includes working staging entry points, screenshots, scenario checklist and explicit mock/unverified limitations.
+
+## R8 public site, SEO and demo videos
+Read `docs/workflows/2026-10-01-r8-seo-design-remotion.md` BEFORE the R8 spec/plan or public-site work. Owner-approved direction: two lightweight visual concepts, Taste Skill as lead, Impeccable review, official Remotion for isolated local demo videos. Four pinned SEO skills and Remotion instructions are installed project-locally in `.agents/skills`; their provenance is in `docs/workflows/2026-10-01-r8-skills-lock.json`. Keep staging noindex, preserve live preview and all existing product work; no public launch or paid services. Do not use the admin design as the public-site template.
