@@ -2334,6 +2334,8 @@ class StreamPoller:
             job.chat_id, job.twitch_login,
         ):
             return NotificationOutcome.STALE
+        if job.kind == "viewer_category_change":
+            return await self._send_queued_category_change(job)
         if job.kind == "live_update":
             return await self._send_queued_live_update(job)
         if job.kind != "go_live":
@@ -2387,6 +2389,32 @@ class StreamPoller:
             except Exception as error:
                 logger.warning("Не удалось удалить устаревший queued post: %s", type(error).__name__)
             return NotificationOutcome.STALE
+        return NotificationOutcome.SENT
+
+    async def _send_queued_category_change(self, job: NotificationJob) -> NotificationOutcome:
+        if job.chat_id <= 0 or not job.category_transition_id or self._category_alert_store is None:
+            return NotificationOutcome.STALE
+        now = time.time()
+        transition = await self._category_alert_store.ready_for_delivery(
+            job.chat_id, job.twitch_login, job.category_transition_id, now=now,
+        )
+        if transition is None or transition.logical_stream_id != job.logical_stream_id:
+            return NotificationOutcome.STALE
+        remaining = await self._category_alert_store.cooldown_remaining(
+            job.chat_id, transition, now=now,
+        )
+        if remaining > 0:
+            raise NotificationRetryAfter(remaining)
+        title = html.escape(transition.to_category_name or "новая категория")
+        login = html.escape(job.twitch_login)
+        link = html.escape(f"https://www.twitch.tv/{job.twitch_login}", quote=True)
+        text = f"<b>{login}</b> сменил категорию на <b>{title}</b>.\n<a href=\"{link}\">Смотреть эфир</a>"
+        await self._bot.send_message(
+            job.chat_id, text, parse_mode="HTML", disable_web_page_preview=True,
+        )
+        await self._category_alert_store.record_success(
+            job.chat_id, transition.transition_id, now=time.time(),
+        )
         return NotificationOutcome.SENT
 
     async def _send_queued_live_update(

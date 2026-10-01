@@ -15,6 +15,7 @@ from bot.mini_app_web import install_mini_app_routes
 
 class FixtureTwitch:
     _channels = ("alpha", "beta", "gamma", "delta", "epsilon", "zeta")
+    _categories = {"100": "Minecraft", "200": "Just Chatting", "300": "Art"}
 
     async def channel_exists(self, login):
         return login in self._channels
@@ -31,6 +32,17 @@ class FixtureTwitch:
             if query == "beta" else query.title()
         )
         return [SimpleNamespace(login=query, display_name=name, is_live=False)]
+
+    async def search_categories(self, query, *, limit=8):
+        return [
+            (category_id, name)
+            for category_id, name in self._categories.items()
+            if query.casefold() in name.casefold()
+        ][:limit]
+
+    async def get_categories(self, ids):
+        return {category_id: self._categories[category_id] for category_id in ids
+                if category_id in self._categories}
 
 
 async def main() -> None:

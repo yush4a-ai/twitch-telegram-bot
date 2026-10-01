@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from aiohttp import web
 
 from .capabilities import CapabilityService
+from .category_alert_store import CategoryAlertPreference, CategoryAlertStore
 from .database import Database
 from .deep_links import TWITCH_LOGIN_RE
 from .mini_app_auth import verified_payload
@@ -56,6 +57,7 @@ def install_mini_app_viewer_routes(
     twitch,
 ) -> None:
     search_times: dict[int, deque[float]] = {}
+    category_store = CategoryAlertStore(db, poll_interval=60)
 
     async def read(request: web.Request) -> tuple[int | None, dict[str, object] | None, web.Response | None]:
         user_id, values, status = await verified_payload(request, bot_token)
@@ -70,6 +72,11 @@ def install_mini_app_viewer_routes(
         now = time.time()
         flags = await capabilities.for_user(user_id, now=now)
         rows = await db.list_personal_channel_status(user_id)
+        saved_category_preferences = await category_store.list_preferences(user_id)
+        category_preferences = {
+            row[0]: saved_category_preferences.get(row[0], CategoryAlertPreference(False, (), 0))
+            for row in rows
+        }
         video = await db.get_video_selection(user_id, now=now)
         filters = await db.list_viewer_filters(user_id) if flags.viewer_filters else {}
         quiet = await db.get_quiet_hours(user_id)
@@ -100,6 +107,13 @@ def install_mini_app_viewer_routes(
                     }
                     if login in filters else None
                 ),
+                "category_alert": {
+                    "enabled": category_preferences[login].enabled,
+                    "effective": category_preferences[login].enabled and flags.viewer_category_alerts,
+                    "category_ids": list(category_preferences[login].category_ids),
+                    "category_names": list(category_preferences[login].category_names),
+                    "version": category_preferences[login].version,
+                },
             }
             for login, notify_enabled, is_live, observed_at, paused_by_plan in rows
         ]
@@ -148,6 +162,81 @@ def install_mini_app_viewer_routes(
         if saved is None:
             return web.json_response({"error": "version_conflict"}, status=409)
         return web.json_response({"version": saved})
+
+    async def category_search(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if not (await capabilities.for_user(user_id, now=time.time())).viewer_category_alerts:
+            return web.json_response({"error": "plus_required"}, status=403)
+        query = values.get("query")
+        if not isinstance(query, str) or not 2 <= len(query.strip()) <= 80:
+            return web.json_response({"error": "invalid_query"}, status=400)
+        now = time.monotonic()
+        recent = search_times.setdefault(user_id, deque())
+        while recent and now - recent[0] >= _SEARCH_WINDOW_SECONDS:
+            recent.popleft()
+        if len(recent) >= _SEARCH_WINDOW_LIMIT:
+            return web.json_response({"error": "rate_limited"}, status=429)
+        recent.append(now)
+        if twitch is None:
+            return web.json_response({"error": "search_unavailable"}, status=503)
+        try:
+            found = await twitch.search_categories(query, limit=8)
+        except Exception:
+            logger.exception("Mini App category search failed")
+            return web.json_response({"error": "search_unavailable"}, status=503)
+        return web.json_response({"results": [
+            {"id": category_id, "name": name} for category_id, name in found
+        ]})
+
+    async def category_alert(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        login = normalize_twitch_login(values.get("login"))
+        enabled = values.get("enabled")
+        ids = values.get("category_ids")
+        version = values.get("expected_version")
+        if (login is None or type(enabled) is not bool or type(version) is not int
+                or version < 0 or not isinstance(ids, list) or len(ids) > 5
+                or any(not isinstance(value, str) or not value.isascii()
+                       or not value.isdecimal() or not 1 <= len(value) <= 32
+                       or int(value) <= 0 for value in ids)
+                or len(set(ids)) != len(ids)):
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        if login not in await db.list_channels(user_id):
+            return web.json_response({"error": "not_subscribed"}, status=404)
+        if not (await capabilities.for_user(user_id, now=time.time())).viewer_category_alerts:
+            return web.json_response({"error": "plus_required"}, status=403)
+        if twitch is None and ids:
+            return web.json_response({"error": "lookup_unavailable"}, status=503)
+        try:
+            names = await twitch.get_categories(ids) if ids else {}
+        except Exception:
+            logger.exception("Mini App category lookup failed")
+            return web.json_response({"error": "lookup_unavailable"}, status=503)
+        if any(value not in names for value in ids):
+            return web.json_response({"error": "unknown_category"}, status=400)
+        try:
+            saved = await category_store.save_preference(
+                user_id, login, enabled=enabled, category_ids=ids,
+                category_names=[names[value] for value in ids],
+                expected_version=version, now=time.time(),
+            )
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        except LookupError:
+            return web.json_response({"error": "not_subscribed"}, status=404)
+        except ValueError:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        if saved is None:
+            return web.json_response({"error": "version_conflict"}, status=409)
+        return web.json_response({
+            "enabled": saved.enabled, "effective": saved.enabled,
+            "category_ids": list(saved.category_ids),
+            "category_names": list(saved.category_names), "version": saved.version,
+        })
 
     async def quiet_hours(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -341,6 +430,8 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/unfollow", unfollow)
     app.router.add_post("/app/api/viewer/notify", notify)
     app.router.add_post("/app/api/viewer/filter", save_filter)
+    app.router.add_post("/app/api/viewer/category-search", category_search)
+    app.router.add_post("/app/api/viewer/category-alert", category_alert)
     app.router.add_post("/app/api/viewer/video-selection", video_selection)
     app.router.add_post("/app/api/viewer/plan-activate", plan_activate)
     app.router.add_post("/app/api/viewer/quiet-hours", quiet_hours)

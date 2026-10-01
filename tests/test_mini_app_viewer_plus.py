@@ -4,6 +4,8 @@ import os
 import tempfile
 import time
 import unittest
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import aiohttp
 
@@ -21,10 +23,15 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(self.db.close)
         await self.db.add_channel(101, "alpha")
         await self.db.add_channel(202, "beta")
+        self.twitch = SimpleNamespace(
+            search_categories=AsyncMock(return_value=[("100", "Minecraft"), ("200", "Just Chatting")]),
+            get_categories=AsyncMock(return_value={"100": "Minecraft", "200": "Just Chatting"}),
+        )
         self.server = OAuthCallbackServer(
             "https://example.test/twitch/callback", "127.0.0.1", 0,
             mini_app_db=self.db, mini_app_bot_token=BOT_TOKEN,
             viewer_db=self.db, viewer_bot_token=BOT_TOKEN,
+            mini_app_twitch=self.twitch,
         )
         await self.server.start()
         self.session = aiohttp.ClientSession()
@@ -107,3 +114,35 @@ class MiniAppViewerPlusTests(unittest.IsolatedAsyncioTestCase):
         ) as response:
             self.assertEqual(response.status, 400)
         self.assertIsNone(await self.db.get_quiet_hours(101))
+
+    async def test_category_alert_is_separate_opt_in_and_server_resolves_names(self):
+        now = time.time()
+        async with self.request("/app/api/viewer/category-search", query="mine") as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/viewer/category-alert", login="alpha", enabled=True,
+            category_ids=["100"], expected_version=0,
+        ) as response:
+            self.assertEqual(response.status, 403)
+        grant = await self.db.issue_test_viewer_plus(
+            101, "t8-category", starts_at=now - 1, expires_at=now + 3600,
+            issued_by=OWNER_ID, now=now,
+        )
+        async with self.request("/app/api/viewer/category-search", query="mine") as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["results"][0], {"id": "100", "name": "Minecraft"})
+        async with self.request(
+            "/app/api/viewer/category-alert", login="alpha", enabled=True,
+            category_ids=["100"], expected_version=0, category_names=["fake"],
+        ) as response:
+            self.assertEqual(response.status, 200, await response.text())
+            self.assertEqual((await response.json())["category_names"], ["Minecraft"])
+        async with self.request("/app/api/viewer/state") as response:
+            row = (await response.json())["subscriptions"][0]
+            self.assertEqual(row["category_alert"]["category_ids"], ["100"])
+        await self.db.revoke_test_viewer_plus(grant, revoked_at=now + 1, issued_by=OWNER_ID)
+        async with self.request(
+            "/app/api/viewer/category-alert", login="alpha", enabled=False,
+            category_ids=[], expected_version=1,
+        ) as response:
+            self.assertEqual(response.status, 403)

@@ -194,6 +194,8 @@ FOLLOWERS_URL = "https://api.twitch.tv/helix/channels/followers"
 CLIPS_URL = "https://api.twitch.tv/helix/clips"
 VIDEOS_URL = "https://api.twitch.tv/helix/videos"
 SEARCH_CHANNELS_URL = "https://api.twitch.tv/helix/search/channels"
+SEARCH_CATEGORIES_URL = "https://api.twitch.tv/helix/search/categories"
+GAMES_URL = "https://api.twitch.tv/helix/games"
 FOLLOWED_URL = "https://api.twitch.tv/helix/channels/followed"
 
 # сколько топ-клипов показывать в отчёте
@@ -338,6 +340,30 @@ class TwitchClient:
                     game_id=item.get("game_id") or None,
                 )
         return result
+
+    async def search_categories(self, query: str, *, limit: int = 8) -> list[tuple[str, str]]:
+        if not isinstance(query, str) or not 2 <= len(query.strip()) <= 80 or not 1 <= limit <= 20:
+            raise ValueError("invalid category search")
+        data = await self._request(SEARCH_CATEGORIES_URL, [("query", query.strip()), ("first", limit)])
+        return [
+            (item["id"], item["name"][:100])
+            for item in data.get("data", [])
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+            and isinstance(item.get("name"), str)
+        ]
+
+    async def get_categories(self, ids: list[str]) -> dict[str, str]:
+        if len(ids) > 5 or any(not isinstance(value, str) for value in ids):
+            raise ValueError("invalid category IDs")
+        if not ids:
+            return {}
+        data = await self._request(GAMES_URL, [("id", value) for value in ids])
+        return {
+            item["id"]: item["name"][:100]
+            for item in data.get("data", [])
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+            and isinstance(item.get("name"), str)
+        }
 
     async def channel_exists(self, login: str) -> bool:
         data = await self._request(USERS_URL, [("login", login)])

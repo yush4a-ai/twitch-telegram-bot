@@ -655,6 +655,7 @@ class Database:
         await self._migrate_viewer_schema()
         await self._migrate_viewer_preferences_schema()
         await self._migrate_category_alert_schema()
+        await self._migrate_category_delivery_schema()
         await self._migrate_growth_attribution_schema()
         await self.conn.commit()
 
@@ -751,6 +752,37 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_002_category_alerts',?)", (time.time(),)
+        )
+
+    async def _migrate_category_delivery_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS category_alert_preferences ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "enabled INTEGER NOT NULL DEFAULT 0, category_ids_json TEXT NOT NULL DEFAULT '[]', "
+            "category_names_json TEXT NOT NULL DEFAULT '[]', "
+            "version INTEGER NOT NULL DEFAULT 0, updated_at REAL NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,twitch_login)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS category_alert_delivery_state ("
+            "telegram_user_id INTEGER NOT NULL, broadcaster_id TEXT NOT NULL, "
+            "logical_stream_id TEXT NOT NULL, last_transition_id TEXT NOT NULL, "
+            "last_sent_at REAL NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,broadcaster_id,logical_stream_id)) WITHOUT ROWID"
+        )
+        cursor = await self.conn.execute("PRAGMA table_info(notification_jobs)")
+        if "category_transition_id" not in {row[1] for row in await cursor.fetchall()}:
+            await self.conn.execute(
+                "ALTER TABLE notification_jobs ADD COLUMN category_transition_id TEXT"
+            )
+        await self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_category_job_unique "
+            "ON notification_jobs(chat_id,category_transition_id) "
+            "WHERE kind='viewer_category_change' AND category_transition_id IS NOT NULL"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_003_category_delivery',?)", (time.time(),)
         )
 
     async def _migrate_growth_schema(self) -> None:
@@ -2230,6 +2262,10 @@ class Database:
                 (chat_id, twitch_login),
             )
             await self.conn.execute(
+                "DELETE FROM category_alert_preferences WHERE telegram_user_id=? AND twitch_login=?",
+                (chat_id, twitch_login),
+            )
+            await self.conn.execute(
                 "DELETE FROM viewer_plan_priority WHERE telegram_user_id=? AND twitch_login=?",
                 (chat_id, twitch_login),
             )
@@ -2260,6 +2296,9 @@ class Database:
         if chat_id > 0:
             await self.conn.execute(
                 "DELETE FROM viewer_alert_filters WHERE telegram_user_id=?", (chat_id,)
+            )
+            await self.conn.execute(
+                "DELETE FROM category_alert_preferences WHERE telegram_user_id=?", (chat_id,)
             )
             await self.conn.execute(
                 "DELETE FROM viewer_plan_priority WHERE telegram_user_id=?", (chat_id,)

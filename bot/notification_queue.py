@@ -27,6 +27,7 @@ class NotificationJob:
     lease_until: float
     revision: int = 0
     media_url: str | None = None
+    category_transition_id: str | None = None
 
 
 class NotificationQueue:
@@ -186,7 +187,8 @@ class NotificationQueue:
             placeholders = ",".join("?" for _ in ids)
             cursor = await conn.execute(
                 "SELECT id, kind, chat_id, twitch_login, logical_stream_id, "
-                "payload_version, due_at, attempt_count, lease_until, revision, media_url "
+                "payload_version, due_at, attempt_count, lease_until, revision, media_url, "
+                "category_transition_id "
                 f"FROM notification_jobs WHERE id IN ({placeholders})",
                 ids,
             )

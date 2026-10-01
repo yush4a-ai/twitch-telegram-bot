@@ -179,6 +179,15 @@ class NotificationWorker:
                 return
             except Exception as error:
                 now = self._clock()
+                if job.kind == "viewer_category_change":
+                    # The Telegram request may already have succeeded. Keep the
+                    # uncertain result visible without an automatic second send.
+                    await self._queue.fail(
+                        job.id, job.attempt_count, error_class="UnknownOutcome",
+                        now=now, revision=job.revision,
+                    )
+                    logger.warning("Category send outcome unknown: %s", type(error).__name__)
+                    return
                 backoff = min(120.0, float(2 ** min(job.attempt_count, 6)))
                 await self._queue.defer(
                     job.id, job.attempt_count, due_at=now + backoff,

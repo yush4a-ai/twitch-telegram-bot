@@ -22,6 +22,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   let planFeedback = '';
   let lastDetail = null;
   const filterDrafts = new Map();
+  const categoryDrafts = new Map();
   const names = new Map();
   try { searchDraft = (localStorage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
   const nameOf = (login) => names.get(login) || fallbackName(login);
@@ -269,6 +270,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     } else {
       target.append(panel('Фильтр эфиров · Viewer Plus', 'Viewer Plus открывает фильтр по категориям и словам в названии.'));
     }
+    renderCategoryAlert(target, row);
     const actions = element('div', 'actions');
     const twitchLink = element('a', 'button secondary', 'Открыть Twitch');
     twitchLink.href = `https://www.twitch.tv/${login}`;
@@ -324,6 +326,105 @@ export function createViewerFeature(api, getRouter, telegram) {
       videoSaving = false;
     }
     refresh();
+  }
+  function renderCategoryAlert(target, row) {
+    const section = element('section', 'panel feature-panel');
+    section.append(element('h2', '', 'Смена категории'));
+    if (!data.viewer_plus_active) {
+      section.append(element('p', 'muted', 'Отдельный сигнал доступен с Viewer Plus. Сохранённый выбор остаётся, пока доступ неактивен.'));
+      target.append(section);
+      return;
+    }
+    let draft = categoryDrafts.get(row.login);
+    if (!draft) {
+      draft = {
+        enabled: Boolean(row.category_alert?.enabled),
+        ids: [...(row.category_alert?.category_ids || [])],
+        names: [...(row.category_alert?.category_names || [])],
+        version: row.category_alert?.version || 0,
+        query: '', results: [], busy: false, feedback: '',
+      };
+      categoryDrafts.set(row.login, draft);
+    }
+    section.append(element('p', 'muted', 'Отдельное сообщение после подтверждённой смены во время эфира. Не чаще одного за 5 минут.'));
+    const label = element('label', 'switch-row');
+    const checkbox = element('input', '');
+    checkbox.type = 'checkbox'; checkbox.name = 'category-alert'; checkbox.checked = draft.enabled;
+    checkbox.addEventListener('change', () => { draft.enabled = checkbox.checked; });
+    label.append(checkbox, element('span', '', 'Уведомлять о смене категории'));
+    section.append(label);
+    section.append(element('p', 'muted', draft.ids.length
+      ? 'Только выбранные категории' : 'Любая новая категория'));
+    const chips = element('div', 'tokens');
+    draft.ids.forEach((id, index) => {
+      const chip = element('span', 'chip');
+      chip.append(element('span', '', draft.names[index] || id));
+      const remove = action('×', () => {
+        draft.ids.splice(index, 1); draft.names.splice(index, 1); refresh();
+      }, true);
+      remove.setAttribute('aria-label', `Убрать ${draft.names[index] || id}`);
+      chip.append(remove); chips.append(chip);
+    });
+    section.append(chips);
+    const inputRow = element('div', 'token-input-row');
+    const input = element('input', 'input');
+    input.type = 'search'; input.name = 'category-query'; input.maxLength = 80;
+    input.placeholder = 'Найти категорию Twitch'; input.value = draft.query;
+    input.setAttribute('aria-label', 'Найти категорию Twitch');
+    input.addEventListener('input', () => { draft.query = input.value; });
+    inputRow.append(input, action('Найти', async () => {
+      if (draft.busy || draft.query.trim().length < 2) {
+        draft.feedback = 'Введите хотя бы два символа.'; refresh(); return;
+      }
+      draft.busy = true; draft.feedback = 'Ищем категории…'; refresh();
+      try {
+        const found = await api.post('/app/api/viewer/category-search', { query: draft.query });
+        draft.results = found.results || [];
+        draft.feedback = draft.results.length ? '' : 'Ничего не найдено.';
+      } catch {
+        draft.feedback = 'Поиск сейчас недоступен. Попробуйте ещё раз.';
+      } finally { draft.busy = false; refresh(); }
+    }, true));
+    section.append(inputRow);
+    const results = element('div', 'list');
+    for (const item of draft.results) {
+      if (draft.ids.includes(item.id)) continue;
+      results.append(action(item.name, () => {
+        if (draft.ids.length >= 5) {
+          draft.feedback = 'Можно выбрать до пяти категорий.';
+        } else {
+          draft.ids.push(item.id); draft.names.push(item.name); draft.feedback = '';
+        }
+        refresh();
+      }, true));
+    }
+    section.append(results);
+    section.append(action('Сохранить сигнал', async () => {
+      if (draft.busy) return;
+      draft.busy = true; draft.feedback = 'Сохраняем…'; refresh();
+      try {
+        const saved = await api.post('/app/api/viewer/category-alert', {
+          login: row.login, enabled: draft.enabled,
+          category_ids: draft.ids, expected_version: draft.version,
+        });
+        row.category_alert = saved;
+        draft.version = saved.version; draft.names = [...saved.category_names];
+        draft.feedback = 'Настройка сохранена.';
+      } catch (cause) {
+        if (cause instanceof ApiError && cause.status === 409) {
+          await load();
+          draft.version = data?.subscriptions.find((item) => item.login === row.login)?.category_alert?.version || 0;
+          draft.feedback = 'Настройка изменилась в другом окне. Проверьте выбор и сохраните ещё раз.';
+        } else if (cause instanceof ApiError && cause.status === 403) {
+          await load();
+          draft.feedback = 'Доступ Viewer Plus завершился. Сигнал сейчас выключен.';
+        } else {
+          draft.feedback = 'Не удалось сохранить. Попробуйте ещё раз.';
+        }
+      } finally { draft.busy = false; refresh(); }
+    }));
+    if (draft.feedback) banner(section, draft.feedback, !['Настройка сохранена.', 'Ищем категории…', 'Сохраняем…'].includes(draft.feedback));
+    target.append(section);
   }
   function explainFilter(rule) {
     if (!rule || (!rule.games.length && !rule.title_keywords.length && !rule.exclude_keywords.length)) {
