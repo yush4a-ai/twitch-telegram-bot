@@ -15,10 +15,14 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let selectedPostChat = null;
   let postState = null;
   let postLoading = false;
+  let postRefreshPending = false;
   let postError = '';
   let postFeedback = '';
   let postDraft = null;
   let postConflict = false;
+  let postContextGeneration = 0;
+  let presetName = '';
+  let presetBusy = false;
   try {
     connectIntent = localStorage.getItem('ts-streamer-connect-intent') || '';
     communityIntent = localStorage.getItem('ts-streamer-community-intent') || '';
@@ -210,22 +214,39 @@ export function createStreamerFeature(api, getRouter, telegram) {
     if (postLoading || !chatId) return;
     postLoading = true; postError = ''; refresh();
     try {
-      const [example, template] = await Promise.all([
+      const [example, template, presets] = await Promise.all([
         api.post('/app/api/streamer/post-example', { chat_id: chatId }),
         api.post('/app/api/streamer/template', { chat_id: chatId }),
+        api.post('/app/api/streamer/presets'),
       ]);
       let stats = null;
+      let compare = null;
       if (template.can_edit) {
         try { stats = await api.post('/app/api/streamer/stats'); } catch { /* State still renders without statistics. */ }
+        try { compare = await api.post('/app/api/streamer/stats/compare'); } catch { /* Keep editor available. */ }
       }
       if (selectedPostChat !== chatId) return;
-      postState = { chatId, example, template, stats };
+      postState = { chatId, example, template, presets, stats, compare };
       postDraft = restoreDraft(chatId, template);
+      postContextGeneration += 1;
     } catch (cause) {
       postError = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
         ? 'Доступ изменился. Вернитесь в приложение из чата бота и обновите страницу.'
         : 'Не удалось загрузить пример. Проверьте связь и попробуйте снова.';
-    } finally { postLoading = false; refresh(); }
+    } finally {
+      postLoading = false;
+      if (postRefreshPending) {
+        postRefreshPending = false;
+        postState = null;
+        if (selectedPostChat) void loadPostState(selectedPostChat);
+      }
+      refresh();
+    }
+  }
+  function refreshPostAfterMutation() {
+    postState = null;
+    if (postLoading) postRefreshPending = true;
+    else if (selectedPostChat) void loadPostState(selectedPostChat);
   }
   async function saveTemplate(chatId) {
     if (!postDraft) return;
@@ -262,6 +283,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
         void load(); return;
       }
       postDraft.version = current.version;
+      postContextGeneration += 1;
       rememberDraft(chatId);
       postConflict = false;
       postFeedback = 'Актуальная версия загружена. Ваш текст сохранён; проверьте его и нажмите «Сохранить оформление».';
@@ -283,6 +305,78 @@ export function createStreamerFeature(api, getRouter, telegram) {
       refresh();
       if (cause instanceof ApiError && cause.status === 403) void load();
     }
+  }
+  async function savePreset() {
+    if (!postDraft || presetBusy) return;
+    presetBusy = true;
+    try {
+      await api.post('/app/api/streamer/presets/create', {
+        name: presetName.trim(), headline: postDraft.headline, body: postDraft.body,
+        buttons: postDraft.buttons.filter((item) => item.label || item.url),
+      });
+      presetName = '';
+      postFeedback = 'Вариант сохранён. Текущее оформление и опубликованные посты не изменились.';
+      refreshPostAfterMutation();
+    } catch (cause) {
+      postFeedback = cause instanceof ApiError && cause.code === 'name_taken'
+        ? 'Название уже занято. Выберите другое.'
+        : cause instanceof ApiError && cause.code === 'preset_limit'
+          ? 'Достигнут предел сохранённых вариантов. Удалите ненужный.'
+          : cause instanceof ApiError && cause.status === 403
+            ? 'Доступ Streamer Plus завершился. Вариант не сохранён.'
+            : cause instanceof ApiError && cause.status === 400
+              ? 'Проверьте название, текст и HTTPS-адреса кнопок.'
+              : 'Не удалось сохранить вариант. Попробуйте ещё раз.';
+      if (cause instanceof ApiError && cause.status === 403) void load();
+    } finally { presetBusy = false; refresh(); }
+  }
+  async function applyPreset(preset, chatId) {
+    if (!postDraft || presetBusy) return;
+    const contextGeneration = postContextGeneration;
+    const draft = postDraft;
+    const draftSnapshot = JSON.stringify(draft);
+    presetBusy = true;
+    try {
+      await api.post('/app/api/streamer/presets/apply', {
+        preset_id: preset.id, chat_id: chatId, expected_version: draft.version,
+      });
+      if (selectedPostChat !== chatId || postContextGeneration !== contextGeneration
+          || postDraft !== draft || JSON.stringify(postDraft) !== draftSnapshot) {
+        if (selectedPostChat === chatId) refreshPostAfterMutation();
+        return;
+      }
+      try { localStorage.removeItem(draftKey(chatId)); } catch {}
+      postDraft = null;
+      postConflict = false;
+      postFeedback = `Вариант «${preset.name}» применён к будущим постам этого сообщества.`;
+      refreshPostAfterMutation();
+    } catch (cause) {
+      if (selectedPostChat !== chatId) return;
+      if (cause instanceof ApiError && cause.status === 409
+          && postDraft?.version !== draft.version) return;
+      postConflict = cause instanceof ApiError && cause.status === 409;
+      postFeedback = cause instanceof ApiError && cause.status === 409
+        ? 'Оформление изменилось в другом окне. Обновите версию перед применением варианта.'
+        : cause instanceof ApiError && cause.status === 403
+          ? 'Нет доступа к варианту или сообществу. Проверьте Streamer Plus и права администратора.'
+          : 'Не удалось применить вариант. Текущее оформление сохранено.';
+      if (cause instanceof ApiError && cause.status === 403) void load();
+    } finally { presetBusy = false; refresh(); }
+  }
+  async function deletePreset(preset) {
+    if (presetBusy) return;
+    const sdk = window.Telegram?.WebApp;
+    const confirmed = sdk?.showConfirm
+      ? await new Promise((resolve) => sdk.showConfirm(`Удалить вариант «${preset.name}»?`, resolve))
+      : window.confirm(`Удалить вариант «${preset.name}»?`);
+    if (!confirmed) return;
+    presetBusy = true;
+    try {
+      await api.post('/app/api/streamer/presets/delete', { preset_id: preset.id });
+      postFeedback = 'Вариант удалён. Текущее оформление сохранено.';
+      refreshPostAfterMutation();
+    } catch { postFeedback = 'Не удалось удалить вариант. Попробуйте ещё раз.'; }
+    finally { presetBusy = false; refresh(); }
   }
   function renderChannel(target) {
     heading(target, 'Мой канал', 'Twitch и сообщества Telegram в одном месте.');
@@ -352,6 +446,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
       select.value = String(selectedPostChat);
       select.addEventListener('change', () => {
         selectedPostChat = Number(select.value); postState = null; postDraft = null;
+        postContextGeneration += 1;
         postFeedback = ''; postConflict = false; void loadPostState(selectedPostChat);
       });
       field.append(select); target.append(field);
@@ -365,7 +460,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
       if (!postError) target.append(element('div', 'status-panel', 'Загружаем пример поста…'));
       return;
     }
-    const { example, template, stats } = postState;
+    const { example, template, stats, compare } = postState;
     const community = data.communities.find((item) => item.chat_id === selectedPostChat);
     const box = element('section', 'panel feature-panel');
     box.append(element('h2', '', `Пример · ${community.title}`));
@@ -383,6 +478,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
     }
     if (postConflict) target.append(action('Обновить версию', () => void refreshTemplateVersion(selectedPostChat), true));
     if (!template.can_edit) {
+      renderPresets(target, selectedPostChat, false);
       target.append(panel('Обычный пост доступен бесплатно', template.version
         ? 'Ваше оформление сохранено и вернётся при действующем Streamer Plus.'
         : 'Дополнительный текст, кнопки и живое превью доступны с Streamer Plus.'));
@@ -404,9 +500,44 @@ export function createStreamerFeature(api, getRouter, telegram) {
     if (!community.publishing) media.append(element('small', 'muted', 'Сначала включите публикации в разделе «Мой канал».'));
     target.append(media);
     renderTemplateEditor(target, selectedPostChat);
+    renderPresets(target, selectedPostChat, true);
     target.append(panel('Подтверждённые публикации за 30 дней', stats
       ? `Бот подтвердил: ${stats.published_posts}. Просмотры Telegram не измеряются.`
       : 'Статистика временно недоступна. Пример и оформление продолжают работать.'));
+    target.append(panel('Публикации: последние 7 дней и предыдущие 7', compare
+      ? `${compare.current_posts} и ${compare.previous_posts} подтверждённых постов. Сравнение не измеряет просмотры.`
+      : 'Сравнение временно недоступно.'));
+  }
+  function renderPresets(target, chatId, canEdit) {
+    const presets = postState?.presets?.presets || [];
+    if (!canEdit && !presets.length) return;
+    const box = element('section', 'panel feature-panel');
+    box.append(element('h2', '', 'Сохранённые варианты'));
+    box.append(element('p', 'muted', canEdit
+      ? 'Сохранение не меняет текущий пост. Применение меняет оформление будущих публикаций только в выбранном сообществе.'
+      : 'Варианты сохранены и снова станут доступны для применения с Streamer Plus.'));
+    if (canEdit && postDraft) {
+      const field = element('label', 'template-field', 'Название варианта');
+      const input = element('input', 'input'); input.maxLength = 40; input.value = presetName;
+      input.addEventListener('input', () => { presetName = input.value; });
+      field.append(input); box.append(field);
+      const save = action('Сохранить вариант', () => void savePreset());
+      save.disabled = presetBusy; box.append(save);
+    }
+    if (!presets.length) box.append(element('p', 'muted', 'Пока нет сохранённых вариантов.'));
+    for (const preset of presets) {
+      const row = element('div', 'panel feature-panel');
+      row.append(element('strong', '', preset.name), element('small', 'muted', preset.headline));
+      const actions = element('div', 'actions');
+      if (canEdit) {
+        const apply = action('Применить', () => void applyPreset(preset, chatId));
+        apply.disabled = presetBusy; actions.append(apply);
+      }
+      const remove = action('Удалить', () => void deletePreset(preset), true);
+      remove.disabled = presetBusy; actions.append(remove);
+      row.append(actions); box.append(row);
+    }
+    target.append(box);
   }
   function renderTemplateEditor(target, chatId) {
     if (!postDraft) return;
@@ -419,7 +550,9 @@ export function createStreamerFeature(api, getRouter, telegram) {
       const control = element(multiline ? 'textarea' : 'input', 'input');
       control.value = value; control.maxLength = max;
       if (multiline) control.rows = 3;
-      control.addEventListener('input', () => { update(control.value); rememberDraft(chatId); });
+      control.addEventListener('input', () => {
+        update(control.value); postContextGeneration += 1; rememberDraft(chatId);
+      });
       field.append(control); return field;
     };
     form.append(input('Заголовок', postDraft.headline, 60, (value) => { postDraft.headline = value; }));

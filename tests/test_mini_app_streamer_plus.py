@@ -172,6 +172,42 @@ class MiniAppStreamerPlusTests(unittest.IsolatedAsyncioTestCase):
         async with self.request("/app/api/streamer/stats", actor=202) as response:
             self.assertEqual(response.status, 403)
 
+    async def test_presets_are_private_and_apply_requires_current_version_and_plus(self):
+        async with self.request("/app/api/streamer/presets/create", name="Игры",
+                                headline="Title", body="Body", buttons=[]) as response:
+            self.assertEqual(response.status, 403)
+        grant_id = await self.grant()
+        async with self.request("/app/api/streamer/presets/create", name="Игры",
+                                headline="Title", body="Body", buttons=[]) as response:
+            self.assertEqual(response.status, 200)
+            preset_id = (await response.json())["preset"]["id"]
+        self.assertIsNone(await self.db.get_streamer_template(101, -1001))
+        async with self.request("/app/api/streamer/presets", actor=202) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["presets"], [])
+        async with self.request("/app/api/streamer/presets/apply", actor=202,
+                                preset_id=preset_id, chat_id=-1001,
+                                expected_version=0) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request("/app/api/streamer/presets/apply", preset_id=preset_id,
+                                chat_id=-1001, expected_version=0) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["version"], 1)
+        async with self.request("/app/api/streamer/presets/apply", preset_id=preset_id,
+                                chat_id=-1001, expected_version=0) as response:
+            self.assertEqual(response.status, 409)
+        async with self.request("/app/api/streamer/stats/compare") as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["period_days"], 7)
+        await self.db.revoke_test_streamer_plus(
+            grant_id, issued_by=425785231, revoked_at=time.time(),
+        )
+        async with self.request("/app/api/streamer/presets/apply", preset_id=preset_id,
+                                chat_id=-1001, expected_version=1) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request("/app/api/streamer/stats/compare") as response:
+            self.assertEqual(response.status, 403)
+
     async def test_lost_community_rights_block_editor_example_and_media(self):
         await self.grant()
         self.bot.get_chat_member.return_value = SimpleNamespace(status="member")

@@ -674,6 +674,7 @@ class Database:
         await self._migrate_streamer_schema()
         await self._migrate_streamer_communities_schema()
         await self._migrate_streamer_template_schema()
+        await self._migrate_streamer_preset_schema()
         await self._migrate_streamer_stats_schema()
         await self._migrate_billing_schema()
         await self._migrate_billing_subject_schema()
@@ -1072,6 +1073,23 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
             "VALUES ('r4_003_streamer_templates', ?)", (time.time(),)
+        )
+
+    async def _migrate_streamer_preset_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS streamer_template_presets ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, broadcaster_id TEXT NOT NULL, "
+            "name TEXT NOT NULL, name_key TEXT NOT NULL, headline TEXT NOT NULL, "
+            "body TEXT NOT NULL, buttons_json TEXT NOT NULL, created_at REAL NOT NULL, "
+            "UNIQUE(broadcaster_id,name_key))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_streamer_template_presets_owner "
+            "ON streamer_template_presets(broadcaster_id,id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_008_streamer_presets',?)", (time.time(),)
         )
 
     async def _migrate_streamer_stats_schema(self) -> None:

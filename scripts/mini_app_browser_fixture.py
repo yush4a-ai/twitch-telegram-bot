@@ -97,6 +97,9 @@ async def main() -> None:
         await db.link_streamer_identity(604, "2004", "gamma", verified_at=now)
         await db.link_streamer_identity(605, "2005", "delta", verified_at=now)
         await db.add_streamer_community(603, -1003, "Сообщество Plus", "supergroup", now=now)
+        if os.getenv("MINI_APP_QA_PRESET_SECOND_COMMUNITY"):
+            await db.add_streamer_community(603, -1002, "Второе сообщество", "supergroup", now=now)
+            await db.add_channel(-1002, "beta")
         await db.add_streamer_community(604, -1004, "Бесплатное сообщество", "supergroup", now=now)
         await db.add_streamer_community(605, -1005, "Тестовое сообщество", "supergroup", now=now)
         await db.add_channel(-1003, "beta")

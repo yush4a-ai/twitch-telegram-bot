@@ -12,6 +12,7 @@ from .live_post import LivePostContent
 from .mini_app_auth import verified_payload
 from .streamer_community import verify_community_permission
 from .streamer_post import compose_streamer_post
+from .streamer_presets import PresetLimit, PresetNameTaken, PresetStale, StreamerPresetService
 from .streamer_template import validate_streamer_template
 
 
@@ -34,6 +35,12 @@ def install_mini_app_streamer_plus_routes(
     app: web.Application, db: Database, bot_token: str, bot=None,
     *, bot_username: str = "",
 ) -> None:
+    presets = StreamerPresetService(db)
+
+    def preset_payload(saved) -> dict[str, object]:
+        return {"id": saved.id, "name": saved.name, "headline": saved.headline,
+                "body": saved.body, "buttons": list(saved.buttons)}
+
     async def read(request: web.Request):
         user_id, values, status = await verified_payload(request, bot_token)
         if status != 200:
@@ -158,7 +165,93 @@ def install_mini_app_streamer_plus_routes(
         values = await db.get_streamer_delivery_stats(user_id, since=time.time() - 30 * 86400)
         return web.json_response({"period_days": 30, **values})
 
+    async def list_presets(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data"}:
+            return web.json_response({"error": "invalid_presets_request"}, status=400)
+        if await db.get_streamer_identity(user_id) is None:
+            return web.json_response({"error": "not_linked"}, status=403)
+        saved = await presets.list_for_user(user_id)
+        return web.json_response({"presets": [preset_payload(item) for item in saved],
+                                  "can_edit": await db.has_streamer_plus(user_id)})
+
+    async def create_preset(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "name", "headline", "body", "buttons"}:
+            return web.json_response({"error": "invalid_preset"}, status=400)
+        try:
+            saved = await presets.create(
+                user_id, values["name"], headline=values["headline"],
+                body=values["body"], buttons=values["buttons"], now=time.time(),
+            )
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        except PresetNameTaken:
+            return web.json_response({"error": "name_taken"}, status=409)
+        except PresetLimit:
+            return web.json_response({"error": "preset_limit"}, status=409)
+        except (ValueError, TypeError, UnicodeError):
+            return web.json_response({"error": "invalid_preset"}, status=400)
+        return web.json_response({"preset": preset_payload(saved)})
+
+    async def apply_preset(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "preset_id", "chat_id", "expected_version"}:
+            return web.json_response({"error": "invalid_preset_application"}, status=400)
+        own, error = await placement(user_id, values)
+        if error is not None:
+            return error
+        try:
+            version = await presets.apply(
+                user_id, values["preset_id"], own[0],
+                expected_version=values["expected_version"], now=time.time(),
+            )
+        except PermissionError:
+            return web.json_response({"error": "preset_denied"}, status=403)
+        except PresetStale:
+            return web.json_response({"error": "stale_template"}, status=409)
+        except (ValueError, TypeError, UnicodeError):
+            return web.json_response({"error": "invalid_preset_application"}, status=400)
+        return web.json_response({"version": version})
+
+    async def delete_preset(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "preset_id"}:
+            return web.json_response({"error": "invalid_preset_delete"}, status=400)
+        try:
+            deleted = await presets.delete(user_id, values["preset_id"])
+        except ValueError:
+            return web.json_response({"error": "invalid_preset_delete"}, status=400)
+        if not deleted:
+            return web.json_response({"error": "preset_denied"}, status=403)
+        return web.json_response({"deleted": True})
+
+    async def compare_stats(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data"}:
+            return web.json_response({"error": "invalid_stats_request"}, status=400)
+        try:
+            compared = await presets.compare_posts(user_id, now=time.time())
+        except PermissionError:
+            return web.json_response({"error": "plus_required"}, status=403)
+        return web.json_response(compared)
+
     app.router.add_post("/app/api/streamer/template", template)
     app.router.add_post("/app/api/streamer/post-example", post_example)
     app.router.add_post("/app/api/streamer/preview", preview)
     app.router.add_post("/app/api/streamer/stats", stats)
+    app.router.add_post("/app/api/streamer/presets", list_presets)
+    app.router.add_post("/app/api/streamer/presets/create", create_preset)
+    app.router.add_post("/app/api/streamer/presets/apply", apply_preset)
+    app.router.add_post("/app/api/streamer/presets/delete", delete_preset)
+    app.router.add_post("/app/api/streamer/stats/compare", compare_stats)
