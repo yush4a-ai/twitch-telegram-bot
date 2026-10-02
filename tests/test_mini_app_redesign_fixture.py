@@ -67,6 +67,41 @@ class RedesignFixtureTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await builder("production")
 
+    async def test_reminder_inflight_fixture_uses_delivery_fence_without_sending(self):
+        app, _db, client = await self.build("reminder-inflight")
+        state = await (await client.post("/app/api/viewer/state", json={
+            "init_data": signed_webapp(501),
+        })).json()
+        reminder = next(row for row in state["subscriptions"] if row["login"] == "alpha")["reminder"]
+        self.assertEqual(reminder["status"], "sending")
+        for path, values in (("reminder", {"delay_minutes": 30}), ("reminder/cancel", {})):
+            response = await client.post(f"/app/api/viewer/{path}", json={
+                "init_data": signed_webapp(501), "login": "alpha", **values,
+            })
+            self.assertEqual(response.status, 409)
+            self.assertEqual((await response.json())["error"], "reminder_in_flight")
+        self.assertEqual(app[fixture.FIXTURE_STATE_KEY].bot.sent_calls, [])
+
+    async def test_history_fixture_contains_only_own_terminal_delivery_facts(self):
+        app, _db, client = await self.build("history")
+        first = await (await client.post("/app/api/viewer/history", json={
+            "init_data": signed_webapp(501), "limit": 20,
+        })).json()
+        second = await (await client.post("/app/api/viewer/history", json={
+            "init_data": signed_webapp(501), "limit": 20, "before_id": first["next_before_id"],
+        })).json()
+        events = first["events"] + second["events"]
+        self.assertEqual((len(first["events"]), len(second["events"])), (20, 5))
+        self.assertIsNone(second["next_before_id"])
+        self.assertEqual(len({event["id"] for event in events}), 25)
+        self.assertEqual({event["outcome"] for event in events}, {"sent", "suppressed", "unknown"})
+        self.assertEqual({event["login"] for event in events}, {"alpha"})
+        foreign = await (await client.post("/app/api/viewer/history", json={
+            "init_data": signed_webapp(202), "limit": 20,
+        })).json()
+        self.assertEqual([event["login"] for event in foreign["events"]], ["foreign"])
+        self.assertEqual(app[fixture.FIXTURE_STATE_KEY].bot.sent_calls, [])
+
     async def test_fixture_routes_do_not_exist_in_product_installer(self):
         from aiohttp import web
         from bot.mini_app_web import install_mini_app_routes

@@ -21,6 +21,7 @@ let subscriptionFeature;
 let profileFeature;
 let supportFeature;
 let subscriptionOpen = false;
+let historyOpen=false;
 const telegram = createTelegramAdapter(() => { if(!closeActiveDialog())router.back(); });
 let themeStorage;
 try { themeStorage = window.localStorage; } catch {}
@@ -59,6 +60,8 @@ function render(state, canBack) {
     ? [['home', 'Главная', 'home'], ['streamers', 'Стримеры', 'people'], ['profile', 'Профиль', 'profile'], ['plus','Plus','plus']]
     : [['channel', 'Мой канал', 'channel'], ['posts', 'Посты', 'posts'], ['profile', 'Профиль', 'profile'], ['plus','Plus','plus']];
   const detailName=typeof state.detail==='object'?state.detail?.name:state.detail;
+  if(detailName==='history'&&!historyOpen)viewerFeature.resetHistory();
+  historyOpen=detailName==='history';
   const plusActive=['subscription','purchase'].includes(detailName);
   for (const [id, label, glyph] of tabs) {
     const button = element('button', '', '');
@@ -91,6 +94,7 @@ function render(state, canBack) {
   subscriptionOpen = false;
   if(detailName==='support'){supportFeature.render(content,state);return;}
   if(detailName==='viewer-settings'){viewerFeature.render(content,{...state,tab:'profile',detail:null});return;}
+  if(detailName==='history'){viewerFeature.render(content,{...state,detail:'history'});return;}
   if(!state.detail&&state.tab==='profile'){profileFeature.render(content,state);return;}
   const featureState=state.detail&&typeof state.detail==='object'?{...state,detail:state.detail.id}:state;
   if (state.mode === 'viewer') {

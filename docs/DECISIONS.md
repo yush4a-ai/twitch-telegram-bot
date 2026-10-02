@@ -487,3 +487,9 @@
 - **Основание:** утверждённый P09. Четыре точных пункта и один Subscription с Profile/menu/Plus, max600/relative text/SVG/native dialogs. Имя только signed bootstrap; личные черновики по verified ID, прежний субъект очищается.
 - **Проверка:** Python13tests/37subtests, Chromium/WebKit6/200/theme,26PNG, JS0/external0. WebKit оставляет MAIN focus; read-only reviewer подтвердил причину, восстановление допускает только прежний container и сохраняет новый user focus. Modal Back закрывает верхний диалог до изменения route.
 - **Граница:** перенос feature страниц P10–P16 продолжается, не готовый продукт. `P09-SHELL.md`; native/staging NOT TESTED, внешних действий нет.
+
+## D067 — перенесённые формы используют прежние сервисы
+
+- **Основание:** утверждённый P12. Quiet/digest остаются Free и сохраняют DEFAULT1; paid формы следуют effective rights. Папки/фильтры/CAS/reminder queue/history retention используют existing services, временные browser fixtures не добавляются в live routes.
+- **Проверка:** Python66tests/34subtests,18browser reports/78PNG и exact current SHA; `P12-SETTINGS.md`. Read-only reviewer отделил ошибочный исходный статус QA от actual ACK, default продукта сохранён.
+- **Граница:** fake sender/SDK и временная БД; native/Telegram delivery/OAuth/staging НЕ проверены. P13 следующий, final full suite P19.

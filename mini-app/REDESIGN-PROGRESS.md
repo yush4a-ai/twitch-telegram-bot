@@ -10,8 +10,8 @@
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
-| P08–P12 — темы, shell и Viewer | P08–P11 PASS; далее P12 |
-| P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
+| P08–P12 — темы, shell и Viewer | P08–P12 PASS; далее P13 |
+| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13 следующий |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
 
@@ -73,3 +73,7 @@ BASE `f5549b0` → Viewer commit. Python25tests/23subtests; Chromium/WebKit0/6/2
 ## P11 complete
 
 BASE `dfa1340` → picker commit. Python40tests/6subtests; Chromium/WebKit0/6/200 + shell200,54PNG, errors/external0. `P11-VIDEO.md`; offline-inclusive5/search/directsixth409/atomic replace/cancel/open-dialog CAS/reload/pending ACK/late focus. BODY after double render RED закрыт pending restore; exact focus assertions сохранены. Delivery enums в UI simulated HTTP, pipeline fake sender; native NOT TESTED. Следующий P12 settings.
+
+## P12 complete
+
+BASE `9bb081f` → settings commit. Python66tests/34subtests; Chromium/WebKit18reports/78PNG, current source/image SHA verified, JS0/external0; `P12-SETTINGS.md`. Free quiet/digest, separate filter/category/reminder/folder/history journeys, pending/CAS/reload/late requests preserved. Один read-only reviewer подтвердил DEFAULT1 QA mistake; canonical assertions исправлены без смены Free default. Native NOT TESTED; следующий P13.

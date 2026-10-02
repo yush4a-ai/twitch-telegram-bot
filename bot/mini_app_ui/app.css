@@ -181,3 +181,7 @@ button[aria-disabled=true] { cursor:wait; opacity:.7; }
 .video-choice .row-copy { flex:1; }
 .video-choice small { font-size:.8125rem; line-height:1.45; }
 .video-choice:has(input[aria-disabled=true]) { opacity:.65; cursor:wait; }
+.settings-group { padding:16px; margin-top:16px; border-radius:var(--radius-group); background:var(--surface); }
+.settings-group p { font-size:.9375rem; }
+.settings-group .actions { margin-top:4px; }
+@media(max-width:420px) { .time-fields { grid-template-columns:1fr; } }

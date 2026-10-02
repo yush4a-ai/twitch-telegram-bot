@@ -1,0 +1,50 @@
+{
+  "journey": "viewer-settings",
+  "scenario": "independent-viewer",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "settings-chromium-category-saved-390.png",
+      "sha256": "97f613f81157581a161a972a0271f27a02b5c94b08d8869ccf7b6df4979ee389",
+      "viewport": "390x844"
+    },
+    {
+      "file": "viewer-settings-chromium-viewer-390.png",
+      "sha256": "dcb3cd3ed0b6f952967249800915e9633729bcb5bba5ee26bd24a310e58f1670",
+      "viewport": "390x844"
+    },
+    {
+      "file": "viewer-settings-chromium-channel-390.png",
+      "sha256": "78daa66588dc33f4c4a43ac8fe75ae9017e79d560fdfc0716723164266f9bf4e",
+      "viewport": "390x844"
+    },
+    {
+      "file": "viewer-settings-chromium-profile-390.png",
+      "sha256": "b7dc40d51c9fa3bd7a6a63c4546dc4c80c1cf26187bcb9120909e73604e1ab08",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "59ff74d66abff53ed460a15c67c66fab4b9fe4d404fe886cbc46e5011da6bea5",
+    "app.js": "8f8561c4a47ce8fc3073cccdcd50db26d5fd12530b8111ab60a598f9488956be",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "40623078c6e5af361a01a5b01a8816c7beda4daf3457ff7850fb452125a1cc4c",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "2299bb04ca1a6651dc9a2d80cf3eef162d3055e298505f6d7a840f5f129bf2ce",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "570fcf952a385e2cdfdbc8a886b7b3c4d2dc3450b2efb473eaffbbe8de188b76",
+    "scripts/mini_app_redesign_browser_qa.cjs": "588d2b68f30e06e5b55f946060ffce5f4b8dab86d6482ad66a514182125ae065"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

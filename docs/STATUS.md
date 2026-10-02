@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P11 PASS, далее P12
+## Текущий checkpoint — 02.10.2026: P12 PASS, далее P13
+
+P11 commit `9bb081f`; P12 отдельные формы Viewer/общая история из профиля. Python66tests/34subtests; Chromium/WebKit18reports/78PNG, sources/PNG SHA совпали, JS0/external0, detector[]. Free quiet/digest/HTML сохранены; reminders15/30/cancel/inflight409, folder/filter CAS/reset/drafts, category late search и history own outcomes20+5/late reset. Scoped self review и один read-only reviewer QA default; `P12-SETTINGS.md`. Следующий P13 channel-only/structured permissions/verified OAuth UI. Full suite P19 ещё впереди; native/staging NOT TESTED, production/деньги/внешние send/OAuth не менялись.
+
+## Предыдущий checkpoint — 02.10.2026: P11 PASS, далее P12
 
 P10 commit `dfa1340`; P11 top picker/own search/five offline-inclusive/atomic replacement/CAS/reload/честная delivery. Python40tests/6subtests; Chromium/WebKit0/6/200 + shell200,54PNG/hash, JS0/external0, detector[]. Delayed ACK не обещает успех, open dialog удерживает исходный version; double refresh больше не теряет user focus. Evidence `P11-VIDEO.md`. UI media enums simulated, runtime tests fake sender; native/staging NOT TESTED, внешних операций нет. Следующий P12 Viewer settings; production/деньги/HTML/экспорт не менялись.
 

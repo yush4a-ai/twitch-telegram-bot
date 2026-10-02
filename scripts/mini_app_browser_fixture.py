@@ -17,13 +17,16 @@ from bot.database import Database
 from bot.mini_app_web import install_mini_app_routes
 from bot.mini_app_streamer import complete_community_intent
 from bot.viewer_history import ViewerHistoryService
+from bot.viewer_reminders import ViewerReminderService
+from bot.notification_queue import NotificationQueue
+from bot.notification_worker import NotificationWorker, NotificationOutcome
 
 
 FIXTURE_BOT_TOKEN = "123456:test-telegram-token"
 SCENARIOS = frozenset({
     "free-empty", "free-six", "plus-two-hundred", "streamer-plus",
     "independent-viewer", "legacy-group", "channel-permissions",
-    "payment-off", "legal-unready",
+    "payment-off", "legal-unready", "reminder-inflight", "history",
 })
 
 
@@ -167,6 +170,46 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
                 expires_at=observed_at + 1800, issued_by=425785231, now=observed_at,
                 beneficiary_telegram_user_id=501,
             )
+        if scenario in {"reminder-inflight", "history"}:
+            await db.issue_test_viewer_plus(
+                501, "redesign-settings", starts_at=observed_at - 1000,
+                expires_at=observed_at + 3600, issued_by=425785231, now=observed_at,
+            )
+            queue = NotificationQueue(db)
+            if scenario == "reminder-inflight":
+                reminders = ViewerReminderService(db)
+                selected_at = observed_at - 901
+                await db.set_live_state(501, "alpha", True, "fixture-alpha", 701,
+                                        "Title", broadcaster_id="1000", last_seen_live_at=selected_at)
+                saved = await reminders.set_reminder(501, "1000", "fixture-alpha", 15, now=selected_at)
+                await db.set_live_state(501, "alpha", True, "fixture-alpha", 701,
+                                        "Title", broadcaster_id="1000", last_seen_live_at=observed_at)
+                await queue.enqueue("viewer_reminder", 501, "alpha", "fixture-alpha", saved.version,
+                                    due_at=saved.due_at, now=observed_at)
+                job = (await queue.claim_due(observed_at, limit=1, lease_seconds=180))[0]
+                if not await reminders.begin_delivery(job, now=observed_at):
+                    raise AssertionError("fixture reminder must cross the real delivery fence")
+            else:
+                await db.issue_test_viewer_plus(
+                    202, "redesign-history-foreign", starts_at=observed_at - 1000,
+                    expires_at=observed_at + 3600, issued_by=425785231, now=observed_at,
+                )
+                for index in range(26):
+                    event_at = observed_at - 30 + index
+                    outcome = index % 3
+                    kind = "viewer_category_change" if outcome == 2 else "go_live"
+                    async def sender(_job, selected_outcome=outcome):
+                        if selected_outcome == 2:
+                            raise TimeoutError("fake sender has no confirmed response")
+                        return NotificationOutcome.SENT if selected_outcome == 0 else NotificationOutcome.STALE
+                    await queue.enqueue(kind, 501 if index < 25 else 202,
+                                        "alpha" if index < 25 else "foreign", f"fixture-history-{index}", 1,
+                                        due_at=event_at, now=event_at)
+                    worker = NotificationWorker(queue, sender, max_concurrency=1,
+                                                per_chat_interval=0, group_chat_interval=0, global_interval=0,
+                                                clock=lambda value=event_at: value)
+                    if await worker.run_once() != 1:
+                        raise AssertionError("fixture history requires a terminal fake delivery")
         state = FixtureState(scenario, observed_at, directory, FixtureBot(channel=True), FixtureTwitch(channels))
         app = web.Application()
         app[FIXTURE_STATE_KEY] = state

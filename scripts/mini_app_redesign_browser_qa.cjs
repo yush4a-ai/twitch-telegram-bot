@@ -89,6 +89,7 @@ async function runJourney(page, scenario) {
   if (scenario === 'shell') return shellJourney(page);
   if (scenario === 'viewer-free') return viewerFreeJourney(page);
   if (scenario === 'video') return videoJourney(page);
+  if (scenario === 'viewer-settings') return viewerSettingsJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -451,6 +452,183 @@ async function shellAuthGates(browser,url) {
   await offline.getByText('Связь прервалась. Откройте приложение заново, когда сеть восстановится.',{exact:true}).waitFor();
   assert.equal(await offline.locator('#content h1').count(),1,'Bootstrap error has one clear heading');
   await assertLayout(offline);await offline.close();
+}
+
+async function viewerSettingsJourney(page){
+  const part=argument('part','quiet');
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
+  if(part==='filter-folder')return filterFolderJourney(page);
+  if(part==='category')return categoryJourney(page);
+  if(part==='reminder')return reminderJourney(page);
+  if(part==='history')return historyJourney(page);
+  if(part==='pending')return settingsPendingJourney(page);
+  if(part==='quiet-pending')return quietPendingJourney(page);
+  if(part!=='quiet')throw new Error(`Settings part not implemented yet: ${part}`);
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:'Уведомления',exact:true}).click();
+  await page.getByRole('heading',{name:'Уведомления',exact:true}).waitFor();
+  await page.getByLabel('Начало тихих часов',{exact:true}).fill('22:15');await page.getByLabel('Конец тихих часов',{exact:true}).fill('07:45');
+  await page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).click();await page.getByText('Тихие часы сохранены',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).isChecked(),true,'Free digest default is preserved');
+  await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).click();await page.getByText('Сводка выключена',{exact:true}).waitFor();
+  await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).click();await page.getByText('Сводка включена',{exact:true}).waitFor();
+  const saved=await page.evaluate(async()=>{const {createApi}=await import('/app/api.js');return createApi(Telegram.WebApp.initData).post('/app/api/viewer/state');});
+  assert.equal(saved.quiet_hours.digest_enabled,true);
+  const time=await page.evaluate(()=>-new Date().getTimezoneOffset());
+  assert.equal(saved.quiet_hours.start_minute,(22*60+15-time+1440)%1440);assert.equal(saved.quiet_hours.end_minute,(7*60+45-time+1440)%1440);
+  await page.reload();await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:'Уведомления',exact:true}).click();
+  assert.equal(await page.getByLabel('Начало тихих часов',{exact:true}).inputValue(),'22:15');assert.equal(await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).isChecked(),true);
+  await page.getByRole('button',{name:'Выключить',exact:true}).click();await page.getByText('Тихие часы выключены',{exact:true}).waitFor();assert.equal(await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).isEnabled(),false);
+  const pictures=[await settingsPicture(page,'quiet-free')];
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await assertLayout(page);return pictures;
+}
+
+async function filterFolderJourney(page){
+  const pictures=[];
+  const call=(path,values={})=>page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');return createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values);},{path,values});
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки',exact:true}).click();await page.getByRole('heading',{name:'Папки',exact:true}).waitFor();
+  await page.getByRole('textbox',{name:'Название новой папки',exact:true}).fill('Игры и общение');await page.getByRole('button',{name:'Создать папку',exact:true}).click();
+  await page.getByRole('heading',{name:'Игры и общение',exact:true}).waitFor();
+  await page.getByRole('textbox',{name:'Категории',exact:true}).fill('Minecraft');await page.getByRole('button',{name:'Добавить категорию папки',exact:true}).click();
+  await page.getByRole('button',{name:'Сохранить правило',exact:true}).click();await page.getByText('Правило сохранено',{exact:true}).waitFor();
+  pictures.push(await settingsPicture(page,'folder-rule'));
+  const folder=(await call('state')).folders.find(row=>row.name==='Игры и общение');assert.deepEqual(folder.games,['Minecraft']);
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();
+  await page.getByRole('button',{name:'Папка',exact:true}).click();await page.getByRole('combobox',{name:'Папка стримера',exact:true}).selectOption(folder.id);
+  await page.getByRole('button',{name:'Сохранить папку',exact:true}).click();await page.getByText('Папка сохранена',{exact:true}).waitFor();
+  assert.equal((await call('state')).subscriptions.find(row=>row.login==='alpha').folder_id,folder.id);
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Фильтры уведомлений',exact:true}).click();await page.getByRole('heading',{name:'Фильтры',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Сохранить фильтр',exact:true}).click();await page.getByText('Фильтр сохранён',{exact:true}).waitFor();
+  let row=(await call('state')).subscriptions.find(row=>row.login==='alpha');assert.deepEqual(row.filter.games,[],'Explicit empty personal rule overrides folder');
+  await page.getByRole('textbox',{name:'Слова в названии',exact:true}).fill('Очень длинное слово для уведомления');await page.getByRole('button',{name:'Добавить слово',exact:true}).click();
+  await call('filter',{login:'alpha',expected_version:row.filter.version,games:['Art'],title_keywords:[],exclude_keywords:[]});
+  await page.getByRole('button',{name:'Сохранить фильтр',exact:true}).click();await page.getByText('Правило изменилось в другом окне. Проверьте значения и сохраните ещё раз.',{exact:true}).waitFor();
+  await page.getByText('Очень длинное слово для уведомления',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Сохранить фильтр',exact:true}).click();await page.getByText('Фильтр сохранён',{exact:true}).waitFor();
+  row=(await call('state')).subscriptions.find(row=>row.login==='alpha');assert.deepEqual(row.filter.title_keywords,['Очень длинное слово для уведомления']);pictures.push(await settingsPicture(page,'filter-personal'));
+  await page.getByRole('button',{name:'Использовать правило папки',exact:true}).click();await page.getByRole('heading',{name:'Alpha',exact:true}).waitFor();assert.equal((await call('state')).subscriptions.find(row=>row.login==='alpha').filter,null);
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки',exact:true}).click();await page.getByRole('button',{name:'Игры и общение · 1',exact:true}).click();
+  await page.getByRole('textbox',{name:'Название папки',exact:true}).fill('Мой черновик');
+  const current=(await call('state')).folders.find(row=>row.id===folder.id);await call('folder/rename',{folder_id:folder.id,name:'Другое окно',expected_version:current.version});
+  await page.getByRole('button',{name:'Сохранить название',exact:true}).click();await page.getByText('Папка изменилась в другом окне. Черновик не сохранён.',{exact:true}).waitFor();assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).inputValue(),'Мой черновик');
+  await page.getByRole('button',{name:'Загрузить текущую версию',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).inputValue(),'Другое окно');
+  page.once('dialog',prompt=>prompt.accept());await page.getByRole('button',{name:'Удалить папку',exact:true}).click();await page.getByRole('heading',{name:'Папки',exact:true}).waitFor();
+  const final=await call('state');assert.equal(final.folders.length,0);assert.equal(final.subscriptions.find(row=>row.login==='alpha').folder_id,null);assert.equal(final.subscriptions.length,6);
+  await assertLayout(page);return pictures;
+}
+
+async function categoryJourney(page){
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Категории',exact:true}).click();
+  await page.getByRole('heading',{name:'Категории',exact:true}).waitFor();
+  const query=page.getByRole('searchbox',{name:'Найти категорию Twitch',exact:true});
+  let release,started;const gate=new Promise(resolve=>{release=resolve;}),seen=new Promise(resolve=>{started=resolve;});
+  await page.route('**/app/api/viewer/category-search',async route=>{const response=await route.fetch();started();await gate;try{await route.fulfill({response});}catch{} /* New query aborts the old request. */});
+  await query.fill('Minecraft');await page.getByRole('button',{name:'Найти',exact:true}).click();await seen;
+  await query.fill('Art');release();await page.waitForTimeout(100);
+  assert.equal(await page.getByRole('button',{name:'Minecraft',exact:true}).count(),0,'A late category result cannot replace the new query');
+  await page.unroute('**/app/api/viewer/category-search');
+  await page.getByRole('button',{name:'Найти',exact:true}).click();await page.getByRole('button',{name:'Art',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Уведомлять о смене категории',exact:true}).check();await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).click();await page.getByText('Настройка сохранена.',{exact:true}).waitFor();
+  const state=await page.evaluate(async()=>{const {createApi}=await import('/app/api.js');return createApi(Telegram.WebApp.initData).post('/app/api/viewer/state');});
+  assert.deepEqual(state.subscriptions.find(row=>row.login==='alpha').category_alert.category_ids,['300']);assert.equal(state.subscriptions.find(row=>row.login==='alpha').category_alert.enabled,true);
+  await page.reload();await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Категории',exact:true}).click();
+  await page.getByRole('button',{name:'Убрать Art',exact:true}).waitFor();assert.equal(await page.getByRole('checkbox',{name:'Уведомлять о смене категории',exact:true}).isChecked(),true);
+  await page.getByRole('button',{name:'Убрать Art',exact:true}).click();await page.getByRole('checkbox',{name:'Уведомлять о смене категории',exact:true}).uncheck();await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).click();await page.getByText('Настройка сохранена.',{exact:true}).waitFor();
+  const pictures=[await settingsPicture(page,'category-disabled')];await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Alpha',exact:true}).waitFor();await assertLayout(page);return pictures;
+}
+
+async function settingsPicture(page,label){
+  const file=`settings-${argument('engine','chromium')}-${label}-390.png`;
+  await assertLayout(page);await page.screenshot({path:path.join(output,file),fullPage:false,animations:'disabled'});
+  return {file,sha256:digest(path.join(output,file)),viewport:'390x844'};
+}
+async function viewerCall(page,path,values={}){
+  return page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');try{return {ok:true,data:await createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values)};}catch(error){return {ok:false,status:error.status,code:error.code};}},{path,values});
+}
+async function reminderJourney(page){
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Напоминание',exact:true}).click();
+  await page.getByRole('heading',{name:'Напоминание',exact:true}).waitFor();
+  if(argument('scenario','')==='reminder-inflight'){
+    await page.getByText('Отправляем напоминание. Сейчас изменить его нельзя.',{exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'Через 15 минут',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Отменить напоминание',exact:true}).count(),0);
+    for(const [path,values] of [['reminder',{login:'alpha',delay_minutes:30}],['reminder/cancel',{login:'alpha'}]])assert.deepEqual(await viewerCall(page,path,values),{ok:false,status:409,code:'reminder_in_flight'});
+    await page.reload();await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Напоминание',exact:true}).click();
+    await page.getByText('Отправляем напоминание. Сейчас изменить его нельзя.',{exact:true}).waitFor();
+    return [await settingsPicture(page,'reminder-sending')];
+  }
+  await page.getByRole('button',{name:'Через 15 минут',exact:true}).click();await page.getByRole('button',{name:'Отменить напоминание',exact:true}).waitFor();
+  let state=(await viewerCall(page,'state')).data;let saved=state.subscriptions.find(row=>row.login==='alpha').reminder;assert.equal(saved.delay_minutes,15);assert.equal(saved.status,'scheduled');
+  assert.equal(await page.locator('time[data-reminder-due]').getAttribute('datetime'),new Date(saved.due_at*1000).toISOString(),'The actual saved due time is visible');
+  let release,observed;const held=new Promise(resolve=>release=resolve),seen=new Promise(resolve=>observed=resolve);
+  await page.route('**/app/api/viewer/reminder',async route=>{observed();await held;await route.continue();});
+  await page.getByRole('button',{name:'Через 30 минут',exact:true}).click();await seen;
+  assert.equal(await page.getByRole('button',{name:'Через 15 минут',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Отменить напоминание',exact:true}).isDisabled(),true);
+  release();await page.unroute('**/app/api/viewer/reminder');await page.getByText('Запланировано через 30 минут от выбора. Если эфир закончится, сообщение не придёт.',{exact:true}).waitFor();
+  state=(await viewerCall(page,'state')).data;saved=state.subscriptions.find(row=>row.login==='alpha').reminder;assert.equal(saved.delay_minutes,30);
+  const pictures=[await settingsPicture(page,'reminder-scheduled')];
+  await page.reload();await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Напоминание',exact:true}).click();
+  await page.getByRole('button',{name:'Отменить напоминание',exact:true}).click();await page.getByText('Напоминание отменено.',{exact:true}).waitFor();assert.equal((await viewerCall(page,'state')).data.subscriptions.find(row=>row.login==='alpha').reminder.status,'cancelled');
+  pictures.push(await settingsPicture(page,'reminder-cancelled'));await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Alpha',exact:true}).waitFor();return pictures;
+}
+async function historyJourney(page){
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();
+  await page.getByRole('button',{name:'История уведомлений',exact:true}).click();
+  await page.getByRole('heading',{name:'История уведомлений',exact:true}).waitFor();
+  if(argument('scenario','')==='free-six'){
+    await page.getByText('Viewer Plus неактивен',{exact:true}).waitFor();assert.equal(await page.locator('[data-history-event]').count(),0);
+    await page.getByRole('button',{name:'Посмотреть доступ',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.evaluate(()=>window.__qaSdk.back());await page.evaluate(()=>window.__qaSdk.back());
+    await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();await page.getByRole('button',{name:'Уведомления',exact:true}).click();await page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).waitFor();return [await settingsPicture(page,'free-notifications')];
+  }
+  await page.locator('[data-history-event]').first().waitFor();assert.equal(await page.locator('#content h1').count(),1);
+  assert.equal(await page.locator('[data-history-event]').count(),20);assert.equal(await page.getByText(/foreign/).count(),0);
+  for(const label of ['Отправлено','Не отправлено','Доставка не подтверждена'])assert(await page.getByText(new RegExp(label)).count()>0);
+  const pictures=[await settingsPicture(page,'history-page-one')];
+  await page.route('**/app/api/viewer/history',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'temporary_network'})}));
+  await page.getByRole('button',{name:'Показать ещё',exact:true}).click();await page.getByText('Не удалось загрузить историю. Попробуйте ещё раз.',{exact:true}).waitFor();assert.equal(await page.locator('[data-history-event]').count(),20);
+  await page.unroute('**/app/api/viewer/history');await page.getByRole('button',{name:'Показать ещё',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('[data-history-event]').length===25);
+  assert.equal(new Set(await page.locator('[data-history-event]').evaluateAll(nodes=>nodes.map(node=>node.dataset.historyEvent))).size,25);assert.equal(await page.getByRole('button',{name:'Показать ещё',exact:true}).count(),0);
+  pictures.push(await settingsPicture(page,'history-complete'));
+  await page.getByRole('button',{name:'Обновить историю',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('[data-history-event]').length===20);
+  let release,observed;const held=new Promise(resolve=>release=resolve),seen=new Promise(resolve=>observed=resolve);
+  await page.route('**/app/api/viewer/history',async route=>{if(route.request().postDataJSON().before_id){const response=await route.fetch();observed();await held;try{await route.fulfill({response});}catch{}}else await route.continue();});
+  await page.getByRole('button',{name:'Показать ещё',exact:true}).click();await seen;await page.getByRole('button',{name:'Обновить историю',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('[data-history-event]').length===20);release();await page.waitForTimeout(150);
+  assert.equal(await page.locator('[data-history-event]').count(),20,'A late page cannot append to a refreshed history');await page.unroute('**/app/api/viewer/history');
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();await page.getByRole('button',{name:'Стример',exact:true}).click();await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:'История уведомлений',exact:true}).click();await page.getByRole('heading',{name:'История уведомлений',exact:true}).waitFor();await page.locator('[data-history-event]').first().waitFor();assert.equal(await page.locator('#content h1').count(),1);
+  await page.reload();await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:'История уведомлений',exact:true}).click();await page.locator('[data-history-event]').first().waitFor();assert.equal(await page.locator('[data-history-event]').count(),20);return pictures;
+}
+
+async function heldMutation(page,path,click,verify){
+  let release,observed;const held=new Promise(resolve=>release=resolve),seen=new Promise(resolve=>observed=resolve);
+  let calls=0;await page.route(`**/app/api/viewer/${path}`,async route=>{calls++;observed();await held;try{await route.continue();}catch{}});
+  let timer;try{await click();await Promise.race([seen,new Promise((_,reject)=>timer=setTimeout(()=>reject(new Error(`Expected mutation did not start: ${path}`)),10000))]);await verify();assert.equal(calls,1);}finally{clearTimeout(timer);release();await page.unroute(`**/app/api/viewer/${path}`);}
+}
+async function quietPendingJourney(page){
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:'Уведомления',exact:true}).click();await page.getByLabel('Начало тихих часов',{exact:true}).fill('21:00');await page.getByLabel('Конец тихих часов',{exact:true}).fill('08:00');
+  await heldMutation(page,'quiet-hours',()=>page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).click(),async()=>{assert.equal(await page.getByLabel('Начало тихих часов',{exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).isDisabled(),true);});
+  await page.getByText('Тихие часы сохранены',{exact:true}).waitFor();assert.equal(await page.getByLabel('Начало тихих часов',{exact:true}).isEnabled(),true);
+  assert.equal(await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).isChecked(),true,'New Free quiet-hours preserve enabled digest default');
+  await page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).click();await page.getByText('Сводка выключена',{exact:true}).waitFor();assert.equal((await viewerCall(page,'state')).data.quiet_hours.digest_enabled,false);
+  await heldMutation(page,'digest',()=>page.getByRole('checkbox',{name:'Сводка после тихих часов',exact:true}).click(),async()=>{assert.equal(await page.getByLabel('Начало тихих часов',{exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Выключить',exact:true}).isDisabled(),true);});
+  await page.getByText('Сводка включена',{exact:true}).waitFor();assert.equal(await page.getByLabel('Начало тихих часов',{exact:true}).isEnabled(),true);assert.equal((await viewerCall(page,'state')).data.quiet_hours.digest_enabled,true);return [await settingsPicture(page,'quiet-digest-pending-complete')];
+}
+
+async function settingsPendingJourney(page){
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки',exact:true}).click();await page.getByRole('textbox',{name:'Название новой папки',exact:true}).fill('Правило с ожиданием');
+  await heldMutation(page,'folder/create',()=>page.getByRole('button',{name:'Создать папку',exact:true}).click(),async()=>{assert.equal(await page.getByRole('textbox',{name:'Название новой папки',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Создать папку',exact:true}).isDisabled(),true);});
+  await page.getByRole('heading',{name:'Правило с ожиданием',exact:true}).waitFor();await page.getByRole('textbox',{name:'Категории',exact:true}).fill('Minecraft');await page.getByRole('button',{name:'Добавить категорию папки',exact:true}).click();
+  await heldMutation(page,'folder/rule',()=>page.getByRole('button',{name:'Сохранить правило',exact:true}).click(),async()=>{assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Сохранить правило',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Убрать Minecraft из категории',exact:true}).isDisabled(),true);});
+  await page.getByText('Правило сохранено',{exact:true}).waitFor();assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).isEnabled(),true);
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Папка',exact:true}).click();
+  const folder=(await viewerCall(page,'state')).data.folders.find(row=>row.name==='Правило с ожиданием');await page.getByRole('combobox',{name:'Папка стримера',exact:true}).selectOption(folder.id);
+  await heldMutation(page,'folder/move',()=>page.getByRole('button',{name:'Сохранить папку',exact:true}).click(),async()=>{assert.equal(await page.getByRole('combobox',{name:'Папка стримера',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Сохранить папку',exact:true}).isDisabled(),true);});
+  await page.getByText('Папка сохранена',{exact:true}).waitFor();assert.equal((await viewerCall(page,'state')).data.subscriptions.find(row=>row.login==='alpha').folder_id,folder.id);await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Фильтры уведомлений',exact:true}).click();
+  await page.getByRole('textbox',{name:'Слова в названии',exact:true}).fill('общение');await page.getByRole('button',{name:'Добавить слово',exact:true}).click();
+  await heldMutation(page,'filter',()=>page.getByRole('button',{name:'Сохранить фильтр',exact:true}).click(),async()=>{assert.equal(await page.getByRole('textbox',{name:'Слова в названии',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('button',{name:'Сохранить фильтр',exact:true}).isDisabled(),true);});
+  await page.getByText('Фильтр сохранён',{exact:true}).waitFor();assert.deepEqual((await viewerCall(page,'state')).data.subscriptions.find(row=>row.login==='alpha').filter.title_keywords,['общение']);
+  assert.equal(await page.getByRole('textbox',{name:'Слова в названии',exact:true}).isEnabled(),true);
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Категории',exact:true}).click();
+  await heldMutation(page,'category-alert',()=>page.getByRole('button',{name:'Сохранить сигнал',exact:true}).click(),async()=>{assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('checkbox',{name:'Уведомлять о смене категории',exact:true}).isDisabled(),true);});
+  await page.getByText('Настройка сохранена.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).isEnabled(),true);return [await settingsPicture(page,'category-saved')];
 }
 
 async function main() {

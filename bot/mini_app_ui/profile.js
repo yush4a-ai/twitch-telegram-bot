@@ -35,6 +35,7 @@ export function createProfileFeature(api,getRouter,theme) {
       group.append(navigationRow('Уведомления','Тихие часы и настройки зрителя','notification',()=>getRouter().openDetail('viewer-settings'),'viewer-settings'));
       group.append(navigationRow('Тема приложения',themes.find(([id])=>id===theme.getChoice())?.[1],'theme',themePicker,'theme'));target.append(group);
       const support=element('section','navigation-group');support.append(navigationRow('Поддержка','Контакт и документы','help',()=>getRouter().openDetail('support'),'support'));
+      support.append(navigationRow('История уведомлений','Результаты ваших оповещений · Plus','history',()=>getRouter().openDetail('history'),'history'));
       support.append(navigationRow('Отчёты в боте','Команда /report и HTML-экспорт','posts',async event=>{
         const origin=event.currentTarget;
         let text='Отправьте /report в личном чате бота.';

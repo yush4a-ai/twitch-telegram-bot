@@ -1,0 +1,54 @@
+..F.F.                                                          [100%]
+================================== FAILURES ===================================
+_ RedesignFixtureTests.test_history_fixture_contains_only_own_terminal_delivery_facts _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_history_fixture_contains_only_own_terminal_delivery_facts>
+
+    async def test_history_fixture_contains_only_own_terminal_delivery_facts(self):
+>       app, _db, client = await self.build("history")
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:16: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'history', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:119: ValueError
+_ RedesignFixtureTests.test_reminder_inflight_fixture_uses_delivery_fence_without_sending _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_reminder_inflight_fixture_uses_delivery_fence_without_sending>
+
+    async def test_reminder_inflight_fixture_uses_delivery_fence_without_sending(self):
+>       app, _db, client = await self.build("reminder-inflight")
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:71:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:16: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'reminder-inflight', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:119: ValueError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_history_fixture_contains_only_own_terminal_delivery_facts
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_reminder_inflight_fixture_uses_delivery_fence_without_sending
+2 failed, 4 passed, 9 subtests passed in 18.64s

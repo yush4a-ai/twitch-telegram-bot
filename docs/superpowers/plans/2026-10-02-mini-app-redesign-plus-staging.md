@@ -300,11 +300,11 @@ Profile получает имя только из server bootstrap: `verify_weba
 
 **Интерфейсы:** existing expected_version/CAS, folder_id, category IDs, reminder15/30, history before_id. Quiet/digest — Free; настройки Plus после expiry хранятся без платного эффекта. UI authorisation следует effective state P04, не режиму.
 
-- [ ] RED отдельными journeys `filter_folder_reset_and_conflict_keep_draft`, `category_search_and_signal_persist_verified_ids`, `reminder_15_30_cancel_inflight409`, `history_pagination_has_own_terminal_outcomes`, `quiet_digest_free_reload`. Для каждого зафиксировать DOM/assertion текущего UI, затем переносить его, не весь viewer.js разом.
-- [ ] Запускать `--journey viewer-settings --scenario <один-сценарий>` в двух движках; focused Python файл соответствующего service перед его правкой → expected RED нового поведения/визуальной доступности, остальные сервисы могут уже проходить.
-- [ ] Перенести формы в короткие detail-экраны/строки А; validate full text, pending/409/network/auth errors, reset личного пустого фильтра, принадлежность одной папке. Не писать новые detector/queue engines.
-- [ ] PASS перечисленные service tests и браузерные mutations→reload→back. History `sent` только подтверждённый sender; отправки fake. Не менять технические retention/лимиты/Free quiet из-за копирайта.
-- [ ] Scoped review всех перенесённых settings одним пакетом → commit/screenshots. Несвязанные cosmetic изменения откладывать, функциональные дефекты закрыть.
+- [x] RED отдельными journeys `filter_folder_reset_and_conflict_keep_draft`, `category_search_and_signal_persist_verified_ids`, `reminder_15_30_cancel_inflight409`, `history_pagination_has_own_terminal_outcomes`, `quiet_digest_free_reload`. Для каждого зафиксировать DOM/assertion текущего UI, затем переносить его, не весь viewer.js разом.
+- [x] Запускать `--journey viewer-settings --scenario <один-сценарий>` в двух движках; focused Python файл соответствующего service перед его правкой → expected RED нового поведения/визуальной доступности, остальные сервисы могут уже проходить.
+- [x] Перенести формы в короткие detail-экраны/строки А; validate full text, pending/409/network/auth errors, reset личного пустого фильтра, принадлежность одной папке. Не писать новые detector/queue engines.
+- [x] PASS перечисленные service tests и браузерные mutations→reload→back. History `sent` только подтверждённый sender; отправки fake. Не менять технические retention/лимиты/Free quiet из-за копирайта.
+- [x] Scoped review всех перенесённых settings одним пакетом → commit/screenshots. Несвязанные cosmetic изменения откладывать, функциональные дефекты закрыть.
 
 ## P13. Streamer Free: Twitch OAuth и Telegram channel-only connection
 
