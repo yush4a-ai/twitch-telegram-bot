@@ -1,0 +1,32 @@
+FFF..
+======================================================================
+FAIL: test_exact_surfaces_and_trial_flag (__main__.SmokeGuards.test_exact_surfaces_and_trial_flag) (mutation='missing_admin')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 32, in test_exact_surfaces_and_trial_flag
+    with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: AssertionError not raised
+
+======================================================================
+FAIL: test_exact_surfaces_and_trial_flag (__main__.SmokeGuards.test_exact_surfaces_and_trial_flag) (mutation='substituted_asset')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 32, in test_exact_surfaces_and_trial_flag
+    with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: AssertionError not raised
+
+======================================================================
+FAIL: test_exact_surfaces_and_trial_flag (__main__.SmokeGuards.test_exact_surfaces_and_trial_flag) (mutation='trial_false')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 32, in test_exact_surfaces_and_trial_flag
+    with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: AssertionError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=3)

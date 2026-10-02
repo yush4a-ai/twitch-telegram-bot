@@ -529,3 +529,10 @@
 - Основание: P18/19. HTML приложения допускает iframe только exact Telegram Web origin; прочие CSP/XFO защиты сохранены. Пять личных слотов не доказывают производительность сервера.
 - Проверка:92journeys/2520checks/984PNG/174sourceSHA; один reviewer/F1 closed; load cap2/deferred98/4998 и честный1×1000 RESOURCE_STOP25s. Backup/restore/migration-copy PASS, активная БД не заменена; фактический staging Fernet проверен без выгрузки ключа.
 - Граница: full-suite/release/staging ещё впереди, native/OAuth/send/payment NOT TESTED; `P18-QA.md`, `MIGRATION-COPY.md`, `mini-app-threat-model.md`. Production fresh SHA dc9239 не подменяет исторические аудиты.
+
+## D074 — P19 gate закрыт на финальном коде; guard повторяет suite
+
+- Основание: утверждённые P19–P21 и фактические evidence.
+- Проверка:1403passed/2skipped/3248subtests/903.06s exit0; существующие Windows symlink skips отдельно отмечены. Старое ожидание20versions обновлено пятью явными R11 migrations; reopen стал точнее, assertions/skip не ослаблены. Один scoped reviewer подтвердил исправление. Whole-change review/F1, threat model и actual staging backup/restore/migration-copy/ключ PASS.
+- Решение: сохранить RED/PASS, backup вне Git и P21 draft, выпустить чистый commit штатным pinned guard. Guard самостоятельно повторяет полный suite и перепроверяет дерево/SHA/target. Runtime после P18 не менялся.
+- Граница: actual deploy/SHA/bot/menu/assets ещё впереди; native/signed live API/send/OAuth/payment NOT TESTED. Payment OFF/bank NOT READY сохраняются. Production metadata fresh dc9239 записаны до выпуска без изменения production.

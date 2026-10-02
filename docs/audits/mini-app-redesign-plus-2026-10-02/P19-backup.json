@@ -1,0 +1,20 @@
+{
+  "backup": "/data/backups/redesign-20261002-7e81ecf975834d82994ecca22ee66959.db",
+  "created": {
+    "integrity": "ok",
+    "bytes": 3006464
+  },
+  "restore": {
+    "integrity": "ok",
+    "restored_tables": 54,
+    "bytes": 3006464
+  },
+  "sha256": "c674d07159110a46f1881b1480aa14da0dc0474886e07c2beb73c5fc0698c8b7",
+  "local_export": "C:\\Users\\yusha\\AppData\\Local\\TwitchSignalBot\\staging-backups\\redesign-20261002-7e81ecf975834d82994ecca22ee66959.db",
+  "local_restore": {
+    "integrity": "ok",
+    "restored_tables": 54,
+    "bytes": 3006464
+  },
+  "status": "PASS"
+}

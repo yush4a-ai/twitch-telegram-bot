@@ -11,9 +11,9 @@
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
 | P08–P12 — темы, shell и Viewer | P08–P12 PASS |
-| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13–P15 PASS; далее P16 |
-| P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
-| P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
+| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13–P17 PASS |
+| P18–P19 — browser/media, полный suite, review, backup | P18/P19 PASS; media-пределы сохранены |
+| P20–P21 — guarded staging и самостоятельная приёмка | P20 следующий: чистый release commit и guard; P21 пакет подготовлен |
 
 Viewer150 ₽; Streamer300 ₽. Режим определяет основное предложение Plus; основной внутренний переключатель тарифов удаляется. Первый release без внешних payment POST/invoices/grants из заглушки. Bank NOT READY; реальные Telegram/OAuth/оплаты/native NOT TESTED.
 
@@ -105,3 +105,7 @@ BASE8a8a70f; актуальный общий прогон — `P18-release-chrom
 ## P18 завершён, P19 выполняется
 
 Финальные `P18-final-release-*`:92journeys/2520matrixchecks/984PNG, Chromium151/WebKit26.5, current174sourceSHA/PNG SHA независимо подтверждены. Два CSS accessibility fixes, scoped iframe F1 и watchdog regression;11tests22subtests +31tests44subtests. `P18-QA.md`. Media H.264:1×1000 RESOURCE_STOP25s;100×10 и1000×5 PASS cap2/deferred98/4998, cleanup/no external send. Это предел, не серверная SLA. P19 whole-change reviewer/F1 закрыты; backup remote/local и миграция копии PASS54→60tables/25versions/actualFernet2/rollback/reopen. Full pytest ещё идёт; P19 release commit/deploy не объявлены PASS. Native/OAuth/send/payment NOT TESTED; production/HTML/export сохранены.
+
+## P19 завершён, далее P20
+
+Полный финальный pytest exit0:1403passed,2skipped,3248subtests,903.06s (`P19-full-suite-final.log`). Два прежних WinError1314 symlink skips; новых skips нет. Первое RED exact20versions исправлено явным списком25 и более строгим reopen без runtime changes;49focused tests19subtests PASS, один scoped reviewer. Whole-change security/F1,92browserjourneys/984PNG, backup/restore/migration-copy/actual key закрыты. P19 evidence и draft P21 сохраняются в release commit; штатный guard повторит suite на этом committed snapshot. Payment OFF/bank NOT READY/native NOT TESTED; deploy ещё не выполнен.

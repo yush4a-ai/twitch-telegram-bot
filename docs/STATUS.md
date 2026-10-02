@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P18 PASS с media-пределами, P19 выполняется
+## Текущий checkpoint — 02.10.2026: P19 PASS, далее guarded P20
+
+Финальный полный pytest exit0:1403passed,2skipped,3248subtests за903.06s; два прежних WinError1314 symlink skips. Exact schema regression обновлён явными R11_001–005 и строгим reopen, assertions не ослаблены;49focused tests19subtests PASS. Whole-change reviewer/F1, threat model,92browserjourneys/984PNG, backup remote/local/restore/migration-copy54→60tables/25versions/actualFernet2 PASS. `RELEASE-GATE.md`. Clean release commit и штатный guard следующий; он повторяет полный suite. Deployment пока отсутствует; payment OFF/bank NOT READY/native NOT TESTED. Production/HTML/export сохранены.
+
+## Предыдущий checkpoint — 02.10.2026: P18 PASS с media-пределами, P19 выполняется
 
 BASE8a8a70f;92browserjourneys/2520matrixchecks/984PNG, Chromium151/WebKit26.5,174sourceSHA/PNG SHA independently verified; `P18-QA.md`. Два accessibility fixes и exact-origin iframe fix, fixture/guard11tests22subtests/header31tests44subtests. Media1×1000 RESOURCE_STOP25s, два профиля PASS cap2/deferred98/4998: серверная SLA не подтверждена. P19 backup/restore/migration-copy PASS54→60tables/25versions/actualFernet2/rollback/reopen, whole-change review закрывает F1; полный suite ещё идёт. Payment OFF/bank NOT READY/native NOT TESTED; deployment не выполнен. Следующий gate P19, затем guarded P20 и owner пакет P21.
 

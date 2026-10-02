@@ -20,8 +20,9 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 db = Database(path)
                 await db.connect()
                 try:
+                    versions = await db.schema_versions()
                     self.assertEqual(
-                        await db.schema_versions(),
+                        versions,
                         [
                             "mini_001_viewer_preferences",
                             "mini_002_category_alerts",
@@ -33,6 +34,11 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "mini_008_streamer_presets",
                             "mini_009_viewer_trial",
                             "r10_001_billing_subjects",
+                            "r11_001_plus_payment_orders",
+                            "r11_002_plus_payment_events",
+                            "r11_003_entitlement_beneficiary",
+                            "r11_004_payment_reconciliation",
+                            "r11_005_channel_intent_reasons",
                             "r3_001_observations", "r3_002_notification_jobs",
                             "r3_003_live_update_revision",
                             "r4_001_streamer_access",
@@ -59,7 +65,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                 reopened = Database(path)
                 await reopened.connect()
                 try:
-                    self.assertEqual(len(await reopened.schema_versions()), 20)
+                    self.assertEqual(await reopened.schema_versions(), versions)
                 finally:
                     await reopened.close()
 

@@ -1,0 +1,130 @@
+.......................................................... [  4%]
+................................................. [  7%]
+....................................... [ 10%]
+.............................................................. [ 14%]
+........................................................................................................... [ 22%]
+............................................................................................... [ 29%]
+........................................................... [ 33%]
+............................. [ 35%]
+...s.................................. [ 38%]
+...................................................... [ 41%]
+............................................................................s...................... [ 49%]
+.............................................. [ 52%]
+........................................................................ [ 57%]
+........................................................................... [ 62%]
+............................................... [ 66%]
+...................................................................... [ 71%]
+................................................................. [ 75%]
+........................................................................ [ 80%]
+....................................................... [ 84%]
+.................................................................. [ 89%]
+................................. [ 91%]
+.................................................................................... [ 97%]
+...............................                            [100%]
+================================== FAILURES ===================================
+_ GrowthSchemaTests.test_new_and_existing_databases_get_versioned_additive_tables (old_schema=False) _
+
+self = <test_growth_schema.GrowthSchemaTests testMethod=test_new_and_existing_databases_get_versioned_additive_tables>
+
+    async def test_new_and_existing_databases_get_versioned_additive_tables(self):
+        for old_schema in (False, True):
+            with self.subTest(old_schema=old_schema), tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "bot.db")
+                if old_schema:
+                    with closing(sqlite3.connect(path)) as connection:
+                        connection.executescript(SCHEMA)
+                db = Database(path)
+                await db.connect()
+                try:
+>                   self.assertEqual(
+                        await db.schema_versions(),
+                        [
+                            "mini_001_viewer_preferences",
+                            "mini_002_category_alerts",
+                            "mini_003_category_delivery",
+                            "mini_004_streamer_intents",
+                            "mini_005_viewer_reminders",
+                            "mini_006_viewer_folders",
+                            "mini_007_viewer_history",
+                            "mini_008_streamer_presets",
+                            "mini_009_viewer_trial",
+                            "r10_001_billing_subjects",
+                            "r3_001_observations", "r3_002_notification_jobs",
+                            "r3_003_live_update_revision",
+                            "r4_001_streamer_access",
+                            "r4_002_streamer_communities",
+                            "r4_003_streamer_templates",
+                            "r4_004_streamer_stats",
+                            "r5_001_billing_ledger",
+                            "r7_001_viewer_filters",
+                            "r8_001_growth_attribution",
+                        ],
+                    )
+E                   AssertionError: Lists differ: ['min[276 chars]', 'r11_001_plus_payment_orders', 'r11_002_plu[388 chars]ion'] != ['min[276 chars]', 'r3_001_observations', 'r3_002_notification[223 chars]ion']
+E
+E                   First differing element 10:
+E                   'r11_001_plus_payment_orders'
+E                   'r3_001_observations'
+E
+E                   First list contains 5 additional elements.
+E                   First extra element 20:
+E                   'r4_003_streamer_templates'
+E
+E                   Diff is 795 characters long. Set self.maxDiff to None to see it.
+
+tests\test_growth_schema.py:23: AssertionError
+_ GrowthSchemaTests.test_new_and_existing_databases_get_versioned_additive_tables (old_schema=True) _
+
+self = <test_growth_schema.GrowthSchemaTests testMethod=test_new_and_existing_databases_get_versioned_additive_tables>
+
+    async def test_new_and_existing_databases_get_versioned_additive_tables(self):
+        for old_schema in (False, True):
+            with self.subTest(old_schema=old_schema), tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "bot.db")
+                if old_schema:
+                    with closing(sqlite3.connect(path)) as connection:
+                        connection.executescript(SCHEMA)
+                db = Database(path)
+                await db.connect()
+                try:
+>                   self.assertEqual(
+                        await db.schema_versions(),
+                        [
+                            "mini_001_viewer_preferences",
+                            "mini_002_category_alerts",
+                            "mini_003_category_delivery",
+                            "mini_004_streamer_intents",
+                            "mini_005_viewer_reminders",
+                            "mini_006_viewer_folders",
+                            "mini_007_viewer_history",
+                            "mini_008_streamer_presets",
+                            "mini_009_viewer_trial",
+                            "r10_001_billing_subjects",
+                            "r3_001_observations", "r3_002_notification_jobs",
+                            "r3_003_live_update_revision",
+                            "r4_001_streamer_access",
+                            "r4_002_streamer_communities",
+                            "r4_003_streamer_templates",
+                            "r4_004_streamer_stats",
+                            "r5_001_billing_ledger",
+                            "r7_001_viewer_filters",
+                            "r8_001_growth_attribution",
+                        ],
+                    )
+E                   AssertionError: Lists differ: ['min[276 chars]', 'r11_001_plus_payment_orders', 'r11_002_plu[388 chars]ion'] != ['min[276 chars]', 'r3_001_observations', 'r3_002_notification[223 chars]ion']
+E
+E                   First differing element 10:
+E                   'r11_001_plus_payment_orders'
+E                   'r3_001_observations'
+E
+E                   First list contains 5 additional elements.
+E                   First extra element 20:
+E                   'r4_003_streamer_templates'
+E
+E                   Diff is 795 characters long. Set self.maxDiff to None to see it.
+
+tests\test_growth_schema.py:23: AssertionError
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_preview_analysis_concat.py:93: [WinError 1314] Клиент не обладает требуемыми правами: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpidgp3c7a\\segment-000000001.ts' -> 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpidgp3c7a\\segment-000000002.ts'
+SKIPPED [1] tests\test_preview_render_input.py:158: [WinError 1314] Клиент не обладает требуемыми правами: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpe2crpdke\\segment-000000001.ts' -> 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpe2crpdke\\segment-000000002.ts'
+2 failed, 1403 passed, 2 skipped, 3246 subtests passed in 1008.75s (0:16:48)

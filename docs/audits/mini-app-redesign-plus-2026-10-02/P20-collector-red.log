@@ -1,0 +1,14 @@
+F...
+======================================================================
+FAIL: test_collector_uses_existing_config_fields (__main__.SmokeGuards.test_collector_uses_existing_config_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 31, in test_collector_uses_existing_config_fields
+    self.assertEqual(used-fields,set())
+AssertionError: Items in the first set but not the second:
+'bot_token'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.014s
+
+FAILED (failures=1)
