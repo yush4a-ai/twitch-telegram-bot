@@ -1,0 +1,134 @@
+{
+  "status": "PASS",
+  "sources": {
+    "bank-review.html": "bb46fc3ccac5f8d441c049505ac3466ca8fb4b4efb1879d0447a0048568168f6",
+    "selected.css": "50c8b71c14ba8ee8799712a2b229499adda4bbd837087fbf475e02371d76e881",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f",
+    "legal/PRIVACY-POLICY-DRAFT.md": "8de25b3f0df3ccfb925479b79f3062406e6cb7b7aad9abe5b73478fb651442d0",
+    "legal/USER-AGREEMENT-DRAFT.md": "04adb2c1fd1f278b1d303d049263d3df487711a12ec56630a31c874ca9b26b2e"
+  },
+  "reports": [
+    {
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "viewer: exact RUB/period, both method buttons, honest unavailable/reload/back, Stars TBD, unchanged catalog",
+          "status": "PASS"
+        },
+        {
+          "name": "streamer: exact RUB/period, both method buttons, honest unavailable/reload/back, Stars TBD, unchanged catalog",
+          "status": "PASS"
+        },
+        {
+          "name": "Full inherited features, Free quiet hours, both exact draft documents accessible before payment, no fake support contact",
+          "status": "PASS"
+        },
+        {
+          "name": "360/390, full text at 100/200%, document reflow and actions at least 44px",
+          "status": "PASS",
+          "cases": 26
+        },
+        {
+          "name": "Keyboard purchase and meaningful focus at result; zero payment/outbound requests",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "paymentOrOutboundRequests": []
+    },
+    {
+      "engine": "WebKit",
+      "browser": "26.5",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "viewer: exact RUB/period, both method buttons, honest unavailable/reload/back, Stars TBD, unchanged catalog",
+          "status": "PASS"
+        },
+        {
+          "name": "streamer: exact RUB/period, both method buttons, honest unavailable/reload/back, Stars TBD, unchanged catalog",
+          "status": "PASS"
+        },
+        {
+          "name": "Full inherited features, Free quiet hours, both exact draft documents accessible before payment, no fake support contact",
+          "status": "PASS"
+        },
+        {
+          "name": "360/390, full text at 100/200%, document reflow and actions at least 44px",
+          "status": "PASS",
+          "cases": 26
+        },
+        {
+          "name": "Keyboard purchase and meaningful focus at result; zero payment/outbound requests",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": [],
+      "paymentOrOutboundRequests": []
+    }
+  ],
+  "images": [
+    {
+      "file": "bank-board-board.png",
+      "screen": "board",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "d6ee3078cd4d7abbe2a585b27f122db3532a77f4c6a6951c4736071bb1945111"
+    },
+    {
+      "file": "bank-viewer-390.png",
+      "screen": "viewer",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "d2d9e40e96ea2d7b5c643573bb5673b45543fca2ba6a65e155ce93e0ccefb01e"
+    },
+    {
+      "file": "bank-streamer-390.png",
+      "screen": "streamer",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "63e52ae6fb50490dfc294c70b734a52a5067a4050f56f1f3bc11f35a3787f167"
+    },
+    {
+      "file": "bank-documents-390.png",
+      "screen": "documents",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "a74b418410f621dbb74e7b792f8323d78ec7b46ab4b84fa2c3cfa0fb6acb71bc"
+    },
+    {
+      "file": "bank-methods-390.png",
+      "screen": "methods",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "4ee5a66cd49b93a1b4380ae662133f323fbe094f42225af0b27fafc3a5bcb0f3"
+    },
+    {
+      "file": "bank-unavailable-390.png",
+      "screen": "unavailable",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "cfeb7ce27773b096d8d4c05ff95b3bd4c5193566137c440bbae6a96408953bda"
+    },
+    {
+      "file": "bank-support-390.png",
+      "screen": "support",
+      "mode": "full page",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "9bd8b3a688b87e06eb19c22972b4b7e56a01d304e64d41c4d3c4f827fb67bea0"
+    }
+  ],
+  "productChanged": false,
+  "realPlatega": "NOT TESTED",
+  "nativeTelegram": "NOT TESTED",
+  "merchantApproval": "NOT READY"
+}

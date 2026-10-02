@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Мини-апп · два направления редизайна</title>
+  <link rel="stylesheet" href="concepts.css">
+  <script src="concepts.js" defer></script>
+</head>
+<body>
+  <header class="showcase-header">
+    <div><p class="project-name">TwitchSignalBot · 02 октября 2026</p><h1>Мини-апп. Два направления</h1><p class="showcase-note">Концепты с условными именами, аватарами, датами и статусами. Рабочее приложение не изменено.</p></div>
+    <div class="showcase-controls">
+      <div class="choice" role="group" aria-label="Направление"><button data-direction="a" aria-pressed="true">А · Собранный</button><button data-direction="b" aria-pressed="false">Б · Открытый</button></div>
+      <div class="choice" role="group" aria-label="Примеры состояний"><button data-scenario="main" aria-pressed="true">Список и активный Plus</button><button data-scenario="alternate" aria-pressed="false">Первый вход и Free</button></div>
+    </div>
+  </header>
+  <main id="concepts" aria-label="Три экрана выбранного направления"></main>
+  <aside class="showcase-footnote">Ширина каждого экрана — 390 CSS px. Показано всё содержимое, включая часть ниже первого viewport. Без рамки телефона и поддельных панелей Telegram. Поиск и кнопки демонстрируют локальное поведение макета; подключений, выдачи доступа и отправок нет.</aside>
+  <dialog id="detail"><div class="dialog-content"></div><button class="primary" data-close>Закрыть</button></dialog>
+</body>
+</html>

@@ -1,0 +1,149 @@
+{
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "50c8b71c14ba8ee8799712a2b229499adda4bbd837087fbf475e02371d76e881",
+    "selected.js": "ae15f1112e8fd46f5ca573969d2cd8ee98f9eee22a04ff9363a6f52b1ba6e213",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f",
+    "preview.html": "be18af50ffd57b24efb4e2917cecb6057652e7044f9fc7615e391995df8e1f43"
+  },
+  "entries": [
+    {
+      "file": "themes-own-dark-board.png",
+      "mode": "board",
+      "query": "theme=dark&plan=streamer",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "aeec71eb0e81b6644d5c157d570308dee5918fb14a584efadbb50a335ff96101"
+    },
+    {
+      "file": "themes-telegram-light-board.png",
+      "mode": "board",
+      "query": "theme=telegram&telegram=light&plan=streamer",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "293a05d1f998ab3e075df6f4ee61e78e1f5bbf8d0ade08aca35b12f6b5181229"
+    },
+    {
+      "file": "themes-telegram-dark-board.png",
+      "mode": "board",
+      "query": "theme=telegram&telegram=dark&plan=streamer",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "a00a9c05fbf8b9e43dff05d5b6944f92466f7183e01fa2d55bda951ba6e4aeca"
+    },
+    {
+      "file": "plans-free-viewer-streamer-board.png",
+      "mode": "board",
+      "query": "view=plan-states&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "e11d8e17041db9c0c2bef3cd29d0d894517db37ad8e7b43fad26ca48c4c90275"
+    },
+    {
+      "file": "plans-viewer-benefits-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&benefits=viewer&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "34714adc249edaf98f3213b6575220f84c16495eab79892a3b85bf8eb1d34356"
+    },
+    {
+      "file": "plans-viewer-benefits-390-full.png",
+      "mode": "full",
+      "query": "single=1&screen=profile&route=subscription&plan=free&benefits=viewer&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "ee79289e009afd1617167bd1e797dfd9912d8d96c2648a39485ff216e31798df"
+    },
+    {
+      "file": "plans-streamer-benefits-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&benefits=streamer&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "9176a6e67da2b3987ac778271d30ba3ae5fed0db0df82697cc9688be7db1ba53"
+    },
+    {
+      "file": "plans-streamer-benefits-390-full.png",
+      "mode": "full",
+      "query": "single=1&screen=profile&route=subscription&plan=free&benefits=streamer&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "01706f9e69d7118b73473381c9220d1d1118a48458921c22756b45c6be3b34b2"
+    },
+    {
+      "file": "payment-selection-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "d0ff72fae219b85533fa44edf244d11d2070afe324e00ae374cbddd73281c427"
+    },
+    {
+      "file": "payment-demo-board.png",
+      "mode": "board",
+      "query": "view=payment-states&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "7eee3c531b1949f9e5709b62c21b131935fca25a132337a3c6bc6fa6300969f4"
+    },
+    {
+      "file": "payment-pending-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "e4b2603c13c3c9e570106b77a35f881627bd81214dc727cafc6b9e5ec2dc490f"
+    },
+    {
+      "file": "payment-cancel-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "c8c41a457d4dd5f836e7f7d7cfb9b22667d6068cb0408aac39e8dc106703388e"
+    },
+    {
+      "file": "payment-error-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "d0e13c445c49e64b97c1dca4b4e43c6c403fdb9580ba274a6e858d47a3ef1496"
+    },
+    {
+      "file": "payment-success-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=light",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "f5806ac1b54f3d11584c17ff3825c55d59631d81e11d220f0821c71effdc4c06"
+    },
+    {
+      "file": "payment-upgrade-unagreed-390-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=plus&benefits=streamer&theme=dark",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "334605a1eccf0ad897a9d3719f19a3d0ecf19cd7197aab9171396548f00a6c6b"
+    },
+    {
+      "file": "plans-text200-360-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&benefits=streamer&theme=dark",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "1e97da5d34178a05e75e0f19b66dbdf049a3291ccc79eb37053f07a3b344d397"
+    },
+    {
+      "file": "payment-short-390-440-viewport.png",
+      "mode": "viewport",
+      "query": "single=1&screen=profile&route=subscription&plan=free&theme=dark",
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "sha256": "1596b6eba3ba5697ecb7a4d1f36eb83a4f3d9756abe4cc6048cb39f4fe6e6c26"
+    }
+  ],
+  "fullContent": "Full images use only temporary height/overflow CSS to expose original DOM; no compositing or image edits",
+  "nativeTelegram": "NOT TESTED"
+}

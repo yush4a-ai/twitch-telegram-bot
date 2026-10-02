@@ -1,0 +1,91 @@
+{
+  "status": "PASS",
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "50c8b71c14ba8ee8799712a2b229499adda4bbd837087fbf475e02371d76e881",
+    "selected.js": "ae15f1112e8fd46f5ca573969d2cd8ee98f9eee22a04ff9363a6f52b1ba6e213",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f"
+  },
+  "reports": [
+    {
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "checks": [
+        {
+          "name": "Own dark surfaces are neutral graphite",
+          "status": "PASS"
+        },
+        {
+          "name": "Telegram is a distinct color-parameter mode; changes follow only explicit Telegram choice",
+          "status": "PASS"
+        },
+        {
+          "name": "Free/Viewer/Streamer entry and inherited personal limits",
+          "status": "PASS"
+        },
+        {
+          "name": "One shared catalog: Streamer includes every Viewer feature, no clicks benefit or Stars price",
+          "status": "PASS"
+        },
+        {
+          "name": "Telegram mock palettes: body, secondary text, links and main button contrast",
+          "status": "PASS"
+        },
+        {
+          "name": "Purchase demo: month selection, pending/cancel/error/retry/result; no grant or HTTP",
+          "status": "PASS"
+        },
+        {
+          "name": "Viewer to Streamer upgrade has no invented credit, double purchase or charged amount",
+          "status": "PASS"
+        },
+        {
+          "name": "Narrow, long copy, 200% text, themes and scroll/back/focus",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "engine": "WebKit",
+      "browser": "26.5",
+      "checks": [
+        {
+          "name": "Own dark surfaces are neutral graphite",
+          "status": "PASS"
+        },
+        {
+          "name": "Telegram is a distinct color-parameter mode; changes follow only explicit Telegram choice",
+          "status": "PASS"
+        },
+        {
+          "name": "Free/Viewer/Streamer entry and inherited personal limits",
+          "status": "PASS"
+        },
+        {
+          "name": "One shared catalog: Streamer includes every Viewer feature, no clicks benefit or Stars price",
+          "status": "PASS"
+        },
+        {
+          "name": "Telegram mock palettes: body, secondary text, links and main button contrast",
+          "status": "PASS"
+        },
+        {
+          "name": "Purchase demo: month selection, pending/cancel/error/retry/result; no grant or HTTP",
+          "status": "PASS"
+        },
+        {
+          "name": "Viewer to Streamer upgrade has no invented credit, double purchase or charged amount",
+          "status": "PASS"
+        },
+        {
+          "name": "Narrow, long copy, 200% text, themes and scroll/back/focus",
+          "status": "PASS"
+        }
+      ],
+      "pageErrors": []
+    }
+  ],
+  "nativeTelegram": "NOT TESTED",
+  "payments": "DEMO ONLY; no invoice, debit or grant"
+}

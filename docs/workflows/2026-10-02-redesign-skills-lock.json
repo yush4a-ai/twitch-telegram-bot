@@ -1,0 +1,427 @@
+{
+  "date": "2026-10-02",
+  "scope": "project-local instructions, references and inert examples only",
+  "product_dependencies_installed": false,
+  "upstream_scripts_executed": false,
+  "review": "Main instructions, Apple app guide and source/license metadata reviewed; not a full security audit of every example. Project override must be read before use.",
+  "skills": [
+    {
+      "name": "mobile-app-ui-design",
+      "source": "https://github.com/ceorkm/mobile-app-ui-design",
+      "commit": "4c67a0e71727b6afaaafbcbb1b11c7660de5fac9",
+      "files": [
+        {
+          "path": ".agents/skills/mobile-app-ui-design/INDEX.md",
+          "upstream_path": "INDEX.md",
+          "upstream_sha256": "cc1462b87487bc5c39b8c4a6501909ff590f776197a6e23831edfcf16947afe6",
+          "sha256": "cc1462b87487bc5c39b8c4a6501909ff590f776197a6e23831edfcf16947afe6",
+          "bytes": 4751,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/mobile-app-ui-design/README.md",
+          "upstream_path": "README.md",
+          "upstream_sha256": "3970b926a1ce455e92928ba8d8b932264f7a7440e9cab833a96ac6fc76e71820",
+          "sha256": "3970b926a1ce455e92928ba8d8b932264f7a7440e9cab833a96ac6fc76e71820",
+          "bytes": 4094,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/mobile-app-ui-design/SKILL.md",
+          "upstream_path": "SKILL.md",
+          "upstream_sha256": "5cbaf5631832d1682fea0df510642d5da6d79e8dbd0b27a02bf8aaf67d0abc1a",
+          "sha256": "fa6ab38f911ee5290a840a12d0f3fa2cfc35ba17bcc361b31dd8a6e101f77d55",
+          "bytes": 7976,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/mobile-app-ui-design/references/industry-conventions.md",
+          "upstream_path": "references/industry-conventions.md",
+          "upstream_sha256": "ba3e722707ae60a6cf371427447b3f7538db36cc58cf92574405ee5c450cfb55",
+          "sha256": "ba3e722707ae60a6cf371427447b3f7538db36cc58cf92574405ee5c450cfb55",
+          "bytes": 6887,
+          "metadata_patch": null
+        }
+      ]
+    },
+    {
+      "name": "apple-liquid-glass",
+      "source": "https://github.com/naplesblue/apple-design-skill",
+      "commit": "e81692da299d64b9bf38ae26db2d709fc60c8bf3",
+      "files": [
+        {
+          "path": ".agents/skills/apple-liquid-glass/LICENSE",
+          "upstream_path": "LICENSE",
+          "upstream_sha256": "499920e1459bf5bace237f93709e8143278a5e0fa2f90d32752c4de8b8f771ad",
+          "sha256": "499920e1459bf5bace237f93709e8143278a5e0fa2f90d32752c4de8b8f771ad",
+          "bytes": 2308,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/README.md",
+          "upstream_path": "README.md",
+          "upstream_sha256": "ed3d996cbab262119f636c3318942d0ace892d78b333a680886878b5c2193561",
+          "sha256": "ed3d996cbab262119f636c3318942d0ace892d78b333a680886878b5c2193561",
+          "bytes": 8822,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/README.zh-CN.md",
+          "upstream_path": "README.zh-CN.md",
+          "upstream_sha256": "a60d2182f82185bde8a7f2f1c3b6d7390fd3b85ada5f0d38e880cb8f204457a2",
+          "sha256": "a60d2182f82185bde8a7f2f1c3b6d7390fd3b85ada5f0d38e880cb8f204457a2",
+          "bytes": 8641,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/SKILL.md",
+          "upstream_path": "SKILL.md",
+          "upstream_sha256": "8270881e0601c12e0e5c906b44f0dead767927c8c96ba363c8bb52f23dfe9c77",
+          "sha256": "4e85b4c896fa25b07b380b08069219d885b864b6f3ec8a2adb52f2de07d3467d",
+          "bytes": 9520,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/app.md",
+          "upstream_path": "app.md",
+          "upstream_sha256": "950afec89ca4bc08ce60f60371988e198e1f521ae71e9bd1395d9a6a183e032d",
+          "sha256": "950afec89ca4bc08ce60f60371988e198e1f521ae71e9bd1395d9a6a183e032d",
+          "bytes": 10586,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/checklist.md",
+          "upstream_path": "checklist.md",
+          "upstream_sha256": "c74ab5fe0a9955ab9c7cd0639613d45d9b737e53b4b936a000527c08ba49a913",
+          "sha256": "c74ab5fe0a9955ab9c7cd0639613d45d9b737e53b4b936a000527c08ba49a913",
+          "bytes": 3207,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/components.md",
+          "upstream_path": "components.md",
+          "upstream_sha256": "49fe73f064811bdaf519fd849b40292f5d1daaa0483166c0e5737f37abbab19f",
+          "sha256": "49fe73f064811bdaf519fd849b40292f5d1daaa0483166c0e5737f37abbab19f",
+          "bytes": 8219,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/design-system.md",
+          "upstream_path": "design-system.md",
+          "upstream_sha256": "f77f48d6bae235db27af07e7b5ddf7271e557c4f07b102bec7ade95098fc2b5b",
+          "sha256": "f77f48d6bae235db27af07e7b5ddf7271e557c4f07b102bec7ade95098fc2b5b",
+          "bytes": 9734,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/icons.md",
+          "upstream_path": "icons.md",
+          "upstream_sha256": "f023e8bf3281eccacb80e519e0155387b321fe8b3d3c3a4b74a206c31e7ba821",
+          "sha256": "f023e8bf3281eccacb80e519e0155387b321fe8b3d3c3a4b74a206c31e7ba821",
+          "bytes": 5481,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/motion.md",
+          "upstream_path": "motion.md",
+          "upstream_sha256": "33e3fa7e4bdbaf5fa7887814bbfd916c3d87704a12c12ce7d30cee0f1838c30d",
+          "sha256": "33e3fa7e4bdbaf5fa7887814bbfd916c3d87704a12c12ce7d30cee0f1838c30d",
+          "bytes": 7303,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/patterns.md",
+          "upstream_path": "patterns.md",
+          "upstream_sha256": "c5bdd514c8bd237a3612d21f4e56ae0011ac0b8b0c87255c73439325a2a301d7",
+          "sha256": "c5bdd514c8bd237a3612d21f4e56ae0011ac0b8b0c87255c73439325a2a301d7",
+          "bytes": 3806,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/reference.html",
+          "upstream_path": "reference.html",
+          "upstream_sha256": "477bce7f4454b54f7d45e7c5208aae4e8668ecf30d9b56ff477baf9d8c925990",
+          "sha256": "477bce7f4454b54f7d45e7c5208aae4e8668ecf30d9b56ff477baf9d8c925990",
+          "bytes": 23880,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/review.md",
+          "upstream_path": "review.md",
+          "upstream_sha256": "545fc95bbe3b7cae41564a5ae6ca7e04781d073ca9e3e59395dd6f15e39af2f6",
+          "sha256": "545fc95bbe3b7cae41564a5ae6ca7e04781d073ca9e3e59395dd6f15e39af2f6",
+          "bytes": 3744,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/apple-liquid-glass/tokens.css",
+          "upstream_path": "tokens.css",
+          "upstream_sha256": "f406512ac9279e320f83e136097502e9b28f691fc63712a3ab5a7f02d8cdeaa3",
+          "sha256": "f406512ac9279e320f83e136097502e9b28f691fc63712a3ab5a7f02d8cdeaa3",
+          "bytes": 5102,
+          "metadata_patch": null
+        }
+      ]
+    },
+    {
+      "name": "expo-native-ui",
+      "source": "https://github.com/expo/skills",
+      "commit": "c0dadf355d4caa4e1720de372f0f8766df1a8978",
+      "files": [
+        {
+          "path": ".agents/skills/expo-native-ui/UPSTREAM-LICENSE",
+          "upstream_path": "LICENSE",
+          "upstream_sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "bytes": 1106,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/SKILL.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/SKILL.md",
+          "upstream_sha256": "52d8c3bdf6d466dda826a89b3d0846b5014233c1e399f01ab193be7b1baccf53",
+          "sha256": "b25a19ad39591d78162f719b53bab384274881dd5899af5845c3f62c7f27b942",
+          "bytes": 12576,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/agents/openai.yaml",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/agents/openai.yaml",
+          "upstream_sha256": "90bf5d66b1038913fea37bd6d57292eb6ecd0e0ee3b2bc3e283facc033f4b2b0",
+          "sha256": "90bf5d66b1038913fea37bd6d57292eb6ecd0e0ee3b2bc3e283facc033f4b2b0",
+          "bytes": 408,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/controls.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/controls.md",
+          "upstream_sha256": "6ec427731a65ffd66b745733665bb2c00992750c7d3710893d1bbf70b427d541",
+          "sha256": "6ec427731a65ffd66b745733665bb2c00992750c7d3710893d1bbf70b427d541",
+          "bytes": 5018,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/gradients.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/gradients.md",
+          "upstream_sha256": "63ced0392f67c41bf90e726613d139a389db609799bfcb91124e6e69b9a66e70",
+          "sha256": "63ced0392f67c41bf90e726613d139a389db609799bfcb91124e6e69b9a66e70",
+          "bytes": 2717,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/icons.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/icons.md",
+          "upstream_sha256": "2c0622d8a3f61626a72fa7829d3044f3391cbd8ca91806f4752926cf4e66be59",
+          "sha256": "2c0622d8a3f61626a72fa7829d3044f3391cbd8ca91806f4752926cf4e66be59",
+          "bytes": 5849,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/media.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/media.md",
+          "upstream_sha256": "c964182dfbcaa5eef00b947e0425f5a39ee2cfc1b2a4e251ba51fc823e87b0dc",
+          "sha256": "c964182dfbcaa5eef00b947e0425f5a39ee2cfc1b2a4e251ba51fc823e87b0dc",
+          "bytes": 6229,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/storage.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/storage.md",
+          "upstream_sha256": "265e8bc21adcd698062f18fa442e0e07e99e67868576f18aac2112e5381ffbf1",
+          "sha256": "265e8bc21adcd698062f18fa442e0e07e99e67868576f18aac2112e5381ffbf1",
+          "bytes": 2935,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/visual-effects.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/visual-effects.md",
+          "upstream_sha256": "dcdcaa5e0bf5c20341455e39d91312ca5f3034391908f77eb2e577044283adcc",
+          "sha256": "dcdcaa5e0bf5c20341455e39d91312ca5f3034391908f77eb2e577044283adcc",
+          "bytes": 5201,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-native-ui/references/webgpu-three.md",
+          "upstream_path": "plugins/expo/skills/expo-native-ui/references/webgpu-three.md",
+          "upstream_sha256": "3a247a7740e4bab4aea5dec8b81c7782a5918bb221838a05f6a94c669f145679",
+          "sha256": "3a247a7740e4bab4aea5dec8b81c7782a5918bb221838a05f6a94c669f145679",
+          "bytes": 14466,
+          "metadata_patch": null
+        }
+      ]
+    },
+    {
+      "name": "expo-router",
+      "source": "https://github.com/expo/skills",
+      "commit": "c0dadf355d4caa4e1720de372f0f8766df1a8978",
+      "files": [
+        {
+          "path": ".agents/skills/expo-router/UPSTREAM-LICENSE",
+          "upstream_path": "LICENSE",
+          "upstream_sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "bytes": 1106,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/SKILL.md",
+          "upstream_path": "plugins/expo/skills/expo-router/SKILL.md",
+          "upstream_sha256": "93ff75501eb74e4982a93119ad3145499d400bb613260d2eb39be8008651f500",
+          "sha256": "fbab8e607d06de1dd03b05c46cc79297dbfa1e7ac1692575fa0f7f48e0d9f1ef",
+          "bytes": 7037,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/expo-router/agents/openai.yaml",
+          "upstream_path": "plugins/expo/skills/expo-router/agents/openai.yaml",
+          "upstream_sha256": "7b76d9331a33e06e61504db9af069bccc8ab4a02e2f8be92727e8e0f9ad7941d",
+          "sha256": "7b76d9331a33e06e61504db9af069bccc8ab4a02e2f8be92727e8e0f9ad7941d",
+          "bytes": 422,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/form-sheet.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/form-sheet.md",
+          "upstream_sha256": "947de9cf35a15aacf3f02e96e45942b5e4826e536e529570886e5ddbb7ec8591",
+          "sha256": "947de9cf35a15aacf3f02e96e45942b5e4826e536e529570886e5ddbb7ec8591",
+          "bytes": 6320,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/route-structure.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/route-structure.md",
+          "upstream_sha256": "4c3d70edeb7e36d965c4d96fa150f23ee57e01be5f6c57dd3e34c6309aab7e87",
+          "sha256": "4c3d70edeb7e36d965c4d96fa150f23ee57e01be5f6c57dd3e34c6309aab7e87",
+          "bytes": 5106,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/search.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/search.md",
+          "upstream_sha256": "bb4785df4757d84f1aff09d34cdb84043e7099684b9731a24a1d79cc3c0df172",
+          "sha256": "bb4785df4757d84f1aff09d34cdb84043e7099684b9731a24a1d79cc3c0df172",
+          "bytes": 5173,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/tabs.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/tabs.md",
+          "upstream_sha256": "c49081529a200bfc62c95d41229e5dd7368f2e35cd5775ccaaab3289ed1fd7eb",
+          "sha256": "c49081529a200bfc62c95d41229e5dd7368f2e35cd5775ccaaab3289ed1fd7eb",
+          "bytes": 13323,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/toolbar-and-headers.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/toolbar-and-headers.md",
+          "upstream_sha256": "14d9a71dd949bd2b28a5bd531f6b9c1b4f3fa847a86db8c5218fee67b5295769",
+          "sha256": "14d9a71dd949bd2b28a5bd531f6b9c1b4f3fa847a86db8c5218fee67b5295769",
+          "bytes": 8061,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-router/references/zoom-transitions.md",
+          "upstream_path": "plugins/expo/skills/expo-router/references/zoom-transitions.md",
+          "upstream_sha256": "cacc1665e9f3044762765d2cd55fd1ead9627f06478f12dfa2280c6f9ae88ede",
+          "sha256": "cacc1665e9f3044762765d2cd55fd1ead9627f06478f12dfa2280c6f9ae88ede",
+          "bytes": 4848,
+          "metadata_patch": null
+        }
+      ]
+    },
+    {
+      "name": "expo-design-system",
+      "source": "https://github.com/expo/skills",
+      "commit": "c0dadf355d4caa4e1720de372f0f8766df1a8978",
+      "files": [
+        {
+          "path": ".agents/skills/expo-design-system/UPSTREAM-LICENSE",
+          "upstream_path": "LICENSE",
+          "upstream_sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "bytes": 1106,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-design-system/SKILL.md",
+          "upstream_path": "plugins/expo/skills/expo-design-system/SKILL.md",
+          "upstream_sha256": "b841a830e70cf06b14ad38f6ccaf7fa1ea60c57b4b7f78de650f3157dbbc3ff0",
+          "sha256": "7cd10edf61113b4df2ad1b4a7cf8a8994cbe821a16dcd15983bd54e1391b2e86",
+          "bytes": 19407,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/expo-design-system/agents/openai.yaml",
+          "upstream_path": "plugins/expo/skills/expo-design-system/agents/openai.yaml",
+          "upstream_sha256": "16d7f7f1bb47bc02fa2a816280403bfaccd24e436672cd1503670fcc2a42fd26",
+          "sha256": "16d7f7f1bb47bc02fa2a816280403bfaccd24e436672cd1503670fcc2a42fd26",
+          "bytes": 576,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-design-system/references/audit.md",
+          "upstream_path": "plugins/expo/skills/expo-design-system/references/audit.md",
+          "upstream_sha256": "a0ead76ab904c119a1353d8d91b9138144a97da43fdff683f291f2d45d868915",
+          "sha256": "a0ead76ab904c119a1353d8d91b9138144a97da43fdff683f291f2d45d868915",
+          "bytes": 8462,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-design-system/references/native-slop.md",
+          "upstream_path": "plugins/expo/skills/expo-design-system/references/native-slop.md",
+          "upstream_sha256": "5662bd04ac2d6367fc4ca3ae355ec1b970752dcd8693a099a5e0792227eb09c1",
+          "sha256": "5662bd04ac2d6367fc4ca3ae355ec1b970752dcd8693a099a5e0792227eb09c1",
+          "bytes": 8440,
+          "metadata_patch": null
+        }
+      ]
+    },
+    {
+      "name": "expo-data-fetching",
+      "source": "https://github.com/expo/skills",
+      "commit": "c0dadf355d4caa4e1720de372f0f8766df1a8978",
+      "files": [
+        {
+          "path": ".agents/skills/expo-data-fetching/UPSTREAM-LICENSE",
+          "upstream_path": "LICENSE",
+          "upstream_sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "sha256": "49c5f9c7097c9a940ff663a54c27a4c60e379df6cc2b3052df0d37a09a85df93",
+          "bytes": 1106,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-data-fetching/SKILL.md",
+          "upstream_path": "plugins/expo/skills/expo-data-fetching/SKILL.md",
+          "upstream_sha256": "36fd61981bae65d976c630667000176e605cd923916eaae7ff857d92a6f93838",
+          "sha256": "6cd42e0c12aff55d01fa85eeab69226f6727f882b4082afd261a9b5cec09dd4e",
+          "bytes": 13634,
+          "metadata_patch": "YAML description quoted; instruction body unchanged"
+        },
+        {
+          "path": ".agents/skills/expo-data-fetching/agents/openai.yaml",
+          "upstream_path": "plugins/expo/skills/expo-data-fetching/agents/openai.yaml",
+          "upstream_sha256": "50254d420a1db8e631ee24aaf8463708a525049059ac391b0d219dce8ce82e0a",
+          "sha256": "50254d420a1db8e631ee24aaf8463708a525049059ac391b0d219dce8ce82e0a",
+          "bytes": 421,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-data-fetching/references/expo-router-loaders.md",
+          "upstream_path": "plugins/expo/skills/expo-data-fetching/references/expo-router-loaders.md",
+          "upstream_sha256": "f842c86483a15380c44a4b49db27bf3d41e17b48b1f44b9a2bbacc563a9dcbe6",
+          "sha256": "f842c86483a15380c44a4b49db27bf3d41e17b48b1f44b9a2bbacc563a9dcbe6",
+          "bytes": 9838,
+          "metadata_patch": null
+        },
+        {
+          "path": ".agents/skills/expo-data-fetching/references/offline-and-cancellation.md",
+          "upstream_path": "plugins/expo/skills/expo-data-fetching/references/offline-and-cancellation.md",
+          "upstream_sha256": "750f7f25acc4e6143a6ff4daacffbcd5daf64370540a75e7b3a4f3b4b1aa462c",
+          "sha256": "750f7f25acc4e6143a6ff4daacffbcd5daf64370540a75e7b3a4f3b4b1aa462c",
+          "bytes": 1400,
+          "metadata_patch": null
+        }
+      ]
+    }
+  ]
+}

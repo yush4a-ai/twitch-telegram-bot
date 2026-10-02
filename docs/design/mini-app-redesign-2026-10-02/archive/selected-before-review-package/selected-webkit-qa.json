@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "engine": "WebKit",
+  "browser": "26.5",
+  "checks": [
+    "30 layout checks: themes, screens, widths 360/390/430/768/1440",
+    "Available navigation, draft preservation, explicit lookup/add",
+    "Single OAuth return and chat selection return",
+    "Saved dark theme"
+  ],
+  "pageErrors": [],
+  "nativeTelegram": "NOT TESTED"
+}

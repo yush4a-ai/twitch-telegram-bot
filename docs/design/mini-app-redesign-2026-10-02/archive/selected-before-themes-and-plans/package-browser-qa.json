@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "phase": "Approved review package",
+  "sources": {
+    "index.html": "951376c26103cfe175d4ca1c87d8ed26d639fab3ab05f94540893b2ec64c6be1",
+    "selected.css": "96b6eb5c506fa20f7f86e4c4877be2eede3d2886e9b304c0bb969413633120a9",
+    "selected.js": "a0684d8a036de3ad0bdcecebca9a61de390d7a85644933e9e3572b149f3a2512"
+  },
+  "reports": [
+    {
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "status": "PASS",
+      "checks": [
+        "Default light; stored explicit theme; only auto follows environment",
+        "40 layout combinations: two themes/four screens/five widths; bounded aligned column and 44px targets",
+        "Top video available at 0/6/200; all selections including offline counted despite search; Free explains Plus",
+        "Live category visual; full accessible state/name; consistent selected-not-ready video; pause and fallback avatar",
+        "Viewer vocabulary; immediate field, explicit add, failure/retry and preserved draft across tabs",
+        "Actual visible row return preserves exact scroll and focus; subscription screen/features/own operations/return",
+        "Nine channel states and tones; pending visible, no repeated instructions/free note, network not rights denial",
+        "Copy action: rejecting clipboard gives truthful error; fulfilled write gives correct confirmation (stubbed)",
+        "Open channel only for valid HTTPS public-link fixture; unknown and javascript links absent; no external navigation",
+        "Named bottom choice panel; keyboard trap/Escape/opener focus; visible chat and built-in mock paths",
+        "Help separate; existing HTML entry; named dialog, explicit close and original focus even after nested content",
+        "OAuth mock success/error/cancel continue to honest nonempty step",
+        "Selection/pending/cancel gallery displays three nonempty neutral states",
+        "390x440: channel content >=220px, only main action fixed, focused form action above nav; keyboard approximation",
+        "Landscape/portrait height changes retain current channel step",
+        "200% text: all text containers, captions and inputs double and four screens at 360/390 in both themes reflow without horizontal overflow"
+      ],
+      "pageErrors": []
+    },
+    {
+      "engine": "WebKit",
+      "browser": "26.5",
+      "status": "PASS",
+      "checks": [
+        "Default light; stored explicit theme; only auto follows environment",
+        "40 layout combinations: two themes/four screens/five widths; bounded aligned column and 44px targets",
+        "Top video available at 0/6/200; all selections including offline counted despite search; Free explains Plus",
+        "Live category visual; full accessible state/name; consistent selected-not-ready video; pause and fallback avatar",
+        "Viewer vocabulary; immediate field, explicit add, failure/retry and preserved draft across tabs",
+        "Actual visible row return preserves exact scroll and focus; subscription screen/features/own operations/return",
+        "Nine channel states and tones; pending visible, no repeated instructions/free note, network not rights denial",
+        "Copy action: rejecting clipboard gives truthful error; fulfilled write gives correct confirmation (stubbed)",
+        "Open channel only for valid HTTPS public-link fixture; unknown and javascript links absent; no external navigation",
+        "Named bottom choice panel; keyboard trap/Escape/opener focus; visible chat and built-in mock paths",
+        "Help separate; existing HTML entry; named dialog, explicit close and original focus even after nested content",
+        "OAuth mock success/error/cancel continue to honest nonempty step",
+        "Selection/pending/cancel gallery displays three nonempty neutral states",
+        "390x440: channel content >=220px, only main action fixed, focused form action above nav; keyboard approximation",
+        "Landscape/portrait height changes retain current channel step",
+        "200% text: all text containers, captions and inputs double and four screens at 360/390 in both themes reflow without horizontal overflow"
+      ],
+      "pageErrors": []
+    }
+  ],
+  "nativeTelegram": "NOT TESTED",
+  "iPhone": "NOT TESTED",
+  "nativeKeyboard": "NOT TESTED",
+  "realOAuthPermissionsSends": "NOT TESTED"
+}

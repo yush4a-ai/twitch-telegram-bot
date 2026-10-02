@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-02",
+  "phase": "isolated A review package; visual acceptance pending",
+  "branch": "autonomous/twitchsignal-roadmap",
+  "base_head": "e0d44c315a1c81dc5b310dd1f3c7f3169915c985",
+  "files": {
+    "index.html": "951376c26103cfe175d4ca1c87d8ed26d639fab3ab05f94540893b2ec64c6be1",
+    "selected.css": "96b6eb5c506fa20f7f86e4c4877be2eede3d2886e9b304c0bb969413633120a9",
+    "selected.js": "a0684d8a036de3ad0bdcecebca9a61de390d7a85644933e9e3572b149f3a2512",
+    "preview.html": "c84910329f7e6db3851fe863b0336021ccf0caaa7f7e17df64aea172d040d839"
+  },
+  "product_changed": false,
+  "deployment_performed": false
+}

@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "tool": "installed Impeccable detector",
+  "checked_at": "2026-10-02",
+  "findings": [],
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "50c8b71c14ba8ee8799712a2b229499adda4bbd837087fbf475e02371d76e881",
+    "selected.js": "ae15f1112e8fd46f5ca573969d2cd8ee98f9eee22a04ff9363a6f52b1ba6e213",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f"
+  },
+  "scope": "four finalized isolated preview sources; not legal review or product QA"
+}

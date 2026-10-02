@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apple Liquid Glass · Design System</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f5f5f7;
+    color: #1d1d1f;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+  @keyframes dsPulse {
+    0% { box-shadow: 0 0 0 0 rgba(48,209,88,0.5); }
+    70% { box-shadow: 0 0 0 7px rgba(48,209,88,0); }
+    100% { box-shadow: 0 0 0 0 rgba(48,209,88,0); }
+  }
+  .ds-row + .ds-row { border-top: 1px solid rgba(0,0,0,0.07); }
+  @media (max-width: 680px) {
+    .ds-2col { grid-template-columns: 1fr !important; }
+  }
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; padding-bottom: 64px;">
+
+  <header style="position: sticky; top: 0; z-index: 50; background: rgba(245,245,247,0.72); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid rgba(0,0,0,0.07);">
+    <div style="max-width: 1080px; margin: 0 auto; padding: 0 24px; height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <span style="font-size: 16px;">🍎</span>
+        <span style="font-size: 15px; font-weight: 650; letter-spacing: -0.01em;">Apple Liquid Glass</span><span style="font-size:15px;font-weight:650;letter-spacing:-0.01em;"> · 设计系统</span>
+      </div>
+      <span style="font-size: 12.5px; color: #86868b;">液态玻璃 · v1</span>
+    </div>
+  </header>
+
+  <main style="max-width: 1080px; margin: 0 auto; padding: 0 24px;">
+
+    <section style="padding: clamp(36px,6vw,64px) 0 clamp(20px,4vw,32px);">
+      <div style="display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: #86868b;">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #30d158; animation: dsPulse 2.2s infinite;"></span>
+        样板间 · LIVING STYLE GUIDE
+      </div>
+      <h1 style="margin-top: 15px; font-size: clamp(32px,6vw,52px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.06;">设计系统</h1>
+      <p style="margin-top: 16px; font-size: clamp(15px,2.5vw,18px); color: #6e6e73; line-height: 1.6; max-width: 560px;">苹果灰白底 + 统一白色表面 + 发丝分隔线，玻璃只在图层真正重叠处点到为止。下方是真实渲染的令牌与组件，照此即可保持全站一致。</p>
+    </section>
+
+    <!-- 颜色 -->
+    <section style="margin-top: 18px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">01 — 颜色</div>
+      <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,30px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+        <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 14px;">中性 · 界面骨架</h3>
+        <div id="ds-neutrals" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 12px;"></div>
+        <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin: 26px 0 14px;">强调 · 仅用于重点</h3>
+        <div id="ds-accents" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 12px;"></div>
+        <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin: 26px 0 14px;">标志性渐变 · hero / CTA / 题图</h3>
+        <div id="ds-gradients" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;"></div>
+      </div>
+    </section>
+
+    <!-- 字体 -->
+    <section style="margin-top: 40px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">02 — 字体与排版</div>
+      <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,34px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+        <div id="ds-type" style="display: flex; flex-direction: column; gap: 22px;"></div>
+      </div>
+    </section>
+
+    <!-- 圆角阴影 -->
+    <section style="margin-top: 40px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">03 — 圆角 · 阴影</div>
+      <div class="ds-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 16px;">圆角档位</h3>
+          <div id="ds-radii" style="display: flex; flex-wrap: wrap; gap: 14px;"></div>
+        </div>
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 20px;">阴影档位</h3>
+          <div id="ds-shadows" style="display: flex; flex-wrap: wrap; gap: 22px; padding: 6px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 组件 -->
+    <section style="margin-top: 40px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">04 — 组件</div>
+      <div class="ds-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 16px;">胶囊分段控件</h3>
+          <div id="ds-seg" style="display: inline-flex; background: rgba(0,0,0,0.05); border-radius: 999px; padding: 3px; gap: 2px; margin-bottom: 14px;"></div>
+          <p style="font-size: 12.5px; color: #aeaeb2;">点一下试试选中态切换。</p>
+        </div>
+
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 16px;">按钮</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+            <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 999px; background: #0071e3; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;">主按钮 →</span>
+            <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 19px; border-radius: 999px; background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font-size: 14px; color: #1d1d1f; font-weight: 550; cursor: pointer;">次按钮</span>
+          </div>
+        </div>
+
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 16px;">标签 / 胶囊徽标</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <span style="font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 700; color: #fff; background: #1d9bf0; padding: 2px 7px; border-radius: 6px;">X</span>
+            <span style="font-size: 11.5px; color: #6e6e73; background: rgba(0,0,0,0.05); padding: 3px 10px; border-radius: 999px;">普通标签</span>
+            <span style="font-size: 11.5px; color: #0066cc; background: rgba(0,113,227,0.08); padding: 3px 10px; border-radius: 999px; font-weight: 550;">强调标签</span>
+            <span style="font-size: 11.5px; font-weight: 650; color: #ff6b00; background: rgba(255,107,0,0.1); padding: 3px 10px; border-radius: 999px;">🔥 最热</span>
+            <span style="font-size: 11.5px; font-weight: 650; color: #0071e3; background: rgba(0,113,227,0.1); padding: 3px 10px; border-radius: 999px;">热议</span>
+          </div>
+        </div>
+
+        <div style="background: #fff; border-radius: 22px; padding: clamp(20px,3vw,28px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+          <h3 style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 16px;">统一列表 + 发丝线</h3>
+          <div style="border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); overflow: hidden;">
+            <div class="ds-row" style="padding: 13px 16px;"><div style="font-size: 14px; font-weight: 600;">条目一</div><div style="font-size: 12px; color: #aeaeb2; margin-top: 2px;">发丝线分隔，连续表面</div></div>
+            <div class="ds-row" style="padding: 13px 16px;"><div style="font-size: 14px; font-weight: 600;">条目二</div><div style="font-size: 12px; color: #aeaeb2; margin-top: 2px;">而非碎片卡片</div></div>
+            <div class="ds-row" style="padding: 13px 16px;"><div style="font-size: 14px; font-weight: 600;">条目三</div><div style="font-size: 12px; color: #aeaeb2; margin-top: 2px;">这是解决割裂感的核心</div></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 玻璃 -->
+    <section style="margin-top: 40px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">05 — 液态玻璃（克制使用）</div>
+      <div style="position: relative; overflow: hidden; border-radius: 24px; padding: clamp(26px,4vw,40px); background: linear-gradient(135deg, #0071e3 0%, #5e5ce6 100%); box-shadow: 0 20px 54px rgba(0,113,227,0.24);">
+        <div style="position: absolute; width: 260px; height: 260px; border-radius: 50%; background: rgba(255,255,255,0.18); filter: blur(46px); top: -80px; right: -40px;"></div>
+        <div style="position: absolute; width: 200px; height: 200px; border-radius: 50%; background: rgba(120,80,255,0.5); filter: blur(50px); bottom: -90px; left: 12%;"></div>
+        <div style="position: relative;">
+          <h3 style="font-size: clamp(18px,3vw,24px); font-weight: 700; color: #fff; letter-spacing: -0.02em;">玻璃要有可折射的背景才有灵魂</h3>
+          <p style="margin-top: 10px; font-size: 14px; color: rgba(255,255,255,0.82); line-height: 1.6; max-width: 460px;">彩色 CTA 里用模糊光球垫底，上层放半透明玻璃元素，制造折射感。只在导航 / 浮层 / CTA 使用。</p>
+          <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+            <span style="display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); color: #fff; font-size: 13.5px; font-weight: 550; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">玻璃标签</span>
+            <span style="display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22); color: #fff; font-size: 13.5px; font-weight: 550; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">毛玻璃按钮</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-2col" style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="background: rgba(48,209,88,0.08); border: 1px solid rgba(48,209,88,0.2); border-radius: 14px; padding: 16px 18px;">
+          <div style="font-size: 13px; font-weight: 650; color: #1f8a3b; margin-bottom: 6px;">✓ 用玻璃</div>
+          <div style="font-size: 12.5px; color: #6e6e73; line-height: 1.6;">吸顶导航、模态浮层、彩色 CTA 内的标签、题图上的来源徽标。</div>
+        </div>
+        <div style="background: rgba(255,59,48,0.06); border: 1px solid rgba(255,59,48,0.18); border-radius: 14px; padding: 16px 18px;">
+          <div style="font-size: 13px; font-weight: 650; color: #c4342b; margin-bottom: 6px;">✕ 不用玻璃</div>
+          <div style="font-size: 12.5px; color: #6e6e73; line-height: 1.6;">普通内容卡片、列表行、纯白区块之间——实色白 + 阴影即可。</div>
+        </div>
+      </div>
+    </section>
+
+    <p style="text-align: center; margin-top: 44px; font-size: 12px; color: #aeaeb2;">完整规范见 <span style="font-family: ui-monospace, Menlo, monospace;">design-system.md</span> · 组件见 <span style="font-family: ui-monospace, Menlo, monospace;">components.md</span></p>
+
+
+    <section style="margin-top: 40px;">
+      <div style="font-size: 12px; font-weight: 650; letter-spacing: 0.14em; color: #aeaeb2; margin-bottom: 16px;">06 — 动效(交互层,见 motion.md)</div>
+      <div style="background: #fff; border-radius: 22px; padding: clamp(22px,4vw,32px); box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05);">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+          <button id="mSheetBtn" style="height: 44px; padding: 0 22px; border: none; border-radius: 999px; background: #0071e3; color: #fff; font: 600 14.5px/1 -apple-system, 'PingFang SC', sans-serif; cursor: pointer; transition: background .2s cubic-bezier(.25,1,.5,1), transform .1s ease-out;"
+            onmousedown="this.style.transform='scale(0.94)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">召出 Sheet(材质化入场)</button>
+          <button style="height: 44px; padding: 0 20px; border-radius: 999px; background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 1px 2px rgba(0,0,0,0.05); font: 600 14.5px/1 -apple-system, 'PingFang SC', sans-serif; color: #1d1d1f; cursor: pointer; transition: transform .1s ease-out;"
+            onmousedown="this.style.transform='scale(0.94)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">按下反馈(pointer-down)</button>
+          <input placeholder="焦点环 200ms 过渡" style="height: 44px; padding: 0 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 999px; font: 400 14px -apple-system, 'PingFang SC', sans-serif; outline: none; transition: border-color .2s cubic-bezier(.25,1,.5,1), box-shadow .2s cubic-bezier(.25,1,.5,1);"
+            onfocus="this.style.borderColor='#0071e3'; this.style.boxShadow='0 0 0 4px rgba(0,113,227,0.18)'" onblur="this.style.borderColor='rgba(0,0,0,0.1)'; this.style.boxShadow='none'">
+        </div>
+        <p style="margin-top: 14px; font-size: 13px; color: #86868b; line-height: 1.6;">规则:反馈在按下瞬间(不等松开);入场 ~400ms <code>--ease-spring</code>、退场同路径 ~260ms;玻璃面 blur+scale+opacity 同动(材质化);CSS transition 可中途反向(不用 keyframes);三条 <code>prefers-reduced-*</code> 必备。</p>
+      </div>
+    </section>
+
+    <!-- Sheet demo:同路径进出 + 材质化 + scrim -->
+    <div id="mScrim" style="position: fixed; inset: 0; background: rgba(0,0,0,0.28); opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 98;"></div>
+    <div id="mSheet" style="position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(24px) scale(0.98); width: min(480px, calc(100vw - 32px)); padding: 26px; border-radius: 26px; background: rgba(245,245,247,0.72); backdrop-filter: blur(0px) saturate(180%); -webkit-backdrop-filter: blur(0px) saturate(180%); box-shadow: 0 24px 70px rgba(0,0,0,0.22); opacity: 0; pointer-events: none; transform-origin: 50% 100%; transition: opacity .4s cubic-bezier(.32,.72,0,1), transform .4s cubic-bezier(.32,.72,0,1), backdrop-filter .4s cubic-bezier(.32,.72,0,1), -webkit-backdrop-filter .4s cubic-bezier(.32,.72,0,1); z-index: 99;">
+      <h3 style="font: 700 18px/-apple-system -apple-system, 'PingFang SC', sans-serif; letter-spacing: -0.02em; color: #1d1d1f;">材质化 Sheet</h3>
+      <p style="margin-top: 8px; font: 400 14px/1.65 -apple-system, 'PingFang SC', sans-serif; color: #424245;">blur 0→20 与位移/缩放同动,从触发方向(底部)升起,退场原路返回。连点按钮试试中途反向——transition 天然可打断。</p>
+      <button onclick="mToggle(false)" style="margin-top: 16px; height: 40px; padding: 0 18px; border: none; border-radius: 999px; background: #0071e3; color: #fff; font: 600 13.5px/1 -apple-system, 'PingFang SC', sans-serif; cursor: pointer;">收回</button>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// 设计令牌(单一数据源;与 design-system.md / tokens.css 对齐)
+const DATA = {
+  neutrals: [
+    { name: '页面背景', hex: '#f5f5f7' },
+    { name: '表面', hex: '#ffffff' },
+    { name: '正文主色', hex: '#1d1d1f' },
+    { name: '次级', hex: '#6e6e73' },
+    { name: '三级', hex: '#86868b' },
+    { name: '四级', hex: '#aeaeb2' },
+    { name: '极淡', hex: '#d2d2d7' }
+  ],
+  accents: [
+    { name: 'Apple 蓝', hex: '#0071e3' },
+    { name: '靛蓝', hex: '#5e5ce6' },
+    { name: 'X 蓝', hex: '#1d9bf0' },
+    { name: '热度橙', hex: '#ff6b00' },
+    { name: '实时绿', hex: '#30d158' }
+  ],
+  gradients: [
+    { name: '蓝紫', css: 'linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%)' },
+    { name: '暖橙红', css: 'linear-gradient(135deg, #ff9f0a 0%, #ff375f 100%)' },
+    { name: '绿蓝', css: 'linear-gradient(135deg, #30d158 0%, #0a84ff 100%)' },
+    { name: 'CTA 主色', css: 'linear-gradient(135deg, #0071e3 0%, #5e5ce6 100%)' }
+  ],
+  typeScale: [
+    { spec: 'H1 · clamp(27,5vw,46) · 700 · -0.03em', size: 'clamp(27px,5vw,44px)', weight: '700', tracking: '-0.03em', lh: '1.12', sample: '今天，苹果圈在聊什么' },
+    { spec: 'H2 · clamp(20,3.4vw,26) · 700 · -0.02em', size: 'clamp(20px,3.4vw,26px)', weight: '700', tracking: '-0.02em', lh: '1.25', sample: '信号雷达' },
+    { spec: 'H3 · 17 · 600 · -0.01em', size: '17px', weight: '600', tracking: '-0.01em', lh: '1.45', sample: 'iPhone 17 Pro 号称充电最快' },
+    { spec: '长正文 · 17 · 400 · 行高 1.9', size: '17px', weight: '400', tracking: '0', lh: '1.9', sample: '苹果灰白底加统一白色表面与发丝分隔线，玻璃只在图层真正重叠处点到为止。' },
+    { spec: 'meta · 13 · 550', size: '13px', weight: '550', tracking: '0', lh: '1.6', sample: '@MacRumors · 82.6万 浏览 · 5.0K 赞' }
+  ],
+  radii: [
+    { label: '标签/按钮', value: '999px' },
+    { label: '徽标', value: '6px' },
+    { label: '缩略图', value: '12px' },
+    { label: '卡片', value: '18px' },
+    { label: '大面板', value: '22px' }
+  ],
+  shadows: [
+    { label: '卡片', value: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05)' },
+    { label: '大面板', value: '0 1px 3px rgba(0,0,0,0.05), 0 14px 40px rgba(0,0,0,0.05)' },
+    { label: '悬浮', value: '0 12px 32px rgba(0,0,0,0.1)' }
+  ]
+};
+
+const $ = id => document.getElementById(id);
+const set = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
+
+// 色板(中性 + 强调共用一种卡片)
+const swatch = c => `
+  <div>
+    <div style="height: 64px; border-radius: 12px; background: ${c.hex}; border: 1px solid rgba(0,0,0,0.06); box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.02);"></div>
+    <div style="margin-top: 8px; font-size: 12px; font-weight: 600;">${c.name}</div>
+    <div style="font-size: 11px; color: #aeaeb2; font-family: ui-monospace, Menlo, monospace;">${c.hex}</div>
+  </div>`;
+set('ds-neutrals', DATA.neutrals.map(swatch).join(''));
+set('ds-accents', DATA.accents.map(swatch).join(''));
+
+set('ds-gradients', DATA.gradients.map(g => `
+  <div style="height: 70px; border-radius: 14px; background: ${g.css}; display: flex; align-items: flex-end; padding: 10px;">
+    <span style="font-size: 11px; color: rgba(255,255,255,0.95); font-weight: 600; background: rgba(0,0,0,0.18); padding: 2px 8px; border-radius: 6px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">${g.name}</span>
+  </div>`).join(''));
+
+set('ds-type', DATA.typeScale.map(t => `
+  <div class="ds-row" style="padding-top: 22px;">
+    <div style="font-size: 11.5px; color: #aeaeb2; font-family: ui-monospace, Menlo, monospace; margin-bottom: 8px;">${t.spec}</div>
+    <div style="font-size: ${t.size}; font-weight: ${t.weight}; letter-spacing: ${t.tracking}; line-height: ${t.lh}; color: #1d1d1f;">${t.sample}</div>
+  </div>`).join(''));
+
+set('ds-radii', DATA.radii.map(r => `
+  <div style="text-align: center;">
+    <div style="width: 60px; height: 60px; background: #f5f5f7; border: 1px solid rgba(0,0,0,0.08); border-radius: ${r.value};"></div>
+    <div style="margin-top: 7px; font-size: 11px; color: #6e6e73; font-weight: 550;">${r.label}</div>
+    <div style="font-size: 10.5px; color: #aeaeb2; font-family: ui-monospace, Menlo, monospace;">${r.value}</div>
+  </div>`).join(''));
+
+set('ds-shadows', DATA.shadows.map(sh => `
+  <div style="text-align: center;">
+    <div style="width: 78px; height: 56px; background: #fff; border-radius: 14px; box-shadow: ${sh.value};"></div>
+    <div style="margin-top: 12px; font-size: 11px; color: #6e6e73; font-weight: 550;">${sh.label}</div>
+  </div>`).join(''));
+
+// 胶囊分段控件(黑胶囊=强筛选 / 白胶囊=轻切换)
+const SEGS = [
+  { key: 'a', label: '黑胶囊', kind: 'black' },
+  { key: 'b', label: '白胶囊', kind: 'white' },
+  { key: 'c', label: '焦点流', kind: 'white' }
+];
+let segState = 'a';
+function segStyle(key, kind) {
+  const active = segState === key;
+  if (kind === 'black') {
+    return { bg: active ? '#1d1d1f' : 'transparent', fg: active ? '#fff' : '#6e6e73', sh: active ? '0 1px 2px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.16)' : 'none', w: active ? '600' : '500' };
+  }
+  return { bg: active ? '#fff' : 'transparent', fg: active ? '#1d1d1f' : '#6e6e73', sh: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none', w: active ? '600' : '500' };
+}
+function renderSeg() {
+  set('ds-seg', SEGS.map(s => {
+    const st = segStyle(s.key, s.kind);
+    return `<button data-seg="${s.key}" style="border: none; cursor: pointer; font-size: 13px; font-weight: ${st.w}; padding: 7px 15px; border-radius: 999px; background: ${st.bg}; color: ${st.fg}; box-shadow: ${st.sh}; transition: all 0.2s;">${s.label}</button>`;
+  }).join(''));
+}
+renderSeg();
+$('ds-seg').addEventListener('click', e => {
+  const b = e.target.closest('[data-seg]');
+  if (!b) return;
+  segState = b.getAttribute('data-seg');
+  renderSeg();
+});
+
+// 06 — 动效 demo:同路径进出 + 材质化(blur+scale+opacity 同动)
+const mSheet = document.getElementById('mSheet'), mScrim = document.getElementById('mScrim');
+let mOpen = false;
+function mToggle(want) {
+  mOpen = typeof want === 'boolean' ? want : !mOpen;
+  const on = mOpen;
+  mSheet.style.opacity = on ? '1' : '0';
+  mSheet.style.transform = on ? 'translateX(-50%) translateY(0) scale(1)' : 'translateX(-50%) translateY(24px) scale(0.98)';
+  const blur = on ? 'blur(20px) saturate(180%)' : 'blur(0px) saturate(180%)';
+  mSheet.style.backdropFilter = blur; mSheet.style.webkitBackdropFilter = blur;
+  mSheet.style.pointerEvents = on ? 'auto' : 'none';
+  mScrim.style.opacity = on ? '1' : '0';
+  mScrim.style.pointerEvents = on ? 'auto' : 'none';
+}
+document.getElementById('mSheetBtn').addEventListener('click', () => mToggle());
+mScrim.addEventListener('click', () => mToggle(false));
+if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  mSheet.style.transition = 'opacity .2s ease'; // 降级:纯淡入淡出,无位移
+}
+</script>
+</body>
+</html>

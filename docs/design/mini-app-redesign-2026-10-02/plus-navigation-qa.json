@@ -1,0 +1,5372 @@
+{
+  "status": "PASS",
+  "failure": null,
+  "reports": [
+    {
+      "engine": "Chromium",
+      "plan": "free",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "free",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "viewer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "viewer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "streamer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "streamer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "journey": "channel-action-focus-on-resize",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 786,
+          "width": 84,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 786,
+          "width": 91.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 430,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 786,
+          "width": 101.5,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 768,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 1440,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 786,
+          "width": 144,
+          "height": 48,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 703,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 304.625,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 370.3125,
+          "width": 168,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 106.65625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 118.65625,
+          "y": 304.625,
+          "width": 138.53125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 110.4375,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 304.625,
+          "width": 134.75,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 145.15625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 157.15625,
+          "y": 304.625,
+          "width": 100.03125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 140.90625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 152.90625,
+          "y": 304.625,
+          "width": 104.28125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 195,
+          "y": 304.625,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 195,
+          "y": 370.3125,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 110.4375,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 304.625,
+          "width": 134.75,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 106.65625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 118.65625,
+          "y": 304.625,
+          "width": 138.53125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 110.4375,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 304.625,
+          "width": 134.75,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 145.15625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 157.15625,
+          "y": 304.625,
+          "width": 100.03125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 304.625,
+          "width": 140.90625,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 152.90625,
+          "y": 304.625,
+          "width": 104.28125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 195,
+          "y": 304.625,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 370.3125,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 195,
+          "y": 370.3125,
+          "width": 183,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 304.625,
+          "width": 110.4375,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 304.625,
+          "width": 134.75,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 304.625,
+          "width": 120.8125,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 370.3125,
+          "width": 366,
+          "height": 65.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 231,
+      "contentFits": true
+    },
+    {
+      "engine": "Chromium",
+      "journey": "board/portable",
+      "status": "PASS",
+      "external": 0,
+      "errors": 0,
+      "browser": "151.0.7922.34"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "free",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "free",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "viewer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "viewer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "streamer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "plan": "streamer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "journey": "channel-action-focus-on-resize",
+      "status": "PASS"
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 96,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 180,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 264,
+          "y": 784.140625,
+          "width": 84,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 103.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 195,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 286.5,
+          "y": 784.140625,
+          "width": 91.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 430,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 113.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 215,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 316.5,
+          "y": 784.140625,
+          "width": 101.5,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 768,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 96,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 240,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 384,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 528,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "light",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "light",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "dark",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "dark",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 1440,
+      "theme": "telegram",
+      "text": 100,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 432,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 576,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 720,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 864,
+          "y": 784.140625,
+          "width": 144,
+          "height": 49.84375,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 701,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 180,
+          "y": 298.625,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 180,
+          "y": 367.3125,
+          "width": 168,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 106.65625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 118.65625,
+          "y": 298.625,
+          "width": 138.53125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 110.4375,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 298.625,
+          "width": 134.75,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 145.15625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 157.15625,
+          "y": 298.625,
+          "width": 100.03125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 140.90625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 152.90625,
+          "y": 298.625,
+          "width": 104.28125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 195,
+          "y": 298.625,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 195,
+          "y": 367.3125,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 110.4375,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 298.625,
+          "width": 134.75,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "viewer",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 106.65625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 118.65625,
+          "y": 298.625,
+          "width": 138.53125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 110.4375,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 298.625,
+          "width": 134.75,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "channel",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 145.15625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 157.15625,
+          "y": 298.625,
+          "width": 100.03125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Мой канал",
+          "x": 12,
+          "y": 298.625,
+          "width": 140.90625,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Посты",
+          "x": 152.90625,
+          "y": 298.625,
+          "width": 104.28125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "profile",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 195,
+          "y": 298.625,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 12,
+          "y": 367.3125,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 195,
+          "y": 367.3125,
+          "width": 183,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "text": 200,
+      "height": 440,
+      "screen": "subscription",
+      "buttons": [
+        {
+          "label": "Главная",
+          "x": 12,
+          "y": 298.625,
+          "width": 110.4375,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Стримеры",
+          "x": 122.4375,
+          "y": 298.625,
+          "width": 134.75,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Профиль",
+          "x": 257.1875,
+          "y": 298.625,
+          "width": 120.8125,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        },
+        {
+          "label": "Plus",
+          "x": 12,
+          "y": 367.3125,
+          "width": 366,
+          "height": 68.6875,
+          "fits": true,
+          "unclipped": true
+        }
+      ],
+      "overflow": false,
+      "contentHeight": 225,
+      "contentFits": true
+    },
+    {
+      "engine": "WebKit",
+      "journey": "board/portable",
+      "status": "PASS",
+      "external": 0,
+      "errors": 0,
+      "browser": "26.5"
+    }
+  ],
+  "images": [
+    {
+      "file": "plus-navigation-free-390.png",
+      "sha256": "af53c99a3a80cc5c19196d34642f4eb73d2a296f116051a01f010ba547962363"
+    },
+    {
+      "file": "plus-navigation-viewer-390.png",
+      "sha256": "496556dabfcf475cb056210cba763ba35228c5d5140cd431718f9222c5198763"
+    },
+    {
+      "file": "plus-navigation-streamer-390.png",
+      "sha256": "ab47ed9271d538b8a3ad03c82558ab0ef512e6965ebbc920d5034b5dbea4a070"
+    },
+    {
+      "file": "plus-navigation-dark-390.png",
+      "sha256": "fef5c52a860d8db49c5bbe28d902ca066cbdd357f48e299f4e0d852e7857da77"
+    },
+    {
+      "file": "plus-navigation-desktop-1440.png",
+      "sha256": "9b326b3bf29ea5059b609d602ae5bc19a72cf98c6e1d5fee612fb0777db845e0"
+    },
+    {
+      "file": "plus-navigation-text200-360-short.png",
+      "sha256": "3e7a496112ad3c5857d818ed36c91d08e52b382374ca0f414226fc12f8e5b7a9"
+    }
+  ],
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "1d903ecc9b4f56930dc2503073e09ee15627a5c9f0c5e19100e97462986ba7f7",
+    "selected.js": "147640a005407be89b19d9e7797a8c9233246f4e084c9b61e222520095a99665",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f",
+    "preview.html": "45dd0e2761790a2a65edf21265503fbeaca08d282d1584309596f2f8d9f17090"
+  },
+  "product_changed": false,
+  "deployed": false,
+  "native": "NOT TESTED"
+}

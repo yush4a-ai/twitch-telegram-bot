@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Мини-апп · выбранный вариант А</title>
+  <link rel="stylesheet" href="selected.css">
+  <script src="selected.js" defer></script>
+</head>
+<body>
+  <header class="showcase-header">
+    <p class="project-name">TwitchSignalBot · выбранное направление</p>
+    <h1>А · Собранный</h1>
+    <p class="showcase-note">Основа А с группировкой эфиров из Б. Это локальный предпросмотр: статусы, имена для проверки длины и даты условные. Фотографии — публичные аватары Twitch и Monstercat.</p>
+    <nav class="showcase-navigation" aria-label="Примеры экранов">
+      <button data-gallery="main" aria-pressed="true">Основные экраны</button>
+      <button data-gallery="channel-states" aria-pressed="false">Права канала</button>
+      <button data-gallery="channel-progress" aria-pressed="false">Выбор и проверка</button>
+      <button data-gallery="channel-results" aria-pressed="false">Результат проверки</button>
+      <button data-gallery="oauth" aria-pressed="false">После Twitch</button>
+    </nav>
+    <div class="showcase-controls">
+      <label>Список<select id="viewer-scenario"><option value="filled">Заполненный</option><option value="empty">Пустой</option><option value="large">200 стримеров</option></select></label>
+      <label>Подключение<select id="channel-scenario"><option value="rights">Нет права публикации</option><option value="absent">Бот не добавлен</option><option value="member">Бот не администратор</option><option value="checking">Проверяем права</option><option value="ready">Всё готово</option><option value="network">Ошибка связи</option><option value="none">Канал не выбран</option><option value="cancel">Выбор отменён</option><option value="expired">Запрос устарел</option></select></label>
+      <label>Подписка<select id="profile-scenario"><option value="plus">Viewer Plus</option><option value="free">Free</option></select></label>
+      <label>Тема Telegram · имитация<select id="telegram-scenario"><option value="light">Светлая</option><option value="dark">Тёмная</option></select></label>
+    </div>
+    <p class="showcase-note small">Видимая область: 390 × 844 CSS px. Внутри экранов можно прокручивать. Системные панели Telegram и клавиатура здесь не рисуются.</p>
+  </header>
+  <main id="concepts" aria-label="Выбранный мобильный интерфейс"></main>
+  <aside class="showcase-footnote">Тема меняется в профиле и сохраняется только в этом макете. Поиск, добавление, ошибки и возврат работают на локальных примерах. Telegram SDK, OAuth, серверная проверка прав и отправка сообщений не выполняются.</aside>
+  <dialog id="detail" aria-labelledby="dialog-title" aria-describedby="dialog-description"><div class="dialog-content"></div><div class="dialog-actions"><button class="primary" data-close>Закрыть</button></div></dialog>
+</body>
+</html>

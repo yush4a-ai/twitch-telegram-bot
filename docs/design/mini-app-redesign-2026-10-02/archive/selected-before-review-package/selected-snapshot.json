@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-02",
+  "branch": "autonomous/twitchsignal-roadmap",
+  "base_head": "e0d44c315a1c81dc5b310dd1f3c7f3169915c985",
+  "scope": "Isolated local design preview only",
+  "files": {
+    "index.html": "dab8343e3143bccf53a37d8f581f64fa8951b9abfa7d51e1586f78324fa0a37e",
+    "selected.css": "e879a5e410231eb91c800f95d20f4ccf543fa7738849683af082342f927077e6",
+    "selected.js": "944bc26dfa6e98909a0a8db3cfb157af8b995be207e93dc37306647b516281de",
+    "preview.html": "b7f53f7f1563db721dbbb6113c74f5f3230df5cd667bb9314b651d9ce9ae6450"
+  },
+  "product_changed": false,
+  "deployment_performed": false
+}

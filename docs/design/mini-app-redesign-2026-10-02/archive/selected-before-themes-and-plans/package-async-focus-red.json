@@ -1,0 +1,28 @@
+{
+  "status": "RED",
+  "reports": [
+    {
+      "engine": "Chromium",
+      "channelPending": false,
+      "channelDisabled": true,
+      "channelResult": false,
+      "lookupPending": false,
+      "lookupResult": false,
+      "noSteal": false
+    },
+    {
+      "engine": "WebKit",
+      "channelPending": false,
+      "channelDisabled": true,
+      "channelResult": false,
+      "lookupPending": false,
+      "lookupResult": false,
+      "noSteal": false
+    }
+  ],
+  "sources": {
+    "index.html": "951376c26103cfe175d4ca1c87d8ed26d639fab3ab05f94540893b2ec64c6be1",
+    "selected.css": "3240e6316955f4283cc3200bfdf9cc393a5f615b0ab15135107d76074af24a77",
+    "selected.js": "56c974ff66e8353630ae94bd815a8cd79eb1e96f56a58bcb80bc3545ddf01c33"
+  }
+}

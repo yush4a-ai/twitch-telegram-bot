@@ -1,0 +1,69 @@
+{
+  "status": "RED",
+  "failure": {
+    "check": "Chromium/channel-action-focus-on-resize",
+    "message": "Изменение окна сохраняет фокус действия\n+ actual - expected\n\n+ undefined\n- 'rights'\n"
+  },
+  "reports": [
+    {
+      "engine": "Chromium",
+      "plan": "free",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "free",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "viewer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "viewer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "streamer",
+      "journey": "viewer/profile/purchase/back/keyboard",
+      "status": "PASS"
+    },
+    {
+      "engine": "Chromium",
+      "plan": "streamer",
+      "journey": "streamer/plus/back",
+      "status": "PASS"
+    }
+  ],
+  "images": [
+    {
+      "file": "plus-navigation-free-390.png",
+      "sha256": "af53c99a3a80cc5c19196d34642f4eb73d2a296f116051a01f010ba547962363"
+    },
+    {
+      "file": "plus-navigation-viewer-390.png",
+      "sha256": "496556dabfcf475cb056210cba763ba35228c5d5140cd431718f9222c5198763"
+    },
+    {
+      "file": "plus-navigation-streamer-390.png",
+      "sha256": "ab47ed9271d538b8a3ad03c82558ab0ef512e6965ebbc920d5034b5dbea4a070"
+    }
+  ],
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "1d903ecc9b4f56930dc2503073e09ee15627a5c9f0c5e19100e97462986ba7f7",
+    "selected.js": "cb3d3d07017f65742c60786a9ea899389aecd417132ea412cd6910384aaedb1f",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f",
+    "preview.html": "6d6b47fb2e9dbc0aaab279da6677d1822c4262fb2ba78486ebb17b4ba838703e"
+  },
+  "product_changed": false,
+  "deployed": false,
+  "native": "NOT TESTED"
+}

@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Мини-апп · выбранный вариант А</title>
+  <style>
+:root {
+  --white: #fff; --gray-50: #f5f6f8; --gray-100: #eceef2; --gray-200: #dce0e6;
+  --gray-500: #626a78; --gray-900: #20242b; --blue-600: #1762db; --red-700: #a82b36;
+  --canvas: var(--gray-50); --surface: var(--white); --text: var(--gray-900);
+  --muted: var(--gray-500); --line: var(--gray-200); --accent: var(--blue-600);
+  --control-track: var(--gray-100); --warning: #835600;
+  --accent-soft: #edf3ff; --error: var(--red-700); --on-accent: var(--white);
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --radius-control: 10px; --radius-group: 16px; --button-bg: var(--accent); --button-fg: var(--on-accent);
+  --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light; font: 100%/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--canvas); color: var(--text);
+}
+:root[data-theme=dark] {
+  color-scheme: dark; --canvas: #171717; --surface: #242424; --text: #f1f1f1;
+  --muted: #bababa; --line: #3d3d3d; --accent: #91baff; --accent-soft: #333333;
+  --error: #ffa4af; --on-accent: #141414;
+  --control-track: #3d3d3d; --warning: #eac774;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select { font: inherit; }
+button { border: 0; cursor: pointer; background: transparent; color: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled, button[aria-disabled=true] { cursor: wait; opacity: .7; }
+button:active:not(:disabled):not([aria-disabled=true]) { opacity: .7; }
+input { caret-color: var(--accent); }
+input::placeholder { color: var(--muted); opacity: 1; }
+::selection { background: var(--accent-soft); color: var(--text); }
+h1, h2, h3, p { margin: 0; }
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.muted { color: var(--muted); } .small { font-size: 0.875rem; } .numbers { font-variant-numeric: tabular-nums; }
+.showcase-header { max-width: 1266px; padding: 0 24px; margin: 28px auto 20px; }
+.project-name, .showcase-note { color: var(--muted); }
+.project-name { font-size: 0.875rem; margin-bottom: 8px; }
+.showcase-header h1 { font-size: 1.875rem; font-weight: 600; letter-spacing: -.025em; }
+.showcase-note { max-width: 960px; margin-top: 10px; }
+.showcase-navigation { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 12px; }
+.showcase-navigation button { padding: 10px 14px; min-height: 44px; border-radius: var(--radius-control); color: var(--muted); }
+.showcase-navigation button[aria-pressed=true] { background: var(--surface); color: var(--text); font-weight: 600; }
+.showcase-controls { display: flex; flex-wrap: wrap; gap: 16px; }
+.showcase-controls label { display: grid; gap: 5px; color: var(--muted); font-size: 0.875rem; }
+.showcase-controls select { color: var(--text); border: 1px solid var(--line); background: var(--surface); min-height: 44px; border-radius: var(--radius-control); padding: 0 12px; }
+.board { width: 1266px; margin: 0 auto; padding: 0 24px 20px; }
+.board-heading { padding: 6px 0 14px; font-size: 0.875rem; color: var(--muted); }
+.screen-grid { display: grid; grid-template-columns: repeat(3, 390px); gap: 24px; align-items: start; }
+.screen-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 32px; font-size: 0.875rem; }
+.screen-label span { color: var(--muted); font-size: 0.8125rem; }
+.screen { width: 390px; height: 844px; display: flex; flex-direction: column; background: var(--canvas); overflow: hidden; }
+.screen-header { flex: 0 0 auto; padding: max(14px, var(--safe-top)) 16px 10px; }
+.mode { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; background: var(--control-track); border-radius: var(--radius-control); }
+.mode button { min-height: 44px; padding: 4px 8px; border-radius: 7px; color: var(--muted); font-weight: 600; }
+.mode button[aria-pressed=true] { background: var(--surface); color: var(--text); }
+.screen-content { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; padding: 8px 16px 20px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; overflow-wrap: anywhere; }
+.screen h1 { font-size: 1.75rem; line-height: 1.18; letter-spacing: -.025em; font-weight: 600; }
+.screen h2 { font-size: 1.1875rem; font-weight: 600; letter-spacing: -.015em; line-height: 1.35; }
+.screen h3 { font-size: 1.0rem; font-weight: 600; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.text-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--accent); font-weight: 600; min-height: 44px; padding: 6px 0; }
+.primary { width: 100%; min-height: 48px; padding: 12px 16px; border-radius: var(--radius-control); color: var(--button-fg); background: var(--button-bg); font-weight: 600; }
+.secondary { width: 100%; min-height: 44px; padding: 10px 12px; color: var(--accent); font-weight: 600; }
+.field { display: grid; gap: 8px; font-size: 1.0rem; }
+.input-wrap { min-height: 48px; background: var(--surface); border-radius: var(--radius-control); display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--muted); }
+.input-wrap input { min-width: 0; width: 100%; border: 0; min-height: 48px; padding: 0; color: var(--text); background: transparent; }
+.list-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 8px; }
+.list-tools .text-button { font-size: 0.875rem; }
+.list-tools > .small { text-align: right; }
+.section-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 18px 2px 8px; font-size: 0.875rem; color: var(--muted); }
+.section-label b { font-weight: 600; color: var(--text); }
+.group { background: var(--surface); border-radius: var(--radius-group); overflow: hidden; }
+.stream-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 80px; padding: 12px; text-align: left; }
+.stream-row + .stream-row { border-top: 1px solid var(--line); }
+.avatar { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; background: var(--line); color: var(--muted); display: grid; place-items: center; font-weight: 600; overflow: hidden; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.row-copy { min-width: 0; flex: 1; }
+.row-copy strong { font-size: 1.0625rem; line-height: 1.3; font-weight: 600; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.status { display: block; font-size: 0.9375rem; color: var(--muted); margin-top: 4px; }
+.pause { display: block; font-size: 0.875rem; color: var(--muted); margin-top: 3px; }
+.chevron { width: 16px; height: 16px; color: var(--muted); }
+.video-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; margin-top: 12px; font-size: 0.875rem; }
+.video-summary > span { display: flex; align-items: center; gap: 8px; }
+.empty-intro { padding: 12px 0 24px; }
+.empty-intro h2 { margin-bottom: 8px; }
+.empty-intro p { color: var(--muted); }
+.add-form { display: grid; gap: 14px; }
+.notice { font-size: 0.875rem; color: var(--muted); margin-top: 10px; }
+.notice.error { color: var(--error); }
+.result { margin-top: 18px; padding: 16px; background: var(--surface); border-radius: var(--radius-group); }
+.result .primary { margin-top: 14px; }
+.empty-search { padding: 24px 0; }
+.empty-search p { color: var(--muted); margin: 8px 0 12px; }
+.tabbar { display: flex; flex-wrap: wrap; padding: 8px 12px max(10px,var(--safe-bottom)); background: var(--surface); border-top: 1px solid var(--line); flex: 0 0 auto; }
+.tabbar button { flex: 1 1 0; min-height: 48px; display: grid; place-items: center; align-content: center; gap: 4px; color: var(--muted); font-size: 0.8125rem; }
+.tabbar button[aria-current=page] { color: var(--accent); font-weight: 600; }
+.steps { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin: 16px 0 20px; color: var(--muted); font-size: 0.8125rem; }
+.steps span { display: flex; align-items: center; gap: 5px; }
+.steps .current { font-weight: 600; color: var(--text); }
+.steps svg { width: 16px; height: 16px; }
+.identity-row { display: flex; align-items: center; gap: 12px; padding: 14px 12px; }
+.identity-row + .identity-row { border-top: 1px solid var(--line); }
+.identity-row .avatar.channel { border-radius: var(--radius-control); }
+.identity-row .row-copy strong { display: block; overflow: visible; }
+.permission { margin: 20px 0 14px; }
+.permission h2 { display: flex; align-items: center; gap: 8px; }
+.permission[data-tone=warning] svg { color: var(--warning); }
+.permission[data-tone=error] svg { color: var(--error); }
+.permission[data-tone=success] svg { color: var(--accent); }
+.permission[data-tone=neutral] svg { color: var(--muted); }
+.permission p { color: var(--muted); margin-top: 6px; }
+.instruction { padding: 16px; background: var(--surface); border-radius: var(--radius-group); }
+.instruction p + p { margin-top: 12px; }
+.bot-name { font-weight: 600; color: var(--accent); overflow-wrap: anywhere; }
+.instruction h3 { margin-bottom: 8px; }
+.connection-actions { padding: 12px 16px; background: var(--canvas); flex: 0 0 auto; }
+.connection-actions .notice { text-align: center; margin: 0 0 10px; }
+.next-note { font-size: 0.875rem; color: var(--muted); margin-top: 14px; }
+.profile-identity { display: flex; align-items: center; gap: 12px; margin: 2px 0 18px; }
+.profile-identity strong { font-size: 1.0625rem; line-height: 1.35; font-weight: 600; }
+.profile-identity p { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+.plan { padding: 14px 14px 0; }
+.plan-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.plan-heading span { white-space: nowrap; font-size: 0.875rem; color: var(--accent); }
+.plan > p { font-size: 0.875rem; color: var(--muted); margin-top: 5px; }
+.plan-stats { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 12px 0 4px; font-size: 1.0rem; }
+.plan-stats span:nth-child(even) { font-variant-numeric: tabular-nums; }
+.setting { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; min-height: 52px; padding: 12px 14px; }
+.setting + .setting { border-top: 1px solid var(--line); }
+.setting > span:first-child { min-width: 0; }
+.setting .value { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; font-size: 0.875rem; color: var(--muted); flex: 0 0 auto; }
+.plan .setting { padding-left: 0; padding-right: 0; color: var(--accent); }
+.theme-control { padding: 14px; }
+.theme-choices { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; margin-top: 10px; background: var(--control-track); border-radius: var(--radius-control); }
+.theme-choices button { flex: 1 1 6.5em; font-size: 0.875rem; min-height: 44px; padding: 4px 2px; border-radius: 7px; }
+.theme-choices button[aria-pressed=true] { background: var(--surface); font-weight: 600; }
+.theme-control + .setting { border-top: 1px solid var(--line); }
+.detail-name { margin: 16px 0 6px; overflow-wrap: anywhere; }
+.detail-info { padding: 16px; margin-top: 18px; }
+.detail-info p + p { margin-top: 12px; }
+.detail-return { margin-top: 16px; }
+.oauth .screen-content { display: flex; flex-direction: column; padding: max(24px,var(--safe-top)) 20px 20px; }
+.oauth-top { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--muted); margin-bottom: 36px; }
+.oauth h1 { margin-bottom: 14px; }
+.oauth .identity-row { margin-top: 24px; border-radius: var(--radius-group); background: var(--surface); }
+.oauth-actions { padding: 16px 20px max(20px,var(--safe-bottom)); flex: 0 0 auto; }
+.oauth p { color: var(--muted); }
+.preview-note { padding-top: 8px; font-size: 0.8125rem; color: var(--muted); }
+.showcase-footnote { max-width: 1266px; margin: 10px auto 36px; padding: 0 24px; color: var(--muted); font-size: 0.875rem; }
+dialog { width: min(440px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; color: var(--text); background: var(--surface); border: 0; border-radius: var(--radius-group); padding: 24px; }
+dialog::backdrop { background: rgb(10 16 25 / .35); }
+.dialog-content { margin-bottom: 20px; overflow-wrap: anywhere; }
+.dialog-content h2 { font-size: 1.375rem; margin-bottom: 12px; }
+.dialog-content p + p { margin-top: 12px; }
+.dialog-content .primary { margin-top: 14px; }
+.dialog-content details { margin-top: 14px; border-top: 1px solid var(--line); }
+.dialog-content summary { min-height: 44px; padding: 10px 0; color: var(--accent); cursor: pointer; }
+.operation-history { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.operation-history h3 { font-size: 1.0rem; margin-bottom: 6px; }
+.single .showcase-header, .single .showcase-footnote, .single .board-heading, .single .screen-label, .single .preview-note { display: none; }
+.single .board { width: 100%; padding: 0; }
+.single .screen-grid { display: block; }
+.single .screen { width: min(100%,600px); height: 100dvh; margin-inline: auto; }
+@media (max-width: 1265px) { body:not(.single) .board { width: fit-content; max-width: 100%; } body:not(.single) .screen-grid { grid-template-columns: 390px; } }
+@media (max-width: 430px) { body:not(.single) .screen-grid { grid-template-columns: minmax(0,1fr); } body:not(.single) .screen { width: 100%; } .showcase-header,.board { padding-left: 12px; padding-right: 12px; } }
+@media (prefers-reduced-motion: no-preference) { button { transition: opacity 120ms ease; } }
+
+/* Package: one content measure, scalable type and compact tools. */
+.tool-actions { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.list-tools { flex-wrap: wrap; padding-top: 4px; align-items: baseline; }
+.list-tools .text-button { font-size: .9375rem; }
+.list-tools > .small { margin-left: auto; }
+.stream-row .row-copy strong { overflow-wrap: anywhere; }
+.subscription-plan { margin-top: 16px; }
+.subscription-features { padding: 14px 0; margin-top: 16px; }
+.subscription-features summary { min-height: 44px; cursor: pointer; color: var(--accent); padding: 8px 0; }
+.subscription-features p { margin-top: 10px; }
+@media (max-height:520px) {
+ .single .screen-header { padding: 4px 16px; }
+ .single .screen-content { padding-top: 4px; }
+ .single .connection-actions { padding: 6px 16px; }
+ .single .tabbar { padding: 4px 12px max(4px,var(--safe-bottom)); }
+ .single .tabbar button { min-height: 44px; }
+}
+
+.bot-name { padding: 0 2px; min-height: 44px; display: inline; text-decoration: underline; text-underline-offset: 3px; user-select: text; }
+.copy-status { font-size: .875rem; color: var(--muted); margin-top: 8px; }
+.copy-status:empty { display: none; }
+.copy-status.error { color: var(--error); }
+.open-channel { text-decoration: none; font-size: .875rem; justify-content: flex-start; }
+.select-another { text-align: left; padding-left: 0; margin-top: 10px; }
+.screen-content[data-route=fallback] .instruction { margin-top: 20px; }
+
+dialog[open] { display: flex; flex-direction: column; }
+.dialog-content { flex: 1; min-height: 0; overflow-y: auto; margin-bottom: 0; }
+.dialog-actions { flex: 0 0 auto; padding-top: 16px; }
+dialog.sheet { position: fixed; inset: auto 12px 12px; margin: 0 auto; width: min(600px,calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+.screen h1:focus, .dialog-content h2:focus { outline: none; }
+.screen .text-button:empty { display: none; }
+
+/* Short comparison rows; catalog and checkout stay in the same scroll column. */
+.theme-context { font-size: .875rem; color: var(--muted); margin-top: 10px; }
+.included { font-size: .9375rem; margin-top: 12px; color: var(--text); }
+.catalog-switch { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; margin: 20px 0; border-radius: var(--radius-control); background: var(--control-track); }
+.catalog-switch button { flex: 1 1 8em; min-height: 44px; padding: 8px; border-radius: 7px; font-weight: 600; }
+.catalog-switch button[aria-pressed=true] { background: var(--surface); }
+.catalog-intro { margin: 20px 0 12px; }
+.catalog-intro h2 { font-size: 1.5rem; }
+.catalog-price { margin-top: 8px; font-size: 1.1875rem; font-variant-numeric: tabular-nums; }
+.benefit-list { margin: 16px 0 20px; }
+.benefit-list > div { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.benefit-list dt { font-weight: 600; margin-bottom: 5px; }
+.benefit-list dd { margin: 0; font-size: .9375rem; }
+.benefit-list .free-line { color: var(--muted); margin-bottom: 3px; }
+.benefit-list .plus-line { color: var(--text); }
+.catalog-followup { margin: 20px 0 4px; }
+.purchase-form { display: grid; gap: 16px; margin: 20px 0; }
+.purchase-form select { width: 100%; min-width: 0; padding: 10px 12px; min-height: 48px; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-control); }
+.purchase-price { padding: 16px; background: var(--surface); border-radius: var(--radius-group); }
+.purchase-price strong { font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.payment-status { margin-top: 24px; }
+.payment-status p { margin-top: 10px; color: var(--muted); }
+.payment-status[data-payment-state=error] h2 { color: var(--error); }
+.demo-outcomes { display: grid; gap: 8px; margin: 24px 0 16px; }
+.demo-outcomes h3 { font-size: .9375rem; color: var(--muted); }
+.purchase-actions { margin: 20px 0 8px; }
+.operation-history summary { min-height: 44px; padding: 10px 0; color: var(--accent); cursor: pointer; }
+
+</style>
+  
+  
+</head>
+<body>
+  <header class="showcase-header">
+    <p class="project-name">TwitchSignalBot · выбранное направление</p>
+    <h1>А · Собранный</h1>
+    <p class="showcase-note">Основа А с группировкой эфиров из Б. Это локальный предпросмотр: статусы, имена для проверки длины и даты условные. Фотографии — публичные аватары Twitch и Monstercat.</p>
+    <nav class="showcase-navigation" aria-label="Примеры экранов">
+      <button data-gallery="main" aria-pressed="true">Основные экраны</button>
+      <button data-gallery="channel-states" aria-pressed="false">Права канала</button>
+      <button data-gallery="channel-progress" aria-pressed="false">Выбор и проверка</button>
+      <button data-gallery="channel-results" aria-pressed="false">Результат проверки</button>
+      <button data-gallery="oauth" aria-pressed="false">После Twitch</button>
+      <button data-gallery="plan-states" aria-pressed="false">Free / Viewer / Streamer</button>
+      <button data-gallery="payment-states" aria-pressed="false">Покупка · демонстрация</button>
+    </nav>
+    <div class="showcase-controls">
+      <label>Список<select id="viewer-scenario"><option value="filled">Заполненный</option><option value="empty">Пустой</option><option value="large">200 стримеров</option></select></label>
+      <label>Подключение<select id="channel-scenario"><option value="rights">Нет права публикации</option><option value="absent">Бот не добавлен</option><option value="member">Бот не администратор</option><option value="checking">Проверяем права</option><option value="ready">Всё готово</option><option value="network">Ошибка связи</option><option value="none">Канал не выбран</option><option value="cancel">Выбор отменён</option><option value="expired">Запрос устарел</option></select></label>
+      <label>Подписка · пример<select id="profile-scenario"><option value="plus">Viewer Plus</option><option value="free">Free</option><option value="streamer">Streamer Plus</option></select></label>
+      <label>Цвета Telegram · имитация<select id="telegram-scenario"><option value="light">Светлая · зелёный акцент</option><option value="dark">Тёмная · сливовый акцент</option></select></label>
+    </div>
+    <p class="showcase-note small">Видимая область: 390 × 844 CSS px. Внутри экранов можно прокручивать. Системные панели Telegram и клавиатура здесь не рисуются.</p>
+  </header>
+  <main id="concepts" aria-label="Выбранный мобильный интерфейс"></main>
+  <aside class="showcase-footnote">Тема меняется в профиле и сохраняется только в этом макете. Поиск, добавление, ошибки и возврат работают на локальных примерах. Telegram SDK, OAuth, серверная проверка прав и отправка сообщений не выполняются.</aside>
+  <dialog id="detail" aria-labelledby="dialog-title" aria-describedby="dialog-description"><div class="dialog-content"></div><div class="dialog-actions"><button class="primary" data-close>Закрыть</button></div></dialog>
+<script>
+/* Shared DESIGN catalog. Not a server entitlement or live purchase configuration. */
+(()=>{
+ const features={
+  tracked:{label:'Отслеживаемые стримеры',free:'До 50 бесплатно',plus:'До 200 с Plus'},
+  photo:{label:'Уведомления с фото',free:'Бесплатно',plus:'Фото остаётся доступным'},
+  video:{label:'Пять видеопревью',free:'Фото вместо видео',plus:'5 выбранных стримеров, включая тех, кто не в эфире'},
+  filters:{label:'Фильтры по игре и словам',free:'Обычные уведомления',plus:'Например: только Minecraft или слово «турнир»'},
+  category:{label:'Нужная категория',free:'Уведомление о начале эфира',plus:'Сообщение при переходе в выбранную категорию'},
+  reminders:{label:'Напоминания',free:'Без повторного сообщения',plus:'Через 15 или 30 минут после начала эфира'},
+  folders:{label:'Папки с правилами',free:'Общий список',plus:'Например: «Вечером» с общими фильтрами'},
+  history:{label:'История событий',free:'Текущие уведомления',plus:'Собственные исходы уведомлений'},
+  postVideo:{label:'Превью в посте',free:'Стандартный автоматический пост с фото',plus:'Видеопревью эфира; фото при временной перегрузке'},
+  postStyle:{label:'Текст и оформление',free:'Стандартное сообщение',plus:'Свой текст и оформление публикации'},
+  postButtons:{label:'Дополнительные кнопки',free:'Стандартная ссылка на эфир',plus:'Кнопки для разрешённых размещений'},
+  postPresets:{label:'Сохранённые варианты',free:'Стандартный пост',plus:'Сохранять и выбирать оформление'},
+ };
+ const viewer=['tracked','photo','video','filters','category','reminders','folders','history'];
+ const streamer=['postVideo','postStyle','postButtons','postPresets'];
+ const catalog={kind:'design-fixture',paymentEnabled:false,autoRenew:false,features,plans:{
+  free:{id:'free',name:'Free',mockRubles:null,starsPrice:null,trackedLimit:50,videoLimit:0,features:['tracked','photo']},
+  viewer:{id:'viewer',name:'Viewer Plus',mockRubles:150,starsPrice:null,trackedLimit:200,videoLimit:5,features:viewer},
+  streamer:{id:'streamer',name:'Streamer Plus',mockRubles:200,starsPrice:null,trackedLimit:200,videoLimit:5,features:[...viewer,...streamer],publicationFeatures:streamer,includes:'viewer'},
+ }};
+ function freeze(object){Object.values(object).forEach(value=>{if(value&&typeof value==='object')freeze(value);});return Object.freeze(object);}
+ window.plusCatalog=freeze(catalog);
+})();
+
+/* Isolated design fixture. No Telegram SDK, authenticated API, OAuth or sender. */
+const icons={search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',plus:'<path d="M12 5v14M5 12h14"/>',arrow:'<path d="m9 5 7 7-7 7"/>',home:'<path d="m3 10 9-7 9 7v10H6V10"/><path d="M10 20v-7h4v7"/>',people:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 3 5"/>',person:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/>',channel:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/>',posts:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',video:'<rect x="3" y="6" width="12" height="12" rx="3"/><path d="m15 10 6-3v10l-6-3"/>',folder:'<path d="M3 7V5h6l2 3h10v12H3z"/>',check:'<path d="m5 12 4 4L19 6"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',warning:'<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/>'};
+const icon=(name,extra='')=>`<svg viewBox="0 0 24 24" aria-hidden="true" ${extra}>${icons[name]}</svg>`;
+const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sample=[
+ {name:'Twitch',login:'twitch',image:'data:image/png;base64,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',status:'live',category:'Just Chatting',notify:true,video:true},
+ {name:'Александр и его невероятные приключения после полуночи',login:'alexander_after_midnight',initial:'А',status:'live',category:'Baldur’s Gate 3',notify:true,video:true},
+ {name:'Monstercat',login:'monstercat',image:'data:image/jpeg;base64,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RNfJAQEBAQEBAQEBAQEBAQEBAQEBAQEBAHVBa12ZfAXhuQ6a0GrGollp8krbtI99mtVxYJKWmp2PLBM+M9JHvc1xAcCGt5SBudwdJMWMs00xKOjFIzGLM2kA5RA23QiMD05eXZFYp1H4EtCdUYpv4vptZaWqkH+m2eH+Hzg/a5oC3c/eBQdJ0C4LLlwlZ7VVum+Y1N0wS8SAXbFMiAc+MgbNqKaojAAkb4Fr2bPb0LgQ0gJYINUFUHbV6Y+z3/TzUKCIctVBPYquQDbZzD30G/zD5x/SjNVjIwICAgICAgICAgICAgICAgICAgICAgICAgICAgICA36QQeiHgVq6et4QdJZKbbuxj9NGeX7bQWv/AMzXI6s7oCAgICCMPaQ6UnVfhHzOCngM9yscbL9SAN3IdTnmk2+cJmH4olUC9PLqEcxAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEF1XY/6rR5hw2VmISzc1fiNzkgEZO5FLUEzRO+XOZm/0o6RO3mHqEU3CBzAeYQNxt06oPjVVsFFA+aolZBCwbuklcGNHzJQYf1S4qdFMHslxgyrUPG2RPgkjmt8VfHU1EjC0hzBDGXPJIJG23mg86VT3XtMvs/N3HO7u+cdeTf3d/jtsjlXzQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBB2nT/VTMtKbhPXYblN3xarqGCOaW01j6czNB3DX8p2cAeux3RZcZftnaF8RNpa1sOql3kA/2qKnnP5viJKG1zA7TTiUDeX+0l/zNood//ZQ7Vx9d2jHEbcARJqjcYwf9no6SL/0whF7V1C+cYmuORscyu1Zy58bvFkN1lgafwjLUTWNb9mN/yl5fer5c7u89S6vrZZyf1uKG1w4Ab4AN+Q2RGqAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/2Q==',status:'offline',notify:true,video:true},
+ {name:'Катерина играет в длинные сюжетные игры без спешки',login:'katerina_story_games',initial:'К',status:'offline',notify:false,video:false},
+ {name:'Михаил — ночные эфиры и разговоры о кино',login:'mikhail_night_streams',initial:'М',status:'stale',notify:true,video:false},
+ {name:'ОченьДлинноеИмяСтримераБезПробеловДляПроверкиМноготочия',login:'very_long_streamer',status:'stale',notify:true,video:false},
+];
+const catalog=[...sample,{name:'София. Новые игры и разговоры после эфира',login:'sofia_new_games',initial:'С',status:'offline',notify:true,video:false}];
+const query=new URLSearchParams(location.search), isSingle=query.get('single')==='1';
+let gallery=query.get('view')||'main', singleScreen=query.get('screen')||'viewer';
+let singleMode=singleScreen.startsWith('channel')?'streamer':'viewer';
+const displayByKey=new Map(), channelOverrides=new Map(), checkRequests=new Map();
+const model={viewer:query.get('viewer')||'filled',channel:query.get('channel')||'rights',plan:query.get('plan')||'plus',twitchLinked:true,search:'',draft:'',result:null,lookupError:'',lookupBusy:false,lookupVersion:0,selectionPending:false};
+if(!['free','plus','viewer','streamer'].includes(model.plan))model.plan='free';
+const normalizePlan=plan=>plan==='plus'?'viewer':plan;
+const activePlan=key=>plusCatalog.plans[normalizePlan(key?.startsWith('plan-')?key.slice(5):model.plan)];
+const hasViewer=()=>activePlan().videoLimit===5;
+let subscriptions=[];
+function resetSubscriptions(){subscriptions=model.viewer==='empty'?[]:sample.map(s=>({...s}));if(model.viewer==='large')subscriptions.push(...Array.from({length:194},(_,i)=>({name:`Длинное имя стримера ${i+7} — игры, разговоры и вечерние приключения`,login:`demo_streamer_${i+7}`,initial:String(i+7),status:i%5===0?'stale':'offline',notify:i%7!==0,video:false})));}
+resetSubscriptions();
+let themeChoice='light';try{themeChoice=localStorage.getItem('tsb_selected_design_theme')||'light';}catch{}
+if(!['light','dark','telegram'].includes(themeChoice))themeChoice='light';
+if(['light','dark','telegram'].includes(query.get('theme')))themeChoice=query.get('theme');
+const systemTheme=matchMedia('(prefers-color-scheme: dark)');
+let telegramTheme=query.get('telegram')||(systemTheme.matches?'dark':'light');
+const telegramFixtures={
+ light:{scheme:'light',label:'светлая, зелёный акцент',params:{bg_color:'#f4f7f5',section_bg_color:'#ffffff',text_color:'#202923',hint_color:'#5f6f64',secondary_bg_color:'#e5ece7',section_separator_color:'#d7e0d9',accent_text_color:'#196546',button_color:'#196546',button_text_color:'#ffffff',destructive_text_color:'#a82b36'}},
+ dark:{scheme:'dark',label:'тёмная, сливовый акцент',params:{bg_color:'#191719',section_bg_color:'#2a242a',text_color:'#f4eff4',hint_color:'#c0b3c0',secondary_bg_color:'#3c343c',section_separator_color:'#4b414b',accent_text_color:'#e0b5db',button_color:'#e0b5db',button_text_color:'#251e25',destructive_text_color:'#ffa4af'}},
+};
+if(!telegramFixtures[telegramTheme])telegramTheme='light';
+const routes=new Map(), scrolls=new Map(), failures=new Map();
+if(query.get('route')==='subscription')routes.set('profile',{kind:'subscription'});
+const root=document.getElementById('concepts'), dialog=document.getElementById('detail');
+if(isSingle)document.body.classList.add('single');
+function applyTheme(){
+ const element=document.documentElement,vars=['--canvas','--surface','--text','--muted','--line','--accent','--control-track','--accent-soft','--error','--on-accent','--button-bg','--button-fg','--warning'];
+ vars.forEach(name=>element.style.removeProperty(name));element.style.removeProperty('color-scheme');element.dataset.theme=themeChoice;
+ if(themeChoice!=='telegram')return;
+ const fixture=telegramFixtures[telegramTheme],params=fixture.params,valid=value=>typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value);
+ const bind=(name,fields,fallback)=>{const value=fields.map(field=>params[field]).find(valid)||fallback;element.style.setProperty(name,value);};
+ const dark=fixture.scheme==='dark';element.style.setProperty('color-scheme',fixture.scheme);
+ bind('--canvas',['bg_color'],dark?'#171717':'#f5f6f8');bind('--surface',['section_bg_color','secondary_bg_color','bg_color'],dark?'#242424':'#ffffff');
+ bind('--text',['text_color'],dark?'#f1f1f1':'#20242b');bind('--muted',['subtitle_text_color','hint_color'],dark?'#bababa':'#626a78');
+ bind('--line',['section_separator_color'],dark?'#3d3d3d':'#dce0e6');bind('--control-track',['secondary_bg_color'],dark?'#3d3d3d':'#eceef2');
+ bind('--accent',['accent_text_color','link_color','button_color'],dark?'#91baff':'#1762db');bind('--accent-soft',['secondary_bg_color'],dark?'#333333':'#edf3ff');
+ bind('--button-bg',['button_color'],dark?'#91baff':'#1762db');bind('--button-fg',['button_text_color'],dark?'#141414':'#ffffff');
+ bind('--error',['destructive_text_color'],dark?'#ffa4af':'#a82b36');element.style.setProperty('--warning',dark?'#eac774':'#835600');
+}
+applyTheme();
+function setTelegramTheme(name){if(!telegramFixtures[name])return;telegramTheme=name;document.getElementById('telegram-scenario').value=name;if(themeChoice==='telegram'){applyTheme();render();}}
+function avatar(s){return `<span class="avatar" aria-hidden="true">${s.image?`<img src="${s.image}" alt="" loading="lazy" onerror="this.parentNode.textContent='${s.initial||s.name[0]}';">`:s.initial||icon('person')}</span>`;}
+function mode(kind){return `<header class="screen-header"><div class="mode" role="group" aria-label="Режим приложения"><button data-mode="viewer" aria-pressed="${kind==='viewer'}">Зритель</button><button data-mode="streamer" aria-pressed="${kind==='streamer'}">Стример</button></div></header>`;}
+function tabs(kind,active){const entries=kind==='viewer'?[['home','Главная'],['people','Стримеры'],['person','Профиль']]:[['channel','Мой канал'],['posts','Посты'],['person','Профиль']];return `<nav class="tabbar" aria-label="Разделы">${entries.map(([glyph,label],i)=>`<button data-tab="${glyph}" ${i===active?'aria-current="page"':''}>${icon(glyph)}${label}</button>`).join('')}</nav>`;}
+function row(s){
+ const state=s.status==='live'?'В эфире':s.status==='offline'?'Не в эфире':'Нет свежих данных';
+ const selected=s.video&&hasViewer();
+ const visual=s.status==='live'?(s.category||'Категория не указана'):state;
+ const accessible=[s.name,state,s.status==='live'?s.category:'',selected?'Видео выбрано; готовность не подтверждена':'Фото',s.notify?'Уведомления включены':'Уведомления на паузе','Открыть настройки'].filter(Boolean).join('. ');
+ return `<button class="stream-row" data-streamer="${s.login}" aria-label="${esc(accessible)}">${avatar(s)}<span class="row-copy"><strong>${esc(s.name)}</strong><span class="status" aria-hidden="true">${esc(visual)}${selected?' · Видео выбрано':''}</span>${!s.notify?'<span class="pause" aria-hidden="true">Уведомления на паузе</span>':''}</span>${icon('arrow','class="chevron"')}</button>`;
+}
+function list(){const q=model.search.toLocaleLowerCase('ru');const matches=subscriptions.filter(s=>(s.name+' '+s.login).toLocaleLowerCase('ru').includes(q));if(!matches.length)return '<div class="empty-search"><h2>Нет совпадений</h2><p>Попробуй другое имя или очисти поиск.</p><button class="primary" data-clear>Очистить поиск</button></div>';return [['live','В эфире'],['offline','Не в эфире'],['stale','Нет свежих данных']].map(([status,label])=>{const items=matches.filter(s=>s.status===status);return items.length?`<section data-group="${status}"><div class="section-label"><b>${label}</b><span class="numbers">${items.length}</span></div><div class="group">${items.map(row).join('')}</div></section>`:'';}).join('');}
+function addForm(){return `<form class="add-form" data-add-form><label class="field">Ник или ссылка Twitch<span class="input-wrap"><input name="twitch" type="text" autocomplete="off" spellcheck="false" placeholder="Например, twitch.tv/twitch" value="${esc(model.draft)}" aria-label="Ник или ссылка Twitch"></span></label><button class="primary" type="submit" ${model.lookupBusy?'aria-disabled="true"':''}>${model.lookupBusy?'Ищем стримера…':'Найти стримера'}</button><div class="lookup-status" aria-live="polite">${model.lookupError?`<p class="notice error">${esc(model.lookupError)}</p>`:''}${model.result?`<div class="result"><div class="identity-row">${avatar(model.result)}<div class="row-copy"><strong>${esc(model.result.name)}</strong><span class="status">${esc(model.result.login)}</span></div></div>${subscriptions.some(s=>s.login===model.result.login)?'<p class="notice">Уже в твоём списке</p>':'<button class="primary" type="button" data-confirm-add>Добавить стримера</button>'}</div>`:''}</div></form>`;}
+function streamerDetail(s){return `<h1 tabindex="-1">Стример</h1><div class="detail-name"><h2>${esc(s.name)}</h2><p class="muted">${esc(s.login)}</p></div><div class="group detail-info"><p>${s.status==='stale'?'Нет свежих данных о трансляции':s.status==='live'?'В эфире':'Не в эфире'}</p><p>Уведомления ${s.notify?'включены':'на паузе'}</p><button class="text-button" data-toggle-notify="${s.login}">${s.notify?'Приостановить уведомления':'Включить уведомления'}</button><p>Превью: ${s.video&&hasViewer()?'Видео выбрано · готовность не подтверждена':'Фото'}</p><button class="text-button" data-dialog="streamer-options">Фильтры и напоминания</button></div><button class="secondary detail-return" data-back>Вернуться к списку</button>`;}
+function viewerTools(){
+ const plus=hasViewer(), selected=subscriptions.filter(s=>s.video).length;
+ const count=model.plan==='free'&&subscriptions.length>50?'50 активных · '+subscriptions.length+' сохранено':subscriptions.length+' из '+(plus?200:50);
+ return `<div class="list-tools"><div class="tool-actions"><button class="text-button" data-dialog="folders">${icon('folder')}Папки</button><button class="text-button" data-dialog="video" aria-label="${plus?'Видеопревью: выбрано '+selected+' из 5':'О видеопревью в Viewer Plus'}">${icon('video')}${plus?'Видео '+selected+'/5':'Видео · Plus'}</button></div><span class="small muted numbers">${count}</span></div>`;
+}
+function viewer(key){
+ const route=routes.get(key);
+ if(route?.kind==='detail'){const s=subscriptions.find(item=>item.login===route.login);if(s)return `${mode('viewer')}<main class="screen-content" data-route="detail">${streamerDetail(s)}</main>${tabs('viewer',1)}`;}
+ if(route?.kind==='add')return `${mode('viewer')}<main class="screen-content" data-route="add"><div class="title-row"><h1 tabindex="-1">Добавить стримера</h1></div>${addForm()}<button class="secondary detail-return" data-back>Вернуться к списку</button></main>${tabs('viewer',1)}`;
+ const empty=!subscriptions.length;
+ return `${mode('viewer')}<main class="screen-content" data-route="list"><div class="title-row"><h1 tabindex="-1">Стримеры</h1>${empty?'':`<button class="text-button" data-add>${icon('plus')}Добавить</button>`}</div>${empty?`${viewerTools()}<div class="empty-intro"><h2>Кого будем смотреть?</h2><p>Добавь первого стримера. Сообщу в Telegram, когда он начнёт эфир.</p></div>${addForm()}<p class="notice">Уведомления и фото бесплатны.<br>До 50 стримеров без подписки.</p>`:`<label class="field">Поиск по моим стримерам<span class="input-wrap">${icon('search')}<input type="search" data-search aria-label="Поиск по моим стримерам" placeholder="Имя или ник" value="${esc(model.search)}"></span></label>${viewerTools()}<div data-list>${list()}</div>`}</main>${tabs('viewer',1)}`;
+}
+const botName=()=>'<button class="bot-name" data-copy-bot aria-label="Скопировать имя @TwitchSignalTestbot">@TwitchSignalTestbot</button>';
+const channelFixture=query.get('channelLink')==='public'?{type:'channel',verified:true,title:'Telegram',url:'https://t.me/telegram'}:query.get('channelLink')==='invalid'?{type:'channel',verified:true,title:'Эфиры Александра',url:'javascript:alert(1)'}:{type:'channel',verified:false,title:'Эфиры Александра и разговоры после полуночи',url:null};
+function validatedChannelLink(meta){
+ if(meta?.type!=='channel'||meta.verified!==true||typeof meta.url!=='string')return null;
+ try{const url=new URL(meta.url);return url.protocol==='https:'&&url.hostname==='t.me'&&!url.username&&!url.password&&!url.port&&!url.search&&!url.hash&&/^\/[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(url.pathname)?url.href:null;}catch{return null;}
+}
+const permissionStates={
+ absent:{tone:'warning',title:'Добавь бота в канал',text:'Бот ещё не состоит в выбранном канале.',instruction:()=>`<h3>В настройках канала</h3><p>Администраторы → Добавить администратора → найди ${botName()}.</p><p>Включи «Публикация сообщений» и сохрани.</p>`,button:'Проверить подключение'},
+ member:{tone:'warning',title:'Назначь бота администратором',text:'Бот уже в канале, но пока не может публиковать.',instruction:()=>`<h3>Измени роль бота</h3><p>Настройки канала → Администраторы → Добавить администратора → ${botName()}.</p><p>Разреши «Публикация сообщений» и сохрани.</p>`,button:'Проверить подключение'},
+ rights:{tone:'warning',title:'Разреши публикации',text:'Бот — администратор. Не хватает только права публикации.',instruction:()=>`<h3>Измени разрешение</h3><p>Настройки канала → Администраторы → ${botName()}.</p><p>Включи «Публикация сообщений» и сохрани.</p>`,button:'Проверить подключение'},
+ checking:{tone:'neutral',title:'Проверяем права',text:'Ждём ответа Telegram. Подключение пока не подтверждено.',instruction:()=>'<h3>Выбранный канал сохранён</h3><p>Проверяем роль бота и право публикации. Отдельный пост сейчас не отправляется.</p>',button:'Проверяем права…'},
+ ready:{tone:'success',title:'Канал подключён',text:'Проверка прав завершена. Публикации ещё выключены.',instruction:()=>'<h3>Сначала посмотри пост</h3><p>Покажем стандартный пост о начале эфира. Публикации включишь отдельным действием.</p>',button:'Посмотреть пример поста'},
+ network:{tone:'error',title:'Не удалось проверить права',text:'Telegram не ответил. Это не подтверждает отсутствие прав.',instruction:()=>'<h3>Повтори проверку</h3><p>Канал сохранили. Проверь соединение и попробуй ещё раз.</p>',button:'Повторить проверку'},
+ none:{tone:'neutral',title:'Выбери Telegram-канал',text:'Туда бот будет публиковать сообщения о твоих эфирах.',instruction:()=>'<h3>Следующий шаг</h3><p>Выбери канал, которым ты управляешь. Затем проверим права бота.</p>',button:'Выбрать канал'},
+ cancel:{tone:'neutral',title:'Выбор канала отменён',text:'Twitch остаётся подключённым. Можно повторить выбор.',instruction:()=>'<h3>Продолжи, когда будет удобно</h3><p>Добавленные ранее каналы и группы сохранились.</p>',button:'Выбрать канал'},
+ expired:{tone:'warning',title:'Запрос выбора устарел',text:'Создай новый запрос. Twitch подключать заново не нужно.',instruction:()=>'<h3>Повтори выбор канала</h3><p>Сохранённые подключения остаются на месте.</p>',button:'Выбрать канал'},
+};
+function channel(key,initialState){
+ if(!model.twitchLinked)return `${mode('streamer')}<main class="screen-content"><h1 tabindex="-1">Мой канал</h1><div class="empty-intro"><h2>Подключи Twitch</h2><p>Подключение не подтверждено. Выбор Telegram-канала будет следующим шагом.</p></div><button class="primary" data-dialog="oauth-retry">Подключить Twitch</button></main>${tabs('streamer',0)}`;
+ const route=routes.get(key);
+ if(route?.kind==='post')return `${mode('streamer')}<main class="screen-content" data-route="post"><div class="title-row"><h1 tabindex="-1">Пример поста</h1></div><div class="group detail-info"><h2>Twitch начинает эфир</h2><p class="notice">Условный пример стандартного уведомления. Сообщение не отправлено.</p></div><p class="notice">В приложении здесь будет явное включение публикаций после проверки прав.</p><button class="secondary" data-back>Вернуться к подключению</button></main>${tabs('streamer',0)}`;
+ if(route?.kind==='fallback')return `${mode('streamer')}<main class="screen-content" data-route="fallback"><h1 tabindex="-1">Выбор через переписку</h1><p class="notice">Пример перехода, без отправки сообщения.</p><div class="instruction"><p>В переписке с ${botName()} появится кнопка выбора. Выбери канал и вернись в приложение.</p><button class="primary" data-demo-chat-pick>Выбрать Telegram-канал</button></div><p class="notice" data-fallback-status>${model.selectionPending?'Канал выбран. Можно вернуться.':'Выбор ещё не завершён.'}</p><button class="secondary" data-cancel-selection>Отменить</button><p class="copy-status" role="status" data-copy-status></p></main><div class="connection-actions"><button class="primary" data-return-selection ${model.selectionPending?'':'disabled'}>Вернуться к подключению</button></div>${tabs('streamer',0)}`;
+ const state=channelOverrides.get(key)||initialState, config=permissionStates[state]||permissionStates.rights;
+ const selected=!['none','cancel','expired'].includes(state), link=selected?validatedChannelLink(channelFixture):null;
+ const glyph=state==='ready'?'check':state==='checking'?'clock':config.tone==='neutral'?'channel':'warning';
+ return `${mode('streamer')}<main class="screen-content" data-route="channel" data-channel-state="${state}"><h1 tabindex="-1">Telegram-канал</h1><div class="steps" aria-label="Twitch подключён. Текущий шаг: Telegram-канал. Затем публикации."><span>${icon('check')}Twitch</span>${icon('arrow','class="chevron"')}<span class="current">Telegram</span>${icon('arrow','class="chevron"')}<span>Публикации</span></div><div class="group"><div class="identity-row">${avatar(sample[0])}<span class="row-copy"><strong>Twitch</strong><span class="status">Аккаунт подключён</span></span>${icon('check')}</div>${selected?`<div class="identity-row"><span class="avatar channel">${icon('channel')}</span><span class="row-copy"><strong>${esc(channelFixture.title)}</strong><span class="status">Telegram-канал выбран</span>${link?`<a class="text-button open-channel" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Открыть канал</a>`:''}</span></div>`:''}</div><section class="permission" data-tone="${config.tone}" aria-live="polite"><h2>${icon(glyph)}${config.title}</h2><p>${config.text}</p></section><div class="instruction">${config.instruction()}</div><p class="copy-status" role="status" data-copy-status></p>${selected?'<button class="secondary select-another" data-select-channel>Выбрать другой канал</button>':''}<p class="notice">Стандартные публикации бесплатны</p></main><div class="connection-actions"><button class="primary" data-channel-action="${state}" ${state==='checking'?'aria-disabled="true"':''}>${config.button}</button></div>${tabs('streamer',0)}`;
+}
+
+function setting(label,value,action){return `<button class="setting" data-dialog="${action}"><span>${label}</span><span class="value">${value}${icon('arrow','class="chevron"')}</span></button>`;}
+function subscription(key,kind){
+ const current=activePlan(key),route=routes.get(key),choice=route?.catalogPlan||query.get('benefits')||(current.id==='streamer'?'streamer':'viewer'),plan=plusCatalog.plans[choice]||plusCatalog.plans.viewer;
+ const rows=ids=>`<dl class="benefit-list">${ids.map(id=>{const feature=plusCatalog.features[id];return `<div data-feature="${id}"><dt>${esc(feature.label)}</dt><dd class="free-line">Free · ${esc(feature.free)}</dd><dd class="plus-line">Plus · ${esc(feature.plus)}</dd></div>`;}).join('')}</dl>`;
+ const viewerIds=plusCatalog.plans.viewer.features;
+ return `${mode(kind)}<main class="screen-content" data-route="subscription"><div class="title-row"><h1 tabindex="-1">${current.id==='free'?'Возможности Plus':'Моя подписка'}</h1></div><button class="text-button" data-back>Вернуться в профиль</button><p class="notice">Демонстрация тарифов. Функции показаны для согласования переноса, продажа не запущена.</p>${current.id!=='free'?`<section class="group detail-info subscription-plan"><div class="plan-heading"><h2>${current.name}</h2><span>Активен</span></div><p class="notice">Пример доступа до 9 октября 2026. Без оплаты и автосписания.</p></section>`:''}<div class="catalog-switch" role="group" aria-label="Сравнить тарифы">${['viewer','streamer'].map(id=>`<button data-plan-choice="${id}" aria-pressed="${plan.id===id}">${plusCatalog.plans[id].name}</button>`).join('')}</div><section class="catalog-intro"><h2>${plan.name}</h2><p class="catalog-price">${plan.mockRubles} ₽ в месяц · условно</p><p class="notice">Цена для макета. Цена в Stars не назначена.</p>${plan.id==='streamer'?'<p class="included">Все возможности Viewer Plus уже включены</p><p class="notice">Личные функции — покупателю. Оформление постов — для подтверждённого Twitch и разрешённых размещений.</p>':''}</section>${plan.id==='streamer'?`${rows(plan.publicationFeatures)}<h3 class="catalog-followup">Для тебя как зрителя</h3>`:''}${rows(viewerIds)}<button class="primary" data-purchase>Посмотреть покупку · демо</button><p class="notice">Без счёта, списания и выдачи доступа. Автопродление не включено.</p><details class="operation-history"><summary>Мои операции</summary><div class="group detail-info"><p>${current.id==='free'?'Операций пока нет':'2 октября 2026 · пример тестового доступа'}</p></div></details></main>${tabs(kind,2)}`;
+}
+function purchase(key,kind,fixtureState){
+ const route=routes.get(key)||{},current=activePlan(key),plan=plusCatalog.plans[route.purchasePlan||'viewer'],state=route.paymentState||fixtureState||'choose',period=route.period||'',upgrade=current.id==='viewer'&&plan.id==='streamer';
+ const note='<p class="notice">Демонстрация. Счёт не создаётся, деньги не списываются, доступ не выдаётся.</p>';
+ let content;
+ if(state==='choose')content=`<div class="catalog-switch" role="group" aria-label="Тариф покупки">${['viewer','streamer'].map(id=>`<button data-checkout-tier="${id}" aria-pressed="${plan.id===id}">${plusCatalog.plans[id].name}</button>`).join('')}</div>${upgrade?'<div class="payment-status"><h2>Переход на Streamer Plus</h2><p>Доплата и перенос срока ещё не согласованы.</p><p>Включённые Viewer-функции не требуют второй отдельной подписки.</p><p>Условная цена нового тарифа — 200 ₽ в месяц. Это не рассчитанная доплата.</p></div><div class="purchase-actions"><button class="primary" data-buy disabled>Переход пока не согласован</button></div>':`<div class="purchase-form"><label class="field">Период<select data-period aria-label="Период"><option value="">Выбери период</option><option value="month" ${period==='month'?'selected':''}>Месяц</option></select></label><div class="purchase-price" data-price><strong>${plan.mockRubles} ₽ · условно</strong><p class="notice">За месяц. Для макета, не действующая продажа.</p></div><p class="notice">В Telegram покупка цифрового Plus — через Stars. Цена в Stars и точный срок ещё требуют согласования. Автопродление не включено.</p><button class="primary" data-buy ${period?'':'disabled'}>Купить · демонстрация</button></div>`}`;
+ else{
+ const titles={pending:'Ждём подтверждения · демо',cancel:'Покупка отменена · демо',error:'Подтверждение не получено · демо',success:'Результат покупки · демо'};
+ const texts={pending:'Состояние ожидания показано на локальном примере.',cancel:'Ничего не списано. Можно вернуться к выбранному тарифу.',error:'Условная ошибка подтверждения. Тариф и период сохранены — можно повторить.',success:'Доступ не выдан. Это демонстрационный результат; текущая подписка не изменилась.'};
+ content=`<section class="payment-status" data-payment-state="${state}" aria-live="polite"><h2>${titles[state]}</h2><p>${plan.name} · месяц · ${plan.mockRubles} ₽ условно</p><p>${texts[state]}</p></section>${state==='pending'?'<div class="demo-outcomes"><h3>Показать демонстрационный исход</h3><button class="secondary" data-demo-outcome="success">Успешный результат · демо</button><button class="secondary" data-demo-outcome="error">Ошибка · демо</button></div><button class="secondary" data-payment-cancel>Отменить покупку · демо</button>':state==='success'?'':'<button class="primary detail-return" data-payment-retry>Вернуться к выбору · демо</button>'}`;
+ }
+ return `${mode(kind)}<main class="screen-content" data-route="purchase"><div class="title-row"><h1 tabindex="-1">Покупка · демонстрация</h1></div><button class="text-button" data-back>Вернуться к тарифам</button>${note}${content}</main>${tabs(kind,2)}`;
+}
+function profile(kind='viewer',key='profile'){
+ if(routes.get(key)?.kind==='subscription')return subscription(key,kind);
+ if(routes.get(key)?.kind==='purchase')return purchase(key,kind);
+ const plan=activePlan(key),plus=plan.videoLimit===5;
+ return `${mode(kind)}<main class="screen-content" data-route="profile"><div class="title-row"><h1 tabindex="-1">Профиль</h1></div><div class="profile-identity"><span class="avatar">АЛ</span><div class="row-copy"><strong>Александра Лебедева‑Константинопольская</strong><p>@alexandra_streams</p></div></div><div class="group"><div class="plan"><div class="plan-heading"><h2>${plan.name}</h2><span>${plus?'Активен':'Бесплатно'}</span></div>${plus?'<p>Пример доступа до 9 октября 2026</p>':''}${plan.id==='streamer'?'<div class="included">Все возможности Viewer Plus уже включены</div>':''}<div class="plan-stats"><span>Стримеры</span><span>${Math.min(subscriptions.length,plan.trackedLimit)} / ${plan.trackedLimit}</span>${plus?`<span>Видео выбрано</span><span>${subscriptions.filter(s=>s.video).length} / 5</span>`:''}</div>${setting(plus?'Моя подписка':'Возможности Plus','','subscription')}</div></div><div class="section-label"><b>Настройки</b></div><div class="group"><div class="theme-control"><h3>Оформление</h3><div class="theme-choices" role="group" aria-label="Оформление">${[['light','Светлая'],['dark','Тёмная'],['telegram','Как в Telegram']].map(([id,label])=>`<button data-theme-choice="${id}" aria-pressed="${themeChoice===id}">${label}</button>`).join('')}</div><p class="theme-context">${themeChoice==='telegram'?`Пример Telegram: ${telegramFixtures[telegramTheme].label}. Цвета имитируются; SDK ещё не подключён.`:'Выбор сохраняется. При первом входе — светлая тема.'}</p></div>${setting('Тихие часы','23:00–08:00','quiet')}</div><div class="section-label"><b>Мои данные</b></div><div class="group">${setting('Итоги эфиров','','reports')}${setting('История событий',plus?'':'Plus','history')}</div><div class="section-label"><b>Поддержка</b></div><div class="group">${setting('Помощь','','help')}</div></main>${tabs(kind,2)}`;
+}
+function oauth(kind){const titles={success:'Twitch подключён',error:'Не удалось подключить Twitch',cancel:'Подключение отменено'};const text={success:'Теперь подключи Telegram-канал, куда бот будет публиковать сообщения о начале эфира.',error:'Проверка подключения не завершилась. Попробуй ещё раз или вернись в приложение.',cancel:'Twitch не подключён. Сохранённые настройки не изменились.'};return `<main class="screen-content"><div class="oauth-top">${icon('channel')}TwitchSignal</div><h1 tabindex="-1">${titles[kind]}</h1><p>${text[kind]}</p>${kind==='success'?`<div class="identity-row">${avatar(sample[0])}<span class="row-copy"><strong>Twitch</strong><span class="status">Подтверждённый аккаунт · пример</span></span>${icon('check')}</div>`:''}</main><div class="oauth-actions"><button class="primary" data-oauth-return="${kind}">Вернуться в приложение</button>${kind==='error'?'<button class="secondary" data-dialog="oauth-retry">Попробовать снова</button>':''}</div>`;}
+function focusToken(element=document.activeElement){
+ const screen=element?.closest?.('.screen');if(!screen)return null;
+ const attributes=['data-streamer','data-dialog','data-theme-choice','data-tab','data-mode','data-add','data-back','data-channel-action','data-select-channel','data-copy-bot','data-search','data-confirm-add','data-plan-choice','data-purchase','data-checkout-tier','data-period','data-buy','data-demo-outcome','data-payment-cancel','data-payment-retry'];
+ let selector=null;
+ for(const attr of attributes)if(element.hasAttribute(attr)){selector=attr==='data-channel-action'?'[data-channel-action]':`[${attr}="${CSS.escape(element.getAttribute(attr))}"]`;break;}
+ if(!selector&&element.matches('input[name]'))selector=`input[name="${CSS.escape(element.name)}"]`;
+ if(!selector&&element.matches('button[type=submit]'))selector='button[type=submit]';
+ if(!selector)return null;
+ return {key:screen.dataset.key,route:element.closest('.screen-content')?.dataset.route||null,selector};
+}
+function restoreFocus(token){
+ if(!token)return false;
+ const screen=root.querySelector(`.screen[data-key="${CSS.escape(token.key)}"]`), element=screen?.querySelector(token.selector);
+ if(!element||element.disabled)return false;
+ if(token.route&&(element.closest('.screen-content')?.dataset.route||null)!==token.route)return false;
+ element.focus({preventScroll:true});return true;
+}
+function focusHeading(key){const h=root.querySelector(`.screen[data-key="${CSS.escape(key)}"] h1`);h?.focus({preventScroll:true});}
+
+function captureScrolls(){document.querySelectorAll('.screen').forEach(s=>{const content=s.querySelector('.screen-content'),route=content?.dataset.route||'main';scrolls.set(s.dataset.key+':'+route,content?.scrollTop||0);});}
+function mainView(key){const display=displayByKey.get(key)||{type:key,kind:isSingle?singleMode:key==='channel'?'streamer':'viewer'};return display.type==='viewer'?viewer(key):display.type==='channel'?channel(key,model.channel):profile(display.kind,key);}
+function showMainScreen(target,key,kind){gallery='main';if(isSingle){singleScreen=target;singleMode=kind;}else displayByKey.set(key,{type:target,kind});render();focusHeading(isSingle?singleScreen:key);}
+function returnToChannel(){channelOverrides.clear();checkRequests.clear();gallery='main';singleScreen='channel';singleMode='streamer';displayByKey.clear();routes.delete('channel');render(['channel']);focusHeading('channel');}
+function render(resetKeys=[]){const beforeFocus=focusToken();captureScrolls();let entries=gallery==='plan-states'?['free','viewer','streamer'].map(id=>['plan-'+id,plusCatalog.plans[id].name,()=>profile('viewer','plan-'+id)]):gallery==='payment-states'?[['payment-choose','Выбор тарифа',()=>purchase('payment-choose','viewer')],['payment-pending','Ожидание · демо',()=>purchase('payment-pending','viewer','pending')],['payment-success','Результат · демо',()=>purchase('payment-success','viewer','success')]]:gallery==='oauth'?[['oauth-success','Успех',()=>oauth('success')],['oauth-error','Ошибка',()=>oauth('error')],['oauth-cancel','Отмена',()=>oauth('cancel')]]:gallery==='channel-states'?[['channel-absent','Бот не добавлен',()=>channel('channel-absent','absent')],['channel-member','Бот не администратор',()=>channel('channel-member','member')],['channel-rights','Нет права публикации',()=>channel('channel-rights','rights')]]:gallery==='channel-progress'?[['channel-none','Канал не выбран',()=>channel('channel-none','none')],['channel-checking','Проверяем права',()=>channel('channel-checking','checking')],['channel-cancel','Выбор отменён',()=>channel('channel-cancel','cancel')]]:gallery==='channel-results'?[['channel-ready','Всё готово',()=>channel('channel-ready','ready')],['channel-network','Ошибка связи',()=>channel('channel-network','network')],['channel-expired','Запрос устарел',()=>channel('channel-expired','expired')]]:[['viewer','Стримеры',()=>mainView('viewer')],['channel','Telegram-канал',()=>mainView('channel')],['profile','Профиль и подписка',()=>mainView('profile')]];
+if(isSingle){if(!entries.some(([key])=>key===singleScreen))singleScreen=entries[0][0];entries=entries.filter(([key])=>key===singleScreen);}
+root.innerHTML=`<section class="board"><div class="board-heading">Выбранный А · ${themeChoice==='telegram'?'Telegram · '+telegramFixtures[telegramTheme].label:themeChoice==='dark'?'нейтральная тёмная':'светлая'} тема · видимая область без системных панелей</div><div class="screen-grid">${entries.map(([key,label,view])=>`<article class="preview"><div class="screen-label"><strong>${label}</strong><span>390 × 844</span></div><div class="screen ${key.startsWith('oauth')?'oauth':''}" data-key="${key}">${view()}</div><p class="preview-note">${key.startsWith('oauth')?'Страница завершения Twitch · пример':'Прокручиваемый экран · локальные данные'}</p></article>`).join('')}</div></section>`;
+document.querySelectorAll('.screen').forEach(s=>{const key=s.dataset.key,route=s.querySelector('.screen-content').dataset.route||'main';s.querySelector('.screen-content').scrollTop=resetKeys.includes(key)?0:scrolls.get(key+':'+route)||0;});
+document.querySelectorAll('[data-gallery]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.gallery===gallery)));restoreFocus(beforeFocus);}
+function navigate(key,route,opener=document.activeElement){
+ captureScrolls();const returnFocus=focusToken(opener), previous=route.kind==='detail'?null:routes.get(key)||null;
+ routes.set(key,{...route,previous,returnFocus:route.kind==='detail'?{key,route:'list',selector:`[data-streamer="${CSS.escape(route.login)}"]`}:returnFocus});render([key]);focusHeading(key);
+}
+function back(key){
+ captureScrolls();model.lookupVersion++;model.lookupBusy=false;
+ if(key.startsWith('payment-')&&!routes.get(key)?.previous){gallery='main';singleScreen='profile';routes.clear();render();focusHeading('profile');return;}
+ const route=routes.get(key);if(route?.previous)routes.set(key,route.previous);else routes.delete(key);
+ render();if(!restoreFocus(route?.returnFocus))focusHeading(key);
+}
+const details={folders:['Папки','Сохранённые папки и общие правила останутся отдельным экраном Viewer Plus. Удаление папки не удаляет стримеров.'],video:['Видеопревью','До пяти выбранных стримеров, включая тех, кто не в эфире. Выбор не подтверждает готовность ролика. Шестой требует явной замены. Полный выбор будет перенесён из приложения.'],subscription:['Управление подпиской',`План, срок, возможности и история собственных операций. В этом примере тестовый доступ без оплаты. Подтверждение и отзыв доступны только в отдельном защищённом разделе владельца.`],'streamer-plus':['Streamer Plus','Отдельный продукт: оформление постов, кнопки, живое превью и подтверждённые публикации. Бесплатное подключение канала сохраняется.'],quiet:['Тихие часы','Существующая бесплатная настройка: с 23:00 до 08:00.'],reports:['Итоги эфиров','Существующие итоги и HTML-экспорт сохраняются. Новый аналитический движок не добавляется.'],history:['История событий','Собственные исходы уведомлений. Доступ остаётся по текущим правилам Viewer Plus.'],help:['Помощь','Уведомления, подключение и восстановление доступа.'], 'streamer-options':['Настройки стримера','Фильтры, категории, напоминания 15/30 минут и выбор превью сохранятся при переносе дизайна.'],'oauth-retry':['Повтор Twitch','В рабочем приложении начнётся новый защищённый запрос. Здесь OAuth не выполняется.']};
+let dialogOpener=null, dialogRestore=true, interactionOpener=null;
+function showDialog(title,text,extra='',options={}){
+ if(!dialog.open)dialogOpener=focusToken(interactionOpener)||focusToken();
+ dialog.classList.toggle('sheet',!!options.sheet);
+ dialog.querySelector('.dialog-content').innerHTML=`<h2 id="dialog-title" tabindex="-1">${esc(title)}</h2><p id="dialog-description">${esc(text)}</p>${extra}<p class="notice">Локальный пример. Данные бота не меняются.</p>`;
+ if(!dialog.open)dialog.showModal();dialog.querySelector('h2').focus({preventScroll:true});
+}
+function closeDialog(transition=false){dialogRestore=!transition;dialog.close();}
+dialog.addEventListener('close',()=>{if(dialogRestore)restoreFocus(dialogOpener);dialogRestore=true;});
+dialog.addEventListener('keydown',event=>{
+ if(event.key!=='Tab')return;
+ const items=[...dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex="0"]')].filter(element=>element.getClientRects().length);
+ if(!items.length){event.preventDefault();dialog.querySelector('h2').focus();return;}
+ const current=items.indexOf(document.activeElement);
+ if(current<0||(event.shiftKey&&current===0)||(!event.shiftKey&&current===items.length-1)){
+  event.preventDefault();items[event.shiftKey?items.length-1:0].focus();
+ }
+});
+function chooseChannel(key){dialog.dataset.key=key;showDialog('Выбрать Telegram-канал','В приложении откроется встроенный выбор Telegram. Если он недоступен, перейдём в переписку с ботом.',`<button class="primary" data-native-pick>Пример встроенного выбора</button><button class="secondary" data-chat-transition>Пример перехода в переписку</button>`,{sheet:true});}
+
+document.addEventListener('input',event=>{if(event.target.matches('[data-search]')){model.search=event.target.value.trim();const box=event.target.closest('.screen').querySelector('[data-list]');const content=box.closest('.screen-content'),top=content.scrollTop;box.innerHTML=list();content.scrollTop=top;}if(event.target.name==='twitch')model.draft=event.target.value;});
+document.addEventListener('submit',async event=>{if(!event.target.matches('[data-add-form]'))return;event.preventDefault();if(model.lookupBusy)return;model.lookupError='';model.result=null;const value=model.draft.trim().replace(/^https?:\/\/(www\.)?twitch\.tv\//i,'').replace(/\/$/,'').toLowerCase();if(!/^[a-z0-9_]{3,25}$/.test(value)){model.lookupError='Введи Twitch-ник или ссылку на канал.';render();return;}model.lookupBusy=true;const version=++model.lookupVersion;const key=event.target.closest('.screen').dataset.key;render();await new Promise(resolve=>setTimeout(resolve,350));if(version!==model.lookupVersion)return;model.lookupBusy=false;if(failures.get('lookup')){failures.delete('lookup');model.lookupError='Не удалось найти стримера. Ввод сохранили — попробуй ещё раз.';}else{model.result=catalog.find(s=>s.login===value)||null;if(!model.result)model.lookupError='В этом примере стример не найден. Попробуй twitch, monstercat или sofia_new_games.';}render();});
+document.addEventListener('click',async event=>{const button=event.target.closest('button');if(!button)return;interactionOpener=button;const screen=button.closest('.screen'),key=screen?.dataset.key;
+if(button.dataset.gallery){gallery=button.dataset.gallery;routes.clear();displayByKey.clear();channelOverrides.clear();checkRequests.clear();render();return;}
+if(button.hasAttribute('data-close')){closeDialog();return;}
+if(button.dataset.themeChoice){themeChoice=button.dataset.themeChoice;try{localStorage.setItem('tsb_selected_design_theme',themeChoice);}catch{}try{const url=new URL(location.href);url.searchParams.set('theme',themeChoice);history.replaceState(null,'',url.href);}catch{}applyTheme();render();return;}
+if(button.hasAttribute('data-clear')){model.search='';render();return;}
+if(button.hasAttribute('data-add')){navigate(key,{kind:'add'},button);return;}
+if(button.dataset.streamer){navigate(key,{kind:'detail',login:button.dataset.streamer},button);return;}
+if(button.hasAttribute('data-back')){back(key);return;}
+if(button.dataset.planChoice){routes.set(key,{...routes.get(key),catalogPlan:button.dataset.planChoice});render();return;}
+if(button.hasAttribute('data-purchase')){const previous=routes.get(key);navigate(key,{kind:'purchase',purchasePlan:previous?.catalogPlan||query.get('benefits')||(activePlan(key).id==='streamer'?'streamer':'viewer'),period:'',paymentState:'choose'},button);return;}
+if(button.dataset.checkoutTier){routes.set(key,{...routes.get(key),kind:'purchase',purchasePlan:button.dataset.checkoutTier});render();return;}
+if(button.hasAttribute('data-buy')){
+ const route=routes.get(key);if(button.disabled||!route?.period||activePlan(key).id==='viewer'&&route.purchasePlan==='streamer')return;
+ routes.set(key,{...route,paymentState:'pending'});render([key]);focusHeading(key);return;
+}
+if(button.dataset.demoOutcome||button.hasAttribute('data-payment-cancel')||button.hasAttribute('data-payment-retry')){
+ const route=routes.get(key)||{kind:'purchase',purchasePlan:'viewer',period:'month'},state=button.dataset.demoOutcome||(button.hasAttribute('data-payment-cancel')?'cancel':'choose');
+ routes.set(key,{...route,paymentState:state});render([key]);focusHeading(key);return;
+}
+if(button.dataset.toggleNotify){const s=subscriptions.find(item=>item.login===button.dataset.toggleNotify);s.notify=!s.notify;render();return;}
+if(button.hasAttribute('data-confirm-add')){if(!model.result)return;if(subscriptions.length>=(model.plan==='free'?50:200)){model.lookupError='Достигнут предел '+(model.plan==='free'?50:200)+' активных стримеров.';render();return;}const s={...model.result};if(!subscriptions.some(item=>item.login===s.login))subscriptions.push(s);model.result=null;navigate(key,{kind:'detail',login:s.login},button);return;}
+if(button.dataset.dialog){
+if(button.dataset.dialog==='video'&&model.plan==='free'){showDialog('Видео в Viewer Plus','В Viewer Plus можно выбрать до пяти стримеров с видеопревью. В Free остаются фото. Выбор не означает, что видео уже подготовлено.');return;}
+if(button.dataset.dialog==='subscription'){navigate(key,{kind:'subscription'},button);return;}
+const [title,text]=details[button.dataset.dialog];showDialog(title,text,button.dataset.dialog==='reports'?'<button class="secondary" data-export>HTML-экспорт</button>':'');return;
+}
+if(button.hasAttribute('data-export')){showDialog('HTML-экспорт','В рабочем приложении откроется существующий экспорт с прежними правами. Генератор не изменён.');return;}
+if(button.hasAttribute('data-select-channel')){chooseChannel(key);return;}
+if(button.hasAttribute('data-native-pick')){closeDialog(true);model.channel='rights';returnToChannel();return;}
+if(button.hasAttribute('data-chat-transition')){const target=dialog.dataset.key;closeDialog(true);model.selectionPending=false;navigate(target,{kind:'fallback'});return;}
+if(button.hasAttribute('data-demo-chat-pick')){model.selectionPending=true;render();return;}
+if(button.hasAttribute('data-return-selection')){model.channel='rights';model.selectionPending=false;returnToChannel();return;}
+if(button.hasAttribute('data-cancel-selection')){model.channel='cancel';model.selectionPending=false;returnToChannel();return;}
+if(button.dataset.channelAction){
+ const state=button.dataset.channelAction;
+ if(['none','cancel','expired'].includes(state)){chooseChannel(key);return;}
+ if(state==='ready'){navigate(key,{kind:'post'},button);return;}
+ if(state==='checking')return;
+ const version=(checkRequests.get(key)||0)+1;checkRequests.set(key,version);
+ channelOverrides.set(key,'checking');render();
+ await new Promise(resolve=>setTimeout(resolve,350));
+ if(checkRequests.get(key)!==version)return;
+ const outcome=failures.get('check-network')?'network':state;
+ failures.delete('check-network');channelOverrides.set(key,outcome);render();return;
+}
+if(button.hasAttribute('data-copy-bot')){
+ const status=screen?.querySelector('[data-copy-status]');
+ try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText('@TwitchSignalTestbot');if(status?.isConnected){status.textContent='Имя бота скопировано';status.classList.remove('error');}}
+ catch{if(status?.isConnected){status.textContent='Не удалось скопировать. Выдели имя и скопируй вручную.';status.classList.add('error');}}return;
+}
+if(button.dataset.oauthReturn){model.twitchLinked=button.dataset.oauthReturn==='success';model.channel='none';returnToChannel();return;}
+if(button.dataset.mode){const kind=button.dataset.mode;showMainScreen(kind==='streamer'?'channel':'viewer',key,kind);return;}
+if(button.dataset.tab){const target={people:'viewer',person:'profile',channel:'channel'}[button.dataset.tab];if(target){const kind=screen.querySelector('[data-mode=streamer][aria-pressed=true]')?'streamer':'viewer';showMainScreen(target,key,kind);return;}showDialog(button.dataset.tab==='posts'?'Посты':'Главная','Этот раздел будет перенесён вместе с существующими функциями после согласования дизайна. В предпросмотре доступны стримеры, подключение и профиль.');}
+});
+for(const [id,property] of [['viewer-scenario','viewer'],['channel-scenario','channel'],['profile-scenario','plan']]){const el=document.getElementById(id);el.value=model[property];el.addEventListener('change',()=>{model[property]=el.value;model.lookupVersion++;model.lookupBusy=false;model.result=null;routes.clear();displayByKey.clear();channelOverrides.clear();checkRequests.clear();if(property==='viewer')resetSubscriptions();render(['viewer','channel','profile']);});}
+document.getElementById('telegram-scenario').value=telegramTheme;
+document.getElementById('telegram-scenario').addEventListener('change',event=>setTelegramTheme(event.target.value));
+document.addEventListener('change',event=>{if(!event.target.matches('[data-period]'))return;const key=event.target.closest('.screen').dataset.key;routes.set(key,{...routes.get(key),kind:'purchase',period:event.target.value,purchasePlan:routes.get(key)?.purchasePlan||'viewer'});render();});
+/* Explicit fixture controls for browser QA; not present on any product route. */
+window.selectedPrototype={setFault:(kind)=>failures.set(kind,true),refresh:()=>render(),back,setTelegramTheme,plan:()=>model.plan,theme:()=>({choice:themeChoice,effective:document.documentElement.dataset.theme}),safeInsets:(top,bottom)=>{document.documentElement.style.setProperty('--safe-top',top+'px');document.documentElement.style.setProperty('--safe-bottom',bottom+'px');}};
+render();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1130 @@
+{
+  "status": "RED",
+  "reports": [
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 256.8125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256.8125,
+          "right": 377.625,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 119.59375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 119.59375,
+          "right": 227.1875,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 227.1875,
+          "right": 348,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "light",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 256.8125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256.8125,
+          "right": 377.625,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 119.59375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 119.59375,
+          "right": 227.1875,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 227.1875,
+          "right": 348,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 360,
+      "theme": "dark",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.65625,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.65625,
+          "right": 257.1875,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 257.1875,
+          "right": 378,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 134,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 134,
+          "right": 256,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256,
+          "right": 378,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "light",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.65625,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.65625,
+          "right": 257.1875,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 257.1875,
+          "right": 378,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 134,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 134,
+          "right": 256,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256,
+          "right": 378,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "Chromium",
+      "width": 390,
+      "theme": "dark",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 834,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 256.8125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256.8125,
+          "right": 377.625,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 119.59375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 119.59375,
+          "right": 227.1875,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 227.1875,
+          "right": 348,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "light",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 256.8125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256.8125,
+          "right": 377.625,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 119.59375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 119.59375,
+          "right": 227.1875,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 227.1875,
+          "right": 348,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 360,
+      "theme": "dark",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": false,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.65625,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.65625,
+          "right": 257.1875,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 257.1875,
+          "right": 378,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 134,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 134,
+          "right": 256,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256,
+          "right": 378,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "light",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "screen": "viewer",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.65625,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.65625,
+          "right": 257.1875,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 257.1875,
+          "right": 378,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "screen": "channel",
+      "buttons": [
+        {
+          "text": "Мой канал",
+          "left": 12,
+          "right": 134,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Посты",
+          "left": 134,
+          "right": 256,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 256,
+          "right": 378,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "screen": "profile",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    },
+    {
+      "engine": "WebKit",
+      "width": 390,
+      "theme": "dark",
+      "screen": "subscription",
+      "buttons": [
+        {
+          "text": "Главная",
+          "left": 12,
+          "right": 118.28125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Стримеры",
+          "left": 118.28125,
+          "right": 253.03125,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        },
+        {
+          "text": "Профиль",
+          "left": 253.03125,
+          "right": 378.34375,
+          "bottom": 833.984375,
+          "visible": true,
+          "unclipped": true,
+          "unbroken": true
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "index.html": "951376c26103cfe175d4ca1c87d8ed26d639fab3ab05f94540893b2ec64c6be1",
+    "selected.css": "1026578913d42fe0812cbf637477cb2ac79c57d88ac18ddcb5e9ccd81de799e5",
+    "selected.js": "679adc42a66654b82329c62c33a8bcb41df7baddc5d91858c6ec8c94247ca5ab"
+  }
+}

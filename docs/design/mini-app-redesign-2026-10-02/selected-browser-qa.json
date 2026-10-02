@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "phase": "Selected A",
+  "browser": "151.0.7922.34",
+  "checks": [
+    "Default light despite dark environment",
+    "Theme persists and system follows only auto",
+    "30 layout checks: two themes, three screens, five widths",
+    "Grouping, genuine counters, stale separate, pause separate, search and clear",
+    "Two-line clamp and full name on detail",
+    "Empty immediate field, explicit lookup/add, failed request preserves draft, retry",
+    "200 rows, refresh and detail return preserve scroll",
+    "Available tabs and modes change actual screen, list scroll and mode preserved",
+    "Navigation preserves add draft",
+    "Free with saved 200 shows active count and photo in detail",
+    "Regression: single OAuth and alternate channel selection return to a nonempty step",
+    "Eight connection states, state-specific instructions, retry avoids false success, post preview",
+    "Visible local picker and chat transition/return; no Telegram calls",
+    "Twitch success continues; cancellation does not claim connected account",
+    "Enlarged 20px text on three screens at 360px",
+    "Focused field in reduced 440px viewport, action above nav (keyboard approximation only)"
+  ],
+  "pageErrors": [],
+  "nativeTelegram": "NOT TESTED"
+}

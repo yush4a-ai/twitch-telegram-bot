@@ -1,0 +1,216 @@
+{
+  "status": "PASS",
+  "type": "Actual Chromium tab zoom via local disposable extension",
+  "zoom": 2,
+  "before": {
+    "innerWidth": 1424,
+    "dpr": 1,
+    "scale": 1
+  },
+  "after": {
+    "innerWidth": 712,
+    "dpr": 2,
+    "scale": 1
+  },
+  "checks": [
+    {
+      "screen": "viewer",
+      "width": 360,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "channel",
+      "width": 360,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 279,
+      "footer": true
+    },
+    {
+      "screen": "profile",
+      "width": 360,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "subscription",
+      "width": 360,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "viewer",
+      "width": 390,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "channel",
+      "width": 390,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 279,
+      "footer": true
+    },
+    {
+      "screen": "profile",
+      "width": 390,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "subscription",
+      "width": 390,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "viewer",
+      "width": 712,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "channel",
+      "width": 712,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 279,
+      "footer": true
+    },
+    {
+      "screen": "profile",
+      "width": 712,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    },
+    {
+      "screen": "subscription",
+      "width": 712,
+      "height": 452,
+      "dpr": 2,
+      "overflow": false,
+      "contentHeight": 339,
+      "footer": true
+    }
+  ],
+  "contrast": [
+    {
+      "theme": "light",
+      "pair": "text/surface",
+      "ratio": 15.571134057319037
+    },
+    {
+      "theme": "light",
+      "pair": "muted/surface",
+      "ratio": 5.451485681652716
+    },
+    {
+      "theme": "light",
+      "pair": "muted/canvas",
+      "ratio": 5.041394953687174
+    },
+    {
+      "theme": "light",
+      "pair": "accent/surface",
+      "ratio": 5.5170249825462285
+    },
+    {
+      "theme": "light",
+      "pair": "on-accent/accent",
+      "ratio": 5.5170249825462285
+    },
+    {
+      "theme": "light",
+      "pair": "warning/canvas",
+      "ratio": 5.891758982232031
+    },
+    {
+      "theme": "light",
+      "pair": "error/canvas",
+      "ratio": 6.33865056670185
+    },
+    {
+      "theme": "dark",
+      "pair": "text/surface",
+      "ratio": 13.74328113253251
+    },
+    {
+      "theme": "dark",
+      "pair": "muted/surface",
+      "ratio": 7.998303034557394
+    },
+    {
+      "theme": "dark",
+      "pair": "muted/canvas",
+      "ratio": 9.237462256789742
+    },
+    {
+      "theme": "dark",
+      "pair": "accent/surface",
+      "ratio": 7.888233538819718
+    },
+    {
+      "theme": "dark",
+      "pair": "on-accent/accent",
+      "ratio": 9.361728115886185
+    },
+    {
+      "theme": "dark",
+      "pair": "warning/canvas",
+      "ratio": 11.029929080785832
+    },
+    {
+      "theme": "dark",
+      "pair": "error/canvas",
+      "ratio": 9.545476093538417
+    }
+  ],
+  "platformFonts": {
+    "fonts": [
+      {
+        "familyName": "Segoe UI Semibold",
+        "postScriptName": "SegoeUI-Semibold",
+        "isCustomFont": false,
+        "glyphCount": 6
+      }
+    ]
+  },
+  "sources": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "50c8b71c14ba8ee8799712a2b229499adda4bbd837087fbf475e02371d76e881",
+    "selected.js": "ae15f1112e8fd46f5ca573969d2cd8ee98f9eee22a04ff9363a6f52b1ba6e213",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f"
+  },
+  "temporaryDirectory": "C:\\Users\\yusha\\AppData\\Local\\Temp\\tsb-zoom-check-pOgzzC",
+  "globalInstallationsChanged": false,
+  "nativeIPhone": "NOT TESTED"
+}

@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-02",
+  "phase": "approved A design; fourth Plus navigation in local preview; implementation plan pending",
+  "branch": "autonomous/twitchsignal-roadmap",
+  "base_head": "e0d44c315a1c81dc5b310dd1f3c7f3169915c985",
+  "files": {
+    "index.html": "d8575347892f844d08ac76a74c8c2a22e971782ebf7d108803b27d54aac444bc",
+    "selected.css": "1d903ecc9b4f56930dc2503073e09ee15627a5c9f0c5e19100e97462986ba7f7",
+    "selected.js": "147640a005407be89b19d9e7797a8c9233246f4e084c9b61e222520095a99665",
+    "plus-catalog.js": "6a0159783f0a86c9b86a5aba6a8090edfc304e478590411630c124c3fdb3655f",
+    "preview.html": "45dd0e2761790a2a65edf21265503fbeaca08d282d1584309596f2f8d9f17090"
+  },
+  "product_changed": false,
+  "deployment_performed": false
+}

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>TwitchSignalBot · Покупка и документы</title>
+<link rel="stylesheet" href="selected.css">
+<style>
+.approval-meta{max-width:1266px;margin:24px auto;padding:0 16px;display:grid;gap:10px}
+.approval-meta h1{font-size:1.5rem;font-weight:600;line-height:1.3}
+.approval-meta nav{display:flex;flex-wrap:wrap;gap:8px}
+.approval-meta nav button{min-height:44px;padding:8px 12px;border-radius:10px;background:var(--surface);color:var(--accent)}
+.approval-layout{max-width:600px;margin:0 auto 32px;padding:0 16px}
+.approval-layout.board-mode{max-width:1266px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.approval-panel{min-width:0;display:grid;gap:20px;align-content:start;overflow-wrap:anywhere}
+.approval-panel h1{font-size:1.75rem;font-weight:600;line-height:1.18;letter-spacing:-.025em}
+.approval-panel h2{font-size:1.1875rem;font-weight:600}
+.approval-panel p{font-size:1rem}.approval-panel .muted{font-size:.9375rem}
+.approval-panel .group{padding:16px}.approval-panel .group p+p{margin-top:10px}
+.approval-panel ul{list-style:none;padding:0;margin:0}.approval-panel li{padding:12px 0;font-size:1rem}
+.approval-panel li+li{border-top:1px solid var(--line)}
+.approval-panel li strong{display:block;font-weight:600}.approval-panel li span{display:block;color:var(--muted);margin-top:4px;font-size:.9375rem}
+.approval-price{font-size:1.75rem!important;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.approval-price span{font-size:1rem;font-weight:400;color:var(--muted);display:block;margin-top:8px}
+.approval-include{border-left:3px solid var(--accent);padding-left:12px;font-weight:600}
+.approval-links{display:grid;gap:6px}.approval-links a{color:var(--accent);min-height:44px;display:flex;align-items:center;line-height:1.4}
+.approval-methods{display:grid;gap:8px}.approval-methods button{padding:12px;text-align:left;border:1px solid var(--line);border-radius:10px;min-height:48px;background:var(--surface)}
+.approval-methods button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.approval-methods small{display:block;color:var(--muted);font-size:.9375rem;margin-top:4px}
+.approval-actions{display:grid;gap:8px}.approval-actions .text-button{justify-content:flex-start;text-align:left}
+.approval-document{white-space:pre-wrap;overflow-wrap:anywhere;font:1rem/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;background:var(--surface);padding:16px;border-radius:16px}
+.approval-footer{max-width:1266px;margin:32px auto;padding:0 16px;color:var(--muted);font-size:.875rem}
+@media(max-width:850px){.approval-layout.board-mode{grid-template-columns:1fr;max-width:600px}.approval-panel+.approval-panel{border-top:1px solid var(--line);padding-top:24px}}
+</style>
+</head>
+<body>
+<header class="approval-meta">
+<p class="small muted">TwitchSignalBot · А «Собранный» · 2 октября 2026</p>
+<h1>Покупка и документы — на проверку</h1>
+<p class="muted">Локальное представление предлагаемого внешнего пути Platega. Внутри Telegram цифровой Plus продаётся через Stars; его цена ещё не назначена. Касса не подключена. Для банковского согласования нужны реальные контакты и заполненные документы.</p>
+<nav aria-label="Материалы для проверки">
+<button type="button" data-view="viewer">Viewer Plus</button>
+<button type="button" data-view="streamer">Streamer Plus</button>
+<button type="button" data-view="documents">Документы</button>
+<button type="button" data-view="support">Поддержка</button>
+<button type="button" data-view="board">Три экрана</button>
+</nav>
+</header>
+<main class="approval-layout" id="approval-main"></main>
+<footer class="approval-footer">Это отдельный макет для владельца. Рабочий бот, серверный каталог, права, БД и размещение не изменены. Настоящий test API Platega не подтверждён. Оплата и выдача доступа из этого макета отсутствуют.</footer>
+<script src="plus-catalog.js"></script>
+<script>
+(()=>{
+'use strict';
+const catalog=window.plusCatalog, main=document.getElementById('approval-main');
+const allowed=new Set(['viewer','streamer','documents','support','board','methods','unavailable','privacy','agreement']);
+const initial=new URLSearchParams(location.search), initialView=initial.get('screen')||'viewer';
+let plan=initial.get('plan')==='streamer'?'streamer':'viewer', method='sbp', backView=plan;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const price=p=>catalog.plans[p].mockRubles;
+const name=p=>catalog.plans[p].name;
+const links=()=>'<div class="approval-links"><a href="?screen=privacy" data-doc="privacy">Политика конфиденциальности</a><a href="?screen=agreement" data-doc="agreement">Пользовательское соглашение</a></div>';
+function rows(ids){return ids.map(id=>{const f=catalog.features[id];return '<li><strong>'+esc(f.label)+'</strong><span>'+esc(f.plus)+'</span></li>';}).join('');}
+function tariff(p){
+const viewer=p==='viewer';
+return '<section class="approval-panel" aria-label="'+name(p)+'"><p class="small muted">Возможности Plus</p><h1>'+name(p)+'</h1><p class="muted">'+(viewer?'Управляйте уведомлениями о тех эфирах, которые хотите увидеть.':'Настройте автоматические публикации в своём Telegram-канале.')+'</p>'+
+'<div class="group"><h2>Бесплатно</h2><ul>'+(viewer?'<li>До 50 стримеров</li><li>Фото-превью</li><li>Уведомления о начале эфира</li><li>Тихие часы</li>':'<li>Подключение Twitch и Telegram-канала</li><li>Стандартный автоматический пост</li><li>Фото-превью</li>')+'</ul></div>'+
+'<div class="group"><h2>С '+name(p)+'</h2>'+(viewer?'':'<p class="approval-include">Все возможности Viewer Plus включены</p>')+'<ul>'+rows(viewer?catalog.plans.viewer.features:catalog.plans.streamer.publicationFeatures)+(viewer?'':'<li><strong>Статистика публикаций</strong><span>Подтверждённые отправки и сравнение периодов. Переходы на Twitch пока не измеряются.</span></li>')+'</ul></div>'+
+(viewer?'':'<details class="group"><summary>Что включено из Viewer Plus</summary><ul>'+rows(catalog.plans.viewer.features)+'</ul></details>')+
+'<div class="group"><p class="approval-price">'+price(p)+' ₽<span>1 месяц · без автопродления</span></p></div>'+
+'<div class="approval-actions"><button type="button" class="primary" data-buy="'+p+'">Подключить '+name(p)+' — '+price(p)+' ₽</button><p class="small muted">Одна покупка — один месяц. Оплата пока недоступна.</p>'+links()+'</div></section>';
+}
+function documents(){return '<section class="approval-panel"><p class="small muted">Профиль и поддержка</p><h1>Документы</h1><p class="muted">Условия сервиса и обработка данных доступны до покупки.</p><div class="group">'+links()+'</div><div class="group"><h2>Черновики для проверки</h2><p class="muted">Владелец ещё не заполнил сведения о себе и контакты. Период доступа и возвраты требуют согласования. Эти редакции не опубликованы как действующие документы.</p></div><button type="button" class="secondary" data-view="support">Открыть поддержку</button></section>';}
+let renderVersion=0;
+async function show(view, focus=true){
+if(!allowed.has(view))view='viewer';const version=++renderVersion;
+main.classList.toggle('board-mode',view==='board');
+if(view==='viewer'||view==='streamer'){plan=view;backView=view;main.innerHTML=tariff(view);}
+else if(view==='board')main.innerHTML=tariff('viewer')+tariff('streamer')+documents();
+else if(view==='documents')main.innerHTML=documents();
+else if(view==='support')main.innerHTML='<section class="approval-panel"><h1>Поддержка</h1><div class="group"><h2>Контакт ещё не указан</h2><p class="muted">Перед подключением оплаты владелец добавит отдельный Telegram-контакт или email. Группа не заменяет службу поддержки.</p></div><p class="muted">Не отправляйте данные карты или секреты платежной системы.</p><button type="button" class="secondary" data-view="documents">Документы</button></section>';
+else if(view==='privacy'||view==='agreement'){
+main.innerHTML='<section class="approval-panel"><button type="button" class="text-button" data-view="documents">← Документы</button><h1>'+(view==='privacy'?'Политика конфиденциальности':'Пользовательское соглашение')+'</h1><p class="muted">Черновик · 2 октября 2026</p><pre class="approval-document" aria-live="polite">Загружаем документ…</pre></section>';
+try{const r=await fetch('legal/'+(view==='privacy'?'PRIVACY-POLICY-DRAFT.md':'USER-AGREEMENT-DRAFT.md'));if(!r.ok)throw Error('document unavailable');const t=await r.text();if(version===renderVersion)main.querySelector('pre').textContent=t;}
+catch{if(version===renderVersion)main.querySelector('pre').textContent='Не удалось загрузить документ. Вернитесь в «Документы» и откройте его ещё раз.';}
+}
+else if(view==='methods')main.innerHTML='<section class="approval-panel"><button type="button" class="text-button" data-view="'+plan+'">← '+name(plan)+'</button><h1>Как оплатить?</h1><p class="approval-price">'+price(plan)+' ₽<span>'+name(plan)+' · 1 месяц · без автопродления</span></p><p class="muted">Предлагаемый выбор на самостоятельном сайте. Денежная касса пока не подключена.</p><div class="approval-methods" role="group" aria-label="Способ оплаты"><button type="button" data-method="sbp" aria-pressed="'+(method==='sbp')+'">СБП<small>Через Platega</small></button><button type="button" data-method="bank_card" aria-pressed="'+(method==='bank_card')+'">Банковская карта<small>Через Platega</small></button></div><button type="button" class="primary" data-pay>Оплатить '+price(plan)+' ₽</button><div class="group"><h2>Telegram Stars</h2><p class="muted">Для покупки внутри Telegram. Цена будет определена.</p><button type="button" class="text-button" data-stars>Узнать об оплате Stars</button></div>'+links()+'</section>';
+else if(view==='unavailable')main.innerHTML='<section class="approval-panel"><button type="button" class="text-button" data-view="methods">← Способ оплаты</button><h1>Оплата временно недоступна</h1><div class="group" role="status"><p>Мы заканчиваем подключение платёжной системы.</p><p class="muted">Платёж не создан. Деньги не списаны. Доступ Plus не изменён.</p></div><p class="muted">'+name(plan)+' · '+price(plan)+' ₽ / 1 месяц</p><button type="button" class="secondary" data-view="'+plan+'">Вернуться к тарифу</button>'+links()+'</section>';
+const u=new URL(location.href);u.searchParams.set('screen',view);u.searchParams.set('plan',plan);history.replaceState(null,'',u);
+if(focus){const h=main.querySelector('h1');h.tabIndex=-1;h.focus();window.scrollTo(0,0);}
+}
+document.addEventListener('click',e=>{
+const target=e.target.closest('button,a');if(!target)return;
+if(target.dataset.doc){e.preventDefault();show(target.dataset.doc);}
+else if(target.dataset.buy){plan=target.dataset.buy;backView=plan;method='sbp';show('methods');}
+else if(target.dataset.method){method=target.dataset.method;main.querySelectorAll('[data-method]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.method===method)));}
+else if(target.hasAttribute('data-pay'))show('unavailable');
+else if(target.hasAttribute('data-stars')){const group=target.closest('.group');let status=group.querySelector('[role=status]');if(!status){status=document.createElement('p');status.className='muted';status.setAttribute('role','status');group.append(status);}status.textContent='Цена Stars ещё не утверждена. Счёт не создан, оплата недоступна.';}
+else if(target.dataset.view)show(target.dataset.view);
+});
+show(initialView,false);
+})();
+</script>
+</body></html>

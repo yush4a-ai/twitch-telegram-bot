@@ -1,0 +1,96 @@
+{
+  "status": "RED",
+  "sources": {
+    "index.html": "951376c26103cfe175d4ca1c87d8ed26d639fab3ab05f94540893b2ec64c6be1",
+    "selected.css": "96b6eb5c506fa20f7f86e4c4877be2eede3d2886e9b304c0bb969413633120a9",
+    "selected.js": "a0684d8a036de3ad0bdcecebca9a61de390d7a85644933e9e3572b149f3a2512"
+  },
+  "reports": [
+    {
+      "engine": "Chromium",
+      "browser": "151.0.7922.34",
+      "checks": [
+        {
+          "name": "Own dark surfaces are neutral graphite",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n\n'13' !== '17'\n"
+        },
+        {
+          "name": "Telegram is a distinct color-parameter mode; changes follow only explicit Telegram choice",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'light'\n- 'telegram'\n"
+        },
+        {
+          "name": "Free/Viewer/Streamer entry and inherited personal limits",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Управление подпиской'\n- 'Возможности Plus'\n"
+        },
+        {
+          "name": "One shared catalog: Streamer includes every Viewer feature, no clicks benefit or Stars price",
+          "status": "FAIL",
+          "error": "Cannot read properties of undefined (reading 'plans')"
+        },
+        {
+          "name": "Purchase demo: month selection, pending/cancel/error/retry/result; no grant or HTTP",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=streamer]')\u001b[22m\n"
+        },
+        {
+          "name": "Viewer to Streamer upgrade has no invented credit, double purchase or charged amount",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=streamer]')\u001b[22m\n"
+        },
+        {
+          "name": "Narrow, long copy, 200% text, themes and scroll/back/focus",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=viewer]')\u001b[22m\n"
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "engine": "WebKit",
+      "browser": "26.5",
+      "checks": [
+        {
+          "name": "Own dark surfaces are neutral graphite",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n\n'13' !== '17'\n"
+        },
+        {
+          "name": "Telegram is a distinct color-parameter mode; changes follow only explicit Telegram choice",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'light'\n- 'telegram'\n"
+        },
+        {
+          "name": "Free/Viewer/Streamer entry and inherited personal limits",
+          "status": "FAIL",
+          "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Управление подпиской'\n- 'Возможности Plus'\n"
+        },
+        {
+          "name": "One shared catalog: Streamer includes every Viewer feature, no clicks benefit or Stars price",
+          "status": "FAIL",
+          "error": "Cannot read properties of undefined (reading 'plans')"
+        },
+        {
+          "name": "Purchase demo: month selection, pending/cancel/error/retry/result; no grant or HTTP",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=streamer]')\u001b[22m\n"
+        },
+        {
+          "name": "Viewer to Streamer upgrade has no invented credit, double purchase or charged amount",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=streamer]')\u001b[22m\n"
+        },
+        {
+          "name": "Narrow, long copy, 200% text, themes and scroll/back/focus",
+          "status": "FAIL",
+          "error": "locator.click: Timeout 750ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-plan-choice=viewer]')\u001b[22m\n"
+        }
+      ],
+      "pageErrors": []
+    }
+  ],
+  "nativeTelegram": "NOT TESTED",
+  "payments": "DEMO ONLY; no invoice, debit or grant"
+}
