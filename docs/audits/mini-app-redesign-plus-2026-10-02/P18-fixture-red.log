@@ -1,0 +1,154 @@
+.                                                               [100%]
+================================== FAILURES ===================================
+_ RedesignFixtureTests.test_matrix_tiers_cover_zero_six_two_hundred_without_sends (scenario='free-two-hundred') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_matrix_tiers_cover_zero_six_two_hundred_without_sends>
+
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+>               app,db,_=await self.build(scenario)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:45: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'free-two-hundred', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:135: ValueError
+_ RedesignFixtureTests.test_matrix_tiers_cover_zero_six_two_hundred_without_sends (scenario='viewer-empty') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_matrix_tiers_cover_zero_six_two_hundred_without_sends>
+
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+>               app,db,_=await self.build(scenario)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:45: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'viewer-empty', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:135: ValueError
+_ RedesignFixtureTests.test_matrix_tiers_cover_zero_six_two_hundred_without_sends (scenario='viewer-six') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_matrix_tiers_cover_zero_six_two_hundred_without_sends>
+
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+>               app,db,_=await self.build(scenario)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:45: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'viewer-six', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:135: ValueError
+_ RedesignFixtureTests.test_matrix_tiers_cover_zero_six_two_hundred_without_sends (scenario='streamer-empty') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_matrix_tiers_cover_zero_six_two_hundred_without_sends>
+
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+>               app,db,_=await self.build(scenario)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:45: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'streamer-empty', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:135: ValueError
+_ RedesignFixtureTests.test_matrix_tiers_cover_zero_six_two_hundred_without_sends (scenario='streamer-two-hundred') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_matrix_tiers_cover_zero_six_two_hundred_without_sends>
+
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+>               app,db,_=await self.build(scenario)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:19:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:45: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'streamer-two-hundred', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:135: ValueError
+=========================== short test summary info ===========================
+SUBFAILED(scenario='free-two-hundred') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_matrix_tiers_cover_zero_six_two_hundred_without_sends
+SUBFAILED(scenario='viewer-empty') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_matrix_tiers_cover_zero_six_two_hundred_without_sends
+SUBFAILED(scenario='viewer-six') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_matrix_tiers_cover_zero_six_two_hundred_without_sends
+SUBFAILED(scenario='streamer-empty') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_matrix_tiers_cover_zero_six_two_hundred_without_sends
+SUBFAILED(scenario='streamer-two-hundred') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_matrix_tiers_cover_zero_six_two_hundred_without_sends
+5 failed, 1 passed, 9 deselected, 4 subtests passed in 9.75s

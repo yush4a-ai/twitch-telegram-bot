@@ -74,6 +74,21 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn('src="/app/app.js"', html)
             self.assertIn('id="mode-switch"', html)
             self.assertIn('id="tab-bar"', html)
+        async with self.session.get(self.base + "/app") as response:
+            self.assertNotIn("X-Frame-Options", response.headers,
+                             "Telegram Web opens Mini Apps in an iframe")
+            policy = response.headers["Content-Security-Policy"]
+            self.assertIn("frame-ancestors https://web.telegram.org", policy)
+            ancestors = [part.strip() for part in policy.split(";")
+                         if part.strip().startswith("frame-ancestors")]
+            self.assertEqual(ancestors, ["frame-ancestors https://web.telegram.org"])
+            self.assertNotIn("'unsafe-inline'", policy)
+        for url in ("/app/app.js", "/app/legal/privacy"):
+            async with self.session.get(self.base + url) as response:
+                self.assertEqual(response.headers["X-Frame-Options"], "DENY")
+        async with self.session.post(self.base + "/app/api/bootstrap", json={}) as response:
+            self.assertEqual(response.status, 401)
+            self.assertEqual(response.headers["X-Frame-Options"], "DENY")
         for asset in ("app.css", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
             with self.subTest(asset=asset):
                 async with self.session.get(self.base + "/app/" + asset) as response:

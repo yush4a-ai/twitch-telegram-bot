@@ -32,6 +32,7 @@ SCENARIOS = frozenset({
     "streamer-posts",
     "purchase-history",
     "legal-ready",
+    "free-two-hundred", "viewer-empty", "viewer-six", "streamer-empty", "streamer-two-hundred",
 })
 
 
@@ -139,9 +140,10 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
     try:
         await db.connect()
         channels = list(FixtureTwitch._channels)
-        if scenario == "plus-two-hundred":
+        empty = scenario in {"free-empty", "viewer-empty", "streamer-empty"}
+        if scenario in {"plus-two-hundred", "free-two-hundred", "streamer-two-hundred"}:
             channels += [f"track{index:03}" for index in range(194)]
-        if scenario != "free-empty":
+        if not empty:
             for login in channels:
                 await db.add_channel(501, login)
             await db.set_live_state(
@@ -160,15 +162,16 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
                 "Длинное название эфира: прохождение, обсуждение игры и общение со зрителями",
                 "Minecraft",
             )
-        if scenario in {"plus-two-hundred", "independent-viewer"}:
+        if scenario in {"plus-two-hundred", "independent-viewer", "viewer-empty", "viewer-six"}:
             await db.issue_test_viewer_plus(
                 501, "redesign-viewer", starts_at=observed_at - 5,
                 expires_at=observed_at + 3600, issued_by=425785231, now=observed_at,
             )
-            await db.replace_video_selection(
-                501, [(str(1000 + index), login) for index, login in enumerate(channels[:3])],
-                expected_version=0,
-            )
+            if not empty:
+                await db.replace_video_selection(
+                    501, [(str(1000 + index), login) for index, login in enumerate(channels[:3])],
+                    expected_version=0,
+                )
         if scenario != "streamer-unconnected":
             await db.link_streamer_identity(501, "2001", "alpha", verified_at=observed_at)
             if scenario != "channel-empty":
@@ -179,7 +182,7 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
         if scenario == "legacy-group":
             await db.add_streamer_community(501, -1002, "Существующая группа", "supergroup", now=observed_at)
             await db.add_channel(-1002, "alpha")
-        if scenario in {"streamer-plus", "independent-viewer", "streamer-posts"}:
+        if scenario in {"streamer-plus", "independent-viewer", "streamer-posts", "streamer-empty", "streamer-two-hundred"}:
             await db.issue_test_streamer_plus(
                 "2001", "redesign-streamer", starts_at=observed_at - 5,
                 expires_at=observed_at + 1800, issued_by=425785231, now=observed_at,

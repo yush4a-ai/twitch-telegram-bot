@@ -85,6 +85,8 @@ async function assertLayout(page) {
 }
 
 async function runJourney(page, scenario) {
+  if (scenario === 'video-windows') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).videoWindowsJourney(page,{root,output,engine:argument('engine','chromium'),installSdk,assertLayout});
+  if (scenario === 'matrix') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).matrixJourney(page, {root,output,engine:argument('engine','chromium'),scenario:argument('scenario','free-six'),assertLayout});
   if (scenario === 'theme') return themeJourney(page);
   if (scenario === 'shell') return shellJourney(page);
   if (scenario === 'viewer-free') return viewerFreeJourney(page);
@@ -491,6 +493,12 @@ async function viewerSettingsJourney(page){
 async function filterFolderJourney(page){
   const pictures=[];
   const call=(path,values={})=>page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');return createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values);},{path,values});
+  const original=await call('state');
+  if(!original.viewer_plus_active){
+    for(const [endpoint,values] of [['folder/create',{name:'Недоступная папка'}],['filter',{login:'alpha',expected_version:0,games:['Art'],title_keywords:[],exclude_keywords:[]}]])assert.deepEqual(await viewerCall(page,endpoint,values),{ok:false,status:403,code:'plus_required'});
+    await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки · Plus',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();
+    const saved=await call('state');assert.deepEqual(saved.folders,original.folders);assert.deepEqual(saved.subscriptions.map(r=>[r.login,r.folder_id,r.filter]),original.subscriptions.map(r=>[r.login,r.folder_id,r.filter]));return [await settingsPicture(page,'free-folder-gate')];
+  }
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки',exact:true}).click();await page.getByRole('heading',{name:'Папки',exact:true}).waitFor();
   await page.getByRole('textbox',{name:'Название новой папки',exact:true}).fill('Игры и общение');await page.getByRole('button',{name:'Создать папку',exact:true}).click();
   await page.getByRole('heading',{name:'Игры и общение',exact:true}).waitFor();
@@ -518,12 +526,18 @@ async function filterFolderJourney(page){
   await page.getByRole('button',{name:'Сохранить название',exact:true}).click();await page.getByText('Папка изменилась в другом окне. Черновик не сохранён.',{exact:true}).waitFor();assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).inputValue(),'Мой черновик');
   await page.getByRole('button',{name:'Загрузить текущую версию',exact:true}).click();assert.equal(await page.getByRole('textbox',{name:'Название папки',exact:true}).inputValue(),'Другое окно');
   page.once('dialog',prompt=>prompt.accept());await page.getByRole('button',{name:'Удалить папку',exact:true}).click();await page.getByRole('heading',{name:'Папки',exact:true}).waitFor();
-  const final=await call('state');assert.equal(final.folders.length,0);assert.equal(final.subscriptions.find(row=>row.login==='alpha').folder_id,null);assert.equal(final.subscriptions.length,6);
+  const final=await call('state');assert.equal(final.folders.length,0);assert.equal(final.subscriptions.find(row=>row.login==='alpha').folder_id,null);assert.deepEqual(final.subscriptions.map(r=>r.login).sort(),original.subscriptions.map(r=>r.login).sort(),'Delete preserves every original subscription');
   await assertLayout(page);return pictures;
 }
 
 async function categoryJourney(page){
+  const original=(await viewerCall(page,'state')).data;
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Категории',exact:true}).click();
+  if(!original.viewer_plus_active){
+    await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).count(),0);
+    assert.deepEqual(await viewerCall(page,'category-alert',{login:'alpha',enabled:true,category_ids:['300'],expected_version:0}),{ok:false,status:403,code:'plus_required'});
+    assert.deepEqual((await viewerCall(page,'state')).data.subscriptions.map(r=>[r.login,r.category_alert]),original.subscriptions.map(r=>[r.login,r.category_alert]));return [await settingsPicture(page,'free-category-gate')];
+  }
   await page.getByRole('heading',{name:'Категории',exact:true}).waitFor();
   const query=page.getByRole('searchbox',{name:'Найти категорию Twitch',exact:true});
   let release,started;const gate=new Promise(resolve=>{release=resolve;}),seen=new Promise(resolve=>{started=resolve;});
@@ -551,7 +565,13 @@ async function viewerCall(page,path,values={}){
   return page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');try{return {ok:true,data:await createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values)};}catch(error){return {ok:false,status:error.status,code:error.code};}},{path,values});
 }
 async function reminderJourney(page){
+  const original=(await viewerCall(page,'state')).data;
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Напоминание',exact:true}).click();
+  if(!original.viewer_plus_active){
+    await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Через 15 минут',exact:true}).count(),0);
+    for(const minutes of [15,30])assert.deepEqual(await viewerCall(page,'reminder',{login:'alpha',delay_minutes:minutes}),{ok:false,status:403,code:'plus_required'});
+    assert.deepEqual((await viewerCall(page,'state')).data.subscriptions.map(r=>[r.login,r.reminder]),original.subscriptions.map(r=>[r.login,r.reminder]));return [await settingsPicture(page,'free-reminder-gate')];
+  }
   await page.getByRole('heading',{name:'Напоминание',exact:true}).waitFor();
   if(argument('scenario','')==='reminder-inflight'){
     await page.getByText('Отправляем напоминание. Сейчас изменить его нельзя.',{exact:true}).waitFor();
@@ -1003,16 +1023,19 @@ async function main() {
   const scenario = argument('scenario', 'free-six');
   assert(['chromium', 'webkit'].includes(engineName));
   fs.mkdirSync(output, { recursive: true });
+  if (journey === 'all') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).runAll({root,output,engine:engineName});
+  if (journey === 'zoom') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).zoomJourney({root,output,engine:engineName,scenario,fixtureServer,installSdk,assertLayout});
   const server = process.env.MINI_APP_QA_URL ? { url: process.env.MINI_APP_QA_URL, close: async () => {} } : await fixtureServer(scenario);
   const target = new URL(server.url);
   assert(['127.0.0.1', 'localhost'].includes(target.hostname), 'Fixture auth is loopback only');
   const engine = engineName === 'webkit' ? webkit : chromium;
   let browser;
-  const report = { journey, scenario, engine: engineName, native: 'NOT TESTED', screenshots: [], errors: [], externalRequests: [], sources: {} };
+  const report = { journey, scenario, part:argument('part',null), engine: engineName, native: 'NOT TESTED', screenshots: [], errors: [], externalRequests: [], sources:require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).sources(root) };
   try {
     browser = await engine.launch({ headless: false });
     report.version = browser.version();
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
     page.on('pageerror', error => report.errors.push(error.message));
     await page.route('https://telegram.org/**', route => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
     await page.route('**/*', route => {
@@ -1042,15 +1065,10 @@ async function main() {
     assert.deepEqual(report.errors, []);
     assert.deepEqual(report.externalRequests, []);
     assert.equal(new Set(report.screenshots.map(item=>item.file)).size,report.screenshots.length,'Screenshot names must be unique');
+    assert.deepEqual(require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).sources(root),report.sources,'Complete runtime snapshot unchanged during journey');
     report.status = 'PASS';
   } catch (error) { report.status = 'FAIL'; report.failure = error.stack; throw error; }
   finally {
-    for (const name of fs.readdirSync(path.join(root, 'bot/mini_app_ui'))) {
-      const file = path.join(root, 'bot/mini_app_ui', name);
-      if (fs.statSync(file).isFile()) report.sources[name] = digest(file);
-    }
-    for(const source of ['bot/mini_app_viewer.py','scripts/mini_app_browser_fixture.py','scripts/mini_app_redesign_browser_qa.cjs'])report.sources[source]=digest(path.join(root,source));
-    if(journey==='legal')for(const source of ['bot/legal_documents.py','bot/legal_web.py','bot/legal_ui/index.html','bot/legal_ui/legal.css',...fs.readdirSync(path.join(root,'docs/legal')).map(name=>'docs/legal/'+name)])report.sources[source]=digest(path.join(root,source));
     fs.writeFileSync(path.join(output, `${journey}-${engineName}-qa.json`), JSON.stringify(report, null, 2));
     await browser?.close();
     await server.close();

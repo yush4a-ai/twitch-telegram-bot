@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P17 PASS, далее P18
+## Текущий checkpoint — 02.10.2026: P18 PASS с media-пределами, P19 выполняется
+
+BASE8a8a70f;92browserjourneys/2520matrixchecks/984PNG, Chromium151/WebKit26.5,174sourceSHA/PNG SHA independently verified; `P18-QA.md`. Два accessibility fixes и exact-origin iframe fix, fixture/guard11tests22subtests/header31tests44subtests. Media1×1000 RESOURCE_STOP25s, два профиля PASS cap2/deferred98/4998: серверная SLA не подтверждена. P19 backup/restore/migration-copy PASS54→60tables/25versions/actualFernet2/rollback/reopen, whole-change review закрывает F1; полный suite ещё идёт. Payment OFF/bank NOT READY/native NOT TESTED; deployment не выполнен. Следующий gate P19, затем guarded P20 и owner пакет P21.
+
+## Предыдущий checkpoint — 02.10.2026: P17 PASS, далее P18
 
 Базаf1ed26ab; copy/catalog/видимыйHTML и совместимость:387tests50subtests,40tests2667subtests,4reports44PNG/currentSHA. Один reviewer; English и allUI payment-controls scan, actual catalog fields и Agreementcopy исправлены без смены прав. HTML/report modules/экспорт сохранены, detector[]. `P17-COPY-COMPATIBILITY.md`. Далее browser/media matrix P18; full suite P19 ещё впереди. Payment OFF/bank NOT READY/native NOT TESTED.
 

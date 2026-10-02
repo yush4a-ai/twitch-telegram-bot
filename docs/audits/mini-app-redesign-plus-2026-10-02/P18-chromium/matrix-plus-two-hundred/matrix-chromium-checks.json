@@ -1,0 +1,2531 @@
+{
+  "scenario": "plus-two-hundred",
+  "checks": [
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 360,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 390,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 430,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 768,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.399787735653728,
+        "secondary/canvas": 5.041394953687174,
+        "secondary/surface": 5.451485681652716,
+        "button-fg/button-bg": 5.5170249825462285
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 15.872496978134924,
+        "secondary/canvas": 9.237462256789742,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 9.361728115886185
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-light",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 13.86236238711634,
+        "secondary/canvas": 7.432829032899786,
+        "secondary/surface": 8.027477136327134,
+        "button-fg/button-bg": 7.920949888530472
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Главная",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Стримеры",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Plus",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Мой канал",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Посты",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "streamer",
+      "tab": "Plus",
+      "nav": [
+        "Мой канал",
+        "Посты",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "telegram-dark",
+      "mode": "viewer",
+      "tab": "Профиль",
+      "nav": [
+        "Главная",
+        "Стримеры",
+        "Профиль",
+        "Plus"
+      ],
+      "contrasts": {
+        "text/canvas": 14.318904170268352,
+        "secondary/canvas": 8.631460397205982,
+        "secondary/surface": 7.998303034557394,
+        "button-fg/button-bg": 10.498599749655943
+      }
+    }
+  ],
+  "text200Widths": [
+    360,
+    390
+  ],
+  "shortViewport": "390x440",
+  "status": "PASS"
+}

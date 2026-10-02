@@ -1,0 +1,10 @@
+{
+  "actualExpression": "new Promise(resolve=>{const child=spawn(process.execPath,args,{cwd:root,env:{...process.env,MINI_APP_QA_SCREENSHOTS:dir},stdio:['ignore','pipe','pipe'],windowsHide:true});let log='',done=false;const finish=value=>{if(done)return;done=true;clearTimeout(timer);resolve(value);};const timer=setTimeout(()=>{log+='\\nOwned QA process exceeded 180s; stopped with its owned fixture/browser tree.';const kill=spawn('taskkill',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});kill.once('exit',()=>finish({code:-1,log}));kill.once('error',()=>{child.kill();finish({code:-1,log});});},180000);child.stdout.on('data',b=>{log=(log+b).slice(-5000);});child.stderr.on('data',b=>{log=(log+b).slice(-5000);});child.once('error',e=>finish({code:-1,log:String(e)}));child.once('exit',code=>finish({code,log}));})",
+  "scenario": "watchdog fires; owned child exits0 before taskkill completion",
+  "killStarted": true,
+  "result": {
+    "code": 0,
+    "log": "\nOwned QA process exceeded 180s; stopped with its owned fixture/browser tree."
+  },
+  "failClosed": false
+}

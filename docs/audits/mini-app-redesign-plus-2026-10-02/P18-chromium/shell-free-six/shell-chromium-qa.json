@@ -1,0 +1,49 @@
+{
+  "journey": "shell",
+  "scenario": "free-six",
+  "part": null,
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "shell-chromium-viewer-390.png",
+      "sha256": "409c49d2575066df4b6eca8ecc8e53d2472f5c5196c8c35fd486f2b629d5a038",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-channel-390.png",
+      "sha256": "1f9b86d41be574847b28890c3f4d3517dbb7d291a4741b9c9ba043316012aeff",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-profile-390.png",
+      "sha256": "573301f2b7096c67688e7c45da9b6b71c4c8de632473390a5839870ce9ab3949",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "b4eba1416d773e94f6089936e4362ed61168bae6bc546341346ddffc02a78ab5",
+    "app.js": "830386f4e547ad5aba4c30191895d567f8cb053ab85726721cd051fdefce319d",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "purchase.js": "09314eedaaa1a06185d65bdfbfc187425777af86bf2edad3b038945e9696872b",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "2a212cfce762158e9ba51b31d2203f0fb7737e0797cb67d8d187f193e528f188",
+    "streamer_posts.js": "abca6d4d5babb13463c2d55622e1c667513ffc46b77fc337a83c99e4dde32bc5",
+    "subscription.js": "296885fd23847e380d8044fdeee224c385e3fad3b90e61783f56e0d8e98f7487",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "912605481f7a00fa60f551ad26441404b9ccea039608153738c4217c5333636f",
+    "scripts/mini_app_redesign_browser_qa.cjs": "2407d52b51e5d963cc30ee22d8cb0d64064a6ce4d62e06d2fc32a3b3cca1ee09",
+    "scripts/mini_app_redesign_matrix_qa.cjs": "8b909ec7d3dc8f24cd3e1ab062a9ee5880252996ee23247866374c533f815236"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

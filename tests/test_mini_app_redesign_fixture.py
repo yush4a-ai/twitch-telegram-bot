@@ -10,6 +10,18 @@ from tests.test_admin_telegram_auth import signed_webapp
 
 
 class RedesignFixtureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_matrix_tiers_cover_zero_six_two_hundred_without_sends(self):
+        cases = [('free-empty',0,False,False),('free-six',6,False,False),('free-two-hundred',200,False,False),
+                 ('viewer-empty',0,True,False),('viewer-six',6,True,False),('plus-two-hundred',200,True,False),
+                 ('streamer-empty',0,True,True),('streamer-plus',6,True,True),('streamer-two-hundred',200,True,True)]
+        for scenario,count,viewer,streamer in cases:
+            with self.subTest(scenario=scenario):
+                app,db,_=await self.build(scenario)
+                self.assertEqual(len(await db.list_channels(501)),count)
+                self.assertEqual(await db.has_viewer_plus(501),viewer)
+                self.assertEqual(await db.has_streamer_plus(501),streamer)
+                self.assertEqual(app[fixture.FIXTURE_STATE_KEY].bot.sent_calls,[])
+
     async def test_purchase_history_is_own_persisted_records_without_sends(self):
         app, db, client = await self.build('purchase-history')
         response = await client.post('/app/api/subscription/state', json={'init_data': signed_webapp(501)})

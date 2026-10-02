@@ -97,3 +97,11 @@ BASE72ab5ce; legal/support canonical5 + manifest/required-data/SHA/catalog and s
 ## P17 завершён
 
 BASEf1ed26ab; copy/catalog/HTML и обратная совместимость.387tests50subtests +40tests2667subtests (литералы отдельно от сценариев),4reports44PNG/current SHA,detector[]. Один reviewer; English/allUI endpoint/catalog/HTML coverage закрыты, Agreementcopy+SHA обновлены. HTML/export/legacygroups/Free/quiet/старые команды сохранены. `P17-COPY-COMPATIBILITY.md`; следующий P18, деньги OFF/native NOT TESTED.
+
+## P18 выполняется
+
+BASE8a8a70f; актуальный общий прогон — `P18-release-chromium` / `P18-release-webkit`, 45 последовательных сценариев на новых временных БД. Предыдущие FAIL evidence сохранены: неготовый all, clipped focus, маленький Home link, QA число6 вместо200, browser.newPage single-page context и неверное имя Free gate. Исправлены два CSS дефекта доступности, сценарии QA и bounded watchdog race. Fixture/guard11tests22subtests PASS; actual two-page CAS Chromium PASS, zoom native browser controls подтверждены отдельно от text200. Один reviewer закрыл scoped findings и начал whole-change security review; полный browser/media/P19 gate ещё не объявлен завершённым. Native/real Telegram/OAuth/send/payment/staging NOT TESTED; production/HTML/export сохранены.
+
+## P18 завершён, P19 выполняется
+
+Финальные `P18-final-release-*`:92journeys/2520matrixchecks/984PNG, Chromium151/WebKit26.5, current174sourceSHA/PNG SHA независимо подтверждены. Два CSS accessibility fixes, scoped iframe F1 и watchdog regression;11tests22subtests +31tests44subtests. `P18-QA.md`. Media H.264:1×1000 RESOURCE_STOP25s;100×10 и1000×5 PASS cap2/deferred98/4998, cleanup/no external send. Это предел, не серверная SLA. P19 whole-change reviewer/F1 закрыты; backup remote/local и миграция копии PASS54→60tables/25versions/actualFernet2/rollback/reopen. Full pytest ещё идёт; P19 release commit/deploy не объявлены PASS. Native/OAuth/send/payment NOT TESTED; production/HTML/export сохранены.

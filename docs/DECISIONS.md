@@ -523,3 +523,9 @@
 - Основание: утверждённый P17. Gate охватывает old callbacks/common media/sixth/quiet/startup menu/HTML/legacy groups/50–200 import и новую копию/каталог. Новый onboarding/расширенные отчёты остаются отдельными предложениями.
 - Проверка:387tests50subtests,40tests2667subtests,4reports44PNG/currentSHA; один reviewer и detector[]. Английские literals и все UI payment-controls защищены, legal принятиеfalse сохраняется.
 - Граница: fake sender/TEMP DB/SDK double, native/real send/OAuth/payments NOT TESTED. `P17-COPY-COMPATIBILITY.md`; следующий P18.
+
+## D073 — браузерный PASS и media-пределы учитываются отдельно
+
+- Основание: P18/19. HTML приложения допускает iframe только exact Telegram Web origin; прочие CSP/XFO защиты сохранены. Пять личных слотов не доказывают производительность сервера.
+- Проверка:92journeys/2520checks/984PNG/174sourceSHA; один reviewer/F1 closed; load cap2/deferred98/4998 и честный1×1000 RESOURCE_STOP25s. Backup/restore/migration-copy PASS, активная БД не заменена; фактический staging Fernet проверен без выгрузки ключа.
+- Граница: full-suite/release/staging ещё впереди, native/OAuth/send/payment NOT TESTED; `P18-QA.md`, `MIGRATION-COPY.md`, `mini-app-threat-model.md`. Production fresh SHA dc9239 не подменяет исторические аудиты.

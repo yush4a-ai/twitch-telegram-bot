@@ -1,0 +1,4 @@
+{"status":"FAIL","engine":"chromium","screenshots":0,"errors":0}
+locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: 'Папки', exact: true })[22m

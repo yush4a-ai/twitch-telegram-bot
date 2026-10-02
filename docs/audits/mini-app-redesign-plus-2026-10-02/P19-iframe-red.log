@@ -1,0 +1,22 @@
+..F.                                                                     [100%]
+================================== FAILURES ===================================
+_ MiniAppShellTests.test_shell_loads_every_module_with_strict_security_headers _
+
+self = <test_mini_app_shell.MiniAppShellTests testMethod=test_shell_loads_every_module_with_strict_security_headers>
+
+    async def test_shell_loads_every_module_with_strict_security_headers(self):
+        async with self.session.get(self.base + "/app") as response:
+            self.assertEqual(response.status, 200)
+            html = await response.text()
+            self.assertIn('src="/app/app.js"', html)
+            self.assertIn('id="mode-switch"', html)
+            self.assertIn('id="tab-bar"', html)
+        async with self.session.get(self.base + "/app") as response:
+>           self.assertNotIn("X-Frame-Options", response.headers,
+                             "Telegram Web opens Mini Apps in an iframe")
+E           AssertionError: 'X-Frame-Options' unexpectedly found in <CIMultiDictProxy('Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; script-src 'self' https://telegram.org; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'", 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'DENY', 'Content-Length': '1176', 'Date': 'Fri, 02 Oct 2026 19:04:18 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')> : Telegram Web opens Mini Apps in an iframe
+
+tests\test_mini_app_shell.py:78: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_shell.py::MiniAppShellTests::test_shell_loads_every_module_with_strict_security_headers
+1 failed, 3 passed in 6.13s

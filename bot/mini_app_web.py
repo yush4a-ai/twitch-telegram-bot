@@ -63,6 +63,8 @@ def install_mini_app_routes(
         response = await handler(request)
         if request.path == "/app" or request.path.startswith("/app/"):
             for key, value in SECURITY_HEADERS.items():
+                if request.path == "/app" and key == "X-Frame-Options":
+                    continue
                 response.headers.setdefault(key, value)
         return response
 
@@ -76,6 +78,7 @@ def install_mini_app_routes(
         response.headers["Content-Security-Policy"] = (
             SECURITY_HEADERS["Content-Security-Policy"]
             .replace("script-src 'self'", "script-src 'self' https://telegram.org")
+            + "; frame-ancestors https://web.telegram.org"
         )
         return response
 
