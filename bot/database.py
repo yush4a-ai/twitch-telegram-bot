@@ -19,6 +19,7 @@ import aiosqlite
 from cryptography.fernet import Fernet, InvalidToken
 
 from .billing_models import BillingOrder, BillingSubject, PaymentRecord
+from .billing_migrations import migrate_plus_payments, ORDER_COLUMNS
 from .billing_provider import VerifiedPaymentEvent
 from .deep_links import REFERRAL_CODE_RE, parse_growth_start_payload
 from .streamer_template import StreamerTemplate, validate_streamer_template
@@ -38,6 +39,7 @@ _BILLING_ORDER_FIELDS = (
     "broadcaster_id,plan,provider,status,units,currency,duration_seconds,"
     "created_at,checkout_expires_at,checkout_reference,paid_at,closed_at,grant_id"
 )
+_BILLING_ORDER_READ_FIELDS = _BILLING_ORDER_FIELDS + "," + ",".join(ORDER_COLUMNS)
 _BILLING_ORDER_DEFINITION = (
     "(order_id TEXT PRIMARY KEY, request_key TEXT NOT NULL UNIQUE, "
     "telegram_user_id INTEGER NOT NULL, subject_kind TEXT NOT NULL "
@@ -539,6 +541,7 @@ class Database:
             # Явный busy_timeout делает поведение одинаковым при кратком overlap двух
             # Railway-процессов во время redeploy, а не зависит от default библиотеки.
             await self._conn.execute("PRAGMA busy_timeout=5000;")
+            await self._conn.execute("PRAGMA foreign_keys=ON;")
             journal_cursor = await self._conn.execute("PRAGMA journal_mode=WAL;")
             journal_row = await journal_cursor.fetchone()
             if self._path != ":memory:" and (
@@ -688,6 +691,7 @@ class Database:
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
         await self._migrate_growth_attribution_schema()
+        await migrate_plus_payments(self.conn, now=time.time())
         await self.conn.commit()
 
     async def _migrate_growth_attribution_schema(self) -> None:
@@ -1207,7 +1211,7 @@ class Database:
 
     async def get_billing_order(self, order_id: str) -> BillingOrder | None:
         cursor = await self.conn.execute(
-            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders WHERE order_id = ?",
+            "SELECT " + _BILLING_ORDER_READ_FIELDS + " FROM billing_orders WHERE order_id = ?",
             (order_id,),
         )
         return self._billing_order_from_row(await cursor.fetchone())
@@ -1218,7 +1222,7 @@ class Database:
         if type(telegram_user_id) is not int or telegram_user_id <= 0 or type(limit) is not int or not 1 <= limit <= 50:
             raise ValueError("invalid billing history request")
         cursor = await self.conn.execute(
-            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders "
+            "SELECT " + _BILLING_ORDER_READ_FIELDS + " FROM billing_orders "
             "WHERE telegram_user_id=? ORDER BY created_at DESC,order_id DESC LIMIT ?",
             (telegram_user_id, limit),
         )
@@ -1255,7 +1259,7 @@ class Database:
 
     async def get_billing_order_by_request_key(self, request_key: str) -> BillingOrder | None:
         cursor = await self.conn.execute(
-            "SELECT " + _BILLING_ORDER_FIELDS + " FROM billing_orders WHERE request_key = ?",
+            "SELECT " + _BILLING_ORDER_READ_FIELDS + " FROM billing_orders WHERE request_key = ?",
             (request_key,),
         )
         return self._billing_order_from_row(await cursor.fetchone())
@@ -1624,10 +1628,10 @@ class Database:
             "INSERT INTO billing_orders "
             "(order_id,request_key,telegram_user_id,subject_kind,subject_id,"
             "broadcaster_id,plan,provider,status,"
-            "units,currency,duration_seconds,created_at,checkout_expires_at) "
-            "VALUES (?,?,?,?,?,?,?,'mock','pending',1,'TEST',?,?,?)",
+            "units,currency,duration_seconds,created_at,checkout_expires_at,beneficiary_telegram_user_id) "
+            "VALUES (?,?,?,?,?,?,?,'mock','pending',1,'TEST',?,?,?,?)",
             (order_id, request_key, telegram_user_id, subject.kind, subject.subject_id,
-             broadcaster_id, plan, duration_seconds, now, now + 900),
+             broadcaster_id, plan, duration_seconds, now, now + 900, telegram_user_id),
         )
         await self.conn.execute(
             "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'created',?)",

@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P01 PASS, далее P02
+## Текущий checkpoint — 02.10.2026: P02 PASS, далее P03
+
+P01 commit `ac37c8c`; P02: одна существующая DB, R11 metadata/attempts/inbox/frozen beneficiary, совместимые legacy readers. RED→PASS28tests/5subtests; rollback/reopen/two connections, legacy preservation/integrity/backup/foreign keys. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P02-MIGRATION.md`; журнал `mini-app/REDESIGN-PROGRESS.md`. Streamer без доказанного buyer остаётся unbound; точный месяц не назначен. Staging/production/data/деньги/outbound не затронуты. Далее P03 server catalog150/300/readiness.
+
+## Предыдущий checkpoint — 02.10.2026: P01 PASS, далее P02
 
 Последний промпт разрешил P01–P21 и guarded staging. Документы/skills/макеты сохранены commit `3f4fec5`. P01 RED missing builder → disposable scenario app → PASS11tests/21subtests; actual `/app` Chromium151/WebKit26.5, шесть исходных PNG, JS0/external0. Журнал `mini-app/REDESIGN-PROGRESS.md`, evidence `docs/audits/mini-app-redesign-plus-2026-10-02/BASELINE.md`. Mapping/server auth/изоляция reviewed. Новые0/6/200 сценарии живут во временной SQLite; обычный checkout403, новых orders0. Runtime UI пока прежний, перенос дальше.
 

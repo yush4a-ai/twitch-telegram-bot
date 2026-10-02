@@ -168,11 +168,11 @@
 
 **Интерфейсы:** `migrate_plus_payments(conn, *, now: float) -> None` внутри существующей outer transaction; `BillingStore(db)` не открывает новую DB. Типы `Money(amount_minor:int,currency:str)`, `ProductSnapshot`, `PaymentAttempt`, `VerifiedPaymentEvidence`; order хранит frozen buyer/beneficiary, catalog/period/terms versions, method/provider, UTC access start/end, финансовое состояние отдельно от доступа. Начальные версии `r11_001_plus_payment_orders`, `r11_002_plus_payment_events`, `r11_003_entitlement_beneficiary` не заменяют старые migrations.
 
-- [ ] RED `test_migration_preserves_legacy_and_does_not_guess_streamer_buyer`: старые TEST units/status/order/payment/audit/grant IDs сохранены; Viewer beneficiary из subject, Streamer из связанного непротиворечивого billing order; unbound test grant остаётся NULL, не issued_by/current owner. Assert исходная backup копия не меняется.
-- [ ] RED `test_migration_is_atomic_repeatable_and_rolls_back`: injected failure откатывает schema/rows, reopen/repeat не дублируют; unique provider transaction/event/order grant и foreign keys работают. Run `python -m pytest tests/test_plus_payment_migrations.py tests/test_billing_viewer_product.py -q` → ожидаемый FAIL нового контракта.
-- [ ] Добавить поля/attempt/inbox/reconciliation в ту же DB; legacy `pending/paid/cancelled` mapping сохранить через совместимые readers. Mock duration/TEST contract не применять к RUB/XTR; валютные единицы и raw provider status разделить. Не ограничивать будущий calendar period legacy CHECK 31 суток.
-- [ ] PASS новые/старые billing migrations, integrity/foreign_key_check/row counts, две независимые conn и restore drill temp copies. Никакой активной staging migration сейчас.
-- [ ] Scoped review migration/binding/rollback → отдельный commit. Не разбирать/переписывать все остальные Database methods.
+- [x] RED `test_migration_preserves_legacy_and_does_not_guess_streamer_buyer`: старые TEST units/status/order/payment/audit/grant IDs сохранены; Viewer beneficiary из subject, Streamer из связанного непротиворечивого billing order; unbound test grant остаётся NULL, не issued_by/current owner. Assert исходная backup копия не меняется.
+- [x] RED `test_migration_is_atomic_repeatable_and_rolls_back`: injected failure откатывает schema/rows, reopen/repeat не дублируют; unique provider transaction/event/order grant и foreign keys работают. Run `python -m pytest tests/test_plus_payment_migrations.py tests/test_billing_viewer_product.py -q` → ожидаемый FAIL нового контракта.
+- [x] Добавить поля/attempt/inbox/reconciliation в ту же DB; legacy `pending/paid/cancelled` mapping сохранить через совместимые readers. Mock duration/TEST contract не применять к RUB/XTR; валютные единицы и raw provider status разделить. Не ограничивать будущий calendar period legacy CHECK 31 суток.
+- [x] PASS новые/старые billing migrations, integrity/foreign_key_check/row counts, две независимые conn и restore drill temp copies. Никакой активной staging migration сейчас.
+- [x] Scoped review migration/binding/rollback → отдельный commit. Не разбирать/переписывать все остальные Database methods.
 
 ## P03. Серверный каталог, цены и readiness без денежной активации
 

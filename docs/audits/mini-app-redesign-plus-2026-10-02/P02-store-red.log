@@ -1,0 +1,26 @@
+..F.F.                                                              [100%]
+================================== FAILURES ===================================
+_____ PlusPaymentMigrationTests.test_new_mock_order_freezes_server_buyer ______
+
+self = <test_plus_payment_migrations.PlusPaymentMigrationTests testMethod=test_new_mock_order_freezes_server_buyer>
+
+    async def test_new_mock_order_freezes_server_buyer(self):
+        db = await self.connect()
+        order = await db.create_billing_order("c" * 32, "new-mock", 303, 3600, plan="viewer_plus", now=200)
+>       self.assertEqual(order.beneficiary_telegram_user_id, 303)
+E       AssertionError: None != 303
+
+tests\test_plus_payment_migrations.py:146: AssertionError
+_ PlusPaymentMigrationTests.test_store_uses_same_ledger_and_two_connections_keep_one_request _
+
+self = <test_plus_payment_migrations.PlusPaymentMigrationTests testMethod=test_store_uses_same_ledger_and_two_connections_keep_one_request>
+
+    async def test_store_uses_same_ledger_and_two_connections_keep_one_request(self):
+>       from bot import billing_store
+E       ImportError: cannot import name 'billing_store' from 'bot' (C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\__init__.py). Did you mean: 'billing_models'?
+
+tests\test_plus_payment_migrations.py:117: ImportError
+=========================== short test summary info ===========================
+FAILED tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_new_mock_order_freezes_server_buyer
+FAILED tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_store_uses_same_ledger_and_two_connections_keep_one_request
+2 failed, 4 passed, 5 subtests passed in 3.75s

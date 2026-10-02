@@ -13,6 +13,74 @@ class BillingSubject:
 
 
 @dataclass(frozen=True)
+class Money:
+    amount_minor: int
+    currency: Literal["RUB", "XTR", "TEST"]
+
+    def __post_init__(self):
+        if type(self.amount_minor) is not int or not 0 < self.amount_minor <= 2**63 - 1 or self.currency not in {"RUB", "XTR", "TEST"}:
+            raise ValueError("invalid monetary amount or currency")
+
+
+@dataclass(frozen=True)
+class ProductSnapshot:
+    product_id: str
+    catalog_version: str
+    rub: Money
+    xtr: Money | None
+    period_code: str
+    period_rule: str
+    period_rule_version: str | None
+    auto_renew: bool
+    includes: tuple[str, ...]
+    feature_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ServerOrderSnapshot:
+    order_id: str
+    telegram_user_id: int
+    beneficiary_telegram_user_id: int
+    subject: BillingSubject
+    broadcaster_id: str | None
+    product: ProductSnapshot
+    money: Money
+    provider: str
+    method: str
+    terms_version: str
+    created_at: float
+    checkout_expires_at: float
+
+
+@dataclass(frozen=True)
+class PaymentAttempt:
+    attempt_id: str
+    order_id: str
+    provider: str
+    method: str
+    state: str
+    provider_reference: str | None
+    created_at: float
+    next_reconcile_at: float | None
+    reconcile_count: int
+    lease_until: float | None
+    payload_digest: str
+
+
+@dataclass(frozen=True)
+class VerifiedPaymentEvidence:
+    provider: str
+    transaction_id: str
+    order_id: str
+    attempt_id: str
+    money: Money
+    method: str
+    status: str
+    raw_status: str
+    observed_at: float
+
+
+@dataclass(frozen=True)
 class BillingOrder:
     order_id: str
     request_key: str
@@ -32,6 +100,17 @@ class BillingOrder:
     paid_at: float | None
     closed_at: float | None
     grant_id: str | None
+    beneficiary_telegram_user_id: int | None = None
+    catalog_version: str = "legacy-test"
+    method: str = "mock"
+    period_code: str = "test_duration"
+    period_rule: str = "legacy_test_seconds"
+    period_rule_version: str | None = None
+    terms_version: str = "legacy-test"
+    financial_status: str = "pending"
+    access_starts_at: float | None = None
+    access_expires_at: float | None = None
+    product_snapshot_json: str | None = None
 
     @property
     def subject(self) -> BillingSubject:

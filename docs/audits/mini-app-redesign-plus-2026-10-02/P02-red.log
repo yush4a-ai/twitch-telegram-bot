@@ -1,0 +1,200 @@
+FEFFEF....                                                               [100%]
+=================================== ERRORS ====================================
+_ ERROR at teardown of PlusPaymentMigrationTests.test_migration_is_atomic_repeatable_and_rolls_back _
+
+path = 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpxcqloadr'
+onexc = <function TemporaryDirectory._rmtree.<locals>.onexc at 0x0000025C2D098D60>
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+>                   os.unlink(fullname)
+E                   PermissionError: [WinError 32] ������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpxcqloadr\\legacy.db'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:633: PermissionError
+
+During handling of the above exception, another exception occurred:
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:954: in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:934: in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:635: in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+func = <built-in function unlink>
+path = 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpxcqloadr\\legacy.db'
+exc = PermissionError(13, '������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������')
+
+    def onexc(func, path, exc):
+        if isinstance(exc, PermissionError):
+            if repeated and path == name:
+                if ignore_errors:
+                    return
+                raise
+
+            try:
+                if path != name:
+                    _resetperms(_os.path.dirname(path))
+                _resetperms(path)
+
+                try:
+>                   _os.unlink(path)
+E                   PermissionError: [WinError 32] ������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpxcqloadr\\legacy.db'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:909: PermissionError
+_ ERROR at teardown of PlusPaymentMigrationTests.test_provider_transaction_attempt_and_event_uniqueness _
+
+path = 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpuoeq5cv_'
+onexc = <function TemporaryDirectory._rmtree.<locals>.onexc at 0x0000025C2D1E0F40>
+
+    def _rmtree_unsafe(path, onexc):
+        def onerror(err):
+            onexc(os.scandir, err.filename, err)
+        results = os.walk(path, topdown=False, onerror=onerror, followlinks=os._walk_symlinks_as_files)
+        for dirpath, dirnames, filenames in results:
+            for name in dirnames:
+                fullname = os.path.join(dirpath, name)
+                try:
+                    os.rmdir(fullname)
+                except OSError as err:
+                    onexc(os.rmdir, fullname, err)
+            for name in filenames:
+                fullname = os.path.join(dirpath, name)
+                try:
+>                   os.unlink(fullname)
+E                   PermissionError: [WinError 32] ������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpuoeq5cv_\\legacy.db'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:633: PermissionError
+
+During handling of the above exception, another exception occurred:
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:954: in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:934: in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:781: in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\shutil.py:635: in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+func = <built-in function unlink>
+path = 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpuoeq5cv_\\legacy.db'
+exc = PermissionError(13, '������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������')
+
+    def onexc(func, path, exc):
+        if isinstance(exc, PermissionError):
+            if repeated and path == name:
+                if ignore_errors:
+                    return
+                raise
+
+            try:
+                if path != name:
+                    _resetperms(_os.path.dirname(path))
+                _resetperms(path)
+
+                try:
+>                   _os.unlink(path)
+E                   PermissionError: [WinError 32] ������� �� ����� �������� ������ � �����, ��� ��� ���� ���� ����� ������ ���������: 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmpuoeq5cv_\\legacy.db'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\tempfile.py:909: PermissionError
+================================== FAILURES ===================================
+_ PlusPaymentMigrationTests.test_migration_is_atomic_repeatable_and_rolls_back _
+
+self = <test_plus_payment_migrations.PlusPaymentMigrationTests testMethod=test_migration_is_atomic_repeatable_and_rolls_back>
+
+    async def test_migration_is_atomic_repeatable_and_rolls_back(self):
+        from bot import database
+        migration = getattr(database, "migrate_plus_payments", None)
+>       self.assertTrue(callable(migration), "R11 migration must run in the existing transaction")
+E       AssertionError: False is not true : R11 migration must run in the existing transaction
+
+tests\test_plus_payment_migrations.py:83: AssertionError
+_ PlusPaymentMigrationTests.test_migration_preserves_legacy_and_does_not_guess_streamer_buyer _
+
+self = <test_plus_payment_migrations.PlusPaymentMigrationTests testMethod=test_migration_preserves_legacy_and_does_not_guess_streamer_buyer>
+
+    async def test_migration_preserves_legacy_and_does_not_guess_streamer_buyer(self):
+        backup = Path(self.directory.name) / "source-copy.db"
+        backup.write_bytes(self.path.read_bytes())
+        before = hashlib.sha256(backup.read_bytes()).hexdigest()
+        db = await self.connect()
+        columns = {r[1] for r in await (await db.conn.execute("PRAGMA table_info(entitlement_grants)")).fetchall()}
+>       self.assertIn("beneficiary_telegram_user_id", columns)
+E       AssertionError: 'beneficiary_telegram_user_id' not found in {'grant_id', 'created_at', 'request_key', 'subject_id', 'starts_at', 'plan', 'expires_at', 'subject_kind', 'revoked_at', 'source', 'issued_by'}
+
+tests\test_plus_payment_migrations.py:65: AssertionError
+_ PlusPaymentMigrationTests.test_provider_transaction_attempt_and_event_uniqueness _
+
+self = <test_plus_payment_migrations.PlusPaymentMigrationTests testMethod=test_provider_transaction_attempt_and_event_uniqueness>
+
+    async def test_provider_transaction_attempt_and_event_uniqueness(self):
+        db = await self.connect()
+>       await db.conn.execute("INSERT INTO billing_payment_attempts(attempt_id,order_id,provider,method,state,created_at,payload_digest) VALUES ('first','old-order','platega','sbp','pending',200,'digest')")
+
+tests\test_plus_payment_migrations.py:108:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\aiosqlite\core.py:223: in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000025C2D2B1800>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+
+            future, function = tx.get()
+
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: billing_payment_attempts
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+_ MoneyValidationTests.test_money_rejects_bool_float_nonpositive_and_unknown_currency _
+
+self = <test_plus_payment_migrations.MoneyValidationTests testMethod=test_money_rejects_bool_float_nonpositive_and_unknown_currency>
+
+    def test_money_rejects_bool_float_nonpositive_and_unknown_currency(self):
+        money = getattr(billing_models, "Money", None)
+>       self.assertTrue(callable(money), "Money validates server amount boundaries")
+E       AssertionError: False is not true : Money validates server amount boundaries
+
+tests\test_plus_payment_migrations.py:123: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_migration_is_atomic_repeatable_and_rolls_back
+FAILED tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_migration_preserves_legacy_and_does_not_guess_streamer_buyer
+FAILED tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_provider_transaction_attempt_and_event_uniqueness
+FAILED tests/test_plus_payment_migrations.py::MoneyValidationTests::test_money_rejects_bool_float_nonpositive_and_unknown_currency
+ERROR tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_migration_is_atomic_repeatable_and_rolls_back
+ERROR tests/test_plus_payment_migrations.py::PlusPaymentMigrationTests::test_provider_transaction_attempt_and_event_uniqueness
+4 failed, 4 passed, 2 errors in 3.50s
