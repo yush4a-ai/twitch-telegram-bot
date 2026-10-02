@@ -30,6 +30,7 @@ SCENARIOS = frozenset({
     "payment-off", "legal-unready", "reminder-inflight", "history",
     "streamer-unconnected", "channel-empty",
     "streamer-posts",
+    "purchase-history",
 })
 
 
@@ -230,6 +231,24 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
                                                 clock=lambda value=event_at: value)
                     if await worker.run_once() != 1:
                         raise AssertionError("fixture history requires a terminal fake delivery")
+        if scenario == "purchase-history":
+            # Persisted presentation cases only, not a payment or provider success.
+            for index, financial in enumerate(("pending", "confirmed", "confirmed", "refunded", "canceled", "pending")):
+                actor = 501 if index < 5 else 202
+                order_id = f"{index + 1:032x}"
+                created = observed_at - index
+                await db.create_billing_order(order_id, "history:" + order_id, actor,
+                                              600, now=created, plan="viewer_plus")
+                expires = observed_at - 10 if index == 2 else observed_at + 600 if index in {1, 3} else None
+                await db.conn.execute(
+                    "UPDATE billing_orders SET provider='platega',method='sbp',currency='RUB',units=15000,"
+                    "financial_status=?,status=?,paid_at=?,access_starts_at=?,access_expires_at=?,checkout_expires_at=? WHERE order_id=?",
+                    (financial, {"confirmed": "paid", "canceled": "cancelled"}.get(financial, financial),
+                     created if financial == "confirmed" else None,
+                     created if expires is not None else None, expires,
+                     observed_at + 300, order_id),
+                )
+            await db.conn.commit()
         state = FixtureState(scenario, observed_at, directory, FixtureBot(channel=True), FixtureTwitch(channels))
         app = web.Application()
         app[FIXTURE_STATE_KEY] = state
@@ -256,6 +275,19 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             return web.json_response({"stopped": True})
 
         app.router.add_post("/_qa/shutdown", shutdown)
+        async def expire_purchase(request):
+            if scenario != "purchase-history" or not ipaddress.ip_address(request.remote or "0.0.0.0").is_loopback:
+                return web.json_response({"error": "local_only"}, status=403)
+            order_id = f"{1:032x}"
+            at = time.time() - 0.001
+            order = await db.get_billing_order(order_id)
+            if order is None or order.created_at >= at:
+                return web.json_response({"error": "not_expired_yet"}, status=409)
+            await db.conn.execute("UPDATE billing_orders SET checkout_expires_at=? WHERE order_id=? AND telegram_user_id=501",
+                                  (at, order_id))
+            await db.conn.commit()
+            return web.json_response({"expired": True})
+        app.router.add_post("/_qa/purchase-expire", expire_purchase)
         async def channel_control(request):
             if not ipaddress.ip_address(request.remote or "0.0.0.0").is_loopback:
                 return web.json_response({"error": "local_only"}, status=403)

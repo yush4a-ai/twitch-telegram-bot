@@ -172,6 +172,11 @@ def _main_menu_keyboard(
                     web_app=WebAppInfo(url=viewer_url),
                 )
             ])
+            if viewer_url.endswith("/app"):
+                rows.append([InlineKeyboardButton(
+                    text="Возможности Plus",
+                    web_app=WebAppInfo(url=viewer_url + "?screen=subscription"),
+                )])
     rows.append([InlineKeyboardButton(text="ℹ️ Что умею", callback_data="menu:about")])
     if chat_type == ChatType.PRIVATE and admin_url:
         rows.append([InlineKeyboardButton(text="🛡️ Админ-панель", web_app=WebAppInfo(url=admin_url))])

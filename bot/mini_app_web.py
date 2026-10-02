@@ -31,6 +31,7 @@ _ASSETS = {
     "streamer.js": "application/javascript",
     "streamer_posts.js": "application/javascript",
     "subscription.js": "application/javascript",
+    "purchase.js": "application/javascript",
     "profile.js": "application/javascript",
     "support.js": "application/javascript",
 }

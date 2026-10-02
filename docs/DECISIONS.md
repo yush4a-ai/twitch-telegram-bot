@@ -505,3 +505,9 @@
 - Основание: утверждённый P14. Draft проходит server validator и прежний composer без записи/send; template/preset/apply/delete остаются отдельными действиями. Каждый placement имеет свой draft/version.
 - Проверка:34tests/38subtests,4reports/34PNG; exact CAS/pending/403/expiry/reload/late ACK. Статистика — подтверждённые own IDs, без views/clicks.
 - Граница: fake browser/DB/sender, native и staging NOT TESTED; `P14-POSTS.md`, следующий P15.
+
+## D070 — покупка пока не создаёт платёж
+
+- Основание: утверждённый P15. Режим выбирает основной Plus из каталога;150/300 и4блока, secondary Viewer. Все3метода внутри Mini App ведут к server503, деньги OFF независимо от credentials/restart.
+- Проверка:35tests/57subtests,6reports/84PNG/hash, один reviewer. canonical confirmed/canceled и pending-expiry, frozen buyer/own orders, late re-entry проверены без ослабления assertions/index.
+- Граница: локальный prepared ledger/SDK double, native/provider/staging NOT TESTED; `P15-PLUS-PURCHASE.md`. Далее P16.

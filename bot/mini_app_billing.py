@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import time
+import re
 
 from aiohttp import web
 
@@ -13,7 +14,7 @@ from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
 from .mini_app_auth import verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
-from .plan_catalog import catalog_payload
+from .plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE
 from .entitlements import resolve_effective_viewer
 
 
@@ -46,24 +47,84 @@ def install_mini_app_billing_routes(
             return None, web.json_response({"error": "order_denied"}, status=403)
         return order, None
 
-    async def state(request: web.Request) -> web.Response:
-        user_id, _values, error = await read(request)
+    async def owned_streamer(user_id: int, now: float):
+        # Subscription ownership survives unlink. Legacy unbound grants remain
+        # visible only through their existing verified broadcaster binding.
+        row = await (await db.conn.execute(
+            "SELECT g.source,g.expires_at FROM entitlement_grants g "
+            "WHERE g.subject_kind='streamer' AND g.plan='streamer_plus' "
+            "AND g.revoked_at IS NULL AND g.starts_at<=? AND g.expires_at>? "
+            "AND (g.beneficiary_telegram_user_id=? OR (g.beneficiary_telegram_user_id IS NULL "
+            "AND EXISTS (SELECT 1 FROM streamer_identities i WHERE i.telegram_user_id=? "
+            "AND i.broadcaster_id=g.subject_id))) ORDER BY g.expires_at DESC LIMIT 1",
+            (now, now, user_id, user_id),
+        )).fetchone()
+        return row
+
+    async def order_summary(order, user_id: int, now: float):
+        monetary = order.provider in {"platega", "telegram_stars"}
+        status = order.status
+        if status == "pending" and now >= order.checkout_expires_at:
+            status = "expired"
+        elif status == "paid" and order.paid_at is not None and now >= order.paid_at + order.duration_seconds:
+            status = "expired"
+        viewer = await resolve_effective_viewer(db, user_id, now=now)
+        return {
+            "order_id": order.order_id, "product": order.plan, "method": order.method,
+            "financial_status": order.financial_status if monetary else None,
+            "status": status, "created_at": order.created_at,
+            "checkout_expires_at": order.checkout_expires_at,
+            "access_starts_at": order.access_starts_at,
+            "access_expires_at": order.access_expires_at,
+            "effective_access": {"viewer": viewer.active,
+                                 "streamer": await owned_streamer(user_id, now) is not None},
+            "monetary": monetary,
+        }
+
+    async def prepare(request: web.Request):
+        _user_id, values, error = await read(request)
         if error is not None:
             return error
+        if (set(values) != {"init_data", "product", "method", "request_key"}
+            or not isinstance(values.get("product"), str)
+            or values["product"] not in {"viewer_plus", "streamer_plus"}
+            or not isinstance(values.get("method"), str)
+            or values["method"] not in {"stars", "sbp", "bank_card"}
+            or not isinstance(values.get("request_key"), str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", values["request_key"]) is None):
+            return web.json_response({"error": "invalid_purchase_request"}, status=400)
+        # First release is unconditionally OFF, independent of env credentials.
+        # No checkout/provider/order creation or entitlement mutation happens here.
+        return web.json_response({"state": "unavailable", "message": PAYMENT_UNAVAILABLE_MESSAGE,
+                                  "payment_request_created": False}, status=503)
+
+    async def purchase_state(request: web.Request):
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if (set(values) != {"init_data", "order_id"}
+            or not isinstance(values.get("order_id"), str)
+            or re.fullmatch(r"[0-9a-f]{32}", values["order_id"]) is None):
+            return web.json_response({"error": "invalid_order"}, status=400)
+        order = await db.get_billing_order(values["order_id"])
+        if order is None or order.telegram_user_id != user_id:
+            return web.json_response({"error": "order_denied"}, status=403)
+        return web.json_response(await order_summary(order, user_id, time.time()))
+
+    async def state(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data"}:
+            return web.json_response({"error": "invalid_subscription_request"}, status=400)
         now = time.time()
         identity = await db.get_streamer_identity(user_id)
         viewer = await db.get_current_plus_grant(user_id, "viewer_plus", now=now)
         effective_viewer = await resolve_effective_viewer(db, user_id, now=now)
         trial_status = await trial.status(user_id, now=now)
-        streamer = await db.get_current_plus_grant(user_id, "streamer_plus", now=now)
+        streamer = await owned_streamer(user_id, now)
+        publishing = await db.get_current_plus_grant(user_id, "streamer_plus", now=now)
         orders = await db.list_billing_orders_for_user(user_id)
-
-        def display_status(order):
-            if order.status == "pending" and now >= order.checkout_expires_at:
-                return "expired"
-            if order.status == "paid" and order.paid_at is not None and now >= order.paid_at + order.duration_seconds:
-                return "expired"
-            return order.status
 
         return web.json_response({
             "viewer": {"active": effective_viewer.active,
@@ -77,15 +138,12 @@ def install_mini_app_billing_routes(
                        "test_trial_active": allowed(user_id) and trial_status.active,
                        "test_trial_expires_at": trial_status.expires_at if allowed(user_id) else None},
             "streamer": {"linked": identity is not None,
+                         "publishing_access": publishing is not None,
                          "twitch_login": identity[1] if identity else None,
                          "active": streamer is not None,
                          "expires_at": streamer[1] if streamer else None,
                          "source": streamer[0] if streamer else None},
-            "history": [
-                {"order_id": order.order_id, "product": order.plan,
-                 "status": display_status(order), "created_at": order.created_at}
-                for order in orders
-            ],
+            "history": [await order_summary(order, user_id, now) for order in orders],
             "test_checkout_available": allowed(user_id),
             "money_charged": False,
         })
@@ -208,6 +266,8 @@ def install_mini_app_billing_routes(
 
     app.router.add_post("/app/api/subscription/state", state)
     app.router.add_post("/app/api/subscription/catalog", catalog)
+    app.router.add_post("/app/api/purchase/prepare", prepare)
+    app.router.add_post("/app/api/purchase/state", purchase_state)
     app.router.add_post("/app/api/subscription/test-checkout", test_checkout)
     app.router.add_post("/app/api/subscription/test-trial", test_trial)
     app.router.add_post("/app/api/subscription/test-confirm", test_confirm)

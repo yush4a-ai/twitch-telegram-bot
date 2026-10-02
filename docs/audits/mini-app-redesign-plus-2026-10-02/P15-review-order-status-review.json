@@ -1,0 +1,64 @@
+{
+  "scope": "actual local orderStatus module, canonical ledger vocabulary",
+  "native": "NOT TESTED",
+  "externalRequests": [],
+  "cases": [
+    {
+      "name": "confirmed active",
+      "monetary": true,
+      "financial_status": "confirmed",
+      "status": "paid",
+      "expected": "Оплата подтверждена",
+      "actual": "Статус неизвестен",
+      "matches": false
+    },
+    {
+      "name": "confirmed access expired",
+      "monetary": true,
+      "financial_status": "confirmed",
+      "status": "expired",
+      "expected": "Оплата подтверждена",
+      "actual": "Статус неизвестен",
+      "matches": false
+    },
+    {
+      "name": "canceled",
+      "monetary": true,
+      "financial_status": "canceled",
+      "status": "cancelled",
+      "expected": "Отменён",
+      "actual": "Статус неизвестен",
+      "matches": false
+    },
+    {
+      "name": "pending checkout expired",
+      "monetary": true,
+      "financial_status": "pending",
+      "status": "expired",
+      "expected": "Время оплаты истекло",
+      "actual": "Ожидает оплаты",
+      "matches": false
+    },
+    {
+      "name": "refunded",
+      "monetary": true,
+      "financial_status": "refunded",
+      "status": "refunded",
+      "expected": "Возврат подтверждён",
+      "actual": "Возврат подтверждён",
+      "matches": true
+    },
+    {
+      "name": "mock paid",
+      "monetary": false,
+      "financial_status": null,
+      "status": "paid",
+      "expected": "Доступ предоставлен без оплаты",
+      "actual": "Доступ предоставлен без оплаты",
+      "matches": true
+    }
+  ],
+  "sourceSha256": "6d905c920ec8f38cd750a45809c77d79142e002d764c35ffcf1fa66b9ce65c20",
+  "status": "RED",
+  "failure": "Canonical financial status must be shown exactly"
+}

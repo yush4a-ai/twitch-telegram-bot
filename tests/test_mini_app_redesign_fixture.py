@@ -10,6 +10,23 @@ from tests.test_admin_telegram_auth import signed_webapp
 
 
 class RedesignFixtureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_purchase_history_is_own_persisted_records_without_sends(self):
+        app, db, client = await self.build('purchase-history')
+        response = await client.post('/app/api/subscription/state', json={'init_data': signed_webapp(501)})
+        self.assertEqual(response.status, 200)
+        history = (await response.json())['history']
+        self.assertEqual(len(history), 5)
+        self.assertEqual([row['financial_status'] for row in history], ['pending', 'confirmed', 'confirmed', 'refunded', 'canceled'])
+        response = await client.post('/_qa/purchase-expire')
+        self.assertEqual(response.status, 200)
+        response = await client.post('/app/api/purchase/state', json={'init_data': signed_webapp(501), 'order_id': history[0]['order_id']})
+        expired = await response.json()
+        self.assertEqual((expired['financial_status'], expired['status']), ('pending', 'expired'))
+        self.assertTrue(all(row['monetary'] for row in history))
+        self.assertEqual(len(await db.list_billing_orders_for_user(202)), 1)
+        self.assertEqual(app[fixture.FIXTURE_STATE_KEY].bot.sent_calls, [])
+        self.assertEqual(app[fixture.FIXTURE_STATE_KEY].external_payment_calls, [])
+
     async def build(self, scenario):
         builder = getattr(fixture, "build_fixture", None)
         self.assertTrue(callable(builder), "scenario builder is required")

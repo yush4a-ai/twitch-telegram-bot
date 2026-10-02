@@ -11,7 +11,7 @@
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
 | P08–P12 — темы, shell и Viewer | P08–P12 PASS |
-| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13–P14 PASS; далее P15 |
+| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13–P15 PASS; далее P16 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
 
@@ -85,3 +85,7 @@ BASE `d4f4b51` → connection commit. Python48tests/33subtests,10browser reports
 ## P14 complete
 
 BASE `60708977` → posts commit. Python34tests/38subtests,4browser reports/34PNG/hash,JS0/external0. `P14-POSTS.md`; короткие Posts/редактор/variants/статистика, server draft без save/send, pending/CAS/expiry/reload/late placement. Один scoped read-only review, точные регрессии сохранены. Native/staging NOT TESTED. Следующий P15.
+
+## P15 complete
+
+BASE0891997; Python35tests/57subtests,6reports/84PNG/current SHA. Role-aware catalog150/300/4blocks/secondary Viewer, purchase3methods→503/zero money side effects, frozen subscription/own operations. Один reviewer; canonical financial vocabulary и fresh/held re-entry закрыты. `P15-PLUS-PURCHASE.md`; native/staging NOT TESTED. Далее P16 legal/support.

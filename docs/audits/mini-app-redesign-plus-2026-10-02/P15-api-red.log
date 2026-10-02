@@ -1,0 +1,1030 @@
+FFF.F                                                    [100%]
+================================== FAILURES ===================================
+_ MiniAppPurchaseTests.test_auth_and_exact_fields_are_checked_before_unavailable _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_auth_and_exact_fields_are_checked_before_unavailable>
+
+    async def test_auth_and_exact_fields_are_checked_before_unavailable(self):
+        for path in ("purchase/prepare", "purchase/state"):
+            async with self.session.post(self.base + "/app/api/" + path, json={"paid": True}) as response:
+>               self.assertEqual(response.status, 401)
+E               AssertionError: 404 != 401
+
+tests\test_mini_app_purchase.py:73: AssertionError
+_ MiniAppPurchaseTests.test_frozen_streamer_subscription_survives_unlink_without_granting_new_owner _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_frozen_streamer_subscription_survives_unlink_without_granting_new_owner>
+
+    async def test_frozen_streamer_subscription_survives_unlink_without_granting_new_owner(self):
+        now = time.time()
+        await self.db.issue_test_streamer_plus("11", "frozen-subscription", starts_at=now - 10,
+                                              expires_at=now + 600, issued_by=999, now=now,
+                                              beneficiary_telegram_user_id=101)
+        await self.db.conn.execute("DELETE FROM streamer_identities WHERE telegram_user_id=101")
+        await self.db.conn.commit()
+        await self.db.link_streamer_identity(202, "11", "alpha", verified_at=now)
+        _, own = await self.call("subscription/state")
+>       self.assertTrue(own["streamer"]["active"])
+E       AssertionError: False is not true
+
+tests\test_mini_app_purchase.py:128: AssertionError
+_ MiniAppPurchaseTests.test_state_own_financial_and_access_are_independent_no_sensitive_fields (financial='pending', expires=None) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_state_own_financial_and_access_are_independent_no_sensitive_fields>
+
+    async def test_state_own_financial_and_access_are_independent_no_sensitive_fields(self):
+        for financial, expires in (("pending", None), ("succeeded", time.time() + 500),
+                                    ("succeeded", time.time() - 5), ("refunded", time.time() + 500)):
+            with self.subTest(financial=financial, expires=expires):
+                order_id = await self.seed_order(status=financial, expires=expires)
+>               status, result = await self.call("purchase/state", order_id=order_id)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_purchase.py:103:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56271/app/api/purchase/state) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 'tex...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:35 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56271/app/api/purchase/state'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_state_own_financial_and_access_are_independent_no_sensitive_fields (financial='succeeded', expires=1790960875.4566407) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_state_own_financial_and_access_are_independent_no_sensitive_fields>
+
+    async def test_state_own_financial_and_access_are_independent_no_sensitive_fields(self):
+        for financial, expires in (("pending", None), ("succeeded", time.time() + 500),
+                                    ("succeeded", time.time() - 5), ("refunded", time.time() + 500)):
+            with self.subTest(financial=financial, expires=expires):
+                order_id = await self.seed_order(status=financial, expires=expires)
+>               status, result = await self.call("purchase/state", order_id=order_id)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_purchase.py:103:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56271/app/api/purchase/state) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 'tex...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:35 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56271/app/api/purchase/state'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_state_own_financial_and_access_are_independent_no_sensitive_fields (financial='succeeded', expires=1790960370.4566407) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_state_own_financial_and_access_are_independent_no_sensitive_fields>
+
+    async def test_state_own_financial_and_access_are_independent_no_sensitive_fields(self):
+        for financial, expires in (("pending", None), ("succeeded", time.time() + 500),
+                                    ("succeeded", time.time() - 5), ("refunded", time.time() + 500)):
+            with self.subTest(financial=financial, expires=expires):
+                order_id = await self.seed_order(status=financial, expires=expires)
+>               status, result = await self.call("purchase/state", order_id=order_id)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_purchase.py:103:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56271/app/api/purchase/state) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 'tex...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:35 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56271/app/api/purchase/state'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_state_own_financial_and_access_are_independent_no_sensitive_fields (financial='refunded', expires=1790960875.4566407) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_state_own_financial_and_access_are_independent_no_sensitive_fields>
+
+    async def test_state_own_financial_and_access_are_independent_no_sensitive_fields(self):
+        for financial, expires in (("pending", None), ("succeeded", time.time() + 500),
+                                    ("succeeded", time.time() - 5), ("refunded", time.time() + 500)):
+            with self.subTest(financial=financial, expires=expires):
+                order_id = await self.seed_order(status=financial, expires=expires)
+>               status, result = await self.call("purchase/state", order_id=order_id)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_purchase.py:103:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56271/app/api/purchase/state) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 'tex...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:35 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56271/app/api/purchase/state'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_state_own_financial_and_access_are_independent_no_sensitive_fields _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_state_own_financial_and_access_are_independent_no_sensitive_fields>
+
+    async def test_state_own_financial_and_access_are_independent_no_sensitive_fields(self):
+        for financial, expires in (("pending", None), ("succeeded", time.time() + 500),
+                                    ("succeeded", time.time() - 5), ("refunded", time.time() + 500)):
+            with self.subTest(financial=financial, expires=expires):
+                order_id = await self.seed_order(status=financial, expires=expires)
+                status, result = await self.call("purchase/state", order_id=order_id)
+                self.assertEqual(status, 200)
+                self.assertEqual(result["financial_status"], financial)
+                self.assertEqual(result["product"], "viewer_plus")
+                self.assertEqual(result["method"], "sbp")
+                self.assertEqual(result["access_expires_at"], expires)
+                self.assertFalse(result["effective_access"]["viewer"])
+                self.assertEqual(set(result), {"order_id", "product", "method", "financial_status", "status",
+                                               "checkout_expires_at", "access_starts_at", "access_expires_at",
+                                               "effective_access", "monetary", "created_at"})
+                self.assertEqual((await self.call("purchase/state", actor=202, order_id=order_id))[0], 403)
+                self.assertEqual((await self.call("subscription/test-confirm", order_id=order_id))[0], 403)
+>       self.assertEqual((await self.call("purchase/state", order_id=uuid.uuid4().hex))[0], 403)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_purchase.py:115:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56271/app/api/purchase/state) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 'tex...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:35 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56271/app/api/purchase/state'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+---------------------------- Captured stdout call -----------------------------
+uuuu
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='stars', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='sbp', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='bank_card', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='stars', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='sbp', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='bank_card', restart=False) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56278/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56278/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='stars', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='sbp', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='viewer_plus', method='bank_card', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='stars', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='sbp', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ MiniAppPurchaseTests.test_three_methods_same_products_server_prices_no_side_effects_after_restart (product='streamer_plus', method='bank_card', restart=True) _
+
+self = <test_mini_app_purchase.MiniAppPurchaseTests testMethod=test_three_methods_same_products_server_prices_no_side_effects_after_restart>
+
+    async def test_three_methods_same_products_server_prices_no_side_effects_after_restart(self):
+        status, catalog = await self.call("subscription/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["rub"]["amount_minor"] for p in catalog["products"]], [15000, 30000])
+        self.assertEqual({m["id"] for m in catalog["methods"]}, {"stars", "sbp", "bank_card"})
+        before = await self.counts()
+        with patch.dict(os.environ, {"PLATEGA_MERCHANT_ID": "fake", "PLATEGA_SECRET": "fake",
+                                     "BILLING_ENABLED": "true"}), patch("bot.billing.BillingService.prepare_payment", new_callable=AsyncMock) as money:
+            for base in (self.base, await self.server()):
+                for product in ("viewer_plus", "streamer_plus"):
+                    for method in ("stars", "sbp", "bank_card"):
+                        with self.subTest(product=product, method=method, restart=base != self.base):
+>                           status, result = await self.call("purchase/prepare", base=base,
+                                                            product=product, method=method, request_key=uuid.uuid4().hex)
+
+tests\test_mini_app_purchase.py:62:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_purchase.py:44: in call
+    return response.status, await response.json()
+                            ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <ClientResponse(http://127.0.0.1:56280/app/api/purchase/prepare) [404 Not Found]>
+<CIMultiDictProxy('Content-Type': 't...rset=utf-8', 'Content-Length': '14', 'Date': 'Fri, 02 Oct 2026 16:59:36 GMT', 'Server': 'Python/3.12 aiohttp/3.14.3')>
+
+encoding = None, loads = <function loads at 0x000002471F3B5620>
+content_type = 'application/json'
+
+    async def json(
+        self,
+        *,
+        encoding: str | None = None,
+        loads: JSONDecoder = DEFAULT_JSON_DECODER,
+        content_type: str | None = "application/json",
+    ) -> Any:
+        """Read and decodes JSON response."""
+        if self._body is None:
+            await self.read()
+
+        if content_type:
+            ctype = self.headers.get(hdrs.CONTENT_TYPE, "").lower()
+            if not _is_expected_content_type(ctype, content_type):
+>               raise ContentTypeError(
+                    self.request_info,
+                    self.history,
+                    status=self.status,
+                    message=(
+                        "Attempt to decode JSON with unexpected mimetype: %s" % ctype
+                    ),
+                    headers=self.headers,
+                )
+E               aiohttp.client_exceptions.ContentTypeError: 404, message='Attempt to decode JSON with unexpected mimetype: text/plain; charset=utf-8', url='http://127.0.0.1:56280/app/api/purchase/prepare'
+
+.venv\Lib\site-packages\aiohttp\client_reqrep.py:778: ContentTypeError
+_ PurchaseMenuTests.test_plus_is_private_app_link_only_and_query_selects_no_rights _
+
+self = <test_mini_app_purchase.PurchaseMenuTests testMethod=test_plus_is_private_app_link_only_and_query_selects_no_rights>
+
+    def test_plus_is_private_app_link_only_and_query_selects_no_rights(self):
+        from bot.handlers.streams import _main_menu_keyboard
+        private = _main_menu_keyboard("private", viewer_url="https://staging.example.test/app")
+        buttons = [b for row in private.inline_keyboard for b in row]
+>       plus = next(b for b in buttons if b.text == "Возможности Plus")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopIteration
+
+tests\test_mini_app_purchase.py:142: StopIteration
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_auth_and_exact_fields_are_checked_before_unavailable
+FAILED tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_frozen_streamer_subscription_survives_unlink_without_granting_new_owner
+SUBFAILED(financial='pending', expires=None) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_state_own_financial_and_access_are_independent_no_sensitive_fields
+SUBFAILED(financial='succeeded', expires=1790960875.4566407) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_state_own_financial_and_access_are_independent_no_sensitive_fields
+SUBFAILED(financial='succeeded', expires=1790960370.4566407) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_state_own_financial_and_access_are_independent_no_sensitive_fields
+SUBFAILED(financial='refunded', expires=1790960875.4566407) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_state_own_financial_and_access_are_independent_no_sensitive_fields
+FAILED tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_state_own_financial_and_access_are_independent_no_sensitive_fields
+SUBFAILED(product='viewer_plus', method='stars', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='viewer_plus', method='sbp', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='viewer_plus', method='bank_card', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='stars', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='sbp', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='bank_card', restart=False) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='viewer_plus', method='stars', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='viewer_plus', method='sbp', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='viewer_plus', method='bank_card', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='stars', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='sbp', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+SUBFAILED(product='streamer_plus', method='bank_card', restart=True) tests/test_mini_app_purchase.py::MiniAppPurchaseTests::test_three_methods_same_products_server_prices_no_side_effects_after_restart
+FAILED tests/test_mini_app_purchase.py::PurchaseMenuTests::test_plus_is_private_app_link_only_and_query_selects_no_rights
+20 failed, 1 passed in 6.85s

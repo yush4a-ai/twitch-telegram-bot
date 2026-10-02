@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(status, code) { super(code); this.status = status; this.code = code; }
+  constructor(status, code, data=null) { super(code); this.status = status; this.code = code; this.data=data; }
 }
 
 export function createApi(initData) {
@@ -20,7 +20,7 @@ export function createApi(initData) {
       body: JSON.stringify({ ...fields, init_data: initData }),
     });
     const result = await response.json();
-    if (!response.ok) throw new ApiError(response.status, result.error || 'request_failed');
+    if (!response.ok) throw new ApiError(response.status, result.error || 'request_failed', result);
     return result;
   }
   return {

@@ -198,3 +198,28 @@ button[aria-disabled=true] { cursor:wait; opacity:.7; }
 .settings-group p { font-size:.9375rem; }
 .settings-group .actions { margin-top:4px; }
 @media(max-width:420px) { .time-fields { grid-template-columns:1fr; } }
+
+.plus-offer { margin-top:24px; }
+.plus-offer > .lead { margin:8px 0 16px; }
+.subscription-price { font-variant-numeric:tabular-nums; font-size:1.5rem; font-weight:600; margin:12px 0 20px; }
+.plus-benefits { margin:0 0 20px; }
+.plus-benefit { display:flex; gap:12px; align-items:center; min-height:72px; padding:12px 0; }
+.plus-benefit + .plus-benefit { border-top:1px solid var(--line); }
+.plus-benefit > svg { color:var(--accent); flex-shrink:0; }
+.plus-benefit .row-copy { gap:4px; }
+.plus-benefit small { font-size:.9375rem; }
+.plus-offer > .button { width:100%; margin-top:16px; }
+.plus-renewal { margin-top:8px; font-size:.875rem; }
+.plus-disclosure { margin:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.plus-disclosure summary { min-height:48px; padding:12px 0; cursor:pointer; color:var(--text); font-weight:600; }
+.plus-disclosure summary:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+.plus-feature-list { margin:0; padding:0 0 16px 20px; }
+.plus-feature-list li { margin:16px 0; }
+.plus-feature-list p { margin:4px 0 0; }
+.plus-current { margin:20px 0; padding:16px; border-radius:var(--radius-group); background:var(--surface); }
+.plus-current-row + .plus-current-row { padding-top:12px; border-top:1px solid var(--line); }
+.plus-current-row p { margin:4px 0 12px; }
+.plus-free { margin:28px 0 20px; }
+.purchase-methods { margin-top:24px; }
+.purchase-methods button[aria-pressed=true] { background:var(--soft); }
+.purchase-methods button:disabled { opacity:.65; cursor:wait; }

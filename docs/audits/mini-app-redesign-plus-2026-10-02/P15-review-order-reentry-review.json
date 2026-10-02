@@ -1,0 +1,51 @@
+{
+  "scope": "held own-order read, leave, expiry, re-entry",
+  "native": "NOT TESTED",
+  "externalRequests": [],
+  "requests": 2,
+  "sources": {
+    "app.js": "a7e380d820444d5eaaef0ac9a4d16729c6b4b694cae772a399c44682c1285741",
+    "purchase.js": "1664fff16a3337a1c9203801972e33a3f315e47cb23501787b61a8f891e2accb"
+  },
+  "heldSnapshot": {
+    "order_id": "00000000000000000000000000000001",
+    "product": "viewer_plus",
+    "method": "sbp",
+    "financial_status": "pending",
+    "status": "pending",
+    "created_at": 1790961729.7038062,
+    "checkout_expires_at": 1790962029.7038062,
+    "access_starts_at": null,
+    "access_expires_at": null,
+    "effective_access": {
+      "viewer": false,
+      "streamer": false
+    },
+    "monetary": true
+  },
+  "expiryStatus": 200,
+  "requestsAtReentry": 1,
+  "freshLabel": false,
+  "pendingLabel": 1,
+  "canonical": {
+    "status": 200,
+    "data": {
+      "order_id": "00000000000000000000000000000001",
+      "product": "viewer_plus",
+      "method": "sbp",
+      "financial_status": "pending",
+      "status": "expired",
+      "created_at": 1790961729.7038062,
+      "checkout_expires_at": 1790961730.3805268,
+      "access_starts_at": null,
+      "access_expires_at": null,
+      "effective_access": {
+        "viewer": false,
+        "streamer": false
+      },
+      "monetary": true
+    }
+  },
+  "status": "RED",
+  "failure": "Re-entry must not consume an earlier pending snapshot after server expiry\n\n'RED' !== 'PASS'\n"
+}

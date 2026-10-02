@@ -5,6 +5,7 @@ import { element, panel, icon, dialog, navigationRow, closeActiveDialog } from '
 import { createViewerFeature } from './viewer.js';
 import { createStreamerFeature } from './streamer.js';
 import { createSubscriptionFeature } from './subscription.js';
+import { createPurchaseFeature } from './purchase.js';
 import { createThemeController } from './theme.js';
 import { createProfileFeature } from './profile.js';
 import { createSupportFeature } from './support.js';
@@ -18,9 +19,11 @@ let router;
 let viewerFeature;
 let streamerFeature;
 let subscriptionFeature;
+let purchaseFeature;
 let profileFeature;
 let supportFeature;
 let subscriptionOpen = false;
+let purchaseOrderOpen=null;
 let historyOpen=false;
 const telegram = createTelegramAdapter(() => { if(!closeActiveDialog())router.back(); });
 let themeStorage;
@@ -32,7 +35,7 @@ const onDialogChange=()=>telegram.syncBack(Boolean(document.querySelector('dialo
 document.addEventListener('app-dialog-change',onDialogChange);
 window.addEventListener('pagehide', (event) => {
   if(event.persisted)return;
-  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();resizeNavigation.disconnect();
+  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();resizeNavigation.disconnect();
 });
 const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
 resizeNavigation.observe(tabBar);
@@ -62,7 +65,7 @@ function render(state, canBack) {
   const detailName=typeof state.detail==='object'?state.detail?.name:state.detail;
   if(detailName==='history'&&!historyOpen)viewerFeature.resetHistory();
   historyOpen=detailName==='history';
-  const plusActive=['subscription','purchase'].includes(detailName);
+  const plusActive=['subscription','purchase','purchase-order'].includes(detailName);
   for (const [id, label, glyph] of tabs) {
     const button = element('button', '', '');
     button.type = 'button';
@@ -85,6 +88,7 @@ function render(state, canBack) {
     content.append(element('div', 'status-panel', 'Проверяем вход…'));
     return;
   }
+  if(detailName!=='purchase-order')purchaseOrderOpen=null;
   if (detailName === 'subscription') {
     if (!subscriptionOpen) void subscriptionFeature.refresh();
     subscriptionOpen = true;
@@ -92,6 +96,10 @@ function render(state, canBack) {
     return;
   }
   subscriptionOpen = false;
+  if(detailName==='purchase'||detailName==='purchase-order'){
+    if(detailName==='purchase-order'&&purchaseOrderOpen!==state.detail.id){purchaseOrderOpen=state.detail.id;void purchaseFeature.refreshOrder(state.detail.id);}
+    purchaseFeature.render(content,state);return;
+  }
   if(detailName==='support'){supportFeature.render(content,state);return;}
   if(detailName==='viewer-settings'){viewerFeature.render(content,{...state,tab:'profile',detail:null});return;}
   if(detailName==='history'){viewerFeature.render(content,{...state,detail:'history'});return;}
@@ -117,6 +125,8 @@ if (!telegram.initData) {
     profileFeature=createProfileFeature(api,()=>router,theme);
     supportFeature=createSupportFeature(api,()=>router,telegram);
     subscriptionFeature=createSubscriptionFeature(api,()=>router,()=>{void viewerFeature.refresh();void streamerFeature.refresh();void profileFeature.refresh();});
+    purchaseFeature=createPurchaseFeature(api,()=>router,telegram);
+    if(new URLSearchParams(location.search).get('screen')==='subscription')router.openDetail('subscription');
   } catch (error) {
     authError = error instanceof ApiError && (error.status === 401 || error.status === 403)
       ? 'Время входа истекло. Откройте приложение заново из чата бота.'

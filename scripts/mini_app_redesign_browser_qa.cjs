@@ -93,6 +93,7 @@ async function runJourney(page, scenario) {
   if (scenario === 'streamer-connection') return streamerConnectionJourney(page);
   if (scenario === 'oauth-results') return oauthResultsJourney(page);
   if (scenario === 'streamer-posts') return streamerPostsJourney(page);
+  if (scenario === 'purchase') return purchaseJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -864,6 +865,102 @@ async function streamerPostsJourney(page) {
   await control({expire_plus:true});await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
   await page.getByText('Обычный пост доступен бесплатно',{exact:true}).waitFor();assert.equal(await page.getByLabel('Текст',{exact:true}).count(),0,'Visibility rereads canonical expiry');
   assert.equal((await call('template',{chat_id:-1004})).data.can_edit,false);await picture('expired');
+  return pictures;
+}
+
+async function purchaseJourney(page) {
+  const pictures=[];
+  async function picture(label){const file=`purchase-flow-${argument('engine','chromium')}-${label}-390.png`;await assertLayout(page);await page.screenshot({path:path.join(output,file),animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});}
+  async function call(path,values={}){return page.evaluate(async({path,values})=>{const response=await fetch(`/app/api/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init_data:window.Telegram.WebApp.initData,...values})});return {status:response.status,data:await response.json()};},{path,values});}
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  const own=(await call('subscription/state')).data;
+  const title=own.viewer.active||own.streamer.active?'Моя подписка':'Возможности Plus';
+  await page.getByRole('heading',{name:title,exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  assert.equal(await page.locator('[data-benefit-block]').count(),4);
+  await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Streamer Plus',exact:true}).count(),0);
+  assert.equal(await page.locator('#content').getByText(/тестов|demo|mock|staging|prototype/i).count(),0);
+  await picture('viewer');
+  await page.getByText('Все возможности',{exact:true}).click();
+  await page.locator('details[open]').getByText('Напоминания',{exact:true}).waitFor();await picture('viewer-expanded');
+  await page.getByRole('button',{name:'Стример',exact:true}).click();
+  await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
+  await page.getByText('300 ₽ / месяц',{exact:true}).waitFor();
+  assert.equal(await page.locator('[data-benefit-block]').count(),4);
+  await page.getByText('Viewer Plus включён',{exact:true}).click();
+  await page.locator('details[open]').getByText('Напоминания',{exact:true}).waitFor();await picture('streamer');
+  await page.getByRole('button',{name:'Нужны только функции зрителя? Viewer Plus — 150 ₽',exact:true}).click();
+  await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();await picture('secondary-viewer');
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
+  await page.getByRole('button',{name:/^(Подключить|Продлить) Streamer Plus — 300 ₽$/}).click();
+  await page.getByRole('heading',{name:'Как оплатить?',exact:true}).waitFor();
+  await page.getByText('СБП и банковская карта — через Platega.',{exact:true}).waitFor();await picture('methods');
+  for(const [method,label] of [['stars','Telegram Stars'],['sbp','СБП'],['bank_card','Банковская карта']]){
+    const response=page.waitForResponse(r=>r.url().endsWith('/app/api/purchase/prepare'));
+    await page.getByRole('button',{name:label,exact:true}).click();const result=await response;
+    assert.equal(result.status(),503);assert.equal(result.request().postDataJSON().method,method);
+    await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:label,exact:true}).isDisabled(),false);await picture(method);
+  }
+  await page.getByRole('button',{name:'Повторить',exact:true}).click();
+  await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
+  let release,seen;const held=new Promise(r=>release=r),started=new Promise(r=>seen=r);
+  await page.route('**/app/api/purchase/prepare',async route=>{seen();await held;return route.continue();});
+  try{
+    await page.getByRole('button',{name:/^(Подключить|Продлить) Streamer Plus — 300 ₽$/}).click();
+    await page.getByRole('button',{name:'СБП',exact:true}).click();await started;
+    assert.equal(await page.getByRole('button',{name:'Telegram Stars',exact:true}).isDisabled(),true);
+    await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Зритель',exact:true}).click();
+    await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();release();
+  }finally{release();await page.unroute('**/app/api/purchase/prepare');}
+  assert.equal(await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).count(),0);
+  const final=(await call('subscription/state')).data;assert.deepEqual(final.history,own.history);assert.equal(final.viewer.active,own.viewer.active);assert.equal(final.streamer.active,own.streamer.active);
+  await page.goto(new URL('/app?screen=subscription&paid=1&price=1&product=streamer_plus',page.url()).href);
+  await page.getByRole('heading',{name:title,exact:true}).waitFor();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  assert.deepEqual((await call('subscription/state')).data.history,own.history);
+  await page.getByRole('button',{name:/^(Подключить|Продлить) Viewer Plus — 150 ₽$/}).click();
+  await page.route('**/app/api/purchase/prepare',route=>route.abort());
+  await page.getByRole('button',{name:'СБП',exact:true}).click();await page.getByText('Нет связи. Попробуйте ещё раз.',{exact:true}).waitFor();await picture('offline');
+  await page.unroute('**/app/api/purchase/prepare');await page.getByRole('button',{name:'Повторить',exact:true}).click();
+  await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:title,exact:true}).click();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  if(argument('scenario','free-six')==='purchase-history'){
+    assert.equal(own.history.length,5);
+    for(const order of own.history){
+      await page.locator(`[data-focus-key="row:${order.order_id}"]`).click();
+      await page.getByRole('heading',{name:'Моя операция',exact:true}).waitFor();
+      const label=order.financial_status==='pending'?(order.status==='expired'?'Время оплаты истекло':'Ожидает оплаты'):order.financial_status==='refunded'?'Возврат подтверждён':order.financial_status==='canceled'?'Отменён':'Оплата подтверждена';
+      await page.getByText(label,{exact:true}).waitFor();
+      await page.getByText('Возможности Viewer Plus сейчас не активны.',{exact:true}).waitFor();
+      if(order.access_expires_at)await page.getByText(/^Срок доступа по операции: до /).waitFor();
+      await picture(`order-${order.order_id.slice(-1)}`);await page.evaluate(()=>window.__qaSdk.back());
+      await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+    }
+    let releaseOrder,seenOrder,reads=0;const orderHeld=new Promise(r=>releaseOrder=r),orderStarted=new Promise(r=>seenOrder=r);
+    await page.route('**/app/api/purchase/state',async route=>{
+      if(route.request().postDataJSON().order_id!==own.history[0].order_id)return route.continue();
+      reads++;if(reads>1)return route.continue();
+      const response=await route.fetch(),body=await response.json();assert.equal(body.status,'pending');seenOrder();await orderHeld;
+      if(!route.request().failure())await route.fulfill({response,json:body});
+    });
+    try{
+      await page.locator(`[data-focus-key="row:${own.history[0].order_id}"]`).click();await orderStarted;
+      await page.evaluate(()=>window.__qaSdk.back());
+      const expired=await page.evaluate(async()=>{const response=await fetch('/_qa/purchase-expire',{method:'POST'});return response.status;});assert.equal(expired,200);
+      await page.locator(`[data-focus-key="row:${own.history[0].order_id}"]`).click();
+      await page.getByRole('heading',{name:'Моя операция',exact:true}).waitFor();
+      await page.getByText('Время оплаты истекло',{exact:true}).waitFor();assert.equal(reads,2,'Re-entry issues a fresh read while old read is held');
+      releaseOrder();await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+      await page.getByText('Время оплаты истекло',{exact:true}).waitFor();await picture('checkout-expired');
+    }finally{releaseOrder();await page.unroute('**/app/api/purchase/state');}
+    const actual=(await call('purchase/state',{order_id:own.history[0].order_id})).data;assert.equal(actual.financial_status,'pending');assert.equal(actual.status,'expired');
+    await page.evaluate(()=>window.__qaSdk.back());
+  }
   return pictures;
 }
 

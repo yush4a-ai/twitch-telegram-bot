@@ -1,0 +1,29 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ RedesignFixtureTests.test_purchase_history_is_own_persisted_records_without_sends _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_purchase_history_is_own_persisted_records_without_sends>
+
+    async def test_purchase_history_is_own_persisted_records_without_sends(self):
+>       app, db, client = await self.build('purchase-history')
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:14:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:28: in build
+    app, db = await builder(scenario)
+              ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+scenario = 'purchase-history', now = None
+
+    async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web.Application, Database]:
+        """Create a disposable local app; never load environment credentials or live data."""
+        if scenario not in SCENARIOS:
+>           raise ValueError("unknown browser fixture scenario")
+E           ValueError: unknown browser fixture scenario
+
+scripts\mini_app_browser_fixture.py:133: ValueError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_purchase_history_is_own_persisted_records_without_sends
+1 failed, 8 deselected in 3.26s

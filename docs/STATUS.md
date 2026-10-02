@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P14 PASS, далее P15
+## Текущий checkpoint — 02.10.2026: P15 PASS, далее P16
+
+P14 bc5e354 + audit0891997; P15 role-aware Plus150/300 и три способа→честный503, zero orders/grants/sender. Python35tests/57subtests,6reports/84PNG/SHA, JS0/external0, detector[]. Один reviewer, actual vocabulary и cached/held own order re-entry закрыты. Frozen subscription сохраняется после unlink; HTML/export/Free/legacy API сохранены. `P15-PLUS-PURCHASE.md`. Native/payment/staging NOT TESTED; далее legal/support P16, полный suite P19.
+
+## Предыдущий checkpoint — 02.10.2026: P14 PASS, далее P15
 
 P13 commit `60708977`; P14 реальные Posts/template/presets/stats APIs в коротких А экранах. Python34tests/38subtests,4reports/34PNG/hash,JS0/external0,detector[]. Один scoped reviewer, cache403/restore-preview/late video ACK закрыты. `P14-POSTS.md`. Предпросмотр без save/send; статистика confirmed own IDs. Native/staging НЕ проверены, production/payment/HTML/export сохранены. Следующий P15.
 
