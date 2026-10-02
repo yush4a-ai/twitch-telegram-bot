@@ -1,6 +1,6 @@
 # Сценарии первого выпуска Mini App
 
-Этот checklist отражает доказательства локальных tests/браузеров. Native owner acceptance остаётся отдельной. Release SHA/deployment дополняются после фактического P20; нынешний файл не объявляет staging выпущенным.
+Этот checklist отражает доказательства локальных tests/браузеров. Native owner acceptance остаётся отдельной. Инженерный staging release подтверждён: код52e56e9,active deploymentfba34520-f2a7-4d5d-aa86-1e8e3b0072b1; точные данные в STAGING-ACCEPTANCE.md. Native приёмка ожидается.
 
 | Сценарий | Локальные Python/browser | Настоящий Telegram/внешняя система | Evidence |
 |---|---|---|---|
@@ -31,11 +31,11 @@
 |5canonical legal docs/контакт/URL/DOM, mandatory owner fields/approval | PASS локально | Документы пока unavailable503, bank NOT READY | P16/legal journeys |
 | Official iframe allowed/foreign origin blocked; другие XFO/CSP сохранены | PASS в Chromium/WebKit | Native Telegram Web NOT TESTED | P19-frame-final |
 | Backup/remote+local restore/migration-copy/rollback/reopen/actual key | PASS в pinned staging copy | Active restore не выполнялся | MIGRATION-COPY |
-| Полный suite и actual deploy/bot/menu/assets/production compare | Ожидается P19/P20 | Не объявлять PASS до записи P20 | RELEASE-GATE/STAGING-ACCEPTANCE |
+| Полный suite и actual deploy/bot/menu/assets/production compare | PASS1403tests/3248subtests/2existing skips | PASS actual Bot API/public resources/DB; signed live API NOT TESTED | P20-staging-smoke/STAGING-ACCEPTANCE |
 
 ## Самостоятельная приёмка владельца
 
-После P20 открыть тестового бота и проверить последовательно:
+Открыть тестового бота и проверить последовательно:
 
 1. Четыре нижние кнопки обоих режимов; Plus из меню и профиля открывает один раздел.
 2. Поиск, добавить/пауза/возобновить, длинное имя и «Статус уточняется», live/offline; Back возвращает список и позицию.

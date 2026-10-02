@@ -1,0 +1,28 @@
+...FE..
+======================================================================
+ERROR: test_raw_artifact_and_normalized_http_hashes_remain_separate (__main__.SmokeGuards.test_raw_artifact_and_normalized_http_hashes_remain_separate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 56, in test_raw_artifact_and_normalized_http_hashes_remain_separate
+    self.assertTrue(verify(result,'s',raw,['v'],'d',served))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: verify() takes 5 positional arguments but 6 were given
+
+======================================================================
+FAIL: test_expected_hashes_use_actual_committed_bundle_bytes (__main__.SmokeGuards.test_expected_hashes_use_actual_committed_bundle_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 52, in test_expected_hashes_use_actual_committed_bundle_bytes
+    self.assertEqual(namespace['hashes'],expected)
+AssertionError: {'bot/database.py': '0d7a21f607a419b2de04389e7dd7eb9da29bfcf53[213 chars]ba9'} != {'bot/database.py': '87d59bf4a97fa171d4225e20a3517a102f009a5e7[213 chars]d40'}
+- {'bot/database.py': '0d7a21f607a419b2de04389e7dd7eb9da29bfcf539d94448a5c4b71af4e004c1',
+-  'bot/mini_app_ui/app.css': 'ac0f8d54c7fc25cf7dff5c9cec5c0ecbcac3d4adce4a94744dcbd4b5fb007ba9',
+-  'bot/mini_app_ui/index.html': '0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da'}
++ {'bot/database.py': '87d59bf4a97fa171d4225e20a3517a102f009a5e70fd882a9b1eaad04146119a',
++  'bot/mini_app_ui/app.css': 'f2831a215695dc066a97ccad6c5caa28c166054fed928d603866a08b0069ed40',
++  'bot/mini_app_ui/index.html': '349ca2812e8e9acb28c7d2b61ccd2ddf9b518b5a5c64de3b2a652d1c899a2dc3'}
+
+----------------------------------------------------------------------
+Ran 7 tests in 7.018s
+
+FAILED (failures=1, errors=1)

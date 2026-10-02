@@ -13,7 +13,7 @@
 | P08–P12 — темы, shell и Viewer | P08–P12 PASS |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13–P17 PASS |
 | P18–P19 — browser/media, полный suite, review, backup | P18/P19 PASS; media-пределы сохранены |
-| P20–P21 — guarded staging и самостоятельная приёмка | P20 следующий: чистый release commit и guard; P21 пакет подготовлен |
+| P20–P21 — guarded staging и самостоятельная приёмка | P20/P21 PASS: инженерный staging release; owner acceptance ожидается |
 
 Viewer150 ₽; Streamer300 ₽. Режим определяет основное предложение Plus; основной внутренний переключатель тарифов удаляется. Первый release без внешних payment POST/invoices/grants из заглушки. Bank NOT READY; реальные Telegram/OAuth/оплаты/native NOT TESTED.
 
@@ -109,3 +109,9 @@ BASE8a8a70f; актуальный общий прогон — `P18-release-chrom
 ## P19 завершён, далее P20
 
 Полный финальный pytest exit0:1403passed,2skipped,3248subtests,903.06s (`P19-full-suite-final.log`). Два прежних WinError1314 symlink skips; новых skips нет. Первое RED exact20versions исправлено явным списком25 и более строгим reopen без runtime changes;49focused tests19subtests PASS, один scoped reviewer. Whole-change security/F1,92browserjourneys/984PNG, backup/restore/migration-copy/actual key закрыты. P19 evidence и draft P21 сохраняются в release commit; штатный guard повторит suite на этом committed snapshot. Payment OFF/bank NOT READY/native NOT TESTED; deploy ещё не выполнен.
+
+## P20–P21 завершены — инженерный staging release
+
+Код52e56e9633a77f7e5025a1be7dacbbf8c0769970; active SUCCESS deploymentfba34520-f2a7-4d5d-aa86-1e8e3b0072b1. Штатный guard повторил suite1403passed/2skipped/3248subtests/850.45s, чистый commit/pins перепроверены. Actual getMe TwitchSignalTestbot8859004067, MenuButtonWebAppПриложение,174artifactfileSHA/14HTTPtextSHA/25migrations/integrity/FK/auth401/paymentOFF/secret0/last100logs0/productionbeforeafterequal PASS. Два operational failures закрыты RED→7selftestsPASS и scoped read-only review: headercase и rawblob≠CRLFgitarchive; exact raw artifact/normalized HTTP checks сохранены, runtime не менялся.
+
+`STAGING-ACCEPTANCE.md`/`OWNER-ACCEPTANCE.md`/`SCENARIOS.md` содержат вход/снимки/сценарии/границы. Staging preview1job/2active sessions/delay20/interval60 сохранён; нагрузкаP18RESOURCE_STOP25s не переименована. Native/signed live API/ownerOAuth/send/edit/delete/media/provider NOT TESTED; legal503/support input/bank NOT READY. Прежние trial/grants/HTML/export/legacygroups сохранены, новых grants не выдавалось. Production active466499d5/SHA dc9239 до/после совпадает. Следующий шаг — самостоятельная приёмка владельца и его замечания; автоматическая работа этого этапа завершается. Итоговый documentation-only commit не заменяет deployed SHA.

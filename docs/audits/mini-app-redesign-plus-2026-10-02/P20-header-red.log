@@ -1,0 +1,23 @@
+FF....
+======================================================================
+FAIL: test_asset_headers_are_case_insensitive_and_keep_exact_deny (__main__.SmokeGuards.test_asset_headers_are_case_insensitive_and_keep_exact_deny) (header='x-frame-options')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 35, in test_asset_headers_are_case_insensitive_and_keep_exact_deny
+    exec(compiled,namespace)
+  File "actual_asset_collector", line 33, in <module>
+AssertionError
+
+======================================================================
+FAIL: test_asset_headers_are_case_insensitive_and_keep_exact_deny (__main__.SmokeGuards.test_asset_headers_are_case_insensitive_and_keep_exact_deny) (header='X-fRaMe-OpTiOnS')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 35, in test_asset_headers_are_case_insensitive_and_keep_exact_deny
+    exec(compiled,namespace)
+  File "actual_asset_collector", line 33, in <module>
+AssertionError
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.017s
+
+FAILED (failures=2)

@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 103, in <module>
+    result=ops.remote(prefix+REMOTE)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p19-ops.py", line 27, in remote
+    raise RuntimeError('Pinned SSH failed code '+str(result.returncode)+' '+repr(diagnostics))
+RuntimeError: Pinned SSH failed code 1 [{'command_chars': 4390, 'stdout_chars': 0, 'stderr_chars': 210, 'stderr_prefix': 'Using SSH key from file C:\\Users\\yusha\\.ssh\\id_ed25519.pub: railway-prod-rollout\nTraceback (most recent call last):\n  File "<string>", line 1, in <module>\n  File "<string>", line 40, in <module>\nAssertionError\n'}]

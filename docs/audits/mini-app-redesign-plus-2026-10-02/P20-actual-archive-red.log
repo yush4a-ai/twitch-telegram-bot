@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 119, in <module>
+    verify(result,sha,hashes,versions,stage['id']);after=ops.status();assert after==before
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Temp\twitchsignal-p20-smoke.py", line 14, in verify
+    assert result['file_hashes']==hashes
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

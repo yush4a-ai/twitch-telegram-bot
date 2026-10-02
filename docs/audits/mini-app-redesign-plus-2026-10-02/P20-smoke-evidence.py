@@ -4,7 +4,8 @@ spec=importlib.util.spec_from_file_location('ops',ops_path);ops=importlib.util.m
 ROOT=ops.ROOT;T=ops.T
 ASSET_NAMES=('app.css','app.js','telegram.js','theme.js','router.js','api.js','components.js','viewer.js','streamer.js','streamer_posts.js','subscription.js','purchase.js','profile.js','support.js')
 UNSIGNED_NAMES=('/app/api/bootstrap','/app/api/viewer/state','/app/api/streamer/profile','/app/api/purchase/prepare','admin')
-def verify(result,sha,hashes,versions,deployment):
+def verify(result,sha,hashes,versions,deployment,http_hashes=None):
+ if http_hashes is None:http_hashes=hashes
  assert result['deployment']==deployment
  assert result['cli_sha']==sha
  assert result['bot']['username']=='TwitchSignalTestbot' and result['bot']['is_bot'] is True
@@ -13,16 +14,60 @@ def verify(result,sha,hashes,versions,deployment):
  assert result['money']=={'mode':'offline','external_create':False,'invoice':False,'live_callback':404}
  assert result['file_hashes']==hashes
  assert result['health']=={'status':'ok','http':200}
- assert result['app']=={'http':200,'xfo':None,'ancestors':'https://web.telegram.org','hash':hashes['bot/mini_app_ui/index.html']}
+ assert result['app']=={'http':200,'xfo':None,'ancestors':'https://web.telegram.org','hash':http_hashes['bot/mini_app_ui/index.html']}
  assert result['unsigned']=={n:401 for n in UNSIGNED_NAMES}
- assert result['http_asset_hashes']=={n:hashes['bot/mini_app_ui/'+n] for n in ASSET_NAMES}
+ assert result['http_asset_hashes']=={n:http_hashes['bot/mini_app_ui/'+n] for n in ASSET_NAMES}
  assert result['legal_http']=={n:503 for n in ['privacy','agreement','support','tariffs','payments']}
  assert result['trial_owner_allowlisted'] is True
  return True
+def expected_release_hashes(sha,names):
+ from scripts.staging_deploy import _committed_bundle
+ with _committed_bundle(sha) as bundle:
+  raw={n:hashlib.sha256((bundle/n).read_bytes()).hexdigest() for n in names}
+  served_names=['bot/mini_app_ui/index.html']+['bot/mini_app_ui/'+n for n in ASSET_NAMES]
+  served={n:hashlib.sha256((bundle/n).read_text(encoding='utf-8').encode('utf-8')).hexdigest() for n in served_names}
+ return raw,served
 def fake():
  hashes={'bot/mini_app_ui/index.html':'shell',**{'bot/mini_app_ui/'+n:'asset' for n in ASSET_NAMES}}
  return hashes,{'deployment':'d','cli_sha':'s','bot':{'username':'TwitchSignalTestbot','is_bot':True},'menu':{'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'},'integrity':'ok','foreign_key_check':[],'versions':['v'],'money':{'mode':'offline','external_create':False,'invoice':False,'live_callback':404},'file_hashes':hashes,'health':{'status':'ok','http':200},'app':{'http':200,'xfo':None,'ancestors':'https://web.telegram.org','hash':'shell'},'unsigned':{n:401 for n in UNSIGNED_NAMES},'http_asset_hashes':{n:'asset' for n in ASSET_NAMES},'legal_http':{n:503 for n in ['privacy','agreement','support','tariffs','payments']},'trial_owner_allowlisted':True}
 class SmokeGuards(unittest.TestCase):
+ def test_asset_headers_are_case_insensitive_and_keep_exact_deny(self):
+  import ast
+  tree=ast.parse(REMOTE)
+  loop=next(n for n in tree.body if isinstance(n,ast.For) and isinstance(n.iter,ast.Name) and n.iter.id=='ASSETS')
+  compiled=compile(ast.Module(body=[loop],type_ignores=[]),'actual_asset_collector','exec')
+  for name in ['X-Frame-Options','x-frame-options','X-fRaMe-OpTiOnS']:
+   with self.subTest(header=name):
+    result={'http_asset_hashes':{}}
+    namespace={'ASSETS':ASSET_NAMES,'http':lambda path:(200,{name:'DENY'},b'asset'),'result':result,'hashlib':hashlib}
+    exec(compiled,namespace)
+    self.assertEqual(result['http_asset_hashes'],{n:hashlib.sha256(b'asset').hexdigest() for n in ASSET_NAMES})
+  for headers in [{},{'x-frame-options':'SAMEORIGIN'}]:
+   with self.subTest(rejected=headers):
+    namespace={'ASSETS':ASSET_NAMES,'http':lambda path:(200,headers,b'asset'),'result':{'http_asset_hashes':{}},'hashlib':hashlib}
+    with self.assertRaises(AssertionError):exec(compiled,namespace)
+ def test_expected_hashes_use_actual_committed_bundle_bytes(self):
+  import ast
+  from scripts.staging_deploy import _committed_bundle
+  sha=ops._capture(['git','rev-parse','HEAD']);names=['bot/database.py','bot/mini_app_ui/index.html','bot/mini_app_ui/app.css']
+  with _committed_bundle(sha) as bundle:
+   expected={n:hashlib.sha256((bundle/n).read_bytes()).hexdigest() for n in names}
+  tree=ast.parse(pathlib.Path(__file__).read_text(encoding='utf-8'))
+  main=next(n for n in tree.body if isinstance(n,ast.If))
+  assignment=next(n for n in ast.walk(main) if isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id=='hashes' for target in n.targets for x in ast.walk(target)))
+  namespace={'sha':sha,'names':names,'ROOT':ROOT,'hashlib':hashlib,'subprocess':subprocess,'expected_release_hashes':globals().get('expected_release_hashes')}
+  exec(compile(ast.Module(body=[assignment],type_ignores=[]),'actual_expected_hashes','exec'),namespace)
+  self.assertEqual(namespace['hashes'],expected)
+ def test_raw_artifact_and_normalized_http_hashes_remain_separate(self):
+  import copy
+  served,result=fake();raw={n:'raw-'+h for n,h in served.items()};result['file_hashes']=raw
+  self.assertTrue(verify(result,'s',raw,['v'],'d',served))
+  for field in ['file_hashes','app']:
+   bad=copy.deepcopy(result)
+   if field=='file_hashes':bad[field]=served
+   else:bad[field]['hash']=raw['bot/mini_app_ui/index.html']
+   with self.subTest(field=field):
+    with self.assertRaises(AssertionError):verify(bad,'s',raw,['v'],'d',served)
  def test_collector_uses_existing_config_fields(self):
   import ast,dataclasses
   from bot.config import Config
@@ -76,7 +121,7 @@ status,headers,body=http('/app');headers={k.lower():v for k,v in headers.items()
 result['app']={'http':status,'xfo':headers.get('x-frame-options'),'ancestors':ancestors[0] if len(ancestors)==1 else None,'hash':hashlib.sha256(body).hexdigest()}
 result['http_asset_hashes']={}
 for name in ASSETS:
- status,headers,body=http('/app/'+name);assert status==200 and headers.get('X-Frame-Options')=='DENY'
+ status,headers,body=http('/app/'+name);headers={k.lower():v for k,v in headers.items()};assert status==200 and headers.get('x-frame-options')=='DENY'
  result['http_asset_hashes'][name]=hashlib.sha256(body).hexdigest()
 result['unsigned']={}
 for path in ['/app/api/bootstrap','/app/api/viewer/state','/app/api/streamer/profile','/app/api/purchase/prepare']:
@@ -95,16 +140,16 @@ if __name__=='__main__':
   sha=ops._capture(['git','rev-parse','HEAD']);before=ops.status();stage=before['staging'][0]
   assert stage['cliMessage']=='staging '+sha and stage['status']=='SUCCESS'
   names=ops._capture(['git','ls-files','--','bot','main.py','requirements.txt','scripts','docs/legal']).splitlines()
-  hashes={n:hashlib.sha256(subprocess.check_output(['git','show',sha+':'+n],cwd=ROOT)).hexdigest() for n in names}
+  hashes,http_hashes=expected_release_hashes(sha,names)
   from bot.mini_app_web import _ASSETS
   assert set(_ASSETS)==set(ASSET_NAMES)
   versions=json.loads((ROOT/'docs/audits/mini-app-redesign-plus-2026-10-02/P19-migration-copy.json').read_text())['schema_versions']
   prefix='DOMAIN=%r\nHASH_NAMES=%r\nASSETS=%r\nCLI_SHA=%r\n'%(T['staging_domain'],list(hashes),list(_ASSETS),sha)
   result=ops.remote(prefix+REMOTE)
-  verify(result,sha,hashes,versions,stage['id']);after=ops.status();assert after==before
+  verify(result,sha,hashes,versions,stage['id'],http_hashes);after=ops.status();assert after==before
   original=json.loads((ROOT/'docs/audits/mini-app-redesign-plus-2026-10-02/P19-staging-before.json').read_text())['status']['production']
   assert after['production']==original,'Production metadata changed since initial checkpoint'
-  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Git archive bytes; LF normalization of Windows worktree is expected',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0)
+  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Exact committed Git archive artifact bytes; HTTP text uses the server read_text UTF-8/universal-newline normalization',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0)
   import re
   logs=ops._capture(['railway','logs',stage['id'],'--project',T['project_id'],'--environment',T['staging_environment_id'],'--service',T['service_id'],'--lines','100','--json'])
   entries=[json.loads(line) for line in logs.splitlines() if line.strip()]
