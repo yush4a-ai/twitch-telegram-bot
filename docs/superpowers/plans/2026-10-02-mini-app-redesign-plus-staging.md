@@ -156,11 +156,11 @@
 
 **Интерфейсы:** сохранить script CLI, добавить `build_fixture(scenario: str) -> tuple[web.Application, Database]` с закрытым перечнем сценариев; QA runner экспортирует `runJourney(page, scenario)` и `assertLayout(page)`. Сценарии: free-empty/free-six/plus-two-hundred/streamer-plus/independent-viewer/legacy-group/channel-permissions/payment-off/legal-unready. Подписи только локальные, server data настоящая временная SQLite.
 
-- [ ] RED `test_fixture_supports_required_scenarios_and_never_calls_external_sender`: assert 0/6/200 rows, channel+legacy group, long display names, sources/expiry, payment external calls=0; неизвестный scenario отвергается. Текущий fixture не имеет полного scenario builder.
-- [ ] Запустить `python -m pytest tests/test_mini_app_redesign_fixture.py -q`; зафиксировать ожидаемый FAIL, не сетевую ошибку.
-- [ ] Минимально расширить fixture, fake Telegram/Twitch, deterministic clock и сценарий данных. `/_qa/*` остаются только loopback helper, в `install_mini_app_routes` их не добавлять.
-- [ ] PASS этот файл и existing `tests/test_mini_app_shell.py tests/test_mini_app_auth.py`; исходный браузерный journey на реальном текущем `/app`, а не selected preview. Сохранить исходные screenshots/SHA. R0–R9/full suite сейчас не перезапускать.
-- [ ] Scoped review mapping/изоляции fixture → точный QA commit/checkpoint. Для documentation-only фиксации не выдумывать RED.
+- [x] RED `test_fixture_supports_required_scenarios_and_never_calls_external_sender`: assert 0/6/200 rows, channel+legacy group, long display names, sources/expiry, payment external calls=0; неизвестный scenario отвергается. Текущий fixture не имеет полного scenario builder.
+- [x] Запустить `python -m pytest tests/test_mini_app_redesign_fixture.py -q`; зафиксировать ожидаемый FAIL, не сетевую ошибку.
+- [x] Минимально расширить fixture, fake Telegram/Twitch, deterministic clock и сценарий данных. `/_qa/*` остаются только loopback helper, в `install_mini_app_routes` их не добавлять.
+- [x] PASS этот файл и existing `tests/test_mini_app_shell.py tests/test_mini_app_auth.py`; исходный браузерный journey на реальном текущем `/app`, а не selected preview. Сохранить исходные screenshots/SHA. R0–R9/full suite сейчас не перезапускать.
+- [x] Scoped review mapping/изоляции fixture → точный QA commit/checkpoint. Для documentation-only фиксации не выдумывать RED.
 
 ## P02. Схема orders/attempts и frozen beneficiary в одной SQLite
 

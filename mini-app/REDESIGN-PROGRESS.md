@@ -7,9 +7,9 @@
 
 | Этап | Статус |
 |---|---|
-| Сохранить основу и обязательные поправки плана | В работе |
-| P01 — временная БД, сценарии и baseline | Следующий |
-| P02–P07 — схема, каталог, наследование, provider/lifecycle | Ожидают P01 |
+| Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
+| P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
+| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02 начинается |
 | P08–P12 — темы, shell и Viewer | Ожидают P07 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
@@ -29,3 +29,7 @@ Viewer150 ₽; Streamer300 ₽. Режим определяет основное
 P01 временный fixture/QA → все browser tasks; P02 Money/ProductSnapshot/attempt/store → P03/P05/P06; P03 каталог/policy → purchase/legal; P04 effective predicate/resolver → все API/SQL/media; P05 adapter → P06 ledger/reconcile; P06 common apply → P07 Stars; P08 тема/SDK → P09 shell; P09 router/profile → P10–P17; P13 structured permissions → Streamer/Posts; P16 canonical legal/support → P17/P18; P18 QA → P19 gate → P20 deploy → P21 owner package.
 
 Новые межзадачные имена берём из §4.1 плана. Legacy adapters/readers сохраняют совместимость; client mode/paid не источник прав.
+
+## P01 complete
+
+BASE `3f4fec5` → отдельный QA commit; evidence `docs/audits/mini-app-redesign-plus-2026-10-02/BASELINE.md`. RED/PASS/scoped review выполнены. Продуктовый runtime ещё прежний; следующий P02.

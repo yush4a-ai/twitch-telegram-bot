@@ -1,6 +1,12 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P01–P21 разрешены, реализация начинается
+## Текущий checkpoint — 02.10.2026: P01 PASS, далее P02
+
+Последний промпт разрешил P01–P21 и guarded staging. Документы/skills/макеты сохранены commit `3f4fec5`. P01 RED missing builder → disposable scenario app → PASS11tests/21subtests; actual `/app` Chromium151/WebKit26.5, шесть исходных PNG, JS0/external0. Журнал `mini-app/REDESIGN-PROGRESS.md`, evidence `docs/audits/mini-app-redesign-plus-2026-10-02/BASELINE.md`. Mapping/server auth/изоляция reviewed. Новые0/6/200 сценарии живут во временной SQLite; обычный checkout403, новых orders0. Runtime UI пока прежний, перенос дальше.
+
+Viewer150/Streamer300, role-aware Plus, первый staging payment OFF. Production/Railway/деньги/outbound не менялись; native/OAuth/send NOT TESTED. Bank NOT READY. Следующий P02 migrations/frozen beneficiary.
+
+## Предыдущий checkpoint — 02.10.2026: P01–P21 разрешены, реализация начинается
 
 Последний промпт `650afe6a-f60f-4201-bc2e-938a49c9d84a` разрешил весь план и guarded staging после gates. Viewer150 ₽/месяц; Streamer300 ₽/месяц (200 отменены). Plus зависит от верхнего режима, четыре главных блока/«Все возможности»/вторичный Viewer у стримера; активный экран «Моя подписка». План поправлен адресно, без смены дизайна/стека. Журнал: `mini-app/REDESIGN-PROGRESS.md`.
 

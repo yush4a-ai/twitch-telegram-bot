@@ -1,0 +1,252 @@
+F.FF                                                            [100%]
+================================== FAILURES ===================================
+_ RedesignFixtureTests.test_fixture_routes_do_not_exist_in_product_installer __
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_routes_do_not_exist_in_product_installer>
+
+    async def test_fixture_routes_do_not_exist_in_product_installer(self):
+        from aiohttp import web
+        from bot.mini_app_web import install_mini_app_routes
+>       app, db, _client = await self.build("free-empty")
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:73:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='free-empty') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='free-six') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='plus-two-hundred') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='streamer-plus') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='independent-viewer') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='legacy-group') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='channel-permissions') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='payment-off') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_fixture_supports_required_scenarios_and_never_calls_external_sender (scenario='legal-unready') _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_fixture_supports_required_scenarios_and_never_calls_external_sender>
+
+    async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
+        cases = (
+            ("free-empty", 0, False), ("free-six", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("independent-viewer", 6, True), ("legacy-group", 6, False),
+            ("channel-permissions", 6, False), ("payment-off", 6, False),
+            ("legal-unready", 6, False),
+        )
+        for scenario, count, viewer in cases:
+            with self.subTest(scenario=scenario):
+>               app, db, client = await self.build(scenario)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:32:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_long_names_statuses_and_existing_group_are_seeded_separately _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_long_names_statuses_and_existing_group_are_seeded_separately>
+
+    async def test_long_names_statuses_and_existing_group_are_seeded_separately(self):
+>       app, db, client = await self.build("legacy-group")
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_redesign_fixture.py:52:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_mini_app_redesign_fixture.py:15: in build
+    self.assertTrue(callable(builder), "scenario builder is required")
+E   AssertionError: False is not true : scenario builder is required
+_ RedesignFixtureTests.test_unknown_scenario_rejected_without_persistent_database _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_unknown_scenario_rejected_without_persistent_database>
+
+    async def test_unknown_scenario_rejected_without_persistent_database(self):
+        builder = getattr(fixture, "build_fixture", None)
+>       self.assertTrue(callable(builder), "scenario builder is required")
+E       AssertionError: False is not true : scenario builder is required
+
+tests\test_mini_app_redesign_fixture.py:66: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_routes_do_not_exist_in_product_installer
+SUBFAILED(scenario='free-empty') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='free-six') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='plus-two-hundred') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='streamer-plus') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='independent-viewer') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='legacy-group') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='channel-permissions') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='payment-off') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+SUBFAILED(scenario='legal-unready') tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_fixture_supports_required_scenarios_and_never_calls_external_sender
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_long_names_statuses_and_existing_group_are_seeded_separately
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_unknown_scenario_rejected_without_persistent_database
+12 failed, 1 passed in 4.03s
