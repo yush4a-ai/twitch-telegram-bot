@@ -927,6 +927,15 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_community_intents_user "
             "ON streamer_community_intents(telegram_user_id,created_at)"
         )
+        columns = {row[1] for row in await (await self.conn.execute(
+            "PRAGMA table_info(streamer_community_intents)"
+        )).fetchall()}
+        if "permission_reason" not in columns:
+            await self.conn.execute("ALTER TABLE streamer_community_intents ADD COLUMN permission_reason TEXT")
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('r11_005_channel_intent_reasons',?)", (time.time(),)
+        )
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_004_streamer_intents',?)", (time.time(),)
@@ -1972,7 +1981,7 @@ class Database:
     async def finish_streamer_connect_intent(
         self, intent_id: str, status: str, *, twitch_login: str | None = None,
     ) -> bool:
-        if status not in {"connected", "failed", "conflict", "cancelled"}:
+        if status not in {"connected", "failed", "conflict", "cancelled", "expired"}:
             raise ValueError("invalid streamer connect status")
         cursor = await self.conn.execute(
             "UPDATE streamer_connect_intents SET status=?,twitch_login=? "
@@ -1990,7 +1999,7 @@ class Database:
         if (not isinstance(intent_id, str) or not 16 <= len(intent_id) <= 80
                 or type(telegram_user_id) is not int or telegram_user_id <= 0
                 or type(request_id) is not int or not 1 <= request_id <= 2**31 - 1
-                or chat_type not in {"group", "channel"}
+                or chat_type != "channel"
                 or type(now) not in (int, float) or not math.isfinite(now)):
             raise ValueError("invalid community intent")
         cursor = await self.conn.execute(
@@ -2007,7 +2016,7 @@ class Database:
     async def get_community_intent(self, intent_id: str) -> tuple | None:
         cursor = await self.conn.execute(
             "SELECT intent_id,telegram_user_id,request_id,created_at,expires_at, "
-            "chat_type,status,prepared_id,chat_id FROM streamer_community_intents "
+            "chat_type,status,prepared_id,chat_id,permission_reason FROM streamer_community_intents "
             "WHERE intent_id=?", (intent_id,),
         )
         row = await cursor.fetchone()
@@ -2044,14 +2053,17 @@ class Database:
 
     @_serialized
     async def finish_community_intent(
-        self, intent_id: str, status: str, *, chat_id: int,
+        self, intent_id: str, status: str, *, chat_id: int, permission_reason: str | None = None,
     ) -> bool:
         if status not in {"connected", "denied", "failed"}:
             raise ValueError("invalid community intent status")
+        if permission_reason not in {None, "ready", "bot_absent", "bot_member", "missing_post_right",
+                                     "user_denied", "wrong_chat_type", "network_error"}:
+            raise ValueError("invalid permission reason")
         cursor = await self.conn.execute(
-            "UPDATE streamer_community_intents SET status=?,chat_id=? "
+            "UPDATE streamer_community_intents SET status=?,chat_id=?,permission_reason=? "
             "WHERE intent_id=? AND status='verifying'",
-            (status, chat_id, intent_id),
+            (status, chat_id, permission_reason, intent_id),
         )
         await self.conn.commit()
         return cursor.rowcount == 1
@@ -2060,7 +2072,7 @@ class Database:
     async def cancel_community_intent(self, intent_id: str, telegram_user_id: int) -> bool:
         cursor = await self.conn.execute(
             "UPDATE streamer_community_intents SET status='cancelled' "
-            "WHERE intent_id=? AND telegram_user_id=? AND status='pending'",
+            "WHERE intent_id=? AND telegram_user_id=? AND status IN ('pending','verifying')",
             (intent_id, telegram_user_id),
         )
         await self.conn.commit()
@@ -2069,7 +2081,8 @@ class Database:
     @_serialized
     async def add_streamer_community(
         self, telegram_user_id: int, chat_id: int, title: str,
-        chat_type: str, *, now: float | None = None,
+        chat_type: str, *, now: float | None = None, intent_id: str | None = None,
+        verification_started: float | None = None,
     ) -> bool:
         if type(telegram_user_id) is not int or telegram_user_id <= 0 or type(chat_id) is not int or chat_id >= 0:
             raise ValueError("invalid community identity")
@@ -2077,36 +2090,62 @@ class Database:
             raise ValueError("invalid community title")
         if chat_type not in {"group", "supergroup", "channel"}:
             raise ValueError("invalid community type")
-        at = time.time() if now is None else now
-        if not isinstance(at, (int, float)) or not math.isfinite(at):
+        base_at = time.time() if now is None else now
+        clock_started = time.monotonic()
+        if verification_started is not None:
+            if intent_id is None or not isinstance(verification_started, (int, float)) or not math.isfinite(verification_started):
+                raise ValueError("invalid verification clock")
+            clock_started = verification_started
+        if type(base_at) not in (int, float) or not math.isfinite(base_at):
             raise ValueError("invalid verification time")
-        cursor = await self.conn.execute(
-            "SELECT COUNT(*) FROM streamer_communities c "
-            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
-            "WHERE i.telegram_user_id = ?", (telegram_user_id,),
-        )
-        count = (await cursor.fetchone())[0]
-        cursor = await self.conn.execute(
-            "SELECT 1 FROM streamer_communities c "
-            "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
-            "WHERE i.telegram_user_id = ? AND c.chat_id = ?",
-            (telegram_user_id, chat_id),
-        )
-        if count >= 10 and await cursor.fetchone() is None:
-            raise ValueError("community limit reached")
-        cursor = await self.conn.execute(
-            "INSERT INTO streamer_communities(broadcaster_id, chat_id, title, chat_type, verified_at) "
-            "SELECT i.broadcaster_id, ?, ?, ?, ? FROM streamer_identities i "
-            "WHERE i.telegram_user_id = ? "
-            "ON CONFLICT(broadcaster_id, chat_id) DO UPDATE SET "
-            "title=excluded.title, chat_type=excluded.chat_type, verified_at=excluded.verified_at",
-            (chat_id, title.strip(), chat_type, at, telegram_user_id),
-        )
-        if cursor.rowcount != 1:
+        if intent_id is not None and (not isinstance(intent_id, str) or not 16 <= len(intent_id) <= 80 or chat_type != "channel"):
+            raise ValueError("invalid channel intent")
+        await self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            at = (time.time() if now is None else
+                  base_at + max(0, time.monotonic() - clock_started) if intent_id is not None else base_at)
+            if intent_id is not None:
+                cursor = await self.conn.execute(
+                    "SELECT 1 FROM streamer_community_intents WHERE intent_id=? AND telegram_user_id=? "
+                    "AND chat_id=? AND chat_type='channel' AND status='verifying' AND expires_at>?",
+                    (intent_id, telegram_user_id, chat_id, at),
+                )
+                if await cursor.fetchone() is None:
+                    await self.conn.rollback()
+                    return False
+            cursor = await self.conn.execute(
+                "SELECT COUNT(*) FROM streamer_communities c "
+                "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+                "WHERE i.telegram_user_id = ?", (telegram_user_id,),
+            )
+            count = (await cursor.fetchone())[0]
+            cursor = await self.conn.execute(
+                "SELECT 1 FROM streamer_communities c "
+                "JOIN streamer_identities i ON i.broadcaster_id = c.broadcaster_id "
+                "WHERE i.telegram_user_id = ? AND c.chat_id = ?",
+                (telegram_user_id, chat_id),
+            )
+            if count >= 10 and await cursor.fetchone() is None:
+                raise ValueError("community limit reached")
+            cursor = await self.conn.execute(
+                "INSERT INTO streamer_communities(broadcaster_id, chat_id, title, chat_type, verified_at) "
+                "SELECT i.broadcaster_id, ?, ?, ?, ? FROM streamer_identities i "
+                "WHERE i.telegram_user_id = ? "
+                "ON CONFLICT(broadcaster_id, chat_id) DO UPDATE SET "
+                "title=excluded.title, chat_type=excluded.chat_type, verified_at=excluded.verified_at",
+                (chat_id, title.strip(), chat_type, at, telegram_user_id),
+            )
+            if cursor.rowcount != 1:
+                await self.conn.rollback()
+                return False
+            if intent_id is not None:
+                await self.conn.execute("UPDATE streamer_community_intents SET status='connected',permission_reason='ready' "
+                                        "WHERE intent_id=? AND status='verifying'", (intent_id,))
+            await self.conn.commit()
+            return True
+        except BaseException:
             await self.conn.rollback()
-            return False
-        await self.conn.commit()
-        return True
+            raise
 
     async def list_streamer_communities(self, telegram_user_id: int) -> list[tuple[int, str, str]]:
         cursor = await self.conn.execute(
@@ -2214,7 +2253,7 @@ class Database:
 
     @_serialized
     async def save_verified_streamer_connection(
-        self, telegram_user_id: int, result: UserTokenResult, *, verified_at: float,
+        self, telegram_user_id: int, result: UserTokenResult, *, verified_at: float, intent_id: str | None = None,
     ) -> bool:
         """Persist the just-verified Twitch result and Telegram link atomically."""
         broadcaster_id = result.broadcaster_id
@@ -2227,35 +2266,52 @@ class Database:
             raise ValueError("invalid Twitch login")
         if not isinstance(verified_at, (int, float)) or not math.isfinite(verified_at):
             raise ValueError("invalid verification time")
-        cursor = await self.conn.execute(
-            "SELECT broadcaster_id, telegram_user_id FROM streamer_identities "
-            "WHERE broadcaster_id = ? OR telegram_user_id = ?",
-            (broadcaster_id, telegram_user_id),
-        )
-        if any(row != (broadcaster_id, telegram_user_id) for row in await cursor.fetchall()):
-            return False
-        await self.conn.execute(
-            "INSERT INTO streamer_identities "
-            "(broadcaster_id, telegram_user_id, twitch_login, verified_at) "
-            "VALUES (?, ?, ?, ?) ON CONFLICT(broadcaster_id) DO UPDATE SET "
-            "twitch_login=excluded.twitch_login, verified_at=excluded.verified_at",
-            (broadcaster_id, telegram_user_id, twitch_login.lower(), verified_at),
-        )
-        await self.conn.execute(
-            "INSERT INTO twitch_user_tokens "
-            "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at) "
-            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(twitch_login) DO UPDATE SET "
-            "broadcaster_id=excluded.broadcaster_id, "
-            "access_token=excluded.access_token, "
-            "refresh_token=excluded.refresh_token, expires_at=excluded.expires_at",
-            (
-                twitch_login.lower(), broadcaster_id,
-                self._encrypt_token(result.access_token),
-                self._encrypt_token(result.refresh_token), result.expires_at,
-            ),
-        )
-        await self.conn.commit()
-        return True
+        await self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            if intent_id is not None:
+                cursor = await self.conn.execute(
+                    "SELECT 1 FROM streamer_connect_intents WHERE intent_id=? AND telegram_user_id=? "
+                    "AND status='verifying' AND expires_at>?", (intent_id, telegram_user_id, time.time()),
+                )
+                if await cursor.fetchone() is None:
+                    await self.conn.rollback()
+                    return False
+            cursor = await self.conn.execute(
+                "SELECT broadcaster_id, telegram_user_id FROM streamer_identities "
+                "WHERE broadcaster_id = ? OR telegram_user_id = ?",
+                (broadcaster_id, telegram_user_id),
+            )
+            if any(row != (broadcaster_id, telegram_user_id) for row in await cursor.fetchall()):
+                await self.conn.rollback()
+                return False
+            await self.conn.execute(
+                "INSERT INTO streamer_identities "
+                "(broadcaster_id, telegram_user_id, twitch_login, verified_at) "
+                "VALUES (?, ?, ?, ?) ON CONFLICT(broadcaster_id) DO UPDATE SET "
+                "twitch_login=excluded.twitch_login, verified_at=excluded.verified_at",
+                (broadcaster_id, telegram_user_id, twitch_login.lower(), verified_at),
+            )
+            await self.conn.execute(
+                "INSERT INTO twitch_user_tokens "
+                "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at) "
+                "VALUES (?, ?, ?, ?, ?) ON CONFLICT(twitch_login) DO UPDATE SET "
+                "broadcaster_id=excluded.broadcaster_id, "
+                "access_token=excluded.access_token, "
+                "refresh_token=excluded.refresh_token, expires_at=excluded.expires_at",
+                (
+                    twitch_login.lower(), broadcaster_id,
+                    self._encrypt_token(result.access_token),
+                    self._encrypt_token(result.refresh_token), result.expires_at,
+                ),
+            )
+            if intent_id is not None:
+                await self.conn.execute("UPDATE streamer_connect_intents SET status='connected',twitch_login=? "
+                                        "WHERE intent_id=? AND status='verifying'", (twitch_login.lower(), intent_id))
+            await self.conn.commit()
+            return True
+        except BaseException:
+            await self.conn.rollback()
+            raise
 
     @_serialized
     async def issue_test_streamer_plus(

@@ -10,8 +10,8 @@
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
-| P08–P12 — темы, shell и Viewer | P08–P12 PASS; далее P13 |
-| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13 следующий |
+| P08–P12 — темы, shell и Viewer | P08–P12 PASS |
+| P13–P17 — Streamer, Plus, purchase, legal, compatibility | P13 PASS; далее P14 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
 
@@ -77,3 +77,7 @@ BASE `dfa1340` → picker commit. Python40tests/6subtests; Chromium/WebKit0/6/20
 ## P12 complete
 
 BASE `9bb081f` → settings commit. Python66tests/34subtests; Chromium/WebKit18reports/78PNG, current source/image SHA verified, JS0/external0; `P12-SETTINGS.md`. Free quiet/digest, separate filter/category/reminder/folder/history journeys, pending/CAS/reload/late requests preserved. Один read-only reviewer подтвердил DEFAULT1 QA mistake; canonical assertions исправлены без смены Free default. Native NOT TESTED; следующий P13.
+
+## P13 complete
+
+BASE `d4f4b51` → connection commit. Python48tests/33subtests,10browser reports/94PNG/hash,JS0/external0. `P13-CONNECTION.md`; channel-only/legacy group, structured permission/network, atomic expiry/cancel/DB lock, verified OAuth result. Один read-only review, late SDK regression и повторный publishing закрыты. Native/OAuth/send/staging NOT TESTED. Следующий P14.

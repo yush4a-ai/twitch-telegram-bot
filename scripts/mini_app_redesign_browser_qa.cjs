@@ -90,6 +90,8 @@ async function runJourney(page, scenario) {
   if (scenario === 'viewer-free') return viewerFreeJourney(page);
   if (scenario === 'video') return videoJourney(page);
   if (scenario === 'viewer-settings') return viewerSettingsJourney(page);
+  if (scenario === 'streamer-connection') return streamerConnectionJourney(page);
+  if (scenario === 'oauth-results') return oauthResultsJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -629,6 +631,143 @@ async function settingsPendingJourney(page){
   await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Категории',exact:true}).click();
   await heldMutation(page,'category-alert',()=>page.getByRole('button',{name:'Сохранить сигнал',exact:true}).click(),async()=>{assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).isDisabled(),true);assert.equal(await page.getByRole('checkbox',{name:'Уведомлять о смене категории',exact:true}).isDisabled(),true);});
   await page.getByText('Настройка сохранена.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).isEnabled(),true);return [await settingsPicture(page,'category-saved')];
+}
+
+async function streamerConnectionJourney(page) {
+  const pictures=[];
+  const busyRace=await page.evaluate(async()=>{
+    const {createStreamerFeature}=await import('/app/streamer.js');
+    let oldSdkDone,secondDone,calls=0,sdkCalls=0;
+    const sdkPending=new Promise(resolve=>oldSdkDone=resolve),createPending=new Promise(resolve=>secondDone=resolve);
+    const store=new Map(),root=document.createElement('main');let feature;
+    const intent=n=>({intent_id:`qa-channel-intent-${n}`,prepared_id:`qa-prepared-${n}`});
+    const api={storage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},
+      async post(path){if(path.endsWith('/profile'))return {connected:true,twitch_login:'alpha',communities:[]};
+        if(path.endsWith('/community-intent')){calls++;return calls===2?createPending:intent(calls);}
+        return {status:path.endsWith('/cancel')?'cancelled':'pending'};}};
+    const router={refresh(){root.replaceChildren();feature.render(root,{tab:'channel'});}};
+    feature=createStreamerFeature(api,()=>router,{requestChat:()=>++sdkCalls===1?sdkPending:Promise.resolve(null)});
+    const tick=()=>new Promise(resolve=>setTimeout(resolve,0)),button=label=>[...root.querySelectorAll('button')].find(b=>b.textContent===label);
+    try{await feature.refresh();button('Подключить Telegram-канал').click();await tick();button('Отменить выбор').click();await tick();
+      button('Подключить Telegram-канал').click();await tick();const before=button('Подключить Telegram-канал').disabled;
+      oldSdkDone(true);await tick();const after=button('Подключить Telegram-канал').disabled;
+      button('Подключить Telegram-канал').click();await tick();const count=calls;
+      secondDone(intent(2));await tick();return {before,after,count,intent:store.get('ts-streamer-community-intent')};
+    }finally{feature.dispose();}
+  });
+  assert.deepEqual(busyRace,{before:true,after:true,count:2,intent:'qa-channel-intent-2'},'Late SDK cannot unlock or replace new create');
+  async function picture(label) {
+    const file=`connection-${argument('engine','chromium')}-${label}-390.png`;
+    await assertLayout(page); await page.screenshot({path:path.join(output,file),animations:'disabled'});
+    pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});
+  }
+  async function control(values) {
+    const value=await page.evaluate(async values=>(await fetch('/_qa/channel-control',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(values)})).json(),values);
+    assert.equal(value.sent_calls,0); return value;
+  }
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Стример',exact:true}).click();
+  await page.getByRole('heading',{name:'Мой канал',exact:true}).waitFor();
+  if(argument('scenario','channel-permissions')==='streamer-unconnected') {
+    await page.getByText('Twitch не подключён',{exact:true}).waitFor();
+    await picture('twitch-not-connected');
+    await page.getByRole('button',{name:'Подключить Twitch',exact:true}).click();
+    await page.getByText('Подключение Twitch сейчас недоступно. Попробуйте позже.',{exact:true}).waitFor();
+    await picture('oauth-unavailable'); return pictures;
+  }
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Выбрать группу',exact:true}).count(),0);
+  if(argument('scenario','channel-permissions')==='channel-empty') {
+    await page.getByText('Подключите Telegram-канал',{exact:true}).waitFor();await picture('not-chosen');return pictures;
+  }
+  if(argument('scenario','channel-permissions')==='legacy-group') {
+    await page.getByRole('button',{name:'Существующая группа',exact:true}).click();
+    await page.getByRole('heading',{name:'Telegram-группа',exact:true}).waitFor();
+    await page.getByText('Готов к публикациям',{exact:true}).waitFor();await picture('legacy-group');
+    await page.getByRole('button',{name:'Приостановить публикации',exact:true}).click();
+    await page.getByText('Публикации выключены',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Включить публикации',exact:true}).click();
+    await page.getByText('Публикации включены',{exact:true}).waitFor();
+    const profile=await viewerCall(page,'../streamer/profile');assert(profile.data.communities.some(c=>c.chat_id===-1002&&c.publishing));
+    await page.evaluate(()=>window.__qaSdk.back());
+  }
+  await page.getByRole('button',{name:'Очень длинное название Telegram-канала для уведомлений о новых эфирах',exact:true}).click();
+  await page.getByRole('heading',{name:'Telegram-канал',exact:true}).waitFor();
+  await page.getByText('Готов к публикациям',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Открыть канал',exact:true}).count(),1);
+  await picture('ready');
+  for(const [mode,text] of [['bot_absent','Бот не добавлен в канал'],['bot_member','Бот пока не администратор'],
+     ['missing_post_right','Нет права публиковать сообщения'],['network_error','Не удалось проверить права']]) {
+    await control({permission:mode});
+    await page.getByRole('button',{name:'Проверить права',exact:true}).click();
+    await page.getByText(text,{exact:true}).waitFor();
+    if(mode==='network_error')assert.equal(await page.getByText('Нужны права администратора у вас и бота',{exact:true}).count(),0);
+    await picture(mode);
+  }
+  await control({permission:'ready'});await page.getByRole('button',{name:'Проверить права',exact:true}).click();
+  await page.getByText('Готов к публикациям',{exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Мой канал',exact:true}).waitFor();
+  await page.evaluate(()=>{
+    window.Telegram.WebApp.requestChat=(id,callback)=>{window.__qaSdk.prepared=id;callback(true);};
+  });
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
+  await page.getByText('Выбор отправлен. Проверяем канал…',{exact:true}).waitFor();
+  await picture('checking');
+  const intent=await page.evaluate(()=>JSON.parse(JSON.stringify([...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0])));
+  assert(intent);assert((await page.evaluate(()=>window.__qaSdk.prepared)).startsWith('fixture-prepared-'));
+  await page.getByRole('button',{name:'Отменить выбор',exact:true}).click();
+  await page.getByText('Выбор отменён. Канал не подключён.',{exact:true}).waitFor();
+  assert.equal((await control({intent_id:intent,complete:true})).connected,false);
+  await picture('cancelled');
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
+  await page.getByText('Выбор отправлен. Проверяем канал…',{exact:true}).waitFor();
+  const next=await page.evaluate(()=>[...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0]);
+  assert.equal((await control({intent_id:next,permission:'network_error',complete:true})).connected,false);
+  await page.getByRole('button',{name:'Проверить подключение',exact:true}).click();
+  await page.getByText('Telegram не ответил. Права канала пока не подтверждены.',{exact:true}).waitFor();
+  await picture('intent-network');
+  await control({permission:'ready'});
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
+  await page.getByText('Выбор отправлен. Проверяем канал…',{exact:true}).waitFor();
+  const expired=await page.evaluate(()=>[...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0]);
+  await control({intent_id:expired,expire:true});
+  await page.getByRole('button',{name:'Проверить подключение',exact:true}).click();
+  await page.getByText('Срок выбора истёк. Выберите канал снова.',{exact:true}).waitFor();await picture('expired');
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
+  await page.getByText('Выбор отправлен. Проверяем канал…',{exact:true}).waitFor();
+  const success=await page.evaluate(()=>[...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0]);
+  assert.equal((await control({intent_id:success,complete:true})).connected,true);
+  await page.getByRole('button',{name:'Проверить подключение',exact:true}).click();
+  await page.getByText('Канал подключён. Публикации выключены.',{exact:true}).waitFor();await picture('connected');
+  await page.getByRole('button',{name:'Канал с длинным названием о стримах, играх и совместных эфирах',exact:true}).click();
+  await page.getByRole('button',{name:'Включить публикации',exact:true}).click();
+  await page.getByText('Публикации включены',{exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
+  await page.getByText('Выбор отправлен. Проверяем канал…',{exact:true}).waitFor();
+  const repeated=await page.evaluate(()=>[...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0]);
+  assert.equal((await control({intent_id:repeated,complete:true})).connected,true);
+  await page.getByRole('button',{name:'Проверить подключение',exact:true}).click();
+  await page.getByText('Канал подключён. Публикации включены.',{exact:true}).waitFor();await picture('existing-publishing');
+  return pictures;
+}
+
+async function oauthResultsJourney(page) {
+  const pictures=[],base=new URL(page.url()).origin;
+  for(const [status,title] of [['pending','Проверяем подключение…'],['connected','Twitch подключён'],
+      ['failed','Не удалось подключить Twitch'],['cancelled','Подключение отменено'],['expired','Ссылка устарела'],['legacy','Ответ Twitch получен']]) {
+    await page.goto(`${base}/_qa/oauth-result/${status}`);
+    await page.getByRole('heading',{name:title,exact:true}).waitFor();
+    assert.equal(await page.locator('#result-description').getAttribute('role'),'status');
+    assert.equal(await page.getByRole('link',{name:'Вернуться к боту',exact:true}).getAttribute('href'),'https://t.me/TwitchSignalTestbot');
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+    const file=`oauth-${argument('engine','chromium')}-${status}-390.png`;
+    await page.screenshot({path:path.join(output,file),animations:'disabled'});
+    pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844',proof:'fixed public presentation; verified binding covered separately in Python'});
+  }
+  await page.goto(`${base}/app`);await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();return pictures;
 }
 
 async function main() {

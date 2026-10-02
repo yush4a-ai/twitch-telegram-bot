@@ -1,0 +1,30 @@
+{
+  "journey": "streamer-connection",
+  "scenario": "channel-permissions",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "b12b02e94ee563e8f24c756a57835e840413b060a8e7920b2c0f0b7874becfa4",
+    "app.js": "900c3d8b75e8fa8abf472fd70d1959b5c9dba03da173bf17af42d23b0a407966",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "5cd6420bb77c0614fbe05f36075786754ca8c3cf317b0bb966607433db7e42ab",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "e621300fd06767fe0ce55d6eaa8bc46ab1bb2b3355e320b8a8a431d54131b9fc",
+    "scripts/mini_app_redesign_browser_qa.cjs": "c31169fc1afb67b7e1ea10b96223a291c2454cc7e1bcd13d5bfdcee17993003e"
+  },
+  "version": "151.0.7922.34",
+  "status": "FAIL",
+  "failure": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Канал подключён. Публикации включены.', { exact: true }) to be visible\u001b[22m\n\n    at streamerConnectionJourney (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:732:78)\n    at async main (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:780:27)"
+}

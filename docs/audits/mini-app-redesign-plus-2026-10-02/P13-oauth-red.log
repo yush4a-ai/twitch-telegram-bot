@@ -1,0 +1,100 @@
+.FFF                                                                   [100%]
+================================== FAILURES ===================================
+_ OAuthResultTests.test_cancel_or_expiry_during_exchange_fences_late_binding (action='cancel') _
+
+self = <test_oauth_result_pages.OAuthResultTests testMethod=test_cancel_or_expiry_during_exchange_fences_late_binding>
+
+    async def test_cancel_or_expiry_during_exchange_fences_late_binding(self):
+        for action in ("cancel", "expire"):
+            with self.subTest(action=action):
+                intent, state = await self.create(); entered, release = asyncio.Event(), asyncio.Event()
+                async def exchange(*_args):
+                    entered.set(); await release.wait()
+                    return UserTokenResult("alpha", "11", "fixture-access", "fixture-refresh", time.time() + 3600)
+                with patch("bot.oauth._exchange_code", side_effect=exchange):
+                    async with self.session.get(self.base + "/twitch/callback", params={"state": state, "code": "fixture-code"}, allow_redirects=False):
+                        pass
+                    await asyncio.wait_for(entered.wait(), 2)
+                    if action == "cancel":
+>                       self.assertTrue(await self.server.cancel_streamer_connect_intent(101, intent))
+E                       AssertionError: False is not true
+
+tests\test_oauth_result_pages.py:106: AssertionError
+_ OAuthResultTests.test_cancel_or_expiry_during_exchange_fences_late_binding (action='expire') _
+
+self = <test_oauth_result_pages.OAuthResultTests testMethod=test_cancel_or_expiry_during_exchange_fences_late_binding>
+
+    async def test_cancel_or_expiry_during_exchange_fences_late_binding(self):
+        for action in ("cancel", "expire"):
+            with self.subTest(action=action):
+>               intent, state = await self.create(); entered, release = asyncio.Event(), asyncio.Event()
+                                ^^^^^^^^^^^^^^^^^^^
+
+tests\test_oauth_result_pages.py:97:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_oauth_result_pages.py:29: in create
+    intent_id, url, _expires = await self.server.create_streamer_connect_intent(101)
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <bot.oauth.OAuthCallbackServer object at 0x00000210E77DC9B0>
+telegram_user_id = 101
+
+    async def create_streamer_connect_intent(self, telegram_user_id: int) -> tuple[str, str, float]:
+        db = self._mini_app_db
+        if db is None or not self._mini_app_oauth_client_id or not self._mini_app_oauth_client_secret:
+            raise OAuthFlowError("Mini App Twitch connection is unavailable")
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid streamer user")
+        old = self._mini_app_connect_tasks.get(telegram_user_id)
+        if old is not None and not old.done():
+>           raise OAuthFlowError("Twitch connection already pending")
+E           bot.oauth.OAuthFlowError: Twitch connection already pending
+
+bot\oauth.py:324: OAuthFlowError
+_ OAuthResultTests.test_code_received_is_waiting_until_verified_exchange_and_binding _
+
+self = <test_oauth_result_pages.OAuthResultTests testMethod=test_code_received_is_waiting_until_verified_exchange_and_binding>
+
+    async def test_code_received_is_waiting_until_verified_exchange_and_binding(self):
+        intent, state = await self.create(); entered, release = asyncio.Event(), asyncio.Event()
+        async def exchange(*_args):
+            entered.set(); await release.wait()
+            return UserTokenResult("alpha", "11", "fixture-access", "fixture-refresh", time.time() + 3600)
+        with patch("bot.oauth._exchange_code", side_effect=exchange):
+            async with self.session.get(self.base + "/twitch/callback", params={"state": state, "code": "fixture-code"}, allow_redirects=False) as response:
+>               self.assertEqual(response.status, 303)
+E               AssertionError: 200 != 303
+
+tests\test_oauth_result_pages.py:51: AssertionError
+_ OAuthResultTests.test_exchange_failure_and_provider_error_never_show_success_or_unescaped_input _
+
+self = <test_oauth_result_pages.OAuthResultTests testMethod=test_exchange_failure_and_provider_error_never_show_success_or_unescaped_input>
+
+    async def test_exchange_failure_and_provider_error_never_show_success_or_unescaped_input(self):
+        _intent, state = await self.create()
+        with patch("bot.oauth._exchange_code", side_effect=OAuthFlowError("fixture-exchange-failure")):
+            async with self.session.get(self.base + "/twitch/callback", params={"state": state, "code": "fixture-code"}, allow_redirects=False) as response:
+>               self.assertEqual(response.status, 303)
+E               AssertionError: 200 != 303
+
+tests\test_oauth_result_pages.py:81: AssertionError
+_ OAuthResultTests.test_legacy_code_acceptance_does_not_claim_verified_success _
+
+self = <test_oauth_result_pages.OAuthResultTests testMethod=test_legacy_code_acceptance_does_not_claim_verified_success>
+
+    async def test_legacy_code_acceptance_does_not_claim_verified_success(self):
+        self.server.register_state("legacy-state")
+        response = await self.server._handle_callback(SimpleNamespace(query={"state": "legacy-state", "code": "legacy-code"}))
+        self.assertEqual(response.status, 200)
+>       self.assertIn("��������� � ���, ����� ��������� �����������", response.text)
+E       AssertionError: '��������� � ���, ����� ��������� �����������' not found in '����������� ������ �������! ����� ������� ��� ������� � ��������� � Telegram.'
+
+tests\test_oauth_result_pages.py:118: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(action='cancel') tests/test_oauth_result_pages.py::OAuthResultTests::test_cancel_or_expiry_during_exchange_fences_late_binding
+SUBFAILED(action='expire') tests/test_oauth_result_pages.py::OAuthResultTests::test_cancel_or_expiry_during_exchange_fences_late_binding
+FAILED tests/test_oauth_result_pages.py::OAuthResultTests::test_code_received_is_waiting_until_verified_exchange_and_binding
+FAILED tests/test_oauth_result_pages.py::OAuthResultTests::test_exchange_failure_and_provider_error_never_show_success_or_unescaped_input
+FAILED tests/test_oauth_result_pages.py::OAuthResultTests::test_legacy_code_acceptance_does_not_claim_verified_success
+5 failed, 1 passed in 6.12s

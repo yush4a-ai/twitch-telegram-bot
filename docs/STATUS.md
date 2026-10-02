@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P12 PASS, далее P13
+## Текущий checkpoint — 02.10.2026: P13 PASS, далее P14
+
+P12 commit `d4f4b51`; P13 channel-only/legacy groups/structured permissions и verified OAuth result. Python48tests/33subtests;10browser reports/94PNG/hash,JS0/external0,detector[]. Один read-only review и exact regression для DB-lock expiry/late SDK/повторного publishing. Evidence `P13-CONNECTION.md`. Native Telegram/account OAuth/send/staging NOT TESTED; production/payment/HTML/export сохранены. Следующий P14, финальный suite P19 впереди.
+
+## Предыдущий checkpoint — 02.10.2026: P12 PASS, далее P13
 
 P11 commit `9bb081f`; P12 отдельные формы Viewer/общая история из профиля. Python66tests/34subtests; Chromium/WebKit18reports/78PNG, sources/PNG SHA совпали, JS0/external0, detector[]. Free quiet/digest/HTML сохранены; reminders15/30/cancel/inflight409, folder/filter CAS/reset/drafts, category late search и history own outcomes20+5/late reset. Scoped self review и один read-only reviewer QA default; `P12-SETTINGS.md`. Следующий P13 channel-only/structured permissions/verified OAuth UI. Full suite P19 ещё впереди; native/staging NOT TESTED, production/деньги/внешние send/OAuth не менялись.
 

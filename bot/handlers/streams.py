@@ -504,19 +504,19 @@ async def cmd_start_link(
             or message.from_user is None
             or message.from_user.id != message.chat.id
             or row is None or row[1] != message.from_user.id
-            or row[6] != "pending" or row[4] <= time.time()
+            or row[6] != "pending" or row[4] <= time.time() or row[5] != "channel"
         ):
             await message.answer("Выбор сообщества устарел. Откройте приложение и начните заново.")
             return
         button = KeyboardButton(
-            text="Выбрать сообщество",
+            text="Выбрать Telegram-канал",
             request_chat=KeyboardButtonRequestChat(
-                request_id=row[2], chat_is_channel=row[5] == "channel",
+                request_id=row[2], chat_is_channel=True,
                 bot_is_member=True, request_title=True,
             ),
         )
         await message.answer(
-            "Выберите сообщество, где вы и бот уже администраторы. После выбора вернитесь в приложение.",
+            "Выберите Telegram-канал, где вы администратор. У бота должно быть право публикации сообщений. После выбора вернитесь в приложение.",
             reply_markup=ReplyKeyboardMarkup(
                 keyboard=[[button]], resize_keyboard=True, one_time_keyboard=True,
             ),

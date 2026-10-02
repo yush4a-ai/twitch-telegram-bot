@@ -1,0 +1,43 @@
+.....FF....                                                   [100%]
+================================== FAILURES ===================================
+___ ChannelIntentTests.test_cancel_during_check_fences_late_verified_result ___
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_cancel_during_check_fences_late_verified_result>
+
+    async def test_cancel_during_check_fences_late_verified_result(self):
+        created = await (await self.post("community-intent", chat_type="channel")).json()
+        row = await self.db.get_community_intent(created["intent_id"])
+        entered, release = asyncio.Event(), asyncio.Event()
+        chat = self.bot.get_chat.return_value
+        async def delayed(_chat_id):
+            entered.set(); await release.wait(); return chat
+        self.bot.get_chat.side_effect = delayed
+        task = asyncio.create_task(complete_community_intent(self.db, self.bot, 101, row[2], -1001, now=time.time()))
+        try:
+            await asyncio.wait_for(entered.wait(), 2)
+>           self.assertEqual((await self.post("community-intent/cancel", intent_id=created["intent_id"])).status, 200)
+E           AssertionError: 403 != 200
+
+tests\test_channel_permissions_redesign.py:171: AssertionError
+____ ChannelIntentTests.test_expiry_during_check_does_not_create_placement ____
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_expiry_during_check_does_not_create_placement>
+
+    async def test_expiry_during_check_does_not_create_placement(self):
+        created = await (await self.post("community-intent", chat_type="channel")).json()
+        row = await self.db.get_community_intent(created["intent_id"])
+        chat = self.bot.get_chat.return_value
+        async def expire(_chat_id):
+            await self.db.conn.execute("UPDATE streamer_community_intents SET expires_at=0 WHERE intent_id=?",
+                                       (created["intent_id"],))
+            await self.db.conn.commit()
+            return chat
+        self.bot.get_chat.side_effect = expire
+>       self.assertFalse(await complete_community_intent(self.db, self.bot, 101, row[2], -1001, now=time.time()))
+E       AssertionError: True is not false
+
+tests\test_channel_permissions_redesign.py:188: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_cancel_during_check_fences_late_verified_result
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_expiry_during_check_does_not_create_placement
+2 failed, 9 passed, 11 subtests passed in 7.54s

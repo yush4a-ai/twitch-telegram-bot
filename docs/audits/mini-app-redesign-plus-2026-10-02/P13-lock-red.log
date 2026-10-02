@@ -1,0 +1,35 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ ChannelIntentTests.test_waiting_for_other_connection_lock_cannot_connect_after_expiry _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_waiting_for_other_connection_lock_cannot_connect_after_expiry>
+
+    async def test_waiting_for_other_connection_lock_cannot_connect_after_expiry(self):
+        with tempfile.TemporaryDirectory(prefix="ts-p13-expiry-") as directory:
+            path = str(Path(directory) / "copy.db")
+            first, second = Database(path), Database(path)
+            await first.connect(); await second.connect()
+            try:
+                now = time.time()
+                await first.link_streamer_identity(101, "11", "alpha", verified_at=now)
+                await first.create_community_intent("locked-expiry-intent", 101, 17, "channel", now=now)
+                await first.claim_community_intent(101, 17, -1001, now=now)
+                expires = time.time() + .2
+                await first.conn.execute("UPDATE streamer_community_intents SET expires_at=? WHERE intent_id=?",
+                                         (expires, "locked-expiry-intent"))
+                await first.conn.commit()
+                await second.conn.execute("BEGIN IMMEDIATE")
+                task = asyncio.create_task(first.add_streamer_community(101, -1001, "Channel", "channel",
+                                         intent_id="locked-expiry-intent"))
+                await asyncio.sleep(.05)
+                self.assertFalse(task.done(), "other connection holds writer lock")
+                while time.time() <= expires:
+                    await asyncio.sleep(.01)
+                await second.conn.rollback()
+>               self.assertFalse(await asyncio.wait_for(task, 3))
+E               AssertionError: True is not false
+
+tests\test_channel_permissions_redesign.py:150: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_waiting_for_other_connection_lock_cannot_connect_after_expiry
+1 failed, 14 deselected in 5.17s

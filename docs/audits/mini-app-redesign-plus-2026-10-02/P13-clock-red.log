@@ -1,0 +1,16 @@
+.......F....                                                  [100%]
+================================== FAILURES ===================================
+_ ChannelIntentTests.test_injected_epoch_is_preserved_while_measuring_check_duration _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_injected_epoch_is_preserved_while_measuring_check_duration>
+
+    async def test_injected_epoch_is_preserved_while_measuring_check_duration(self):
+        intent_id = "controlled-clock-intent-1111"
+        await self.db.create_community_intent(intent_id, 101, 88, "channel", now=100)
+>       self.assertTrue(await complete_community_intent(self.db, self.bot, 101, 88, -1001, now=101))
+E       AssertionError: False is not true
+
+tests\test_channel_permissions_redesign.py:196: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_injected_epoch_is_preserved_while_measuring_check_duration
+1 failed, 11 passed, 11 subtests passed in 8.13s

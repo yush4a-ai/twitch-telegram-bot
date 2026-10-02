@@ -1,0 +1,100 @@
+{
+  "journey": "streamer-connection",
+  "scenario": "channel-permissions",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "connection-chromium-ready-390.png",
+      "sha256": "2a0a2bfc80913c02a77d68274b3f88c26b35384ea60507664b0726bce4980b40",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-bot_absent-390.png",
+      "sha256": "13d5477b6d1b3a3ded191f503d0a2c1ad391111837fda892177fa93910d1cf84",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-bot_member-390.png",
+      "sha256": "2dc799b8519f7255e8d004f5b7f997b16308574ddc3fed49f8068b862b906728",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-missing_post_right-390.png",
+      "sha256": "0ba9c0cb08fa36e3066e145edbd80647ff704482a86036c833fff59fd28158ea",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-network_error-390.png",
+      "sha256": "fb517791835ba4b93948eaee6105f8957c35db831eeb2e0f20df53d14f35034a",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-checking-390.png",
+      "sha256": "7c4e44b44d8d90560b39e5da91863909316274cd5a1364d1062f0db48073d3f9",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-cancelled-390.png",
+      "sha256": "7e7fa9bbc261832c90e87a0f69d9b64aa1f9da1bbb881e383bc79e4dd8f00385",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-intent-network-390.png",
+      "sha256": "7b53971baad95d33b7c31d8f169cb305120723836961054dc7917e630e6764e3",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-expired-390.png",
+      "sha256": "c2d97361fdb8376bcdd3447e70af8f8da4dff9560a1215006cbd9396663f940a",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-connected-390.png",
+      "sha256": "2fabe541086e613fadb051bf353896d351b830e440e66a27bd9af7934473246b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-chromium-existing-publishing-390.png",
+      "sha256": "43edf1f4968692f166b9f41bd0545f58b2c8316b54c246ed5bf12e83153f6e5b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-chromium-viewer-390.png",
+      "sha256": "0bdcccc403ef7865a63943e56e698ffcfc68753328f7e85f67728912d627f110",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-chromium-channel-390.png",
+      "sha256": "43edf1f4968692f166b9f41bd0545f58b2c8316b54c246ed5bf12e83153f6e5b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-chromium-profile-390.png",
+      "sha256": "5cd2109dd20a5521765d4efc4c19361b0e63085f561b745916745b42aec37e90",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "b12b02e94ee563e8f24c756a57835e840413b060a8e7920b2c0f0b7874becfa4",
+    "app.js": "900c3d8b75e8fa8abf472fd70d1959b5c9dba03da173bf17af42d23b0a407966",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "e5f3b6de79167f885fda02551bc7c20de5e0eef2c4dcd23489adc1191199da66",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "e621300fd06767fe0ce55d6eaa8bc46ab1bb2b3355e320b8a8a431d54131b9fc",
+    "scripts/mini_app_redesign_browser_qa.cjs": "e84e301e63e5ab34585a82cf792186d3698fc160b9d4a4867ca5f41a93f5fa31"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

@@ -12,7 +12,7 @@ from aiogram.types import KeyboardButton, KeyboardButtonRequestChat
 from .database import Database
 from .mini_app_auth import verified_payload
 from .mini_app_streamer_plus import install_mini_app_streamer_plus_routes
-from .streamer_community import verify_community_permission
+from .streamer_community import check_community_permission, CommunityPermissionResult
 
 
 async def complete_community_intent(
@@ -20,30 +20,32 @@ async def complete_community_intent(
     chat_id: int, *, now: float,
 ) -> bool:
     """A Telegram chat_shared callback is a suggestion, not permission proof."""
+    started = time.monotonic()
     claimed = await db.claim_community_intent(
         telegram_user_id, request_id, chat_id, now=now,
     )
     if claimed is None:
         return False
     intent_id, expected_type = claimed
-    verified = await verify_community_permission(bot, chat_id, telegram_user_id)
-    if verified is None or (
-        expected_type == "channel" and verified.chat_type != "channel"
-    ) or (
-        expected_type == "group" and verified.chat_type not in {"group", "supergroup"}
-    ):
-        await db.finish_community_intent(intent_id, "denied", chat_id=chat_id)
+    result = (await check_community_permission(bot, chat_id, telegram_user_id)
+              if expected_type == "channel" else CommunityPermissionResult("wrong_chat_type"))
+    verified = result.community
+    if verified is None or verified.chat_type != "channel":
+        reason = result.status if verified is None else "wrong_chat_type"
+        await db.finish_community_intent(intent_id, "failed" if reason == "network_error" else "denied",
+                                        chat_id=chat_id, permission_reason=reason)
         return False
     try:
         saved = await db.add_streamer_community(
             telegram_user_id, verified.chat_id, verified.title, verified.chat_type,
-            now=now,
+            now=now, intent_id=intent_id, verification_started=started,
         )
     except ValueError:
         saved = False
-    await db.finish_community_intent(
-        intent_id, "connected" if saved else "failed", chat_id=chat_id,
-    )
+    if not saved:
+        current = await db.get_community_intent(intent_id)
+        if current is not None and current[6] == "verifying" and current[4] > now + max(0, time.monotonic() - started):
+            await db.finish_community_intent(intent_id, "failed", chat_id=chat_id)
     return saved
 
 
@@ -72,7 +74,8 @@ def install_mini_app_streamer_routes(
 
         async def check(row):
             async with semaphore:
-                permission = await verify_community_permission(bot, row[0], user_id) if bot else None
+                permission = (await check_community_permission(bot, row[0], user_id)
+                              if bot else CommunityPermissionResult("network_error"))
                 post_state = await db.get_live_post_state(row[0], identity[1])
                 return permission, post_state
 
@@ -82,7 +85,8 @@ def install_mini_app_streamer_routes(
             "plus_active": await db.has_streamer_plus(user_id),
             "communities": [
                 {"chat_id": row[0], "title": row[1], "chat_type": row[2],
-                 "permission_ok": result[0] is not None,
+                 "permission_ok": result[0].community is not None,
+                 "permission_status": result[0].status, "public_url": result[0].public_url,
                  "publishing": result[1] is not None and result[1].notify_enabled}
                 for row, result in zip(stored, checked)
             ],
@@ -114,9 +118,7 @@ def install_mini_app_streamer_routes(
         row = await db.get_streamer_connect_intent(intent_id)
         if row is None or row[1] != user_id:
             return web.json_response({"error": "intent_denied"}, status=403)
-        stale = (row[4] == "pending" and time.time() >= row[3]) or (
-            row[4] == "verifying" and time.time() >= row[3] + 60
-        )
+        stale = row[4] in {"pending", "verifying"} and time.time() >= row[3]
         status = "expired" if stale else row[4]
         return web.json_response({"status": status, "twitch_login": row[5] if status == "connected" else None})
 
@@ -138,7 +140,7 @@ def install_mini_app_streamer_routes(
         if await db.get_streamer_identity(user_id) is None:
             return web.json_response({"error": "not_linked"}, status=403)
         chat_type = values.get("chat_type")
-        if chat_type not in {"group", "channel"}:
+        if chat_type != "channel":
             return web.json_response({"error": "invalid_chat_type"}, status=400)
         intent_id = secrets.token_urlsafe(18)
         request_id = secrets.randbelow(2**31 - 1) + 1
@@ -153,10 +155,10 @@ def install_mini_app_streamer_routes(
         prepared_id = None
         if bot is not None and hasattr(bot, "save_prepared_keyboard_button"):
             button = KeyboardButton(
-                text="Выбрать сообщество",
+                text="Выбрать Telegram-канал",
                 request_chat=KeyboardButtonRequestChat(
                     request_id=request_id,
-                    chat_is_channel=chat_type == "channel",
+                    chat_is_channel=True,
                     bot_is_member=True, request_title=True,
                 ),
             )
@@ -187,11 +189,10 @@ def install_mini_app_streamer_routes(
         row = await db.get_community_intent(intent_id)
         if row is None or row[1] != user_id:
             return web.json_response({"error": "intent_denied"}, status=403)
-        stale = (row[6] == "pending" and time.time() >= row[4]) or (
-            row[6] == "verifying" and time.time() >= row[4] + 60
-        )
+        stale = row[6] in {"pending", "verifying"} and time.time() >= row[4]
         status = "expired" if stale else row[6]
-        return web.json_response({"status": status, "chat_id": row[8] if status == "connected" else None})
+        return web.json_response({"status": status, "chat_id": row[8] if status == "connected" else None,
+                                  "permission_reason": row[9]})
 
     async def cancel_community_intent(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -227,7 +228,10 @@ def install_mini_app_streamer_routes(
             return web.json_response({"publishing": False})
         if bot is None:
             return web.json_response({"error": "verification_unavailable"}, status=503)
-        verified = await verify_community_permission(bot, chat_id, user_id)
+        result = await check_community_permission(bot, chat_id, user_id)
+        if result.status == "network_error":
+            return web.json_response({"error": "verification_unavailable"}, status=503)
+        verified = result.community
         if verified is None or verified.chat_type != community[2]:
             return web.json_response({"error": "permission_denied"}, status=403)
         if verified.chat_type == "channel":

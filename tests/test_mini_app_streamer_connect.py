@@ -29,11 +29,11 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         self.user_admin = True
 
         async def member(_chat_id, user_id):
-            return SimpleNamespace(status="administrator" if user_id != 101 or self.user_admin else "member")
+            return SimpleNamespace(status="administrator" if user_id != 101 or self.user_admin else "member", can_post_messages=True, can_edit_messages=False)
 
         self.bot = SimpleNamespace(
             id=999,
-            get_chat=AsyncMock(return_value=SimpleNamespace(type="supergroup", title="Free community")),
+            get_chat=AsyncMock(return_value=SimpleNamespace(id=-1001, type="channel", title="Free channel")),
             get_chat_member=AsyncMock(side_effect=member),
             save_prepared_keyboard_button=AsyncMock(return_value=SimpleNamespace(id="prepared-test")),
         )
@@ -59,14 +59,14 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         async with self.request("/app/api/streamer/profile") as response:
             self.assertEqual(response.status, 200)
             self.assertEqual((await response.json())["twitch_login"], "alpha")
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             self.assertEqual(response.status, 200)
             payload = await response.json()
             self.assertEqual(payload["prepared_id"], "prepared-test")
             intent_id = payload["intent_id"]
         self.bot.save_prepared_keyboard_button.assert_awaited_once()
         button = self.bot.save_prepared_keyboard_button.await_args.kwargs["button"]
-        self.assertFalse(button.request_chat.chat_is_channel)
+        self.assertTrue(button.request_chat.chat_is_channel)
         async with self.request("/app/api/streamer/community-intent/status", intent_id=intent_id) as response:
             self.assertEqual((await response.json())["status"], "pending")
         self.assertEqual(await self.db.list_streamer_communities(101), [])
@@ -74,7 +74,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_callback_is_not_permission_and_intent_is_single_use(self):
         from bot.mini_app_streamer import complete_community_intent
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             intent_id = (await response.json())["intent_id"]
         row = await self.db.get_community_intent(intent_id)
         request_id = row[2]
@@ -88,7 +88,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await response.json())["status"], "denied")
         self.user_admin = True
         self.assertFalse(await complete_community_intent(self.db, self.bot, 101, request_id, -1001, now=time.time()))
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             second_id = (await response.json())["intent_id"]
         second = await self.db.get_community_intent(second_id)
         self.assertTrue(await complete_community_intent(self.db, self.bot, 101, second[2], -1001, now=time.time()))
@@ -97,14 +97,14 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_expired_intent_and_cancel_leave_no_connected_community(self):
         from bot.mini_app_streamer import complete_community_intent
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             intent_id = (await response.json())["intent_id"]
         row = await self.db.get_community_intent(intent_id)
         self.assertFalse(await complete_community_intent(
             self.db, self.bot, 101, row[2], -1001, now=row[4] + 1,
         ))
         self.assertEqual(await self.db.list_streamer_communities(101), [])
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             cancelled_id = (await response.json())["intent_id"]
         cancelled = await self.db.get_community_intent(cancelled_id)
         async with self.request(
@@ -127,7 +127,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
     async def test_older_client_deep_link_and_chat_shared_use_same_intent(self):
         from bot.handlers.streams import cmd_start_link
         from bot.handlers.auth import on_streamer_community_shared
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             intent_id = (await response.json())["intent_id"]
         row = await self.db.get_community_intent(intent_id)
         message = SimpleNamespace(
@@ -155,7 +155,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
             "/app/api/streamer/communities/toggle", chat_id=-1001, enabled=True,
         ) as response:
             self.assertEqual(response.status, 403)
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             intent_id = (await response.json())["intent_id"]
         request_id = (await self.db.get_community_intent(intent_id))[2]
         self.assertTrue(await complete_community_intent(
@@ -236,7 +236,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.db.get_streamer_identity(202))
 
     async def test_interrupted_verification_expires_in_status(self):
-        async with self.request("/app/api/streamer/community-intent", chat_type="group") as response:
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             community_id = (await response.json())["intent_id"]
         await self.db.conn.execute(
             "UPDATE streamer_community_intents SET status='verifying',expires_at=0 "

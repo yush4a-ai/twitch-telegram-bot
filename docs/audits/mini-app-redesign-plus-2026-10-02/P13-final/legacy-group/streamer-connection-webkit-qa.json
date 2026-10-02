@@ -1,0 +1,105 @@
+{
+  "journey": "streamer-connection",
+  "scenario": "legacy-group",
+  "engine": "webkit",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "connection-webkit-legacy-group-390.png",
+      "sha256": "38ca30a180d50d56ad6b3c7216b1d34464faf5d42f67fcd6c454d0e984e7cd77",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-ready-390.png",
+      "sha256": "a73718c31d0395637705ceda8c0da9e19c9dcd3d81cdeeb6221977681d1fb582",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-bot_absent-390.png",
+      "sha256": "d9b555b57ae3aeb5fe199682e59bead055da5fa46582017703e63b56ec4ca13b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-bot_member-390.png",
+      "sha256": "3c3634b2072d869cd00150002ce0330227cdea3618a53fc499a0af1063f21137",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-missing_post_right-390.png",
+      "sha256": "fde5bf3cfe4e7301abda1fc8a9701f0d14e8eb37cdf13f412dbc2b07e584b502",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-network_error-390.png",
+      "sha256": "68a949fd142fe4c878d7d966c5bf6ba54ebe41fba03505c1f66c57cf346195f5",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-checking-390.png",
+      "sha256": "c20dc02973e203669a29e702d84d666fc0c4586953caa94e7596357d08b2e12f",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-cancelled-390.png",
+      "sha256": "bd8a48ca6001c169bca1f162762b9e37dad0fa7ed6a0a14fe10ad47324dc051a",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-intent-network-390.png",
+      "sha256": "d5a536d2aec26bbe3238ed36961d10f80f99fb7c66f15017eaff3b4484b61859",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-expired-390.png",
+      "sha256": "baf3379ffbb486a266ca391d1bafbb266e2ef4da127c15ea73034585f08b3fd9",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-connected-390.png",
+      "sha256": "7b0d368363ec7d4f74414d90378f85a556e5363ab39a699659a7b53c9d4986e3",
+      "viewport": "390x844"
+    },
+    {
+      "file": "connection-webkit-existing-publishing-390.png",
+      "sha256": "56d73cdb63fd4e2daaefc077dc1bf26bb048cf04aa4328ec6033c34bca21f177",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-webkit-viewer-390.png",
+      "sha256": "dd03bf5fbe3e0f05153ba1e57e5639e64482f725957ceb692e55795233963455",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-webkit-channel-390.png",
+      "sha256": "fba796f6c3f3b7da4082402bb89ec0462d0d3ef77882701829d2ef5bb07d1e5d",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-connection-webkit-profile-390.png",
+      "sha256": "3dd7bae33755f7d7ab4f5ac8b5903ab68f3b79f24724be63284489c5fcc3cbd5",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "b12b02e94ee563e8f24c756a57835e840413b060a8e7920b2c0f0b7874becfa4",
+    "app.js": "900c3d8b75e8fa8abf472fd70d1959b5c9dba03da173bf17af42d23b0a407966",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "e5f3b6de79167f885fda02551bc7c20de5e0eef2c4dcd23489adc1191199da66",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "e621300fd06767fe0ce55d6eaa8bc46ab1bb2b3355e320b8a8a431d54131b9fc",
+    "scripts/mini_app_redesign_browser_qa.cjs": "e84e301e63e5ab34585a82cf792186d3698fc160b9d4a4867ca5f41a93f5fa31"
+  },
+  "version": "26.5",
+  "status": "PASS"
+}

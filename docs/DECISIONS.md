@@ -493,3 +493,9 @@
 - **Основание:** утверждённый P12. Quiet/digest остаются Free и сохраняют DEFAULT1; paid формы следуют effective rights. Папки/фильтры/CAS/reminder queue/history retention используют existing services, временные browser fixtures не добавляются в live routes.
 - **Проверка:** Python66tests/34subtests,18browser reports/78PNG и exact current SHA; `P12-SETTINGS.md`. Read-only reviewer отделил ошибочный исходный статус QA от actual ACK, default продукта сохранён.
 - **Граница:** fake sender/SDK и временная БД; native/Telegram delivery/OAuth/staging НЕ проверены. P13 следующий, final full suite P19.
+
+## D068 — канал проверяется до подключения, OAuth до успеха
+
+- Основание: утверждённый P13 и CHANNEL-PERMISSIONS-CONTRACT. Новый flow принимает channel; legacy groups продолжают работать. Публикация требует can_post, чужие edit права не запрашиваются. Сетевая ошибка хранится как неизвестный результат.
+- Проверка:48tests/33subtests,10reports/94PNG; атомарная отмена/срок после DB-lock, late SDK generation fence, verified OAuth binding перед success. Один scoped read-only reviewer; `P13-CONNECTION.md`.
+- Граница: native send/edit/delete/requestChat/account OAuth НЕ проверены; fixture/SDK fake только локально. P14 следующий.

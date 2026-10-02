@@ -71,6 +71,14 @@ p { margin: 0; }
 .settings { display: grid; gap: 12px; }
 .feature-panel, .quiet-panel, .token-field { display: grid; gap: 14px; margin-top: 16px; }
 .feature-panel .button { justify-self: start; }
+.connection-identity { display:flex; align-items:center; gap:16px; padding:16px 0; }
+.connection-identity > svg { width:28px; height:28px; fill:none; stroke:var(--accent); stroke-width:1.7; flex-shrink:0; }
+.connection-instructions { margin:24px 0; }
+.connection-instructions summary { min-height:44px; display:flex; align-items:center; color:var(--link); cursor:pointer; }
+.connection-instructions p { margin-top:8px; }
+.connection-state { display:grid; gap:8px; margin:0 0 24px; padding:16px 0; border-top:1px solid var(--line); }
+.connection-feedback { margin-top:16px; }
+.connection-action + .connection-action { margin:8px 0 8px 8px; }
 .time-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .time-fields label { display: grid; gap: 6px; min-width: 0; font-size: 0.875rem; font-weight: 650; }
 .token-input-row { display: flex; gap: 8px; }

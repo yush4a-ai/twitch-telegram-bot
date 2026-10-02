@@ -1,5 +1,5 @@
 import { ApiError } from './api.js';
-import { element, panel, action } from './components.js';
+import { element, panel, action, navigationRow, icon } from './components.js';
 
 export function createStreamerFeature(api, getRouter, telegram) {
   let data = null;
@@ -12,6 +12,14 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let communityIntent = '';
   let communityFallback = '';
   let statusTimer = null;
+  let disposed = false;
+  let profileController = null;
+  let profilePromise = null;
+  let profileGeneration = 0;
+  let checking = false;
+  let intentGeneration = 0;
+  let connectionBusy = false;
+  const publishingPending = new Set();
   let selectedPostChat = null;
   let postState = null;
   let postLoading = false;
@@ -34,159 +42,175 @@ export function createStreamerFeature(api, getRouter, telegram) {
   function heading(target, title, lead) {
     target.append(element('p', 'eyebrow', 'Стример'), element('h1', '', title), element('p', 'lead', lead));
   }
-  async function load() {
-    if (loading) return;
+  const permissionText = {
+    ready: 'Готов к публикациям', bot_absent: 'Бот не добавлен в канал',
+    bot_member: 'Бот пока не администратор', missing_post_right: 'Нет права публиковать сообщения',
+    user_denied: 'Не удалось подтвердить ваши права администратора',
+    wrong_chat_type: 'Для нового подключения нужен Telegram-канал',
+    network_error: 'Не удалось проверить права',
+  };
+  const permissionHelp = {
+    bot_absent: 'Добавьте бота в канал и назначьте администратором.',
+    bot_member: 'Назначьте бота администратором канала.',
+    missing_post_right: 'В правах бота включите «Публикация сообщений».',
+    user_denied: 'Выберите канал, которым вы управляете.',
+    network_error: 'Telegram не ответил. Повторите проверку, когда связь восстановится.',
+  };
+  async function load({fresh = false} = {}) {
+    if (disposed) return;
+    if (profilePromise && !fresh) return profilePromise;
+    profileController?.abort(); profileController = new AbortController();
+    const controller = profileController, generation = ++profileGeneration;
     requested = true; loading = true;
     if (!data) refresh();
-    try {
-      data = await api.post('/app/api/streamer/profile');
-      error = '';
-      postState = null;
-      if (data.connected) {
-        connectIntent = ''; connectUrl = '';
-        remember('ts-streamer-connect-intent', '');
+    const promise = (async () => {
+      try {
+        const result = await api.post('/app/api/streamer/profile', {}, {signal:controller.signal});
+        if (disposed || generation !== profileGeneration) return;
+        data = result; error = ''; postState = null;
+        if (data.connected && !connectIntent) connectUrl = '';
+      } catch (cause) {
+        if (disposed || controller.signal.aborted || generation !== profileGeneration) return;
+        error = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
+          ? 'Время входа истекло. Откройте приложение из чата бота.'
+          : 'Нет связи. Показываем последние загруженные данные.';
+      } finally {
+        if (!disposed && generation === profileGeneration) { loading = false; refresh(); }
       }
-    } catch (cause) {
-      error = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
-        ? 'Время входа истекло. Откройте приложение из чата бота.'
-        : 'Нет связи. Показываем последние загруженные данные.';
-    } finally { loading = false; refresh(); }
-    if (connectIntent || communityIntent) void checkIntent();
+    })();
+    profilePromise = promise;
+    try { await promise; } finally { if (profilePromise === promise) profilePromise = null; }
+    if (!disposed && (connectIntent || communityIntent)) scheduleStatus();
   }
   function scheduleStatus() {
-    if (statusTimer) clearTimeout(statusTimer);
-    if (!connectIntent && !communityIntent) return;
-    statusTimer = setTimeout(() => {
-      if (!document.hidden) void checkIntent();
-    }, 5000);
+    clearTimeout(statusTimer);
+    if (disposed || (!connectIntent && !communityIntent)) return;
+    statusTimer = setTimeout(() => { if (!document.hidden) void checkIntent(); }, 5000);
+  }
+  function clearCommunity() {
+    communityIntent = ''; communityFallback = ''; remember('ts-streamer-community-intent', '');
   }
   async function checkIntent() {
-    if (document.hidden) return;
+    if (disposed || document.hidden || checking || connectionBusy) return;
+    checking = true; const generation = intentGeneration;
     try {
-      if (connectIntent) {
-        const status = await api.post('/app/api/streamer/connect-intent/status', { intent_id: connectIntent });
+      const twitchId = connectIntent, channelId = communityIntent;
+      if (twitchId) {
+        const status = await api.post('/app/api/streamer/connect-intent/status', {intent_id:twitchId});
+        if (disposed || generation !== intentGeneration || connectIntent !== twitchId) return;
         if (status.status === 'connected') {
-          connectIntent = ''; remember('ts-streamer-connect-intent', '');
-          feedback = `Twitch подключён: ${status.twitch_login}.`;
-          await load(); return;
-        }
-        if (!['pending', 'verifying'].includes(status.status)) {
-          connectIntent = ''; remember('ts-streamer-connect-intent', '');
-          feedback = status.status === 'cancelled' ? 'Подключение отменено.'
-            : 'Подключение не завершилось. Попробуйте ещё раз.';
+          connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
+          feedback = `Twitch подключён: ${status.twitch_login}.`; await load({fresh:true});
+        } else if (!['pending', 'verifying'].includes(status.status)) {
+          connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
+          feedback = status.status === 'cancelled' ? 'Подключение Twitch отменено.'
+            : status.status === 'expired' ? 'Срок подключения истёк. Начните снова.'
+            : 'Twitch не подключён. Попробуйте ещё раз.';
         }
       }
-      if (communityIntent) {
-        const status = await api.post('/app/api/streamer/community-intent/status', { intent_id: communityIntent });
+      if (channelId && channelId === communityIntent) {
+        const status = await api.post('/app/api/streamer/community-intent/status', {intent_id:channelId});
+        if (disposed || generation !== intentGeneration || communityIntent !== channelId) return;
         if (status.status === 'connected') {
-          communityIntent = ''; communityFallback = '';
-          remember('ts-streamer-community-intent', '');
-          feedback = 'Сообщество подключено.';
-          await load(); return;
-        }
-        if (!['pending', 'verifying'].includes(status.status)) {
-          communityIntent = ''; communityFallback = '';
-          remember('ts-streamer-community-intent', '');
-          feedback = status.status === 'denied'
-            ? 'Не удалось подтвердить права в сообществе. Проверьте права администратора у вас и бота.'
-            : 'Выбор сообщества не завершён. Можно попробовать снова.';
+          clearCommunity(); await load({fresh:true});
+          if (!disposed && generation === intentGeneration) {
+            const saved = data?.communities.find(item => item.chat_id === status.chat_id);
+            feedback = saved ? `Канал подключён. Публикации ${saved.publishing ? 'включены' : 'выключены'}.`
+              : 'Подключение подтверждено. Обновите список каналов.';
+          }
+        } else if (!['pending', 'verifying'].includes(status.status)) {
+          clearCommunity();
+          feedback = status.status === 'cancelled' ? 'Выбор отменён. Канал не подключён.'
+            : status.status === 'expired' ? 'Срок выбора истёк. Выберите канал снова.'
+            : status.permission_reason === 'network_error' ? 'Telegram не ответил. Права канала пока не подтверждены.'
+            : permissionText[status.permission_reason] || 'Канал не подключён. Попробуйте выбрать его снова.';
         }
       }
     } catch (cause) {
+      if (disposed || generation !== intentGeneration) return;
       if (cause instanceof ApiError && cause.status === 403) {
-        connectIntent = ''; communityIntent = '';
-        remember('ts-streamer-connect-intent', ''); remember('ts-streamer-community-intent', '');
+        connectIntent = ''; connectUrl = ''; clearCommunity(); remember('ts-streamer-connect-intent', '');
         feedback = 'Срок входа истёк. Откройте приложение из чата бота.';
-      } else {
-        feedback = 'Не удалось проверить подключение. Повторим, когда связь восстановится.';
-      }
-    }
-    refresh(); scheduleStatus();
+      } else feedback = 'Не удалось проверить подключение. Повторим, когда связь восстановится.';
+    } finally { checking = false; if (!disposed) { refresh(); scheduleStatus(); } }
   }
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && requested) void load();
-  });
+  const onVisibility = () => { if (!document.hidden && requested && !disposed) { void load({fresh:true}); void checkIntent(); } };
+  document.addEventListener('visibilitychange', onVisibility);
   async function startConnect() {
+    if (disposed || connectionBusy || connectIntent) return;
+    connectionBusy = true; const generation = ++intentGeneration; refresh();
     try {
       const intent = await api.post('/app/api/streamer/connect-intent');
-      connectIntent = intent.intent_id;
-      connectUrl = intent.authorize_url;
+      if (disposed || generation !== intentGeneration) return;
+      connectIntent = intent.intent_id; connectUrl = intent.authorize_url;
       remember('ts-streamer-connect-intent', connectIntent);
-      feedback = 'Откройте Twitch и подтвердите подключение. После возврата проверим результат.';
-      refresh(); scheduleStatus();
+      feedback = 'Подтвердите подключение в Twitch. После возврата проверим результат.';
       telegram.openLink(intent.authorize_url);
     } catch (cause) {
-      feedback = cause instanceof ApiError && cause.code === 'connect_unavailable'
-        ? 'Подключение Twitch сейчас недоступно. Попробуйте позже.'
-        : 'Не удалось начать подключение. Попробуйте ещё раз.';
-      refresh();
-    }
+      if (!disposed && generation === intentGeneration) feedback = cause instanceof ApiError && cause.code === 'connect_unavailable'
+        ? 'Подключение Twitch сейчас недоступно. Попробуйте позже.' : 'Не удалось начать подключение. Попробуйте ещё раз.';
+    } finally { if (generation === intentGeneration) { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } } }
   }
   async function cancelConnect() {
-    if (!connectIntent) return;
+    if (!connectIntent || connectionBusy || disposed) return;
+    connectionBusy = true; ++intentGeneration; const id = connectIntent; refresh();
     try {
-      await api.post('/app/api/streamer/connect-intent/cancel', { intent_id: connectIntent });
-      connectIntent = ''; connectUrl = '';
-      remember('ts-streamer-connect-intent', '');
-      feedback = 'Подключение отменено.';
-    } catch {
-      feedback = 'Не удалось отменить подключение. Проверим его статус.';
-      scheduleStatus();
-    }
-    refresh();
+      await api.post('/app/api/streamer/connect-intent/cancel', {intent_id:id});
+      if (disposed || connectIntent !== id) return;
+      connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
+      feedback = 'Подключение Twitch отменено.';
+    } catch { feedback = 'Не удалось отменить подключение. Проверим его статус.'; }
+    finally { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } }
   }
-  async function startCommunity(chatType) {
+  async function cancelCommunity() {
+    if (!communityIntent || connectionBusy || disposed) return;
+    connectionBusy = true; ++intentGeneration; const id = communityIntent; refresh();
     try {
-      const intent = await api.post('/app/api/streamer/community-intent', { chat_type: chatType });
-      const intentId = intent.intent_id;
-      communityIntent = intent.intent_id;
-      communityFallback = intent.fallback_url || '';
+      await api.post('/app/api/streamer/community-intent/cancel', {intent_id:id});
+      if (disposed || communityIntent !== id) return;
+      clearCommunity(); feedback = 'Выбор отменён. Канал не подключён.';
+    } catch { feedback = 'Не удалось подтвердить отмену. Проверим статус выбора.'; }
+    finally { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } }
+  }
+  async function startCommunity() {
+    if (connectionBusy || communityIntent || disposed) return;
+    connectionBusy = true; const generation = ++intentGeneration; refresh();
+    try {
+      const intent = await api.post('/app/api/streamer/community-intent', {chat_type:'channel'});
+      if (disposed || generation !== intentGeneration) return;
+      communityIntent = intent.intent_id; communityFallback = intent.fallback_url || '';
       remember('ts-streamer-community-intent', communityIntent);
-      feedback = 'Выберите сообщество. Подключим его после проверки ваших прав и прав бота.';
+      connectionBusy = false; feedback = 'Выберите Telegram-канал. Затем проверим права.';
       refresh(); scheduleStatus();
       const sent = await telegram.requestChat(intent.prepared_id);
+      if (disposed || generation !== intentGeneration || communityIntent !== intent.intent_id) return;
       if (sent === true) {
-        feedback = 'Выбор отправлен боту. Проверяем права сообщества…';
-        void checkIntent();
-      } else if (sent === null && communityFallback) {
-        feedback = 'Выберите сообщество через кнопку в чате бота, затем вернитесь сюда.';
+        feedback = 'Выбор отправлен. Проверяем канал…'; void checkIntent();
+      } else if (sent === false) { await cancelCommunity(); return; }
+      else if (communityFallback) {
+        feedback = 'Выберите канал через кнопку в чате бота, затем вернитесь сюда.';
         telegram.openTelegramLink(communityFallback);
-      } else if (sent === false) {
-        try {
-          await api.post('/app/api/streamer/community-intent/cancel', { intent_id: intentId });
-          if (communityIntent === intentId) {
-            communityIntent = ''; communityFallback = '';
-            remember('ts-streamer-community-intent', '');
-          }
-          feedback = 'Выбор отменён. Сообщество не подключено.';
-        } catch {
-          feedback = 'Не удалось подтвердить отмену. Проверяем статус выбора.';
-          scheduleStatus();
-        }
-      } else {
-        feedback = 'Откройте чат бота для выбора сообщества.';
-      }
-      refresh();
-    } catch {
-      feedback = 'Не удалось начать выбор сообщества. Попробуйте ещё раз.';
-      refresh();
-    }
+      } else feedback = 'Выбор канала сейчас недоступен. Попробуйте позже.';
+    } catch { if (!disposed && generation === intentGeneration) feedback = 'Не удалось начать выбор канала. Попробуйте ещё раз.'; }
+    finally { if (generation === intentGeneration) { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } } }
   }
   async function togglePublishing(community, enabled) {
+    if (disposed || publishingPending.has(community.chat_id)) return;
+    publishingPending.add(community.chat_id); refresh();
     try {
-      await api.post('/app/api/streamer/communities/toggle', {
-        chat_id: community.chat_id, enabled,
-      });
-      feedback = enabled
-        ? 'Публикации включены. Бот отправит обычный пост при следующем подтверждённом эфире.'
-        : 'Публикации приостановлены.';
-      await load();
+      await api.post('/app/api/streamer/communities/toggle', {chat_id:community.chat_id,enabled});
+      if (disposed) return;
+      feedback = enabled ? 'Публикации включены. Бот отправит обычный пост при следующем подтверждённом эфире.' : 'Публикации приостановлены.';
+      await load({fresh:true});
     } catch (cause) {
-      feedback = cause instanceof ApiError && cause.code === 'permission_denied'
-        ? 'Нужны права администратора у вас и бота. После исправления попробуйте ещё раз.'
-        : 'Не удалось изменить публикации. Попробуйте ещё раз.';
-      refresh();
-    }
+      if (!disposed) feedback = cause instanceof ApiError && cause.code === 'verification_unavailable'
+        ? 'Telegram не ответил. Публикации не изменены.'
+        : cause instanceof ApiError && cause.code === 'permission_denied'
+          ? 'Права изменились. Проверьте их и попробуйте снова.' : 'Не удалось изменить публикации. Попробуйте ещё раз.';
+    } finally { publishingPending.delete(community.chat_id); if (!disposed) refresh(); }
+  }
+  function connectionAction(label, callback, secondary = false) {
+    const button = action(label, callback, secondary); button.disabled = connectionBusy; button.classList.add('connection-action'); return button;
   }
   const draftKey = (chatId) => `ts-streamer-template-${data.twitch_login}-${chatId}`;
   function restoreDraft(chatId, saved) {
@@ -379,47 +403,69 @@ export function createStreamerFeature(api, getRouter, telegram) {
     finally { presetBusy = false; refresh(); }
   }
   function renderChannel(target) {
-    heading(target, 'Мой канал', 'Twitch и сообщества Telegram в одном месте.');
+    heading(target, 'Мой канал', 'Подключение Twitch и публикации в Telegram.');
+    const identity = element('section', 'connection-identity');
+    identity.append(icon('channel'), element('div', 'row-copy'));
+    identity.lastChild.append(element('strong', '', data.connected ? data.twitch_login : 'Twitch не подключён'),
+      element('small', 'muted', data.connected ? 'Аккаунт подтверждён' : 'Войдите в свой аккаунт Twitch'));
+    target.append(identity);
     if (!data.connected) {
-      const box = element('section', 'panel feature-panel');
-      box.append(element('h2', '', 'Подключите Twitch'));
-      box.append(element('p', 'muted', 'Войдите в свой Twitch-аккаунт. Подключение сообщества и обычный пост бесплатны.'));
-      box.append(action('Подключить Twitch', () => void startConnect()));
-      if (connectUrl) box.append(action('Открыть страницу Twitch', () => telegram.openLink(connectUrl), true));
-      if (connectIntent) {
-        box.append(element('p', 'notice', 'Ожидаем подтверждение Twitch.'));
-        box.append(action('Отменить подключение', () => void cancelConnect(), true));
+      target.append(element('p', 'lead', 'Подключение канала и стандартный пост с фото доступны бесплатно.'));
+      if (!connectIntent) target.append(connectionAction('Подключить Twitch', startConnect));
+      else {
+        target.append(element('p', 'notice', 'Проверяем подключение Twitch…'));
+        if (connectUrl) target.append(connectionAction('Открыть страницу Twitch', () => telegram.openLink(connectUrl), true));
+        target.append(connectionAction('Проверить подключение', checkIntent, true), connectionAction('Отменить подключение', cancelConnect, true));
       }
-      target.append(box);
     } else {
-      target.append(panel('Twitch подключён', data.twitch_login));
-      const box = element('section', 'panel feature-panel');
-      box.append(element('h2', '', 'Сообщества'));
-      if (!data.communities.length) box.append(element('p', 'muted', 'Пока нет подключённых сообществ. Добавьте бота администратором группы или канала и выберите его здесь.'));
+      const title = element('div', 'section-head'); title.append(element('h2', '', 'Telegram'), element('small', '', String(data.communities.length))); target.append(title);
+      if (!data.communities.length) target.append(panel('Подключите Telegram-канал', 'Здесь появится канал для автоматических постов о ваших эфирах.'));
+      const list = element('div', 'list');
       for (const community of data.communities) {
-        const line = element('div', 'panel feature-panel');
-        line.append(element('strong', '', community.title), element('small', '',
-          !community.permission_ok ? 'Нужны права администратора у вас и бота'
-            : community.publishing ? 'Публикации включены' : 'Публикации выключены'));
-        if (community.publishing) {
-          line.append(action('Приостановить публикации', () => void togglePublishing(community, false), true));
-        } else if (community.permission_ok) {
-          line.append(action('Включить публикации', () => void togglePublishing(community, true)));
-        }
-        box.append(line);
+        const status = community.permission_status || (community.permission_ok ? 'ready' : 'network_error');
+        const detail = community.chat_type === 'channel' ? 'Telegram-канал' : 'Подключённая группа';
+        list.append(navigationRow(community.title,
+          `${detail} · ${status === 'ready' ? community.publishing ? 'Публикации включены' : 'Публикации выключены' : permissionText[status] || 'Права не подтверждены'}`,
+          'channel', () => getRouter().openDetail(`channel:${community.chat_id}`), `channel:${community.chat_id}`));
       }
-      const buttons = element('div', 'actions');
-      buttons.append(action('Выбрать группу', () => void startCommunity('group')));
-      buttons.append(action('Выбрать канал', () => void startCommunity('channel'), true));
-      box.append(buttons);
-      if (communityIntent) box.append(element('p', 'notice', 'Ждём выбор и повторную проверку прав.'));
-      if (communityFallback) box.append(action('Открыть чат бота', () => telegram.openTelegramLink(communityFallback), true));
-      target.append(box);
+      if (list.childElementCount) target.append(list);
+      const instructions = element('details', 'connection-instructions');
+      instructions.append(element('summary', '', 'Как подключить канал'), element('p', 'muted',
+        'Добавьте бота администратором канала и включите «Публикация сообщений». Затем выберите канал. Публикации вы включите отдельно.'));
+      target.append(instructions);
+      if (!communityIntent) target.append(connectionAction('Подключить Telegram-канал', startCommunity));
+      else {
+        target.append(connectionAction('Проверить подключение', checkIntent, true), connectionAction('Отменить выбор', cancelCommunity, true));
+        if (communityFallback) target.append(connectionAction('Открыть чат бота', () => telegram.openTelegramLink(communityFallback), true));
+      }
     }
-    if (feedback) {
-      const note = element('p', 'notice', feedback);
-      note.setAttribute('role', 'status'); target.append(note);
+    renderFeedback(target);
+  }
+  function renderFeedback(target) {
+    if (!feedback) return;
+    const note = element('p', 'notice connection-feedback', feedback); note.setAttribute('role', 'status'); target.append(note);
+  }
+  function renderCommunity(target, id) {
+    const community = data.communities.find(item => item.chat_id === Number(id));
+    if (!community) { heading(target, 'Канал недоступен', 'Вернитесь к списку подключений.'); return; }
+    heading(target, community.chat_type === 'channel' ? 'Telegram-канал' : 'Telegram-группа', community.title);
+    const status = community.permission_status || (community.permission_ok ? 'ready' : 'network_error');
+    const state = element('section', 'connection-state'); state.dataset.permissionStatus = status;
+    state.append(element('strong', '', permissionText[status] || 'Права не подтверждены'));
+    if (permissionHelp[status]) state.append(element('p', 'muted', permissionHelp[status]));
+    target.append(state);
+    const pending = publishingPending.has(community.chat_id);
+    if (community.publishing || community.permission_ok) {
+      const toggle = action(community.publishing ? 'Приостановить публикации' : 'Включить публикации',
+        () => togglePublishing(community, !community.publishing), community.publishing);
+      toggle.disabled = pending; toggle.classList.add('connection-action'); target.append(toggle);
     }
+    target.append(element('p', 'notice', community.publishing ? 'Публикации включены' : 'Публикации выключены'));
+    const retry = action('Проверить права', () => load({fresh:true}), true); retry.disabled = loading; retry.classList.add('connection-action'); target.append(retry);
+    if (typeof community.public_url === 'string' && /^https:\/\/t\.me\/[A-Za-z][A-Za-z0-9_]{4,31}$/.test(community.public_url)) {
+      target.append(connectionAction('Открыть канал', () => telegram.openTelegramLink(community.public_url), true));
+    }
+    renderFeedback(target);
   }
   function renderPosts(target) {
     heading(target, 'Посты', 'Оформление для ваших сообществ.');
@@ -582,10 +628,12 @@ export function createStreamerFeature(api, getRouter, telegram) {
       if (!requested) { queueMicrotask(() => { if (!requested) void load(); }); target.append(element('div', 'status-panel', 'Загружаем данные стримера…')); return; }
       if (!data) { target.append(element('div', 'status-panel', error || 'Загружаем данные стримера…')); return; }
       if (error) target.append(element('p', 'notice error', error));
-      if (route.tab === 'channel') renderChannel(target);
+      if (typeof route.detail === 'string' && route.detail.startsWith('channel:')) renderCommunity(target, route.detail.slice(8));
+      else if (route.tab === 'channel') renderChannel(target);
       else if (route.tab === 'posts') renderPosts(target);
       else renderProfile(target);
     },
     refresh: load,
+    dispose() { disposed = true; ++profileGeneration; ++intentGeneration; profileController?.abort(); clearTimeout(statusTimer); document.removeEventListener('visibilitychange', onVisibility); },
   };
 }

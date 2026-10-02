@@ -7,7 +7,7 @@ import secrets
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import aiohttp
 from aiohttp import web
@@ -21,6 +21,8 @@ from .mini_app_web import install_mini_app_routes
 from .payment_web import install_payment_routes
 from .growth_site import install_growth_site
 from .database import Database
+from .oauth_result import result_page, UI_DIR as OAUTH_RESULT_UI_DIR
+from .admin_web import SECURITY_HEADERS
 
 from .twitch import (
     TwitchUnauthorizedError,
@@ -59,6 +61,10 @@ class UserTokenResult:
 
 
 class OAuthFlowError(Exception):
+    pass
+
+
+class OAuthDeclinedError(OAuthFlowError):
     pass
 
 
@@ -225,6 +231,8 @@ class OAuthCallbackServer:
         self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
         self._preview_observer = None
         self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
+        self._mini_app_states: dict[str, tuple[int, str]] = {}
+        self._result_tickets: dict[str, tuple[int, str, float]] = {}
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
         self._admin_snapshot_provider: SnapshotProvider | None = None
@@ -255,6 +263,9 @@ class OAuthCallbackServer:
         # No monetary provider or callback is enabled for this first release.
         install_payment_routes(app)
         app.router.add_get(REDIRECT_PATH, self._handle_callback)
+        app.router.add_get("/twitch/result", self._handle_result_page)
+        app.router.add_get("/twitch/result/status", self._handle_result_status)
+        app.router.add_get("/twitch/result/{filename}", self._handle_result_asset)
         app.router.add_get(HEALTH_PATH, self._handle_health)
         if self._admin_access is not None:
             async def _snapshot() -> dict:
@@ -292,6 +303,8 @@ class OAuthCallbackServer:
         if self._mini_app_connect_tasks:
             await asyncio.gather(*self._mini_app_connect_tasks.values(), return_exceptions=True)
         self._mini_app_connect_tasks.clear()
+        self._mini_app_states.clear()
+        self._result_tickets.clear()
         for state in list(self._pending):
             self.discard_state(state)
         if self._runner is not None:
@@ -334,6 +347,7 @@ class OAuthCallbackServer:
         except Exception:
             await db.finish_streamer_connect_intent(intent_id, "failed")
             raise
+        self._mini_app_states[state] = (telegram_user_id, intent_id)
         task = asyncio.create_task(
             self._finish_streamer_connect_intent(telegram_user_id, intent_id, state),
             name="mini-app-streamer-oauth",
@@ -360,16 +374,17 @@ class OAuthCallbackServer:
                     code, self.redirect_uri, session,
                 )
             saved = await db.save_verified_streamer_connection(
-                telegram_user_id, result, verified_at=time.time(),
+                telegram_user_id, result, verified_at=time.time(), intent_id=intent_id,
             )
-            await db.finish_streamer_connect_intent(
-                intent_id, "connected" if saved else "conflict",
-                twitch_login=result.login if saved else None,
-            )
+            if not saved:
+                row = await db.get_streamer_connect_intent(intent_id)
+                await db.finish_streamer_connect_intent(intent_id, "expired" if row and row[3] <= time.time() else "conflict")
+        except OAuthDeclinedError:
+            await db.finish_streamer_connect_intent(intent_id, "cancelled")
         except asyncio.CancelledError:
             await db.finish_streamer_connect_intent(intent_id, "cancelled")
-        except Exception:
-            logger.exception("Mini App Twitch connection failed")
+        except Exception as error:
+            logger.warning("Mini App Twitch connection failed (%s)", type(error).__name__)
             await db.finish_streamer_connect_intent(intent_id, "failed")
         finally:
             self.discard_state(state)
@@ -379,7 +394,7 @@ class OAuthCallbackServer:
     async def cancel_streamer_connect_intent(self, telegram_user_id: int, intent_id: str) -> bool:
         db = self._mini_app_db
         row = await db.get_streamer_connect_intent(intent_id)
-        if row is None or row[1] != telegram_user_id or row[4] != "pending":
+        if row is None or row[1] != telegram_user_id or row[4] not in {"pending", "verifying"}:
             return False
         task = self._mini_app_connect_tasks.get(telegram_user_id)
         if task is not None and not task.done():
@@ -390,6 +405,7 @@ class OAuthCallbackServer:
         return final is not None and final[4] == "cancelled"
 
     def discard_state(self, state: str) -> None:
+        self._mini_app_states.pop(state, None)
         future = self._pending.pop(state, None)
         if future is not None and not future.done():
             future.cancel()
@@ -428,27 +444,81 @@ class OAuthCallbackServer:
             headers={"Cache-Control": "no-store"},
         )
 
+    def _prune_result_tickets(self) -> None:
+        now = time.time()
+        self._result_tickets = {key: value for key, value in self._result_tickets.items() if value[2] > now}
+
+    def _callback_result(self, context: tuple[int, str] | None, *, status: str, http_status: int = 200) -> web.Response:
+        if context is None:
+            return web.Response(text=result_page(status, bot_username=self._mini_app_bot_username),
+                                content_type="text/html", status=http_status, headers=SECURITY_HEADERS)
+        self._prune_result_tickets()
+        if len(self._result_tickets) >= MAX_PENDING_AUTHORIZATIONS:
+            self._result_tickets.pop(next(iter(self._result_tickets)))
+        ticket = secrets.token_hex(24)
+        self._result_tickets[ticket] = (*context, time.time() + 600)
+        response = web.Response(status=303, headers={**SECURITY_HEADERS, "Location": "/twitch/result"})
+        response.set_cookie("ts-oauth-result", ticket, max_age=600, httponly=True, samesite="Lax",
+                            secure=urlparse(self.redirect_uri).scheme == "https", path="/twitch/result")
+        return response
+
+    async def _result_payload(self, request: web.Request) -> tuple[int, dict]:
+        self._prune_result_tickets()
+        ticket = self._result_tickets.get(request.cookies.get("ts-oauth-result", ""))
+        if ticket is None or self._mini_app_db is None:
+            return 403, {"error": "result_expired"}
+        user_id, intent_id, _expires = ticket
+        row = await self._mini_app_db.get_streamer_connect_intent(intent_id)
+        if row is None or row[1] != user_id:
+            return 403, {"error": "result_expired"}
+        status = "expired" if row[4] in {"pending", "verifying"} and row[3] <= time.time() else row[4]
+        payload = {"status": status}
+        if status == "connected":
+            identity = await self._mini_app_db.get_streamer_identity(user_id)
+            if identity is None or identity[1] != row[5]:
+                return 200, {"status": "failed"}
+            payload["twitch_login"] = identity[1]
+        return 200, payload
+
+    async def _handle_result_status(self, request: web.Request) -> web.Response:
+        status, payload = await self._result_payload(request)
+        return web.json_response(payload, status=status, headers=SECURITY_HEADERS)
+
+    async def _handle_result_page(self, request: web.Request) -> web.Response:
+        status, payload = await self._result_payload(request)
+        return web.Response(text=result_page(payload.get("status", "expired"), bot_username=self._mini_app_bot_username),
+                            status=status, content_type="text/html", headers=SECURITY_HEADERS)
+
+    async def _handle_result_asset(self, request: web.Request) -> web.Response:
+        filename = request.match_info["filename"]
+        types = {"ui.css": "text/css", "ui.js": "application/javascript"}
+        if filename not in types:
+            raise web.HTTPNotFound()
+        return web.Response(body=(OAUTH_RESULT_UI_DIR / filename).read_bytes(),
+                            content_type=types[filename], headers=SECURITY_HEADERS)
+
     async def _handle_callback(self, request: web.Request) -> web.Response:
         state = request.query.get("state")
         future = self._pending.get(state or "")
         if future is None or future.done():
-            return web.Response(text="Ссылка авторизации недействительна или уже использована.", status=400)
+            return self._callback_result(None, status="expired", http_status=400)
+
+        context = self._mini_app_states.get(state or "")
 
         error = request.query.get("error")
         if error:
-            future.set_exception(OAuthFlowError(f"Twitch вернул ошибку: {error}"))
-            return web.Response(text=f"Авторизация отклонена: {error}", status=400)
+            declined = error == "access_denied"
+            future.set_exception(OAuthDeclinedError("Twitch authorization declined") if declined
+                                 else OAuthFlowError("Twitch authorization failed"))
+            return self._callback_result(context, status="cancelled" if declined else "failed", http_status=400)
 
         code = request.query.get("code")
         if not code:
             future.set_exception(OAuthFlowError("В ответе Twitch нет code"))
-            return web.Response(text="Ошибка: отсутствует code.", status=400)
+            return self._callback_result(context, status="failed", http_status=400)
 
         future.set_result(code)
-        return web.Response(
-            text="Авторизация прошла успешно! Можно закрыть эту вкладку и вернуться в Telegram.",
-            content_type="text/html",
-        )
+        return self._callback_result(context, status="legacy")
 
 
 def build_authorize_url(client_id: str, redirect_uri: str, state: str) -> str:

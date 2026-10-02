@@ -28,14 +28,13 @@ class CommunityPermissionTests(unittest.IsolatedAsyncioTestCase):
         group = await verify_community_permission(self.bot(), -1001, 101)
         self.assertEqual((group.chat_id, group.chat_type, group.title), (-1001, "supergroup", "My group"))
         channel = await verify_community_permission(
-            self.bot(chat_type="channel"), -1002, 101,
+            self.bot(chat_type="channel", can_edit=False), -1002, 101,
         )
         self.assertEqual(channel.chat_type, "channel")
         for bot in (
             self.bot(user_status="member"),
             self.bot(bot_status="member"),
             self.bot(chat_type="channel", can_post=False),
-            self.bot(chat_type="channel", can_edit=False),
             self.bot(chat_type="private"),
         ):
             with self.subTest(bot=bot):

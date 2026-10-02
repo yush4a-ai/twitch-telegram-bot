@@ -20,6 +20,7 @@ from bot.viewer_history import ViewerHistoryService
 from bot.viewer_reminders import ViewerReminderService
 from bot.notification_queue import NotificationQueue
 from bot.notification_worker import NotificationWorker, NotificationOutcome
+from bot.oauth_result import result_page, UI_DIR as OAUTH_UI_DIR, MESSAGES as OAUTH_MESSAGES
 
 
 FIXTURE_BOT_TOKEN = "123456:test-telegram-token"
@@ -27,6 +28,7 @@ SCENARIOS = frozenset({
     "free-empty", "free-six", "plus-two-hundred", "streamer-plus",
     "independent-viewer", "legacy-group", "channel-permissions",
     "payment-off", "legal-unready", "reminder-inflight", "history",
+    "streamer-unconnected", "channel-empty",
 })
 
 
@@ -36,16 +38,24 @@ class FixtureBot:
     def __init__(self, *, channel=False):
         self.channel = channel
         self.sent_calls = []
+        self.permission = "ready"
 
     async def get_chat(self, chat_id):
+        if self.permission == "network_error":
+            raise TimeoutError("local Telegram outage")
         return SimpleNamespace(
+            id=chat_id,
             type="channel" if self.channel and chat_id != -1002 else "supergroup",
             title="Канал с длинным названием о стримах, играх и совместных эфирах",
-            username=None,
+            username="verified_channel" if chat_id == -1001 else None,
         )
 
     async def get_chat_member(self, chat_id, user_id):
-        return SimpleNamespace(status="administrator", can_post_messages=True, can_edit_messages=True)
+        if user_id == self.id:
+            status = {"bot_absent": "left", "bot_member": "member"}.get(self.permission, "administrator")
+            return SimpleNamespace(status=status, can_post_messages=self.permission != "missing_post_right",
+                                   can_edit_messages=False)
+        return SimpleNamespace(status="administrator")
 
     async def save_prepared_keyboard_button(self, *, user_id, button):
         return SimpleNamespace(id=f"fixture-prepared-{button.request_chat.request_id}")
@@ -156,11 +166,13 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
                 501, [(str(1000 + index), login) for index, login in enumerate(channels[:3])],
                 expected_version=0,
             )
-        await db.link_streamer_identity(501, "2001", "alpha", verified_at=observed_at)
-        await db.add_streamer_community(
-            501, -1001, "Очень длинное название Telegram-канала для уведомлений о новых эфирах",
-            "channel", now=observed_at,
-        )
+        if scenario != "streamer-unconnected":
+            await db.link_streamer_identity(501, "2001", "alpha", verified_at=observed_at)
+            if scenario != "channel-empty":
+                await db.add_streamer_community(
+                    501, -1001, "Очень длинное название Telegram-канала для уведомлений о новых эфирах",
+                    "channel", now=observed_at,
+                )
         if scenario == "legacy-group":
             await db.add_streamer_community(501, -1002, "Существующая группа", "supergroup", now=observed_at)
             await db.add_channel(-1002, "alpha")
@@ -236,6 +248,46 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             return web.json_response({"stopped": True})
 
         app.router.add_post("/_qa/shutdown", shutdown)
+        async def channel_control(request):
+            if not ipaddress.ip_address(request.remote or "0.0.0.0").is_loopback:
+                return web.json_response({"error": "local_only"}, status=403)
+            values = await request.json()
+            mode = values.get("permission", "ready")
+            if mode not in {"ready", "bot_absent", "bot_member", "missing_post_right", "network_error"}:
+                return web.json_response({"error": "invalid_permission"}, status=400)
+            state.bot.permission = mode
+            intent = await db.get_community_intent(values.get("intent_id", ""))
+            if values.get("expire") and intent and intent[1] == 501:
+                await db.conn.execute("UPDATE streamer_community_intents SET expires_at=? WHERE intent_id=?",
+                                      (time.time() - 1, intent[0]))
+                await db.conn.commit()
+            connected = False
+            if values.get("complete") and intent and intent[1] == 501:
+                connected = await complete_community_intent(db, state.bot, 501, intent[2], -1003,
+                                                          now=time.time())
+            return web.json_response({"connected": connected, "sent_calls": len(state.bot.sent_calls)})
+        app.router.add_post("/_qa/channel-control", channel_control)
+        async def oauth_picture(request):
+            status = request.match_info["status"]
+            if status not in OAUTH_MESSAGES:
+                raise web.HTTPNotFound()
+            response = web.Response(text=result_page(status, bot_username="TwitchSignalTestbot"),
+                                    content_type="text/html", headers={"Cache-Control": "no-store"})
+            response.set_cookie("qa_oauth_status", status, httponly=True, samesite="Strict", path="/twitch/result")
+            return response
+        async def oauth_picture_status(request):
+            status = request.cookies.get("qa_oauth_status")
+            if status not in OAUTH_MESSAGES:
+                raise web.HTTPForbidden()
+            return web.json_response({"status":status}, headers={"Cache-Control":"no-store"})
+        async def oauth_picture_asset(request):
+            filename = request.match_info["filename"]
+            if filename not in {"ui.css", "ui.js"}:
+                raise web.HTTPNotFound()
+            return web.FileResponse(OAUTH_UI_DIR / filename)
+        app.router.add_get("/_qa/oauth-result/{status}", oauth_picture)
+        app.router.add_get("/twitch/result/status", oauth_picture_status)
+        app.router.add_get("/twitch/result/{filename}", oauth_picture_asset)
         return app, db
     except BaseException:
         await db.close()

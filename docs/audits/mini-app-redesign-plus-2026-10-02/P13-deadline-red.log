@@ -1,0 +1,23 @@
+.F                                                                       [100%]
+================================== FAILURES ===================================
+_ ChannelIntentTests.test_verifying_oauth_expires_at_same_deadline_as_result_and_store _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_verifying_oauth_expires_at_same_deadline_as_result_and_store>
+
+    async def test_verifying_oauth_expires_at_same_deadline_as_result_and_store(self):
+        at = time.time()
+        await self.db.create_streamer_connect_intent("deadline-intent-101", 101, "f" * 64, now=at-601)
+        await self.db.conn.execute("UPDATE streamer_connect_intents SET status='verifying' WHERE intent_id=?",
+                                   ("deadline-intent-101",))
+        await self.db.conn.commit()
+        response = await self.post("connect-intent/status", intent_id="deadline-intent-101")
+        self.assertEqual(response.status, 200)
+>       self.assertEqual((await response.json())["status"], "expired")
+E       AssertionError: 'verifying' != 'expired'
+E       - verifying
+E       + expired
+
+tests\test_channel_permissions_redesign.py:114: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_verifying_oauth_expires_at_same_deadline_as_result_and_store
+1 failed, 1 passed, 12 deselected in 4.50s

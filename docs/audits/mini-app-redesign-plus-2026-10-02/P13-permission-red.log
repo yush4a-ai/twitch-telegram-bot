@@ -1,0 +1,344 @@
+.FF.FFFFF............                                    [100%]
+================================== FAILURES ===================================
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='bot_absent') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='bot_absent') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='bot_member') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='missing_post_right') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='missing_post_right') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='missing_post_right') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='user_denied') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_denial_reasons_and_missing_permission_fail_closed (status='wrong_chat_type') _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_denial_reasons_and_missing_permission_fail_closed>
+
+    async def test_denial_reasons_and_missing_permission_fail_closed(self):
+        for bot, status in ((fake_bot(member="left"), "bot_absent"),
+                            (fake_bot(member="kicked"), "bot_absent"),
+                            (fake_bot(member="member"), "bot_member"),
+                            (fake_bot(post=False), "missing_post_right"),
+                            (fake_bot(post=None), "missing_post_right"),
+                            (fake_bot(post=1), "missing_post_right"),
+                            (fake_bot(user="member"), "user_denied"),
+                            (fake_bot(chat_type="private"), "wrong_chat_type")):
+            with self.subTest(status=status):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_legacy_group_keeps_existing_permission_semantics _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_legacy_group_keeps_existing_permission_semantics>
+
+    async def test_legacy_group_keeps_existing_permission_semantics(self):
+>       result = await self.check(fake_bot(chat_type="supergroup", post=False))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_network_and_cancellation_do_not_become_missing_rights _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_network_and_cancellation_do_not_become_missing_rights>
+
+    async def test_network_and_cancellation_do_not_become_missing_rights(self):
+        for error in (TimeoutError(), RuntimeError("temporary Telegram failure")):
+            bot = fake_bot(); bot.get_chat.side_effect = error
+>           result = await self.check(bot)
+                     ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:69:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_post_only_and_creator_are_ready_without_foreign_edit_rights (member=namespace(id=999, get_chat=<AsyncMock id='2087688960960'>, get_chat_member=<AsyncMock id='2087688931760'>, save_prepared_keyboard_button=<AsyncMock id='2087688935792'>, send_message=<AsyncMock id='2087669426384'>)) _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_post_only_and_creator_are_ready_without_foreign_edit_rights>
+
+    async def test_post_only_and_creator_are_ready_without_foreign_edit_rights(self):
+        for bot in (fake_bot(), fake_bot(member="creator"), fake_bot(user="creator")):
+            with self.subTest(member=bot):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:45:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_post_only_and_creator_are_ready_without_foreign_edit_rights (member=namespace(id=999, get_chat=<AsyncMock id='2087688944048'>, get_chat_member=<AsyncMock id='2087689193328'>, save_prepared_keyboard_button=<AsyncMock id='2087689197696'>, send_message=<AsyncMock id='2087689201632'>)) _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_post_only_and_creator_are_ready_without_foreign_edit_rights>
+
+    async def test_post_only_and_creator_are_ready_without_foreign_edit_rights(self):
+        for bot in (fake_bot(), fake_bot(member="creator"), fake_bot(user="creator")):
+            with self.subTest(member=bot):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:45:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_post_only_and_creator_are_ready_without_foreign_edit_rights (member=namespace(id=999, get_chat=<AsyncMock id='2087689205808'>, get_chat_member=<AsyncMock id='2087689209856'>, save_prepared_keyboard_button=<AsyncMock id='2087689213648'>, send_message=<AsyncMock id='2087689217728'>)) _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_post_only_and_creator_are_ready_without_foreign_edit_rights>
+
+    async def test_post_only_and_creator_are_ready_without_foreign_edit_rights(self):
+        for bot in (fake_bot(), fake_bot(member="creator"), fake_bot(user="creator")):
+            with self.subTest(member=bot):
+>               result = await self.check(bot)
+                         ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:45:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ StructuredPermissionTests.test_verified_url_rejects_foreign_chat_and_unsafe_username _
+
+self = <test_channel_permissions_redesign.StructuredPermissionTests testMethod=test_verified_url_rejects_foreign_chat_and_unsafe_username>
+
+    async def test_verified_url_rejects_foreign_chat_and_unsafe_username(self):
+        bot = fake_bot(); bot.get_chat.return_value.id = -2002
+>       self.assertEqual((await self.check(bot)).status, "network_error")
+                          ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_channel_permissions_redesign.py:78:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_channel_permissions_redesign.py:39: in check
+    self.assertTrue(callable(checker), "structured permission checker is required")
+E   AssertionError: False is not true : structured permission checker is required
+_ ChannelIntentTests.test_legacy_group_stays_usable_for_free_and_network_is_not_permission_denied _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_legacy_group_stays_usable_for_free_and_network_is_not_permission_denied>
+
+    async def test_legacy_group_stays_usable_for_free_and_network_is_not_permission_denied(self):
+        await self.db.add_streamer_community(101, -1001, "Existing group", "supergroup", now=time.time())
+        self.bot.get_chat.return_value.type = "supergroup"
+        self.assertEqual((await self.post("communities/toggle", chat_id=-1001, enabled=True)).status, 200)
+        self.bot.get_chat.side_effect = TimeoutError()
+        profile = await (await self.post("profile")).json()
+>       self.assertEqual(profile["communities"][0]["permission_status"], "network_error")
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'permission_status'
+
+tests\test_channel_permissions_redesign.py:141: KeyError
+_ ChannelIntentTests.test_network_failure_reason_persists_and_does_not_connect _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_network_failure_reason_persists_and_does_not_connect>
+
+    async def test_network_failure_reason_persists_and_does_not_connect(self):
+        created = await (await self.post("community-intent", chat_type="channel")).json()
+        row = await self.db.get_community_intent(created["intent_id"])
+        self.bot.get_chat.side_effect = TimeoutError()
+        self.assertFalse(await complete_community_intent(self.db, self.bot, 101, row[2], -1001, now=time.time()))
+        result = await (await self.post("community-intent/status", intent_id=created["intent_id"])).json()
+>       self.assertEqual((result["status"], result["permission_reason"]), ("failed", "network_error"))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'permission_reason'
+
+tests\test_channel_permissions_redesign.py:155: KeyError
+_ ChannelIntentTests.test_new_group_is_rejected_at_api_and_store_and_prepared_is_channel_only _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_new_group_is_rejected_at_api_and_store_and_prepared_is_channel_only>
+
+    async def test_new_group_is_rejected_at_api_and_store_and_prepared_is_channel_only(self):
+        response = await self.post("community-intent", chat_type="group")
+>       self.assertEqual(response.status, 400)
+E       AssertionError: 200 != 400
+
+tests\test_channel_permissions_redesign.py:108: AssertionError
+_ ChannelIntentTests.test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared _
+
+self = <test_channel_permissions_redesign.ChannelIntentTests testMethod=test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared>
+
+    async def test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared(self):
+        from bot.handlers.streams import cmd_start_link
+        now = time.time(); intent_id = "legacy-group-intent-1111"
+        await self.db.conn.execute("INSERT INTO streamer_community_intents "
+                                   "(intent_id,telegram_user_id,request_id,created_at,expires_at,chat_type,status) "
+                                   "VALUES (?,101,77,?,?,'group','pending')", (intent_id, now, now + 600))
+        await self.db.conn.commit()
+        message = SimpleNamespace(chat=SimpleNamespace(id=101, type=ChatType.PRIVATE),
+                                  from_user=SimpleNamespace(id=101), answer=AsyncMock())
+        await cmd_start_link(message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
+                             SimpleNamespace(), self.db, None)
+>       self.assertNotIn("reply_markup", message.answer.await_args.kwargs)
+E       AssertionError: 'reply_markup' unexpectedly found in {'reply_markup': ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text='������� ����������', icon_custom_emoji_id=None, style=None, request_users=None, request_chat=KeyboardButtonRequestChat(request_id=77, chat_is_channel=False, chat_is_forum=None, chat_has_username=None, chat_is_created=None, user_administrator_rights=None, bot_administrator_rights=None, bot_is_member=True, request_title=True, request_username=None, request_photo=None), request_managed_bot=None, request_contact=None, request_location=None, request_poll=None, web_app=None, request_user=None)]], is_persistent=None, resize_keyboard=True, one_time_keyboard=True, input_field_placeholder=None, selective=None)}
+
+tests\test_channel_permissions_redesign.py:130: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(status='bot_absent') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='bot_absent') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='bot_member') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='missing_post_right') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='missing_post_right') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='missing_post_right') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='user_denied') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+SUBFAILED(status='wrong_chat_type') tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_denial_reasons_and_missing_permission_fail_closed
+FAILED tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_legacy_group_keeps_existing_permission_semantics
+FAILED tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_network_and_cancellation_do_not_become_missing_rights
+SUBFAILED(member=namespace(id=999, get_chat=<AsyncMock id='2087688960960'>, get_chat_member=<AsyncMock id='2087688931760'>, save_prepared_keyboard_button=<AsyncMock id='2087688935792'>, send_message=<AsyncMock id='2087669426384'>)) tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_post_only_and_creator_are_ready_without_foreign_edit_rights
+SUBFAILED(member=namespace(id=999, get_chat=<AsyncMock id='2087688944048'>, get_chat_member=<AsyncMock id='2087689193328'>, save_prepared_keyboard_button=<AsyncMock id='2087689197696'>, send_message=<AsyncMock id='2087689201632'>)) tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_post_only_and_creator_are_ready_without_foreign_edit_rights
+SUBFAILED(member=namespace(id=999, get_chat=<AsyncMock id='2087689205808'>, get_chat_member=<AsyncMock id='2087689209856'>, save_prepared_keyboard_button=<AsyncMock id='2087689213648'>, send_message=<AsyncMock id='2087689217728'>)) tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_post_only_and_creator_are_ready_without_foreign_edit_rights
+FAILED tests/test_channel_permissions_redesign.py::StructuredPermissionTests::test_verified_url_rejects_foreign_chat_and_unsafe_username
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_legacy_group_stays_usable_for_free_and_network_is_not_permission_denied
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_network_failure_reason_persists_and_does_not_connect
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_new_group_is_rejected_at_api_and_store_and_prepared_is_channel_only
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared
+18 failed, 14 passed, 5 subtests passed in 16.58s
