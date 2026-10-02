@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P16 PASS, далее P17
+## Текущий checkpoint — 02.10.2026: P17 PASS, далее P18
+
+Базаf1ed26ab; copy/catalog/видимыйHTML и совместимость:387tests50subtests,40tests2667subtests,4reports44PNG/currentSHA. Один reviewer; English и allUI payment-controls scan, actual catalog fields и Agreementcopy исправлены без смены прав. HTML/report modules/экспорт сохранены, detector[]. `P17-COPY-COMPATIBILITY.md`. Далее browser/media matrix P18; full suite P19 ещё впереди. Payment OFF/bank NOT READY/native NOT TESTED.
+
+## Предыдущий checkpoint — 02.10.2026: P16 PASS, далее P17
 
 P15 commit72ab5ce; P16 canonical legal5/manifest и общий контакт Support/paysupport.55tests104subtests,4reports44uniquePNG/SHA,JS0/external0,detector[]. Один reviewer подтвердил URI/mailto fixes; expanded391PASS/2fixturefail→targetedPASS без ослабления assertions. Реальные owner data/acceptance отсутствуют: документы503,contact absent,bank NOT READY; payment OFF. `P16-LEGAL-SUPPORT.md`; P17 copy/compatibility,full suiteP19/native/staging впереди.
 

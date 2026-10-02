@@ -517,3 +517,9 @@
 - Основание: утверждённый P16. Canonical source/version/SHA/catalog/owner acceptance плюс обязательные сведения проверяются сервером; manifest не снимает mandatory inputs. Контакт из SUPPORT_USERNAME/EMAIL один для Mini App и paysupport, без defaults.
 - Проверка:55tests104subtests,4reports44PNG/current SHA; один reviewer подтвердил URI/mailto и legacy fixture corrections с прежними assertions.
 - Граница: canonical5 unaccepted,реальный контакт отсутствует,bank NOT READY; TEMP ready-copy не принятие владельца. `P16-LEGAL-SUPPORT.md`; дальше P17.
+
+## D072 — старые команды и экспорт сохраняются
+
+- Основание: утверждённый P17. Gate охватывает old callbacks/common media/sixth/quiet/startup menu/HTML/legacy groups/50–200 import и новую копию/каталог. Новый onboarding/расширенные отчёты остаются отдельными предложениями.
+- Проверка:387tests50subtests,40tests2667subtests,4reports44PNG/currentSHA; один reviewer и detector[]. Английские literals и все UI payment-controls защищены, legal принятиеfalse сохраняется.
+- Граница: fake sender/TEMP DB/SDK double, native/real send/OAuth/payments NOT TESTED. `P17-COPY-COMPATIBILITY.md`; следующий P18.

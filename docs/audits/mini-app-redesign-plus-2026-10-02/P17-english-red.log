@@ -1,0 +1,15 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ MiniAppCopyTests.test_copy_gate_catches_fully_english_visible_labels _____
+
+self = <test_mini_app_user_copy.MiniAppCopyTests testMethod=test_copy_gate_catches_fully_english_visible_labels>
+
+    def test_copy_gate_catches_fully_english_visible_labels(self):
+        values=copy_literals("element('p','','Demo'); action('Mock',callback);",'.js')
+>       self.assertIn('Demo',values)
+E       AssertionError: 'Demo' not found in []
+
+tests\test_mini_app_user_copy.py:26: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_user_copy.py::MiniAppCopyTests::test_copy_gate_catches_fully_english_visible_labels
+1 failed, 3 deselected in 0.11s

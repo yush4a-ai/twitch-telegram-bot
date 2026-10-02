@@ -93,3 +93,7 @@ BASE0891997; Python35tests/57subtests,6reports/84PNG/current SHA. Role-aware cat
 ## P16 завершён
 
 BASE72ab5ce; legal/support canonical5 + manifest/required-data/SHA/catalog and signed configured contact.55tests104subtests,4reports44uniquePNG/current SHA,JS0/external0; один reviewer подтвердил закрытие URI/mailto findings. Два expanded legacy fixture failures сохранены и исправлены без изменения assertions. `P16-LEGAL-SUPPORT.md`; реальные документы не приняты/контакт отсутствует/bank NOT READY, native/staging NOT TESTED. Следующий P17.
+
+## P17 завершён
+
+BASEf1ed26ab; copy/catalog/HTML и обратная совместимость.387tests50subtests +40tests2667subtests (литералы отдельно от сценариев),4reports44PNG/current SHA,detector[]. Один reviewer; English/allUI endpoint/catalog/HTML coverage закрыты, Agreementcopy+SHA обновлены. HTML/export/legacygroups/Free/quiet/старые команды сохранены. `P17-COPY-COMPATIBILITY.md`; следующий P18, деньги OFF/native NOT TESTED.

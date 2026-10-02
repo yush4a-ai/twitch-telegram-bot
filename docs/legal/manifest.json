@@ -21,7 +21,7 @@
       "filename": "USER-AGREEMENT.md",
       "title": "Пользовательское соглашение",
       "version": "2026-10-02-legal-v1",
-      "source_sha256": "45fb578175b7f0f345aeb9bf0a3d01219c2049a92b2ed8d8ba6637ab2a77b8aa",
+      "source_sha256": "03a883fbdd82be08fda5a2760142b33ad0360e04bb63f39c7d4a684378a153d2",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "operator",

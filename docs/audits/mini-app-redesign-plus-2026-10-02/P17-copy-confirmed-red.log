@@ -1,0 +1,51 @@
+F.. [100%]
+================================== FAILURES ===================================
+_____ MiniAppCopyTests.test_active_catalog_and_payment_message_are_exact ______
+
+self = <test_mini_app_user_copy.MiniAppCopyTests testMethod=test_active_catalog_and_payment_message_are_exact>
+
+    def test_active_catalog_and_payment_message_are_exact(self):
+        catalog = catalog_payload()
+        self.assertEqual({row['product_id']:row['price_label'] for row in catalog['products']},
+                         {'viewer_plus':'150 ₽','streamer_plus':'300 ₽'})
+>       self.assertTrue(all(row['period']=='one_month' for row in catalog['products']))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_user_copy.py:41:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <list_iterator object at 0x00000206A44F3EE0>
+
+>   self.assertTrue(all(row['period']=='one_month' for row in catalog['products']))
+                        ^^^^^^^^^^^^^
+E   KeyError: 'period'
+
+tests\test_mini_app_user_copy.py:41: KeyError
+_ MiniAppCopyTests.test_normal_user_routes_have_no_prototype_copy_or_owner_payment_controls (document='USER-AGREEMENT.md') _
+
+self = <test_mini_app_user_copy.MiniAppCopyTests testMethod=test_normal_user_routes_have_no_prototype_copy_or_owner_payment_controls>
+
+    def test_normal_user_routes_have_no_prototype_copy_or_owner_payment_controls(self):
+        paths = list((ROOT/'bot/mini_app_ui').glob('*.js'))
+        paths += [ROOT/'bot/oauth_result.py', ROOT/'bot/legal_documents.py', ROOT/'bot/handlers/payments.py']
+        for path in paths:
+            source = path.read_text(encoding='utf-8')
+            if path.suffix == '.py':
+                strings = [node.value for node in ast.walk(ast.parse(source)) if isinstance(node,ast.Constant) and isinstance(node.value,str)]
+            else:
+                strings = [match[1] for match in re.findall(r"(['\"`])((?:\\.|(?!\1)[\s\S])*?)\1",source)]
+            for value in strings:
+                if not re.search('[А-Яа-яЁё]',value):
+                    continue
+                with self.subTest(path=path.name,text=value[:100]):
+                    self.assertIsNone(FORBIDDEN.search(value))
+        for path in (ROOT/'docs/legal').glob('*.md'):
+            with self.subTest(document=path.name):
+>               self.assertIsNone(FORBIDDEN.search(path.read_text(encoding='utf-8')))
+E               AssertionError: <re.Match object; span=(4441, 4463), match='проверочного окружения'> is not None
+
+tests\test_mini_app_user_copy.py:32: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_user_copy.py::MiniAppCopyTests::test_active_catalog_and_payment_message_are_exact
+SUBFAILED(document='USER-AGREEMENT.md') tests/test_mini_app_user_copy.py::MiniAppCopyTests::test_normal_user_routes_have_no_prototype_copy_or_owner_payment_controls
+2 failed, 2 passed, 628 subtests passed in 3.16s
