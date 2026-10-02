@@ -283,6 +283,13 @@ class Config:
     growth_enabled: bool = False
     mini_app_enabled: bool = False
     pinned_staging: bool = False
+    support_username: str | None = None
+    support_email: str | None = None
+    legal_operator: str | None = None
+    legal_operator_address: str | None = None
+    legal_retention: str | None = None
+    legal_refund_policy: str | None = None
+    legal_chargeback_policy: str | None = None
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -311,6 +318,13 @@ def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
 
 
 def load_config() -> Config:
+    from .legal_documents import support_username, support_email
+    contacts = {}
+    for field, validate in (("support_username", support_username), ("support_email", support_email)):
+        raw = os.getenv(field.upper())
+        contacts[field] = validate(raw) if raw else None
+        if raw and contacts[field] is None:
+            raise ConfigError(f"Переменная {field.upper()} содержит некорректный контакт")
     railway = is_railway_environment()
     oauth_port = _positive_int("PORT", "8765")
     # PUBLIC_URL — публичный адрес, на который Twitch должен слать редирект после
@@ -376,4 +390,10 @@ def load_config() -> Config:
         growth_enabled=not railway or pinned_staging,
         mini_app_enabled=not railway or pinned_staging,
         pinned_staging=pinned_staging,
+        **contacts,
+        legal_operator=os.getenv("LEGAL_OPERATOR") or None,
+        legal_operator_address=os.getenv("LEGAL_OPERATOR_ADDRESS") or None,
+        legal_retention=os.getenv("LEGAL_RETENTION") or None,
+        legal_refund_policy=os.getenv("LEGAL_REFUND_POLICY") or None,
+        legal_chargeback_policy=os.getenv("LEGAL_CHARGEBACK_POLICY") or None,
     )

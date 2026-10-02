@@ -205,6 +205,7 @@ class OAuthCallbackServer:
         mini_app_billing_test_user_ids: frozenset[int] = frozenset(),
         growth_bot_username: str | None = None,
         growth_public_base_url: str | None = None,
+        mini_app_owner_config=None,
     ) -> None:
         self.redirect_uri = redirect_uri
         self._host = host
@@ -229,6 +230,7 @@ class OAuthCallbackServer:
         self._mini_app_oauth_client_secret = mini_app_oauth_client_secret
         self._mini_app_billing_test_enabled = mini_app_billing_test_enabled
         self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
+        self._mini_app_owner_config = mini_app_owner_config
         self._preview_observer = None
         self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
         self._mini_app_states: dict[str, tuple[int, str]] = {}
@@ -288,6 +290,7 @@ class OAuthCallbackServer:
                 billing_test_enabled=self._mini_app_billing_test_enabled,
                 billing_test_user_ids=self._mini_app_billing_test_user_ids,
                 preview_status_provider=self._mini_app_preview_status,
+                owner_config=self._mini_app_owner_config,
             )
         if self._growth_bot_username is not None:
             install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import unittest
+import subprocess
 from pathlib import Path
 
 
@@ -27,6 +28,17 @@ UNCHANGED_FILE_SHA256 = {
 
 
 class DeploymentPackagingTests(unittest.TestCase):
+    def test_canonical_legal_sources_assets_and_manifest_are_not_excluded(self):
+        manifest = json.loads((PROJECT_ROOT/'docs/legal/manifest.json').read_text(encoding='utf-8'))
+        paths = ['docs/legal/manifest.json','bot/legal_documents.py','bot/legal_web.py',
+                 'bot/legal_ui/index.html','bot/legal_ui/legal.css']
+        paths += ['docs/legal/'+row['filename'] for row in manifest['documents']]
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertTrue((PROJECT_ROOT/path).is_file())
+                result = subprocess.run(['git','check-ignore','--no-index',path], cwd=PROJECT_ROOT,capture_output=True)
+                self.assertEqual(result.returncode,1,'Release input must be included in the committed archive')
+
     def _config(self) -> dict[str, object]:
         if not RAILPACK_PATH.is_file():
             self.fail("railpack.json must exist")

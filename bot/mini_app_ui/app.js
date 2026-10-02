@@ -100,7 +100,7 @@ function render(state, canBack) {
     if(detailName==='purchase-order'&&purchaseOrderOpen!==state.detail.id){purchaseOrderOpen=state.detail.id;void purchaseFeature.refreshOrder(state.detail.id);}
     purchaseFeature.render(content,state);return;
   }
-  if(detailName==='support'){supportFeature.render(content,state);return;}
+  if(detailName==='support'||detailName==='legal'){supportFeature.render(content,state);return;}
   if(detailName==='viewer-settings'){viewerFeature.render(content,{...state,tab:'profile',detail:null});return;}
   if(detailName==='history'){viewerFeature.render(content,{...state,detail:'history'});return;}
   if(!state.detail&&state.tab==='profile'){profileFeature.render(content,state);return;}

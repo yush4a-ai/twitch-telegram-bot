@@ -511,3 +511,9 @@
 - Основание: утверждённый P15. Режим выбирает основной Plus из каталога;150/300 и4блока, secondary Viewer. Все3метода внутри Mini App ведут к server503, деньги OFF независимо от credentials/restart.
 - Проверка:35tests/57subtests,6reports/84PNG/hash, один reviewer. canonical confirmed/canceled и pending-expiry, frozen buyer/own orders, late re-entry проверены без ослабления assertions/index.
 - Граница: локальный prepared ledger/SDK double, native/provider/staging NOT TESTED; `P15-PLUS-PURCHASE.md`. Далее P16.
+
+## D071 — документ публикуется после принятия и необходимых данных
+
+- Основание: утверждённый P16. Canonical source/version/SHA/catalog/owner acceptance плюс обязательные сведения проверяются сервером; manifest не снимает mandatory inputs. Контакт из SUPPORT_USERNAME/EMAIL один для Mini App и paysupport, без defaults.
+- Проверка:55tests104subtests,4reports44PNG/current SHA; один reviewer подтвердил URI/mailto и legacy fixture corrections с прежними assertions.
+- Граница: canonical5 unaccepted,реальный контакт отсутствует,bank NOT READY; TEMP ready-copy не принятие владельца. `P16-LEGAL-SUPPORT.md`; дальше P17.

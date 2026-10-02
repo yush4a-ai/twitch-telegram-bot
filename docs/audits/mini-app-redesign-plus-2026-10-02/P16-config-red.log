@@ -1,0 +1,42 @@
+.....F.FF..                                                          [100%]
+================================== FAILURES ===================================
+_ LegalDocumentsTests.test_support_configuration_is_optional_validated_and_never_defaulted _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_support_configuration_is_optional_validated_and_never_defaulted>
+
+    def test_support_configuration_is_optional_validated_and_never_defaulted(self):
+        from bot.config import load_config, ConfigError
+        required = {'TELEGRAM_BOT_TOKEN': BOT_TOKEN, 'TWITCH_CLIENT_ID': 'local', 'TWITCH_CLIENT_SECRET': 'local'}
+        with patch.dict(os.environ, required, clear=True):
+            config = load_config()
+>       self.assertIsNone(config.support_username)
+                          ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'Config' object has no attribute 'support_username'
+
+tests\test_mini_app_legal.py:115: AttributeError
+______ PaymentSupportTests.test_oauth_server_keeps_supplied_owner_config ______
+
+self = <test_mini_app_legal.PaymentSupportTests testMethod=test_oauth_server_keeps_supplied_owner_config>
+
+    async def test_oauth_server_keeps_supplied_owner_config(self):
+        from bot.oauth import OAuthCallbackServer
+        owner = complete_owner()
+>       server = OAuthCallbackServer('http://localhost/oauth/callback', '127.0.0.1', 0, mini_app_owner_config=owner)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: OAuthCallbackServer.__init__() got an unexpected keyword argument 'mini_app_owner_config'
+
+tests\test_mini_app_legal.py:146: TypeError
+_ PaymentSupportTests.test_paysupport_uses_same_contact_without_external_send _
+
+self = <test_mini_app_legal.PaymentSupportTests testMethod=test_paysupport_uses_same_contact_without_external_send>
+
+    async def test_paysupport_uses_same_contact_without_external_send(self):
+>       from bot.handlers.payments import on_payment_support, build_payment_router
+E       ImportError: cannot import name 'on_payment_support' from 'bot.handlers.payments' (C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\handlers\payments.py)
+
+tests\test_mini_app_legal.py:130: ImportError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_support_configuration_is_optional_validated_and_never_defaulted
+FAILED tests/test_mini_app_legal.py::PaymentSupportTests::test_oauth_server_keeps_supplied_owner_config
+FAILED tests/test_mini_app_legal.py::PaymentSupportTests::test_paysupport_uses_same_contact_without_external_send
+3 failed, 8 passed, 4 subtests passed in 4.90s

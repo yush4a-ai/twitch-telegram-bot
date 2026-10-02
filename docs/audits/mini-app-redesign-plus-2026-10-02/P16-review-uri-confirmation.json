@@ -1,0 +1,40 @@
+{
+  "scope": "P16 actual client document links and email recipient",
+  "native": "NOT TESTED",
+  "externalRequests": [],
+  "sourceSha256": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+  "client": {
+    "email": "support?tag#%value@example.com",
+    "href": "mailto:support%3Ftag%23%25value%40example.com",
+    "recipient": "support?tag#%value@example.com",
+    "search": "",
+    "hash": ""
+  },
+  "links": [
+    {
+      "label": "backslash",
+      "href": null
+    },
+    {
+      "label": "encoded-ip",
+      "href": null
+    },
+    {
+      "label": "encoded-test",
+      "href": null
+    },
+    {
+      "label": "script",
+      "href": null
+    },
+    {
+      "label": "safe-https",
+      "href": "https://example.com/legal?lang=ru"
+    },
+    {
+      "label": "safe-mailto",
+      "href": "mailto:support@example.com"
+    }
+  ],
+  "status": "PASS"
+}

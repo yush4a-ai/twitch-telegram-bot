@@ -1,0 +1,15 @@
+.F                                                                       [100%]
+================================== FAILURES ===================================
+_ LegalDocumentsTests.test_privacy_mandatory_inputs_cannot_be_dropped_from_manifest _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_privacy_mandatory_inputs_cannot_be_dropped_from_manifest>
+
+    def test_privacy_mandatory_inputs_cannot_be_dropped_from_manifest(self):
+        store, _, _ = self.store(document_id='privacy', required=())
+>       self.assertFalse(store.get('privacy', catalog_payload(), None).ready)
+E       AssertionError: True is not false
+
+tests\test_mini_app_legal.py:46: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_privacy_mandatory_inputs_cannot_be_dropped_from_manifest
+1 failed, 1 passed, 6 deselected in 3.16s

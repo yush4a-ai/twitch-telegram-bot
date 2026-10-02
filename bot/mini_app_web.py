@@ -16,6 +16,7 @@ from .mini_app_auth import verified_identity_payload
 from .mini_app_viewer import install_mini_app_viewer_routes
 from .mini_app_streamer import install_mini_app_streamer_routes
 from .mini_app_billing import install_mini_app_billing_routes
+from .legal_web import install_legal_routes
 
 
 _UI_DIR = Path(__file__).with_name("mini_app_ui")
@@ -50,6 +51,8 @@ def install_mini_app_routes(
     billing_test_enabled: bool = False,
     billing_test_user_ids: frozenset[int] = frozenset(),
     preview_status_provider=None,
+    owner_config=None,
+    legal_store=None,
 ) -> None:
     if not bot_token:
         raise ValueError("Mini App needs bot token for initData verification")
@@ -94,6 +97,7 @@ def install_mini_app_routes(
     asset_pattern = "|".join(re.escape(name) for name in _ASSETS)
     app.router.add_get(f"/app/{{name:{asset_pattern}}}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
+    install_legal_routes(app, bot_token, owner_config=owner_config, store=legal_store)
     install_mini_app_viewer_routes(
         app, db, bot_token, capabilities, twitch,
         preview_status_provider=preview_status_provider,

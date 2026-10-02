@@ -123,6 +123,7 @@ def _private_bot_commands(
         BotCommand(command="auth_twitch", description="🔐 Подключить Twitch-аккаунт"),
         BotCommand(command="streamer_connect", description="🎮 Подключить кабинет стримера"),
         BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
+        BotCommand(command="paysupport", description="Поддержка по подписке и оплате"),
     ]
     if growth_enabled:
         commands.append(BotCommand(command="invite", description="🔗 Пригласить в тестовый бот"))
@@ -642,6 +643,7 @@ async def main() -> None:
                 mini_app_twitch=twitch if getattr(config, "mini_app_enabled", False) else None,
                 mini_app_bot=bot if getattr(config, "mini_app_enabled", False) else None,
                 mini_app_bot_username=config.admin_telegram_bot_username or "",
+                mini_app_owner_config=config,
                 mini_app_oauth_client_id=(config.twitch_client_id if getattr(config, "mini_app_enabled", False) else ""),
                 mini_app_oauth_client_secret=(config.twitch_client_secret if getattr(config, "mini_app_enabled", False) else ""),
                 mini_app_billing_test_enabled=billing_test_enabled,

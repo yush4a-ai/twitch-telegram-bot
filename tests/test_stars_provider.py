@@ -10,7 +10,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from aiogram import Bot, Dispatcher
+from aiogram import Dispatcher
+from aiogram.methods import AnswerPreCheckoutQuery
 from aiogram.types import Chat, Message, PreCheckoutQuery, RefundedPayment, SuccessfulPayment, Update, User
 from aiogram.client.session.base import BaseSession
 
@@ -70,6 +71,16 @@ class FakeSession(BaseSession):
     async def stream_content(self, *args, **kwargs):
         if False:
             yield b""
+
+
+class FakeTelegram:
+    id = 12345
+
+    def __init__(self, session):
+        self.session = session
+
+    async def answer_pre_checkout_query(self, **kwargs):
+        return await self.session.make_request(self, AnswerPreCheckoutQuery(**kwargs))
 
 
 def payment_message(payload, *, buyer=101, chat_id=None, refund=False, charge="stars_charge_1", **changes):
@@ -223,7 +234,7 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
     async def test_handlers_answer_precheckout_bounded_and_use_common_apply_without_client_flags(self):
         order,payload=await self.create()
         session=FakeSession()
-        bot=Bot("12345:local-fixture-token",session=session)
+        bot=FakeTelegram(session)
         self.addAsyncCleanup(bot.session.close)
         query=PreCheckoutQuery(id="q",from_user=User(id=101,is_bot=False,first_name="A"),currency="XTR",total_amount=17,invoice_payload=payload)
         start=time.monotonic()

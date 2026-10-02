@@ -223,3 +223,10 @@ button[aria-disabled=true] { cursor:wait; opacity:.7; }
 .purchase-methods { margin-top:24px; }
 .purchase-methods button[aria-pressed=true] { background:var(--soft); }
 .purchase-methods button:disabled { opacity:.65; cursor:wait; }
+.legal-version { margin:12px 0 24px; overflow-wrap:anywhere; }
+.legal-body { overflow-wrap:anywhere; line-height:1.6; }
+.legal-body h2 { font-size:1.25rem; margin:28px 0 12px; }
+.legal-body h3 { font-size:1.125rem; margin:24px 0 12px; }
+.legal-body p,.legal-body ul { margin:12px 0 20px; }
+.legal-body li { margin:8px 0; }
+.legal-body a { color:var(--accent); text-decoration:underline; }

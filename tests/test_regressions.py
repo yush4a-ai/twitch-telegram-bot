@@ -6146,8 +6146,14 @@ class ProductionHardeningTests(unittest.IsolatedAsyncioTestCase):
     async def test_non_wal_filesystem_fails_fast(self) -> None:
         busy_cursor = SimpleNamespace()
         journal_cursor = SimpleNamespace(fetchone=AsyncMock(return_value=("delete",)))
+        async def execute(sql):
+            if sql in {"PRAGMA busy_timeout=5000;", "PRAGMA foreign_keys=ON;"}:
+                return busy_cursor
+            if sql == "PRAGMA journal_mode=WAL;":
+                return journal_cursor
+            self.fail(f"Unexpected SQL before WAL admission: {sql}")
         connection = SimpleNamespace(
-            execute=AsyncMock(side_effect=[busy_cursor, journal_cursor]),
+            execute=AsyncMock(side_effect=execute),
             close=AsyncMock(),
         )
         db = Database("ignored.db")

@@ -1,0 +1,89 @@
+{
+  "journey": "legal",
+  "scenario": "legal-ready",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "legal-flow-chromium-support-overview.png",
+      "sha256": "af6d124eaca6a906cd0359171b1266e053c27dbb96d8d04f36ce65647ade20a0"
+    },
+    {
+      "file": "legal-flow-chromium-document-privacy.png",
+      "sha256": "573a740c3dbc19b3d7ae58007110646e1e93c8dd02d0f2affb0109f5d7727472"
+    },
+    {
+      "file": "legal-flow-chromium-document-agreement.png",
+      "sha256": "d4afefae98797f69e069aa2077e1460b6bc6275f2f3d3bc633357becc2eb822a"
+    },
+    {
+      "file": "legal-flow-chromium-document-support.png",
+      "sha256": "f9e71e91873e2d384d2fd8c4b5cb58b2d1fe295a56a50dfb6e1824cd076685e8"
+    },
+    {
+      "file": "legal-flow-chromium-document-tariffs.png",
+      "sha256": "3262be10043609dc49f6ab9855260882ef45221d014ff7ed61596bc5e806a516"
+    },
+    {
+      "file": "legal-flow-chromium-document-payments.png",
+      "sha256": "e50f35e3e0568518487387be643da1046f7562adfe539b7d28f78127d566fb66"
+    },
+    {
+      "file": "legal-flow-chromium-agreement-360-text200.png",
+      "sha256": "e6549fb83404fb247fac681e91054a9a47837ae1b5116cdf4ae1764f1ef4fd69"
+    },
+    {
+      "file": "legal-flow-chromium-agreement-390-text200.png",
+      "sha256": "edcd3f98e5a0795d3bf87832435c2334656b05a8cd7216dff4aa15385d1cf644"
+    },
+    {
+      "file": "legal-chromium-viewer-390.png",
+      "sha256": "0bdcccc403ef7865a63943e56e698ffcfc68753328f7e85f67728912d627f110",
+      "viewport": "390x844"
+    },
+    {
+      "file": "legal-chromium-channel-390.png",
+      "sha256": "f5ffa9ece0f91de35fdb7c69470884743b43579b4a00efa0c5f0e74d23682233",
+      "viewport": "390x844"
+    },
+    {
+      "file": "legal-chromium-profile-390.png",
+      "sha256": "5cd2109dd20a5521765d4efc4c19361b0e63085f561b745916745b42aec37e90",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "c87c7e0a32226409a1d3bbe966fb4e0d00852b738593735f60707e2b0e850624",
+    "app.js": "830386f4e547ad5aba4c30191895d567f8cb053ab85726721cd051fdefce319d",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "purchase.js": "09314eedaaa1a06185d65bdfbfc187425777af86bf2edad3b038945e9696872b",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "2a212cfce762158e9ba51b31d2203f0fb7737e0797cb67d8d187f193e528f188",
+    "streamer_posts.js": "abca6d4d5babb13463c2d55622e1c667513ffc46b77fc337a83c99e4dde32bc5",
+    "subscription.js": "296885fd23847e380d8044fdeee224c385e3fad3b90e61783f56e0d8e98f7487",
+    "support.js": "82b493a3d6fd50b471b587b30a7b52ee7f9dea5d35ce43f9e6ce0d29edf04996",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "b203ab8ca945bd5a6c490510851e4acfcdc33de73bcc09430b28e120872cbfd7",
+    "scripts/mini_app_redesign_browser_qa.cjs": "b6b6a6dfbba85c97b8c214026cbc265ff71eb415e7a36f57ffd1dd7a11fc975c",
+    "bot/legal_documents.py": "8aba48c938d5a3a3795442543af9c8f9b5ae8329c492bd3d84e547e776eda151",
+    "bot/legal_web.py": "02a057674d02167e87494896f055b418a250be1e355c13ca833eae66fe541a86",
+    "bot/legal_ui/index.html": "7290f8f9634654f9dfd6e88e226a1650bf143a599cce24f3c0a62abda12231d1",
+    "bot/legal_ui/legal.css": "4d103e047c75448b65f253ba9aa3048fba8b9409ffa354dd5a1af3e113c83b45",
+    "docs/legal/manifest.json": "d00058421ebdf04f02aa5ec925e98359adad1c4f7feb2f2c5194f92ee9e66f04",
+    "docs/legal/PAYMENTS.md": "e7f2ffe0523520e959c5f66e04a610718aa89f06bfecf7dd0c5ca8f474ad2cf9",
+    "docs/legal/PRIVACY-POLICY.md": "c596f951805f4214254fa61ea8bd23d0bf37dcdbc72888cbaf7010a09801b824",
+    "docs/legal/SUPPORT.md": "bc110eb7e96f16385f9de1eb07e58d116f40458d1e62d6e32544d18493b274d6",
+    "docs/legal/TARIFFS.md": "109eca3496cc14590e695c866c2b93c7246aacfaef6fdac34be67acb57c4a6ac",
+    "docs/legal/USER-AGREEMENT.md": "45fb578175b7f0f345aeb9bf0a3d01219c2049a92b2ed8d8ba6637ab2a77b8aa"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

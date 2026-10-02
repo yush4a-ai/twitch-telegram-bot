@@ -31,6 +31,7 @@ SCENARIOS = frozenset({
     "streamer-unconnected", "channel-empty",
     "streamer-posts",
     "purchase-history",
+    "legal-ready",
 })
 
 
@@ -253,9 +254,30 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
         app = web.Application()
         app[FIXTURE_STATE_KEY] = state
         app[FIXTURE_STOP_KEY] = asyncio.Event()
+        legal_store, owner_config = None, None
+        if scenario == "legal-ready":
+            from bot.legal_documents import CANONICAL_DIR, LegalDocumentStore
+            import shutil
+            legal_root = Path(directory.name) / "legal"
+            shutil.copytree(CANONICAL_DIR, legal_root)
+            manifest_path = legal_root / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for row in manifest["documents"]:
+                row["owner_accepted"] = True  # TEMP fixture only; canonical acceptance stays false.
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            legal_store = LegalDocumentStore(legal_root)
+            owner_config = SimpleNamespace(
+                support_username="verified_support_person", support_email="support@example.com",
+                legal_operator="Оператор только для локальной проверки документа",
+                legal_operator_address="Адрес только для локальной проверки документа",
+                legal_retention="Сроки хранения только для локальной проверки документа.",
+                legal_refund_policy="Политика возвратов только для локальной проверки документа.",
+                legal_chargeback_policy="Политика сверки только для локальной проверки документа.",
+            )
         install_mini_app_routes(
             app, db, FIXTURE_BOT_TOKEN, bot=state.bot, twitch=state.twitch,
             bot_username="TwitchSignalTestbot", billing_test_enabled=False,
+            legal_store=legal_store, owner_config=owner_config,
         )
 
         async def cleanup(_app):

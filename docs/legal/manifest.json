@@ -1,0 +1,72 @@
+{
+  "version": "2026-10-02-legal-v1",
+  "documents": [
+    {
+      "id": "privacy",
+      "filename": "PRIVACY-POLICY.md",
+      "title": "Политика конфиденциальности",
+      "version": "2026-10-02-legal-v1",
+      "source_sha256": "c596f951805f4214254fa61ea8bd23d0bf37dcdbc72888cbaf7010a09801b824",
+      "catalog_version": "2026-10-02-role-plus-300-v1",
+      "required_owner_inputs": [
+        "operator",
+        "operator_address",
+        "retention",
+        "support_contact"
+      ],
+      "owner_accepted": false
+    },
+    {
+      "id": "agreement",
+      "filename": "USER-AGREEMENT.md",
+      "title": "Пользовательское соглашение",
+      "version": "2026-10-02-legal-v1",
+      "source_sha256": "45fb578175b7f0f345aeb9bf0a3d01219c2049a92b2ed8d8ba6637ab2a77b8aa",
+      "catalog_version": "2026-10-02-role-plus-300-v1",
+      "required_owner_inputs": [
+        "operator",
+        "operator_address",
+        "support_contact",
+        "refund_policy",
+        "chargeback_policy"
+      ],
+      "owner_accepted": false
+    },
+    {
+      "id": "support",
+      "filename": "SUPPORT.md",
+      "title": "Поддержка",
+      "version": "2026-10-02-legal-v1",
+      "source_sha256": "bc110eb7e96f16385f9de1eb07e58d116f40458d1e62d6e32544d18493b274d6",
+      "catalog_version": "2026-10-02-role-plus-300-v1",
+      "required_owner_inputs": [
+        "support_contact"
+      ],
+      "owner_accepted": false
+    },
+    {
+      "id": "tariffs",
+      "filename": "TARIFFS.md",
+      "title": "Тарифы",
+      "version": "2026-10-02-legal-v1",
+      "source_sha256": "109eca3496cc14590e695c866c2b93c7246aacfaef6fdac34be67acb57c4a6ac",
+      "catalog_version": "2026-10-02-role-plus-300-v1",
+      "required_owner_inputs": [],
+      "owner_accepted": false
+    },
+    {
+      "id": "payments",
+      "filename": "PAYMENTS.md",
+      "title": "Оплата",
+      "version": "2026-10-02-legal-v1",
+      "source_sha256": "e7f2ffe0523520e959c5f66e04a610718aa89f06bfecf7dd0c5ca8f474ad2cf9",
+      "catalog_version": "2026-10-02-role-plus-300-v1",
+      "required_owner_inputs": [
+        "support_contact",
+        "refund_policy",
+        "chargeback_policy"
+      ],
+      "owner_accepted": false
+    }
+  ]
+}

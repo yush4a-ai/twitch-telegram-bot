@@ -1,0 +1,79 @@
+{
+  "journey": "legal",
+  "scenario": "legal-ready",
+  "engine": "webkit",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "legal-flow-webkit-support.png",
+      "sha256": "68670ba5c4c5c3bf76c89b4949cc162474fd354c9ca8d305c0a721bf28c9152a"
+    },
+    {
+      "file": "legal-flow-webkit-privacy.png",
+      "sha256": "49af11f62b5cb53b3fa829eb33130e1338c6ab596c5b7631d40c2346c270f53c"
+    },
+    {
+      "file": "legal-flow-webkit-agreement.png",
+      "sha256": "d1caea48ca4edd886f8ebe0b23e6e267570ee9f74fe06b9302e3d14ad5538bf8"
+    },
+    {
+      "file": "legal-flow-webkit-support.png",
+      "sha256": "dee6f65fe7a18ba175bbd720c171c9aef711d64b3da2260a895afa119eeb612c"
+    },
+    {
+      "file": "legal-flow-webkit-tariffs.png",
+      "sha256": "cda0caa3bb87682919e92b70d0438d0d03636f671a97f79c5834da122da0f1c2"
+    },
+    {
+      "file": "legal-flow-webkit-payments.png",
+      "sha256": "c7573ddf605ab413b600fdaa30abc8dbe0059447539c9d063a9f9a6cedf8dc1f"
+    },
+    {
+      "file": "legal-flow-webkit-agreement-360-text200.png",
+      "sha256": "17c7816ba8eb7cdc12326d9389b048ef992495fc33adeab9f0bbdf4f455df8eb"
+    },
+    {
+      "file": "legal-flow-webkit-agreement-390-text200.png",
+      "sha256": "02962ac9b452e313bc6648657ac615d72bf73d668298fa3f8e407dd1440edc44"
+    },
+    {
+      "file": "legal-webkit-viewer-390.png",
+      "sha256": "dd03bf5fbe3e0f05153ba1e57e5639e64482f725957ceb692e55795233963455",
+      "viewport": "390x844"
+    },
+    {
+      "file": "legal-webkit-channel-390.png",
+      "sha256": "3b183d902b77581ec9e24b08e3cae76a2acc797d729f41d29cc986d7be3153b3",
+      "viewport": "390x844"
+    },
+    {
+      "file": "legal-webkit-profile-390.png",
+      "sha256": "3dd7bae33755f7d7ab4f5ac8b5903ab68f3b79f24724be63284489c5fcc3cbd5",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "c87c7e0a32226409a1d3bbe966fb4e0d00852b738593735f60707e2b0e850624",
+    "app.js": "830386f4e547ad5aba4c30191895d567f8cb053ab85726721cd051fdefce319d",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "purchase.js": "09314eedaaa1a06185d65bdfbfc187425777af86bf2edad3b038945e9696872b",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "2a212cfce762158e9ba51b31d2203f0fb7737e0797cb67d8d187f193e528f188",
+    "streamer_posts.js": "abca6d4d5babb13463c2d55622e1c667513ffc46b77fc337a83c99e4dde32bc5",
+    "subscription.js": "296885fd23847e380d8044fdeee224c385e3fad3b90e61783f56e0d8e98f7487",
+    "support.js": "82b493a3d6fd50b471b587b30a7b52ee7f9dea5d35ce43f9e6ce0d29edf04996",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "b203ab8ca945bd5a6c490510851e4acfcdc33de73bcc09430b28e120872cbfd7",
+    "scripts/mini_app_redesign_browser_qa.cjs": "10196edc365b1c6b657ec182dd09ceeec7928e36575a7e44d586caabaab1e035"
+  },
+  "version": "26.5",
+  "status": "PASS"
+}

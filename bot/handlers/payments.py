@@ -4,10 +4,25 @@ import asyncio
 import time
 
 from aiogram import F, Router
+from aiogram.filters import Command
+from html import escape
 
 from ..billing_provider import PaymentVerificationError
 from ..plan_catalog import PAYMENT_UNAVAILABLE_MESSAGE
 from ..stars_provider import TelegramStarsProvider
+from ..legal_documents import get_support_state
+
+
+async def on_payment_support(message, config):
+    state = get_support_state(config)
+    lines = ["Поддержка по подписке и оплате"]
+    if state.telegram_url:
+        lines.append(escape(state.telegram_url))
+    if state.email:
+        lines.append(escape(state.email))
+    if not state.available:
+        lines.append("Контакт поддержки пока не указан.")
+    await message.answer("\n\n".join(lines), disable_web_page_preview=True)
 
 
 async def _context(service, payload):
@@ -72,4 +87,5 @@ def build_payment_router():
     router.pre_checkout_query.register(on_precheckout)
     router.message.register(on_successful_payment, F.successful_payment)
     router.message.register(on_refunded_payment, F.refunded_payment)
+    router.message.register(on_payment_support, Command("paysupport"))
     return router

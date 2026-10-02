@@ -89,3 +89,7 @@ BASE `60708977` → posts commit. Python34tests/38subtests,4browser reports/34PN
 ## P15 complete
 
 BASE0891997; Python35tests/57subtests,6reports/84PNG/current SHA. Role-aware catalog150/300/4blocks/secondary Viewer, purchase3methods→503/zero money side effects, frozen subscription/own operations. Один reviewer; canonical financial vocabulary и fresh/held re-entry закрыты. `P15-PLUS-PURCHASE.md`; native/staging NOT TESTED. Далее P16 legal/support.
+
+## P16 завершён
+
+BASE72ab5ce; legal/support canonical5 + manifest/required-data/SHA/catalog and signed configured contact.55tests104subtests,4reports44uniquePNG/current SHA,JS0/external0; один reviewer подтвердил закрытие URI/mailto findings. Два expanded legacy fixture failures сохранены и исправлены без изменения assertions. `P16-LEGAL-SUPPORT.md`; реальные документы не приняты/контакт отсутствует/bank NOT READY, native/staging NOT TESTED. Следующий P17.

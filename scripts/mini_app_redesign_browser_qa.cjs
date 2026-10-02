@@ -94,6 +94,7 @@ async function runJourney(page, scenario) {
   if (scenario === 'oauth-results') return oauthResultsJourney(page);
   if (scenario === 'streamer-posts') return streamerPostsJourney(page);
   if (scenario === 'purchase') return purchaseJourney(page);
+  if (scenario === 'legal') return legalJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -964,6 +965,38 @@ async function purchaseJourney(page) {
   return pictures;
 }
 
+async function legalJourney(page) {
+  const ready=argument('scenario','legal-unready')==='legal-ready',pictures=[];
+  async function picture(name){await assertLayout(page);const file=`legal-flow-${argument('engine','chromium')}-${name}.png`;await page.screenshot({path:path.join(output,file),fullPage:false,animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file))});}
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();
+  await page.getByRole('button',{name:'Поддержка',exact:true}).click();
+  await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Политика конфиденциальности',exact:true}).waitFor();
+  if(ready){await page.getByRole('button',{name:'Написать в Telegram',exact:true}).waitFor();await page.getByRole('link',{name:'support@example.com',exact:true}).waitFor();}
+  else{await page.getByText('Контакт поддержки пока не указан.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Написать в Telegram',exact:true}).count(),0);}
+  await picture('support-overview');
+  for(const [id,title] of [['privacy','Политика конфиденциальности'],['agreement','Пользовательское соглашение'],['support','Поддержка'],['tariffs','Тарифы'],['payments','Оплата']]){
+    const publicPage=await page.request.get(new URL(`/app/legal/${id}?format=json`,page.url()).href);assert.equal(publicPage.status(),ready?200:503);const doc=await publicPage.json();assert.equal(doc.ready,ready);
+    await page.getByRole('button',{name:title,exact:true}).click();
+    await page.locator('[data-legal-body]').waitFor();await page.getByRole('heading',{name:title,exact:true}).first().waitFor();
+    if(ready){assert((await page.locator('[data-legal-body]').innerText()).length>600,'Full canonical text is readable');assert.equal(await page.locator('[data-legal-body] script').count(),0);}
+    else await page.getByText('Документ пока недоступен. Мы готовим актуальную редакцию.',{exact:true}).waitFor();
+    await picture(`document-${id}`);await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();
+  }
+  for(const width of [360,390]){
+    await page.setViewportSize({width,height:844});await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).click();await page.locator('[data-legal-body]').waitFor();
+    await page.evaluate(()=>document.documentElement.style.fontSize='200%');await picture(`agreement-${width}-text200`);await page.keyboard.press('Tab');assert(await page.evaluate(()=>document.activeElement!==document.body));
+    await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();await page.evaluate(()=>document.documentElement.style.fontSize='');
+  }
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Plus',exact:true}).click();await page.getByRole('button',{name:'Подключить Viewer Plus — 150 ₽',exact:true}).click();await page.getByRole('button',{name:'Документы и поддержка',exact:true}).click();await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).waitFor();
+  if(ready){
+    await page.route('**/app/api/support/state',async route=>{const response=await route.fetch();const state=await response.json();await route.fulfill({response,json:{...state,email:'support?tag#section%part@example.com'}});});
+    await page.getByRole('button',{name:'Обновить',exact:true}).click();const mail=page.getByRole('link',{name:'support?tag#section%part@example.com',exact:true});await mail.waitFor();assert.equal(await mail.getAttribute('href'),'mailto:support%3Ftag%23section%25part%40example.com');await page.unroute('**/app/api/support/state');
+  }
+  return pictures;
+}
+
 async function main() {
   const engineName = argument('engine', 'chromium');
   const journey = argument('journey', 'baseline');
@@ -1008,6 +1041,7 @@ async function main() {
     }
     assert.deepEqual(report.errors, []);
     assert.deepEqual(report.externalRequests, []);
+    assert.equal(new Set(report.screenshots.map(item=>item.file)).size,report.screenshots.length,'Screenshot names must be unique');
     report.status = 'PASS';
   } catch (error) { report.status = 'FAIL'; report.failure = error.stack; throw error; }
   finally {
@@ -1016,6 +1050,7 @@ async function main() {
       if (fs.statSync(file).isFile()) report.sources[name] = digest(file);
     }
     for(const source of ['bot/mini_app_viewer.py','scripts/mini_app_browser_fixture.py','scripts/mini_app_redesign_browser_qa.cjs'])report.sources[source]=digest(path.join(root,source));
+    if(journey==='legal')for(const source of ['bot/legal_documents.py','bot/legal_web.py','bot/legal_ui/index.html','bot/legal_ui/legal.css',...fs.readdirSync(path.join(root,'docs/legal')).map(name=>'docs/legal/'+name)])report.sources[source]=digest(path.join(root,source));
     fs.writeFileSync(path.join(output, `${journey}-${engineName}-qa.json`), JSON.stringify(report, null, 2));
     await browser?.close();
     await server.close();

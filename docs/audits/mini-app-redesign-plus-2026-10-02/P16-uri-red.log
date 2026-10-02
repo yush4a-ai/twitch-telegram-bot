@@ -1,0 +1,43 @@
+.                                                                     [100%]
+================================== FAILURES ===================================
+_ LegalDocumentsTests.test_renderer_rejects_noncanonical_numeric_hosts (url='https://0177.0.0.1/a') _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_renderer_rejects_noncanonical_numeric_hosts>
+
+    def test_renderer_rejects_noncanonical_numeric_hosts(self):
+        from bot.legal_documents import render_markdown
+        for url in ('https://0177.0.0.1/a', 'https://0x7f.0.0.1/a', 'https://127.1/a'):
+            with self.subTest(url=url):
+>               self.assertNotIn('href=', render_markdown(f'[Ссылка]({url})'))
+E               AssertionError: 'href=' unexpectedly found in '<p><a href="https://0177.0.0.1/a" rel="noopener noreferrer">Ссылка</a></p>'
+
+tests\test_mini_app_legal.py:98: AssertionError
+_ LegalDocumentsTests.test_renderer_rejects_noncanonical_numeric_hosts (url='https://0x7f.0.0.1/a') _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_renderer_rejects_noncanonical_numeric_hosts>
+
+    def test_renderer_rejects_noncanonical_numeric_hosts(self):
+        from bot.legal_documents import render_markdown
+        for url in ('https://0177.0.0.1/a', 'https://0x7f.0.0.1/a', 'https://127.1/a'):
+            with self.subTest(url=url):
+>               self.assertNotIn('href=', render_markdown(f'[Ссылка]({url})'))
+E               AssertionError: 'href=' unexpectedly found in '<p><a href="https://0x7f.0.0.1/a" rel="noopener noreferrer">Ссылка</a></p>'
+
+tests\test_mini_app_legal.py:98: AssertionError
+_ LegalDocumentsTests.test_renderer_rejects_noncanonical_numeric_hosts (url='https://127.1/a') _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_renderer_rejects_noncanonical_numeric_hosts>
+
+    def test_renderer_rejects_noncanonical_numeric_hosts(self):
+        from bot.legal_documents import render_markdown
+        for url in ('https://0177.0.0.1/a', 'https://0x7f.0.0.1/a', 'https://127.1/a'):
+            with self.subTest(url=url):
+>               self.assertNotIn('href=', render_markdown(f'[Ссылка]({url})'))
+E               AssertionError: 'href=' unexpectedly found in '<p><a href="https://127.1/a" rel="noopener noreferrer">Ссылка</a></p>'
+
+tests\test_mini_app_legal.py:98: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(url='https://0177.0.0.1/a') tests/test_mini_app_legal.py::LegalDocumentsTests::test_renderer_rejects_noncanonical_numeric_hosts
+SUBFAILED(url='https://0x7f.0.0.1/a') tests/test_mini_app_legal.py::LegalDocumentsTests::test_renderer_rejects_noncanonical_numeric_hosts
+SUBFAILED(url='https://127.1/a') tests/test_mini_app_legal.py::LegalDocumentsTests::test_renderer_rejects_noncanonical_numeric_hosts
+3 failed, 1 passed, 12 deselected in 3.15s

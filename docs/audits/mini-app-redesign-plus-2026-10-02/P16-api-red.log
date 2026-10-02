@@ -1,0 +1,128 @@
+FFFFFFF                                                                  [100%]
+================================== FAILURES ===================================
+_ LegalDocumentsTests.test_contact_has_no_fake_defaults_and_group_only_is_not_contact _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_contact_has_no_fake_defaults_and_group_only_is_not_contact>
+
+    def test_contact_has_no_fake_defaults_and_group_only_is_not_contact(self):
+>       from bot.legal_documents import get_support_state
+E       ModuleNotFoundError: No module named 'bot.legal_documents'
+
+tests\test_mini_app_legal.py:88: ModuleNotFoundError
+_ LegalDocumentsTests.test_full_readable_body_uses_prices_and_crlf_does_not_change_document_identity _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_full_readable_body_uses_prices_and_crlf_does_not_change_document_identity>
+
+    def test_full_readable_body_uses_prices_and_crlf_does_not_change_document_identity(self):
+>       store, root, _ = self.store(required=("operator", "retention", "support_contact"))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_legal.py:68:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_full_readable_body_uses_prices_and_crlf_does_not_change_document_identity>
+accepted = True, required = ('operator', 'retention', 'support_contact')
+
+    def store(self, *, accepted=True, required=()):
+>       from bot.legal_documents import LegalDocumentStore
+E       ModuleNotFoundError: No module named 'bot.legal_documents'
+
+tests\test_mini_app_legal.py:30: ModuleNotFoundError
+_ LegalDocumentsTests.test_renderer_escapes_scripts_and_only_accepts_checked_https_mailto _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_renderer_escapes_scripts_and_only_accepts_checked_https_mailto>
+
+    def test_renderer_escapes_scripts_and_only_accepts_checked_https_mailto(self):
+>       from bot.legal_documents import render_markdown
+E       ModuleNotFoundError: No module named 'bot.legal_documents'
+
+tests\test_mini_app_legal.py:78: ModuleNotFoundError
+_ LegalDocumentsTests.test_source_and_catalog_mismatch_fail_closed_and_paths_are_allowlisted _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_source_and_catalog_mismatch_fail_closed_and_paths_are_allowlisted>
+
+    def test_source_and_catalog_mismatch_fail_closed_and_paths_are_allowlisted(self):
+>       store, root, manifest = self.store()
+                                ^^^^^^^^^^^^
+
+tests\test_mini_app_legal.py:54:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_source_and_catalog_mismatch_fail_closed_and_paths_are_allowlisted>
+accepted = True, required = ()
+
+    def store(self, *, accepted=True, required=()):
+>       from bot.legal_documents import LegalDocumentStore
+E       ModuleNotFoundError: No module named 'bot.legal_documents'
+
+tests\test_mini_app_legal.py:30: ModuleNotFoundError
+_ LegalDocumentsTests.test_unfilled_inputs_and_unaccepted_documents_never_publish _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_unfilled_inputs_and_unaccepted_documents_never_publish>
+
+    def test_unfilled_inputs_and_unaccepted_documents_never_publish(self):
+>       store, _, _ = self.store(required=("operator", "retention", "support_contact"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_legal.py:44:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_mini_app_legal.LegalDocumentsTests testMethod=test_unfilled_inputs_and_unaccepted_documents_never_publish>
+accepted = True, required = ('operator', 'retention', 'support_contact')
+
+    def store(self, *, accepted=True, required=()):
+>       from bot.legal_documents import LegalDocumentStore
+E       ModuleNotFoundError: No module named 'bot.legal_documents'
+
+tests\test_mini_app_legal.py:30: ModuleNotFoundError
+_ MiniAppLegalRoutesTests.test_canonical_manifest_documents_and_assets_are_in_release_inputs _
+
+self = <test_mini_app_legal.MiniAppLegalRoutesTests testMethod=test_canonical_manifest_documents_and_assets_are_in_release_inputs>
+
+    async def test_canonical_manifest_documents_and_assets_are_in_release_inputs(self):
+        root = Path(__file__).resolve().parents[1]
+>       manifest = json.loads((root / 'docs/legal/manifest.json').read_text(encoding='utf-8'))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_mini_app_legal.py:142:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/yusha/Desktop/cloude/TG-BOT.(TwtichSignal)/docs/legal/manifest.json')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\docs\\legal\\manifest.json'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\pathlib.py:1013: FileNotFoundError
+_ MiniAppLegalRoutesTests.test_unprepared_public_documents_and_signed_support_are_honest _
+
+self = <test_mini_app_legal.MiniAppLegalRoutesTests testMethod=test_unprepared_public_documents_and_signed_support_are_honest>
+
+    async def test_unprepared_public_documents_and_signed_support_are_honest(self):
+        response = await self.client.post('/app/api/support/state', json={'init_data': signed_webapp(101)})
+>       self.assertEqual(response.status, 200)
+E       AssertionError: 404 != 200
+
+tests\test_mini_app_legal.py:119: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_contact_has_no_fake_defaults_and_group_only_is_not_contact
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_full_readable_body_uses_prices_and_crlf_does_not_change_document_identity
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_renderer_escapes_scripts_and_only_accepts_checked_https_mailto
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_source_and_catalog_mismatch_fail_closed_and_paths_are_allowlisted
+FAILED tests/test_mini_app_legal.py::LegalDocumentsTests::test_unfilled_inputs_and_unaccepted_documents_never_publish
+FAILED tests/test_mini_app_legal.py::MiniAppLegalRoutesTests::test_canonical_manifest_documents_and_assets_are_in_release_inputs
+FAILED tests/test_mini_app_legal.py::MiniAppLegalRoutesTests::test_unprepared_public_documents_and_signed_support_are_honest
+7 failed in 4.74s
