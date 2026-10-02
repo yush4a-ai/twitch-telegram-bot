@@ -6,7 +6,7 @@ import json
 
 from aiohttp import web
 
-from .telegram_identity import verify_webapp_user
+from .telegram_identity import VerifiedTelegramIdentity, verify_webapp_identity
 
 
 def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -18,9 +18,9 @@ def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
     return result
 
 
-async def verified_payload(
+async def verified_identity_payload(
     request: web.Request, bot_token: str,
-) -> tuple[int | None, dict[str, object] | None, int]:
+) -> tuple[VerifiedTelegramIdentity | None, dict[str, object] | None, int]:
     if request.content_length is not None and request.content_length > 8192:
         return None, None, 413
     try:
@@ -35,5 +35,10 @@ async def verified_payload(
     init_data = values.get("init_data")
     if not isinstance(init_data, str) or not init_data:
         return None, None, 401
-    user_id = verify_webapp_user(init_data, bot_token)
-    return (user_id, values, 200) if user_id is not None else (None, None, 403)
+    identity = verify_webapp_identity(init_data, bot_token)
+    return (identity, values, 200) if identity is not None else (None, None, 403)
+
+
+async def verified_payload(request: web.Request, bot_token: str) -> tuple[int | None, dict[str, object] | None, int]:
+    identity, values, status = await verified_identity_payload(request, bot_token)
+    return (identity.id if identity is not None else None, values, status)

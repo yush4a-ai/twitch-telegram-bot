@@ -54,7 +54,7 @@ async function installSdk(page, { initData = signedIdentity(), dark = false } = 
     const events = new Map();
     window.__qaSdk = { events, back: null, counters: { ready: 0, expand: 0, fullscreen: 0 } };
     window.Telegram = { WebApp: {
-      initData, colorScheme: dark ? 'dark' : 'light', themeParams: {},
+      initData, initDataUnsafe:{user:{id:999,first_name:'Чужое имя из initDataUnsafe'}}, colorScheme: dark ? 'dark' : 'light', themeParams: {},
       safeAreaInset: {}, contentSafeAreaInset: {},
       ready() { window.__qaSdk.counters.ready++; },
       expand() { window.__qaSdk.counters.expand++; },
@@ -86,12 +86,116 @@ async function assertLayout(page) {
 
 async function runJourney(page, scenario) {
   if (scenario === 'theme') return themeJourney(page);
+  if (scenario === 'shell') return shellJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Сейчас в эфире', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
   await page.locator('#content .list-row').first().waitFor();
   assert.equal(await page.locator('#content .list-row').count(), 6, 'Server supplies all six subscriptions');
   await assertLayout(page);
+}
+
+async function shellJourney(page) {
+  await page.getByRole('heading', { name:'Сейчас в эфире',exact:true }).waitFor();
+  const labels=()=>page.locator('#tab-bar button').allTextContents();
+  assert.deepEqual((await labels()).map(x=>x.trim()),['Главная','Стримеры','Профиль','Plus']);
+  for(const width of [360,390,430,768,1440]) {
+    await page.setViewportSize({width,height:844});await assertLayout(page);
+    assert((await page.locator('.app-shell').boundingBox()).width<=600,'Accepted A max600');
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.locator('#content[data-profile-state="ready"]').waitFor();
+  await page.getByText('Очень длинное настоящее имя в локальном сценарии',{exact:true}).waitFor();
+  assert.equal(await page.getByText('Чужое имя из initDataUnsafe',{exact:true}).count(),0);
+  const accessName=await page.getByRole('button',{name:'Моя подписка',exact:true}).count()?'Моя подписка':'Возможности Plus';
+  await page.getByRole('button',{name:accessName,exact:true}).click();
+  await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
+  assert.equal(await page.locator('#tab-bar [aria-current="page"]').getAttribute('aria-label'),'Plus');
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
+  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Меню приложения',exact:true}).click();
+  const menu=page.getByRole('dialog',{name:'Меню приложения',exact:true});
+  await menu.getByRole('button',{name:'Подписка',exact:true}).click();
+  await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
+  assert.equal(await menu.count(),0,'Menu closes before opening the shared subscription');
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Тема приложения',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Тема приложения',exact:true});
+  await dialog.waitFor();
+  await dialog.getByRole('button',{name:'Тёмная',exact:true}).click();
+  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
+  await page.keyboard.press('Tab');await page.keyboard.press('Shift+Tab');
+  assert(await dialog.evaluate(node=>node.contains(document.activeElement)),'Focus stays inside dialog');
+  await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+  assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('aria-label')),'Тема приложения');
+  await page.getByRole('button',{name:'Тема приложения',exact:true}).click();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await dialog.waitFor({state:'detached'});
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Поддержка',exact:true}).click();
+  await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Стример',exact:true}).click();
+  assert.deepEqual((await labels()).map(x=>x.trim()),['Мой канал','Посты','Профиль','Plus']);
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();
+  await page.setViewportSize({width:360,height:440});
+  await page.evaluate(()=>document.documentElement.style.fontSize='200%');await assertLayout(page);
+  assert(await page.locator('#tab-bar').evaluate(node=>node.scrollHeight<=node.clientHeight+1),'Full navigation labels reflow');
+  await page.evaluate(()=>document.documentElement.style.fontSize='');await page.setViewportSize({width:390,height:844});
+  await page.getByRole('button',{name:'Зритель',exact:true}).click();
+  await page.getByRole('button',{name:'Стримеры',exact:true}).click();
+  await page.locator('#content .list-row').first().waitFor();
+  const rows=page.locator('#content .list-row');
+  const index=Math.min(80,(await rows.count())-1),row=rows.nth(index);
+  await row.scrollIntoViewIfNeeded();
+  await row.evaluate(node=>{const bottom=node.getBoundingClientRect().bottom,nav=document.getElementById('tab-bar').getBoundingClientRect().top;if(bottom>nav-16)window.scrollBy(0,bottom-nav+16);});
+  const before=await row.boundingBox();
+  assert(before.y+before.height<=(await page.locator('#tab-bar').boundingBox()).y,'The tested row is visible above navigation');
+  const control=row.getByRole('button');const label=await control.textContent();
+  await control.click();
+  await page.evaluate(()=>window.__qaSdk.back());
+  await page.locator('#content .list-row').first().waitFor();
+  try{await page.waitForFunction(label=>document.activeElement?.textContent===label,label);}
+  catch{
+    const focus=await page.evaluate(()=>({tag:document.activeElement?.tagName,text:document.activeElement?.textContent,label:document.activeElement?.getAttribute('aria-label'),scroll:scrollY}));
+    throw new Error(`Back focus expected ${label}; observed ${JSON.stringify(focus)}`);
+  }
+  const restored=await rows.nth(index).boundingBox();
+  assert(Math.abs(restored.y-before.y)<2,`Visible row position restored after detail: ${before.y} -> ${restored.y}`);
+  const draft=page.locator('input[name="channel_search"]');await draft.fill('Длинный сохранённый поисковый запрос');
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.evaluate(()=>window.__qaSdk.back());
+  assert.equal(await draft.inputValue(),'Длинный сохранённый поисковый запрос','Draft survives internal navigation');
+  await page.reload();await page.locator('#content h1').waitFor();await page.getByRole('button',{name:'Стримеры',exact:true}).click();
+  await page.locator('input[name="channel_search"]').waitFor();assert.equal(await draft.inputValue(),'Длинный сохранённый поисковый запрос','Own draft survives reload');
+  const privacy=await page.evaluate(async()=>{
+    const {createApi}=await import('/app/api.js');const api=createApi('unused-in-local-storage-test');api.bindIdentity({id:501});api.storage.setItem('private-draft','A');
+    const own=api.storage.getItem('private-draft');api.bindIdentity({id:202});return {own,foreign:api.storage.getItem('private-draft'),old:localStorage.getItem('ts-user:501:private-draft')};
+  });
+  assert.deepEqual(privacy,{own:'A',foreign:null,old:null});
+  const focusRace=await page.evaluate(async()=>{
+    const {createRouter}=await import('/app/router.js');
+    const content=document.getElementById('content');
+    const frames=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    function render(state){content.replaceChildren();const button=document.createElement('button');button.textContent=state.tab;button.dataset.focusKey=state.tab;content.append(button);}
+    const router=createRouter(render);render(router.state);
+    content.querySelector('button').focus();router.setTab('streamers');await frames();
+    content.focus();router.back();await frames();
+    const restored=document.activeElement.dataset.focusKey;
+    content.focus();router.setTab('streamers');const late=content.querySelector('button');late.focus();await frames();
+    const preserved=document.activeElement===late;router.dispose();
+    return {restored,preserved};
+  });
+  assert.deepEqual(focusRace,{restored:'home',preserved:true},'Persistent main allows restore; a later user focus is preserved');
+  await page.reload();await page.locator('#content h1').waitFor();
 }
 
 async function themeJourney(page) {
@@ -179,6 +283,25 @@ async function themeJourney(page) {
   return pictures;
 }
 
+async function shellAuthGates(browser,url) {
+  const page=await browser.newPage({viewport:{width:390,height:440}}),privateReads=[];
+  await page.route('https://telegram.org/**',route=>route.fulfill({status:200,contentType:'application/javascript',body:''}));
+  page.on('request',request=>{if(request.url().includes('/app/api/'))privateReads.push(new URL(request.url()).pathname);});
+  await installSdk(page,{initData:''});await page.goto(url);
+  await page.getByRole('heading',{name:'Откройте приложение из Telegram',exact:true}).waitFor();
+  assert.deepEqual(privateReads,[],'Missing signed initData never requests private services');
+  await page.close();
+  const offline=await browser.newPage({viewport:{width:390,height:440}});
+  await offline.route('https://telegram.org/**',route=>route.fulfill({status:200,contentType:'application/javascript',body:''}));
+  let release;const gate=new Promise(resolve=>{release=resolve;});
+  await offline.route('**/app/api/bootstrap',async route=>{await gate;await route.fulfill({status:503,contentType:'application/json',body:'{"error":"unavailable"}'});});
+  await installSdk(offline);await offline.goto(url,{waitUntil:'domcontentloaded'});
+  await offline.getByText('Проверяем вход…',{exact:true}).waitFor();release();
+  await offline.getByText('Связь прервалась. Откройте приложение заново, когда сеть восстановится.',{exact:true}).waitFor();
+  assert.equal(await offline.locator('#content h1').count(),1,'Bootstrap error has one clear heading');
+  await assertLayout(offline);await offline.close();
+}
+
 async function main() {
   const engineName = argument('engine', 'chromium');
   const journey = argument('journey', 'baseline');
@@ -208,10 +331,11 @@ async function main() {
     if(journey==='theme')await page.emulateMedia({colorScheme:'dark'});
     await page.goto(server.url);
     const journeyPictures=await runJourney(page, journey);
+    if(journey==='shell')await shellAuthGates(browser,server.url);
     if(journeyPictures)report.screenshots.push(...journeyPictures);
     for (const [name, action] of [
-      ['viewer', async () => {}],
-      ['channel', async () => { await page.getByRole('button', { name: 'Стример', exact: true }).click(); await page.getByRole('heading', { name: 'Мой канал', exact: true }).waitFor(); }],
+      ['viewer', async () => { await page.getByRole('button',{name:'Зритель',exact:true}).click();await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.locator('#content .list-row').first().waitFor(); }],
+      ['channel', async () => { await page.getByRole('button', { name: 'Стример', exact: true }).click();await page.getByRole('button',{name:'Мой канал',exact:true}).click(); await page.getByRole('heading', { name: 'Мой канал', exact: true }).waitFor(); }],
       ['profile', async () => { await page.getByRole('button', { name: 'Профиль', exact: true }).click(); await page.getByRole('heading', { name: 'Профиль', exact: true }).waitFor(); }],
     ]) {
       await action();

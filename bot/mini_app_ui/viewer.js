@@ -32,7 +32,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   const folderMoveDrafts = new Map();
   const categoryDrafts = new Map();
   const names = new Map();
-  try { searchDraft = (localStorage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
+  try { searchDraft = (api.storage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
   const nameOf = (login) => names.get(login) || fallbackName(login);
   const current = () => getRouter().state;
   const refresh = () => getRouter().refresh();
@@ -97,7 +97,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     searchDraft = input.value;
     feedback = '';
     resultBox.parentNode.querySelector('[data-feedback]')?.remove();
-    try { localStorage.setItem('ts-app-search-draft', searchDraft); } catch {}
+    try { api.storage.setItem('ts-app-search-draft', searchDraft); } catch {}
     clearTimeout(searchTimer);
     searchController?.abort();
     const version = ++searchVersion;
@@ -139,7 +139,7 @@ export function createViewerFeature(api, getRouter, telegram) {
           await api.post('/app/api/viewer/follow', { login: row.login });
           searchResults = [];
           searchDraft = '';
-          try { localStorage.removeItem('ts-app-search-draft'); } catch {}
+          try { api.storage.removeItem('ts-app-search-draft'); } catch {}
           feedback = writeAccess === false
             ? `${row.display_name} добавлен. Разрешите боту личные сообщения, чтобы получать оповещения.`
             : `${row.display_name} добавлен`;
@@ -1084,7 +1084,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       target.replaceChildren();
       if (data && !loading && Date.now() - lastLoadedAt > 30000) void load();
       if (!data) {
-        if (!requested) void load();
+        if (!requested) queueMicrotask(() => { if (!requested) void load(); });
         target.append(element('p', 'eyebrow', 'Зритель'), element('h1', '', 'Загружаем подписки…'));
         if (error) {
           banner(target, error, true);

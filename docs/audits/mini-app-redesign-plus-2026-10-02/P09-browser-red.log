@@ -1,0 +1,13 @@
+{"status":"FAIL","engine":"chromium","screenshots":0,"errors":0}
+Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
++   '⌂Главная',
++   '◉Стримеры',
++   '○Профиль'
+-   'Главная',
+-   'Стримеры',
+-   'Профиль',
+-   'Plus'
+  ]

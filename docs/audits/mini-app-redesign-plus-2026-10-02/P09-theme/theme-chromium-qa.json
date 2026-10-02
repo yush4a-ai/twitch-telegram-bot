@@ -1,0 +1,62 @@
+{
+  "journey": "theme",
+  "scenario": "free-six",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "theme-chromium-light-390.png",
+      "sha256": "f4189e160479b0cad11a543b39820b2c82b23b55194294bbf601d6f4894c9d61",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-dark-390.png",
+      "sha256": "64eacca3cb785742f9ff9597b210351d14964204a462589bfcdab6a0f30eb5a6",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-telegram-light-390.png",
+      "sha256": "d05a48a08a22c9f8c5dfb29b70c433aa484ba0460d5d2f4e5c479c12459b0ed2",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-telegram-dark-390.png",
+      "sha256": "c1d6af2b891627430e21b9efa16984f10aae4b54600255e89fd36b43454cb0b3",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-viewer-390.png",
+      "sha256": "44b646997910b75ca5c35a1aa8abe77df9980ebd90d35533df0ee5e6a06336d4",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-channel-390.png",
+      "sha256": "f70a7ffa18013af9b21f4a888e1ba2ea29480364ba85d0269768d1a84deaa349",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-chromium-profile-390.png",
+      "sha256": "3f96c46885463081c014fc02711ea85594e84a87e4cdd2d49984b4c3999c0155",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "8c49564c66a3d8443f8bc760393c9daa150101d21b0bb10cc8305e63e5f70dfd",
+    "app.js": "7d1fe2cc28cdc1502ca9ea12cae3f3a8ed0fef75f108e447176b2bd18eb88b12",
+    "components.js": "db99dd76464da69c398b66e8c579c9d516518b10bc7aa6576c6a9cfd0eaa1a87",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "621201db680bfc8e631cffbbb6ade9024efcdda19acc21539a338388647ccb26",
+    "router.js": "9d3cece323939cb16ce855201421bed47c57770c855e09b98318eab05f0e4de9",
+    "streamer.js": "40623078c6e5af361a01a5b01a8816c7beda4daf3457ff7850fb452125a1cc4c",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "7da08c296ac831da405e5053fc4f734159d8efbfbb3f5f58b28f14bc084b362b"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

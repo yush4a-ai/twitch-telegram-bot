@@ -1,0 +1,4 @@
+{"status":"FAIL","engine":"chromium","screenshots":0,"errors":1}
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('heading', { name: 'Сейчас в эфире', exact: true }) to be visible

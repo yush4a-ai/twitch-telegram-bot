@@ -1,0 +1,52 @@
+..F.....                                                  [100%]
+================================== FAILURES ===================================
+_ MiniAppAuthTests.test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract _
+
+self = <test_mini_app_auth.MiniAppAuthTests testMethod=test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract>
+
+    async def test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract(self):
+>       from bot.telegram_identity import verify_webapp_identity, verify_webapp_user
+E       ImportError: cannot import name 'verify_webapp_identity' from 'bot.telegram_identity' (C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\telegram_identity.py)
+
+tests\test_mini_app_auth.py:29: ImportError
+_ MiniAppShellTests.test_shell_loads_every_module_with_strict_security_headers (asset='profile.js') _
+
+self = <test_mini_app_shell.MiniAppShellTests testMethod=test_shell_loads_every_module_with_strict_security_headers>
+
+    async def test_shell_loads_every_module_with_strict_security_headers(self):
+        async with self.session.get(self.base + "/app") as response:
+            self.assertEqual(response.status, 200)
+            html = await response.text()
+            self.assertIn('src="/app/app.js"', html)
+            self.assertIn('id="mode-switch"', html)
+            self.assertIn('id="tab-bar"', html)
+        for asset in ("app.css", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
+            with self.subTest(asset=asset):
+                async with self.session.get(self.base + "/app/" + asset) as response:
+>                   self.assertEqual(response.status, 200)
+E                   AssertionError: 404 != 200
+
+tests\test_mini_app_shell.py:80: AssertionError
+_ MiniAppShellTests.test_shell_loads_every_module_with_strict_security_headers (asset='support.js') _
+
+self = <test_mini_app_shell.MiniAppShellTests testMethod=test_shell_loads_every_module_with_strict_security_headers>
+
+    async def test_shell_loads_every_module_with_strict_security_headers(self):
+        async with self.session.get(self.base + "/app") as response:
+            self.assertEqual(response.status, 200)
+            html = await response.text()
+            self.assertIn('src="/app/app.js"', html)
+            self.assertIn('id="mode-switch"', html)
+            self.assertIn('id="tab-bar"', html)
+        for asset in ("app.css", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
+            with self.subTest(asset=asset):
+                async with self.session.get(self.base + "/app/" + asset) as response:
+>                   self.assertEqual(response.status, 200)
+E                   AssertionError: 404 != 200
+
+tests\test_mini_app_shell.py:80: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_auth.py::MiniAppAuthTests::test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract
+SUBFAILED(asset='profile.js') tests/test_mini_app_shell.py::MiniAppShellTests::test_shell_loads_every_module_with_strict_security_headers
+SUBFAILED(asset='support.js') tests/test_mini_app_shell.py::MiniAppShellTests::test_shell_loads_every_module_with_strict_security_headers
+3 failed, 7 passed, 13 subtests passed in 8.36s

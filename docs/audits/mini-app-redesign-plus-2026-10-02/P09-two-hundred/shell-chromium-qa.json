@@ -1,0 +1,42 @@
+{
+  "journey": "shell",
+  "scenario": "plus-two-hundred",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "shell-chromium-viewer-390.png",
+      "sha256": "41467b9c3e8fe9a750619a08cc652be915cb8bf86d6b23a341cbfe7a8c19ac18",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-channel-390.png",
+      "sha256": "5e011c800df0f129fdd6bfec1c6c9343d5886fe277e7416c8a76c2aa162808bd",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-profile-390.png",
+      "sha256": "223e0c529e9635c6b3124dd58f68fd01a5f1f387af69fc9a35e8d9e2705a6df7",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "8c49564c66a3d8443f8bc760393c9daa150101d21b0bb10cc8305e63e5f70dfd",
+    "app.js": "7d1fe2cc28cdc1502ca9ea12cae3f3a8ed0fef75f108e447176b2bd18eb88b12",
+    "components.js": "db99dd76464da69c398b66e8c579c9d516518b10bc7aa6576c6a9cfd0eaa1a87",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "621201db680bfc8e631cffbbb6ade9024efcdda19acc21539a338388647ccb26",
+    "router.js": "9d3cece323939cb16ce855201421bed47c57770c855e09b98318eab05f0e4de9",
+    "streamer.js": "40623078c6e5af361a01a5b01a8816c7beda4daf3457ff7850fb452125a1cc4c",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "7da08c296ac831da405e5053fc4f734159d8efbfbb3f5f58b28f14bc084b362b"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

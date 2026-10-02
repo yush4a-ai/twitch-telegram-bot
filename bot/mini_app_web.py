@@ -11,7 +11,7 @@ from aiohttp import web
 from .admin_web import SECURITY_HEADERS
 from .capabilities import CapabilityService
 from .database import Database
-from .mini_app_auth import verified_payload
+from .mini_app_auth import verified_identity_payload
 from .mini_app_viewer import install_mini_app_viewer_routes
 from .mini_app_streamer import install_mini_app_streamer_routes
 from .mini_app_billing import install_mini_app_billing_routes
@@ -29,6 +29,8 @@ _ASSETS = {
     "viewer.js": "application/javascript",
     "streamer.js": "application/javascript",
     "subscription.js": "application/javascript",
+    "profile.js": "application/javascript",
+    "support.js": "application/javascript",
 }
 
 
@@ -79,14 +81,14 @@ def install_mini_app_routes(
         )
 
     async def bootstrap(request: web.Request) -> web.Response:
-        user_id, _values, status = await verified_payload(request, bot_token)
+        identity, _values, status = await verified_identity_payload(request, bot_token)
         if status != 200:
             return web.json_response({"error": "unauthorized"}, status=status)
-        flags = await capabilities.for_user(user_id, now=time.time())
-        return web.json_response({"user": {"id": user_id}, "capabilities": asdict(flags)})
+        flags = await capabilities.for_user(identity.id, now=time.time())
+        return web.json_response({"user": asdict(identity), "capabilities": asdict(flags)})
 
     app.router.add_get("/app", shell)
-    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|theme\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js}", asset)
+    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|theme\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js|profile\\.js|support\\.js}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
     install_mini_app_viewer_routes(
         app, db, bot_token, capabilities, twitch,

@@ -481,3 +481,9 @@
 - **Решение:** durable attempt/inbox, canonical evidence и frozen buyer проходят общий атомарный apply. Unknown create/refund не повторяется автоматически; один unresolved order на buyer и refund на order. Shared provider lease ограничивает сверки между соединениями. Terminal fact не заменяется старым pending; конфликт сохраняется для review.
 - **Граница:** callback404/runtimeOFF первого release; настоящий месяц/terms/refund/XTR не выдумываются. Fixture policy30days не утверждает продажу. Финансовые факты не вытесняются ради лимита.
 - **Проверка:** P06 PASS72tests/57subtests, две DB/rollback/reopen/cancellation/refund/monotonic; `P06-LEDGER.md`. Внешние и native NOT TESTED.
+
+## D066 — общий shell и verified профиль
+
+- **Основание:** утверждённый P09. Четыре точных пункта и один Subscription с Profile/menu/Plus, max600/relative text/SVG/native dialogs. Имя только signed bootstrap; личные черновики по verified ID, прежний субъект очищается.
+- **Проверка:** Python13tests/37subtests, Chromium/WebKit6/200/theme,26PNG, JS0/external0. WebKit оставляет MAIN focus; read-only reviewer подтвердил причину, восстановление допускает только прежний container и сохраняет новый user focus. Modal Back закрывает верхний диалог до изменения route.
+- **Граница:** перенос feature страниц P10–P16 продолжается, не готовый продукт. `P09-SHELL.md`; native/staging NOT TESTED, внешних действий нет.

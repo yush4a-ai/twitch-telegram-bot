@@ -4,6 +4,11 @@ import os
 import tempfile
 import time
 import unittest
+import hashlib
+import hmac
+import json
+from urllib.parse import urlencode
+from unittest.mock import patch
 
 import aiohttp
 
@@ -12,7 +17,39 @@ from bot.oauth import OAuthCallbackServer
 from tests.test_admin_telegram_auth import BOT_TOKEN, signed_webapp
 
 
+def signed_identity(user, *, at=None):
+    fields={"user":user if isinstance(user,str) else json.dumps(user,ensure_ascii=False),"auth_date":str(int(time.time()) if at is None else at)}
+    secret=hmac.new(b"WebAppData",BOT_TOKEN.encode(),hashlib.sha256).digest()
+    fields["hash"]=hmac.new(secret,"\n".join(f"{k}={v}" for k,v in sorted(fields.items())).encode(),hashlib.sha256).hexdigest()
+    return urlencode(fields)
+
+
 class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
+    async def test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract(self):
+        from bot.telegram_identity import verify_webapp_identity, verify_webapp_user
+        user={"id":101,"first_name":"Очень длинное настоящее имя", "last_name":"Фамилия", "username":"verified_owner"}
+        signed=signed_identity(user)
+        identity=verify_webapp_identity(signed,BOT_TOKEN)
+        self.assertEqual(identity.id,101)
+        self.assertEqual(identity.display_name,"Очень длинное настоящее имя Фамилия")
+        self.assertEqual(identity.username,"verified_owner")
+        self.assertEqual(verify_webapp_user(signed,BOT_TOKEN),identity.id)
+        for bad in (signed.replace("verified_owner","client_override"),signed+"&user=evil",signed_identity({"id":True}),
+                    signed_identity('{"id":101,"id":202}'),signed_identity({"id":101},at=int(time.time())-601),"x"*4097):
+            with self.subTest(bad=bad[:45]):
+                self.assertIsNone(verify_webapp_identity(bad,BOT_TOKEN))
+                self.assertIsNone(verify_webapp_user(bad,BOT_TOKEN))
+        no_name=verify_webapp_identity(signed_identity({"id":101}),BOT_TOKEN)
+        self.assertEqual((no_name.id,no_name.display_name,no_name.username),(101,None,None))
+        bounded=verify_webapp_identity(signed_identity({"id":101,"first_name":"x"*257,"username":"x"*257}),BOT_TOKEN)
+        self.assertEqual((bounded.display_name,bounded.username),(None,None))
+        with patch("bot.telegram_identity.time.time",return_value=1000):
+            for timestamp,allowed in ((400,True),(399,False),(1060,True),(1061,False)):
+                with self.subTest(timestamp=timestamp):
+                    self.assertEqual(verify_webapp_identity(signed_identity({"id":101},at=timestamp),BOT_TOKEN) is not None,allowed)
+        response=await self.session.post(self.base+"/app/api/bootstrap",json={"init_data":signed,"username":"client_override"})
+        payload=await response.json()
+        self.assertEqual(payload["user"],{"id":101,"display_name":identity.display_name,"username":"verified_owner"})
     async def asyncSetUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.db = Database(os.path.join(self.directory.name, "bot.db"))

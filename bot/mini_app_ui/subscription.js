@@ -1,4 +1,4 @@
-import { element, panel, action } from './components.js';
+import { element, panel, action, dialog } from './components.js';
 import { ApiError } from './api.js';
 
 const products = {
@@ -20,6 +20,7 @@ const dateText = (value) => value ? new Date(value * 1000).toLocaleString('ru-RU
 
 export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
   let state = null;
+  let catalog = null;
   let loading = false;
   let loadToken = 0;
   let pendingLoad = null;
@@ -36,8 +37,8 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
     const token = ++loadToken;
     const request = (async () => {
       try {
-        const loaded = await api.post('/app/api/subscription/state');
-        if (token === loadToken) { state = loaded; error = ''; }
+        const [loaded, products] = await Promise.all([api.post('/app/api/subscription/state'), api.post('/app/api/subscription/catalog')]);
+        if (token === loadToken) { state = loaded; catalog = products; error = ''; }
       } catch {
         if (token === loadToken) error = state ? 'Нет связи. Показан последний загруженный статус.' : 'Не удалось загрузить доступ.';
       } finally {
@@ -47,9 +48,10 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
     pendingLoad = request;
     return request;
   }
-  document.addEventListener('visibilitychange', () => {
+  const onVisibility = () => {
     if (!document.hidden && getRouter().state.detail === 'subscription') void load();
-  });
+  };
+  document.addEventListener('visibilitychange', onVisibility);
   async function change(path, values) {
     if (busy) return;
     ++loadToken;
@@ -92,12 +94,19 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
     const productState = state[key === 'viewer_plus' ? 'viewer' : 'streamer'];
     const box = element('section', 'panel subscription-product');
     box.append(element('h2', '', item.title));
+    const offer = catalog?.products.find(product => product.product_id === key);
+    if (offer) box.append(element('p','subscription-price',`${offer.price_label} / месяц`));
     box.append(element('p', 'muted', item.detail));
     let status = productState.active
       ? `${sourceName(productState.source)} · до ${dateText(productState.expires_at)}`
       : 'Сейчас без Plus';
     if (key === 'streamer_plus' && !productState.linked) status += ' · сначала подключите Twitch';
     box.append(element('p', 'subscription-status', status));
+    if (offer && !productState.active) {
+      box.append(action(`Подключить ${item.title} — ${offer.price_label}`,event=>dialog('Подключение Plus',content=>{
+        content.append(element('p','','Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.'));
+      },{origin:event.currentTarget})));
+    }
     if (key === 'viewer_plus' && productState.test_trial_available) {
       box.append(element('p', 'muted', 'Один раз на 7 дней в тестовом окружении. Без оплаты и автопродления.'));
       const trial = action('Попробовать 7 дней', () => void change('test-trial', {}));
@@ -141,7 +150,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       target.replaceChildren();
       if (!requested) void load();
       target.append(element('p', 'eyebrow', route.mode === 'viewer' ? 'Зритель' : 'Стример'));
-      target.append(element('h1', '', 'Доступ'));
+      target.append(element('h1', '', state?.viewer.active || state?.streamer.active ? 'Моя подписка' : 'Возможности Plus'));
       target.append(element('p', 'lead', 'Возможности и история тестовых заказов.'));
       if (!state) {
         target.append(panel('Проверяем доступ', error || 'Загружаем текущий статус.'));
@@ -173,5 +182,6 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       target.append(actions);
     },
     refresh: load,
+    dispose() { ++loadToken; document.removeEventListener('visibilitychange', onVisibility); },
   };
 }

@@ -24,12 +24,12 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let presetName = '';
   let presetBusy = false;
   try {
-    connectIntent = localStorage.getItem('ts-streamer-connect-intent') || '';
-    communityIntent = localStorage.getItem('ts-streamer-community-intent') || '';
+    connectIntent = api.storage.getItem('ts-streamer-connect-intent') || '';
+    communityIntent = api.storage.getItem('ts-streamer-community-intent') || '';
   } catch {}
   const refresh = () => getRouter().refresh();
   const remember = (key, value) => {
-    try { if (value) localStorage.setItem(key, value); else localStorage.removeItem(key); } catch {}
+    try { if (value) api.storage.setItem(key, value); else api.storage.removeItem(key); } catch {}
   };
   function heading(target, title, lead) {
     target.append(element('p', 'eyebrow', 'Стример'), element('h1', '', title), element('p', 'lead', lead));
@@ -191,7 +191,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
   const draftKey = (chatId) => `ts-streamer-template-${data.twitch_login}-${chatId}`;
   function restoreDraft(chatId, saved) {
     try {
-      const raw = localStorage.getItem(draftKey(chatId));
+      const raw = api.storage.getItem(draftKey(chatId));
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Number.isInteger(parsed.version) && typeof parsed.headline === 'string'
@@ -208,7 +208,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
       buttons: [0, 1].map((index) => saved.buttons[index] || { label: '', url: '' }) };
   }
   function rememberDraft(chatId) {
-    try { localStorage.setItem(draftKey(chatId), JSON.stringify(postDraft)); } catch {}
+    try { api.storage.setItem(draftKey(chatId), JSON.stringify(postDraft)); } catch {}
   }
   async function loadPostState(chatId) {
     if (postLoading || !chatId) return;
@@ -257,7 +257,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
         headline: postDraft.headline, body: postDraft.body, buttons,
       });
       postDraft.version = saved.version;
-      try { localStorage.removeItem(draftKey(chatId)); } catch {}
+      try { api.storage.removeItem(draftKey(chatId)); } catch {}
       postConflict = false;
       postFeedback = 'Сохранено. Оформление применяется к постам при действующем Plus.';
       postState = null;
@@ -345,7 +345,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
         if (selectedPostChat === chatId) refreshPostAfterMutation();
         return;
       }
-      try { localStorage.removeItem(draftKey(chatId)); } catch {}
+      try { api.storage.removeItem(draftKey(chatId)); } catch {}
       postDraft = null;
       postConflict = false;
       postFeedback = `Вариант «${preset.name}» применён к будущим постам этого сообщества.`;
@@ -579,7 +579,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
   }
   return {
     render(target, route) {
-      if (!requested) { void load(); target.append(element('div', 'status-panel', 'Загружаем данные стримера…')); return; }
+      if (!requested) { queueMicrotask(() => { if (!requested) void load(); }); target.append(element('div', 'status-panel', 'Загружаем данные стримера…')); return; }
       if (!data) { target.append(element('div', 'status-panel', error || 'Загружаем данные стримера…')); return; }
       if (error) target.append(element('p', 'notice error', error));
       if (route.tab === 'channel') renderChannel(target);

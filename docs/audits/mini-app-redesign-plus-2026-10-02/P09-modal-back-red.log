@@ -1,0 +1,5 @@
+{"status":"FAIL","engine":"chromium","screenshots":0,"errors":0}
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('dialog', { name: 'Тема приложения', exact: true }) to be detached
+    63 × locator resolved to visible <dialog open="" class="app-dialog" aria-labelledby="app-dialog-title-3">…</dialog>

@@ -1,0 +1,25 @@
+{
+  "journey": "shell",
+  "scenario": "free-six",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "007ffa650a2a6e912ce542fb771cdfd8446f78379afefbe10e75e037e3ab5561",
+    "app.css": "5900d6ded4274b734d60d2a9d5c6ad5e53143ec23ae6e8678b949faf8dbe1dbb",
+    "app.js": "28873f74c5ba15c283013cf903dcb0b3e5141f5d4ebbe360244b2fc062647ebf",
+    "components.js": "db02e21662bfb268f16f3bb3e35f657c924eeafbab837fd8e2209511f31da0fd",
+    "index.html": "9195ed34784a1b3d57f20a3a53c2c17638fe1b994f89277498f9f787d202f95a",
+    "router.js": "4ddd2f8ce360d221ddcbcf60c323de8eefb1e716a1586890d64aab7a049b1e82",
+    "streamer.js": "80e84db3c11fd3ee8b8c8a58954d90ec53aa976ee38567016a197f54e75745f6",
+    "subscription.js": "bc79da0055b4f017fd4952ab07660ce6fc99510247277886dc60c5d463c475ff",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "2d1b9780e41082ae8cd057021d85888cf60b3cbcdab2b6ef3596e7f42d46989e"
+  },
+  "version": "151.0.7922.34",
+  "status": "FAIL",
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   '⌂Главная',\n+   '◉Стримеры',\n+   '○Профиль'\n-   'Главная',\n-   'Стримеры',\n-   'Профиль',\n-   'Plus'\n  ]\n\n    at shellJourney (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:101:10)\n    at async main (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:256:27)"
+}

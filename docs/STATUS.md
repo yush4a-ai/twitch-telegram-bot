@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P08 PASS, далее P09
+## Текущий checkpoint — 02.10.2026: P09 PASS, далее P10
+
+P08 commit `a229df3`; P09 shell/profile/nav4/shared Subscription/menu/Back/dialog/scroll/focus/draft и signed metadata. Python13tests/37subtests; Chromium/WebKit6/200/theme,26PNG с source hashes, JS0/external0. Evidence `P09-SHELL.md`. Один read-only reviewer установил WebKit MAIN focus, exact regression сохранён; initial render reentrancy и modal Back исправлены. Новый профиль перенесён, feature композиция/Plus/legal ещё P10–P16. Staging/production/Railway/деньги/outbound не менялись; native NOT TESTED. Следующий P10 Viewer.
+
+## Предыдущий checkpoint — 02.10.2026: P08 PASS, далее P09
 
 P07 commit `2a71f82`; theme/SDK RED→PASS9tests/20subtests, Chromium/WebKit по7 реальных PNG/errors0/external0. `P08-THEME.md`, source/image SHA в `theme-*-qa.json`. Light по умолчанию, own dark#171717/#242424, actual Telegram ThemeParams/change, storage denied/reload, four safe max/viewport/dispose/fullscreen fallback. Scoped token/SDK review, PNG просмотрены; прежние transition кадры сохранены. Композиция ещё старая, следующий P09 перенос А/profile/nav4. Native Telegram и staging NOT TESTED, production/деньги не менялись.
 
