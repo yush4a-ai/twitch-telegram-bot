@@ -1,0 +1,45 @@
+{
+  "journey": "shell",
+  "scenario": "plus-two-hundred",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "shell-chromium-viewer-390.png",
+      "sha256": "6680cea0041d58c6bc485ee61e2624288f13f2b0347b54d5489f2f7bd0a168f2",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-channel-390.png",
+      "sha256": "5e011c800df0f129fdd6bfec1c6c9343d5886fe277e7416c8a76c2aa162808bd",
+      "viewport": "390x844"
+    },
+    {
+      "file": "shell-chromium-profile-390.png",
+      "sha256": "223e0c529e9635c6b3124dd58f68fd01a5f1f387af69fc9a35e8d9e2705a6df7",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "7561a9587aa52ca561a010fd305cd89ea5c52bb84ec99893933a7a167858ff90",
+    "app.js": "55d0085063d21d3d67dea0e09503565121752cef03da40fb7fc882b64cf846f6",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "621201db680bfc8e631cffbbb6ade9024efcdda19acc21539a338388647ccb26",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "40623078c6e5af361a01a5b01a8816c7beda4daf3457ff7850fb452125a1cc4c",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "842abb8877020e9e8e0aa4ac3735fbadc8b7bcb39ec8692b07ac06b0ebd0795c",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "2d984493603e6a183512dde433ec1c8e951979b6f30c19cc809a63146544de69",
+    "scripts/mini_app_redesign_browser_qa.cjs": "e99c3acbe53dd09b7f4de57c37d70a74f3e57dfe650a5c2d57c9b6a1a4fb8b78"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

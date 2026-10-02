@@ -10,7 +10,7 @@
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
-| P08–P12 — темы, shell и Viewer | P08–P10 PASS; далее P11 |
+| P08–P12 — темы, shell и Viewer | P08–P11 PASS; далее P12 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
@@ -69,3 +69,7 @@ BASE `a229df3` → shell commit. Python13tests/37subtests; Chromium/WebKit6/200 
 ## P10 complete
 
 BASE `f5549b0` → Viewer commit. Python25tests/23subtests; Chromium/WebKit0/6/200 + shell200,24PNG, errors/external0. `P10-VIEWER.md`; grouped live/stale/offline, own search отдельно от add/follow/unfollow/pause, signed rows, bounded names TTL300/2000/5s/login fallback. Late search/network/draft/full names/text200 проверены, detector[]. Settings ещё P12; следующий P11 top video picker. Native NOT TESTED.
+
+## P11 complete
+
+BASE `dfa1340` → picker commit. Python40tests/6subtests; Chromium/WebKit0/6/200 + shell200,54PNG, errors/external0. `P11-VIDEO.md`; offline-inclusive5/search/directsixth409/atomic replace/cancel/open-dialog CAS/reload/pending ACK/late focus. BODY after double render RED закрыт pending restore; exact focus assertions сохранены. Delivery enums в UI simulated HTTP, pipeline fake sender; native NOT TESTED. Следующий P12 settings.

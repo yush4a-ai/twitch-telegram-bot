@@ -88,6 +88,7 @@ async function runJourney(page, scenario) {
   if (scenario === 'theme') return themeJourney(page);
   if (scenario === 'shell') return shellJourney(page);
   if (scenario === 'viewer-free') return viewerFreeJourney(page);
+  if (scenario === 'video') return videoJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -192,10 +193,11 @@ async function shellJourney(page) {
     content.focus();router.back();await frames();
     const restored=document.activeElement.dataset.focusKey;
     content.focus();router.setTab('streamers');const late=content.querySelector('button');late.focus();await frames();
-    const preserved=document.activeElement===late;router.dispose();
-    return {restored,preserved};
+    const preserved=document.activeElement===late;router.refresh();router.refresh();await frames();
+    const repeated=document.activeElement.dataset.focusKey;router.dispose();
+    return {restored,preserved,repeated};
   });
-  assert.deepEqual(focusRace,{restored:'home',preserved:true},'Persistent main allows restore; a later user focus is preserved');
+  assert.deepEqual(focusRace,{restored:'home',preserved:true,repeated:'streamers'},'Persistent main allows restore; new user focus and consecutive renders preserve focus');
   await page.reload();await page.locator('#content h1').waitFor();
 }
 
@@ -360,6 +362,74 @@ async function themeJourney(page) {
   // Fullscreen rejected by an older client must still leave a usable adapter.
   await page.evaluate(async()=>{window.Telegram.WebApp.requestFullscreen=()=>{throw new Error('unsupported');};const {createTelegramAdapter}=await import('/app/telegram.js');const adapter=createTelegramAdapter(()=>{});adapter.dispose();});
   await page.evaluate(async()=>{const {theme}=await import('/app/app.js');theme.setChoice('light');});
+  await assertLayout(page);
+  return pictures;
+}
+
+async function videoJourney(page){
+  const pictures=[];async function capture(label){const file=`video-${argument('engine','chromium')}-${label}-390.png`;await page.screenshot({path:path.join(output,file),animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});}
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();await page.getByRole('button',{name:'Стримеры',exact:true}).click();
+  const call=(path,values={})=>page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');try{return {status:200,body:await createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values)};}catch(error){return {status:error.status,code:error.code};}},{path,values});
+  const initial=(await call('state')).body;
+  if(!initial.viewer_plus_active){
+    await page.getByRole('button',{name:'Видео · Plus',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();
+    assert.equal((await call('video-selection',{selected_logins:['alpha'],expected_version:initial.video_selection.version})).status,403);
+    assert.deepEqual((await call('state')).body.video_selection.selected_logins,[]);
+    await capture('free-plus');return pictures;
+  }
+  await page.getByRole('button',{name:`Видео · ${initial.video_selection.selected_logins.length}/5`,exact:true}).click();
+  await page.getByRole('heading',{name:'Видеопревью',exact:true}).waitFor();
+  assert.equal(await page.locator('#content .video-choice input[type=checkbox]').count(),initial.subscriptions.length);
+  const checkbox=login=>page.locator(`[data-video-login="${login}"] input[type=checkbox]`);
+  const count=n=>page.getByText(`Выбрано ${n} из 5`,{exact:true});
+  await capture('picker');
+  let releaseSave,saveStarted;const pendingSave=new Promise(resolve=>{releaseSave=resolve;}),saveSeen=new Promise(resolve=>{saveStarted=resolve;});
+  await page.route('**/app/api/viewer/video-selection',async route=>{const response=await route.fetch();saveStarted();await pendingSave;await route.fulfill({response});});
+  await checkbox('delta').click();await saveSeen;await count(3).waitFor();assert.equal(await checkbox('delta').isChecked(),false,'Pending save is not presented as applied');
+  const query=page.getByRole('searchbox',{name:'Найти стримера для видео',exact:true});await query.focus();await capture('pending');releaseSave();
+  await count(4).waitFor();await page.getByText('Выбор сохранён',{exact:true}).waitFor();
+  try{await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Найти стримера для видео');}
+  catch{throw new Error(`Late save focus: ${JSON.stringify(await page.evaluate(()=>({tag:document.activeElement?.tagName,label:document.activeElement?.getAttribute('aria-label'),text:document.activeElement?.textContent?.slice(0,100)})))}`);}
+  await page.unroute('**/app/api/viewer/video-selection');
+  await checkbox('epsilon').click();await count(5).waitFor();await page.getByText('Выбор сохранён',{exact:true}).waitFor();await capture('five');
+  const fifth=(await call('state')).body.video_selection;
+  assert.equal(fifth.selected_logins.length,5);assert(fifth.selected_logins.includes('gamma'),'Offline gamma occupies a slot');
+  await query.fill('zeta');await count(5).waitFor();
+  assert.equal(await page.locator('.video-choice').count(),1,'Search only filters visible choices');
+  await checkbox('zeta').click();const replace=page.getByRole('dialog',{name:'Все пять мест заняты',exact:true});await replace.waitFor();
+  await capture('replace');
+  assert.deepEqual((await call('state')).body.video_selection,fifth,'Sixth choice has not mutated the saved five');
+  await replace.getByRole('button',{name:'Закрыть',exact:true}).click();assert.deepEqual((await call('state')).body.video_selection,fifth,'Cancel is mutation-free');
+  await checkbox('zeta').click();await replace.getByRole('button',{name:'Заменить Alpha',exact:true}).click();await replace.waitFor({state:'detached'});await page.getByText('Выбор сохранён',{exact:true}).waitFor();
+  const swapped=(await call('state')).body.video_selection;assert.equal(swapped.selected_logins.length,5);assert(swapped.selected_logins.includes('zeta'));assert(!swapped.selected_logins.includes('alpha'));
+  assert.deepEqual(swapped.selected_logins.filter(login=>login!=='zeta'),fifth.selected_logins.filter(login=>login!=='alpha'),'Swap preserves all other choices');
+  assert.equal((await call('video-selection',{selected_logins:[...swapped.selected_logins,'alpha'],expected_version:swapped.version})).code,'video_limit','Server rejects a direct sixth choice');
+  await query.fill('alpha');await checkbox('alpha').click();await replace.waitFor();
+  const other=await call('video-selection',{selected_logins:swapped.selected_logins.filter(login=>login!=='beta'),expected_version:swapped.version});assert.equal(other.status,200);
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await count(4).waitFor();
+  await replace.getByRole('button',{name:`Заменить ${initial.subscriptions.find(row=>row.login==='beta').display_name}`,exact:true}).click();
+  await replace.waitFor({state:'detached'});await page.getByText('Выбор изменился в другой сессии. Проверьте список и повторите действие.',{exact:true}).waitFor();await count(4).waitFor();
+  assert.deepEqual((await call('state')).body.video_selection,other.body,'Open replacement dialog keeps its original version fence');
+  await query.fill('zeta');
+  assert.equal(await checkbox('zeta').isChecked(),true,'Conflict restores the canonical server selection');
+  await query.fill('');await checkbox('gamma').click();await count(3).waitFor();await page.getByText('Выбор сохранён',{exact:true}).waitFor();
+  await page.reload();await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Видео · 3/5',exact:true}).click();await count(3).waitFor();assert.equal(await checkbox('gamma').isChecked(),false);
+  await checkbox('alpha').click();await count(4).waitFor();await page.getByText('Выбор сохранён',{exact:true}).waitFor();
+  let mediaStatus='limited';
+  await page.route('**/app/api/viewer/state',async route=>{const response=await route.fetch(),body=await response.json();body.subscriptions.find(row=>row.login==='alpha').video_delivery_status=mediaStatus;await route.fulfill({response,json:body});});
+  // UI presentation of provider states is simulated; media pipeline uses separate fake-sender tests.
+  for(const [value,label] of [
+    ['limited','Перегрузка · пока показываем фото'],['unavailable','Видео недоступно · пока показываем фото'],
+    ['preparing','Готовим видео · пока может показываться фото'],['unknown','Доставка видео пока не подтверждена'],
+    ['photo','Сейчас фото · выбор видео сохранён'],['video','Видео в текущем сообщении'],['returning_photo','Возвращаем фото в текущее сообщение'],
+  ]){mediaStatus=value;await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.locator('[data-video-login="alpha"]').getByText(label,{exact:true}).waitFor();if(value==='limited')await capture('limited');}
+  await page.unroute('**/app/api/viewer/state');
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.locator('[data-video-login="alpha"]').getByText('Доставка видео пока не подтверждена',{exact:true}).waitFor();
+  for(const width of [360,390,430,768,1440]){await page.setViewportSize({width,height:844});await assertLayout(page);}
+  await page.setViewportSize({width:360,height:440});await page.evaluate(()=>document.documentElement.style.fontSize='200%');await assertLayout(page);
+  assert((await page.locator('.video-choice').first().boundingBox()).height>=44,'Entire choice label is a touch target');
+  await page.evaluate(()=>document.documentElement.style.fontSize='');await page.setViewportSize({width:390,height:844});
   await assertLayout(page);
   return pictures;
 }

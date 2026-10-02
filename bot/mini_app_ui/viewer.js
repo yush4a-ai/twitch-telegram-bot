@@ -5,6 +5,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   let disposed=false;
   let data = null;
   let loading = false;
+  let loadToken=0,pendingLoad=null;
   let requested = false;
   let error = '';
   let searchDraft = '';
@@ -33,24 +34,30 @@ export function createViewerFeature(api, getRouter, telegram) {
   const folderMoveDrafts = new Map();
   const categoryDrafts = new Map();
   const names = new Map();
+  let videoQuery=(api.storage.getItem('ts-viewer-video-search')||'').slice(0,200);
   try { searchDraft = (api.storage.getItem('ts-app-search-draft') || '').slice(0, 200); } catch {}
   const nameOf = (login) => names.get(login) || data?.subscriptions.find(row=>row.login===login)?.display_name || login;
   const current = () => getRouter().state;
   const refresh = () => {if(!disposed)getRouter().refresh();};
-  async function load() {
-    if (loading||disposed) return;
+  async function load({fresh=false}={}) {
+    if (disposed) return;
+    if (loading&&!fresh) return pendingLoad;
     requested = true;
     loading = true;
     lastLoadedAt = Date.now();
     if (!data) refresh();
-    try {
-      data = await api.post('/app/api/viewer/state');
-      error = '';
-    } catch (cause) {
-      error = cause instanceof ApiError && cause.status === 403
-        ? 'Время входа истекло. Откройте приложение из чата бота.'
-        : 'Нет связи. Показываем последние загруженные данные.';
-    } finally { loading = false; refresh(); }
+    const token=++loadToken;
+    pendingLoad=(async()=>{
+      try {
+        const loaded=await api.post('/app/api/viewer/state');
+        if(token===loadToken){data=loaded;error='';}
+      } catch (cause) {
+        if(token===loadToken)error=cause instanceof ApiError && [401,403].includes(cause.status)
+          ? 'Время входа истекло. Откройте приложение из чата бота.'
+          : data?'Нет связи. Показываем последние загруженные данные.':'Не удалось загрузить подписки. Проверьте связь и повторите.';
+      } finally { if(token===loadToken){loading=false;pendingLoad=null;refresh();} }
+    })();
+    return pendingLoad;
   }
   const onVisibility=() => {
     if (!document.hidden && data) void load();
@@ -198,9 +205,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       note.setAttribute('data-feedback', '');
       target.append(note);
     }
-    if (data.viewer_plus_active) {
-      target.append(element('p', 'muted', `Видеопревью: ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`));
-    }
+    const tools=element('div','viewer-tools');tools.append(action(data.viewer_plus_active?`Видео · ${data.video_selection.selected_logins.length}/${data.video_selection.limit}`:'Видео · Plus',()=>getRouter().openDetail(data.viewer_plus_active?'video-selection':'subscription'),true));target.append(tools);
     renderFolders(target);
     renderGroups(groups);target.append(groups);
   }
@@ -221,6 +226,47 @@ export function createViewerFeature(api, getRouter, telegram) {
       const label=element('label','search-field','Ник или ссылка Twitch'),input=element('input','input'),results=element('div','search-results');input.type='search';input.name='channel_search';input.maxLength=200;input.autocomplete='off';input.spellcheck=false;input.value=searchDraft;input.placeholder='Например, twitch.tv/alpha';label.append(input);results.setAttribute('role','status');results.onDone=close;
       input.addEventListener('input',()=>queueSearch(input,results));content.append(label,results);if(searchResults.length)showResults(results);else if(searchDraft.trim().length>=4)queueSearch(input,results);
     },{origin:event.currentTarget,onClose:()=>{clearTimeout(searchTimer);searchController?.abort();++searchVersion;}});
+  }
+  function videoStatus(row){
+    if(row.video_delivery_status==='returning_photo')return 'Возвращаем фото в текущее сообщение';
+    if(!row.video_selected&&row.video_delivery_status==='unknown')return 'Выбрано фото · доставка пока не подтверждена';
+    if(!row.video_selected)return 'Фото по умолчанию';
+    if(row.paused_by_plan)return 'Выбрано · подписка приостановлена по лимиту';
+    if(!row.notify_enabled)return 'Выбрано · уведомления на паузе';
+    const labels={video:'Видео в текущем сообщении',photo:'Сейчас фото · выбор видео сохранён',offline:'Не в эфире · место для видео занято',limited:'Перегрузка · пока показываем фото',unavailable:'Видео недоступно · пока показываем фото',preparing:'Готовим видео · пока может показываться фото',unknown:'Доставка видео пока не подтверждена',returning_photo:'Возвращаем фото в текущее сообщение'};
+    return labels[row.video_delivery_status]||labels.unknown;
+  }
+  function replaceVideo(login,event){
+    const snapshot=data.video_selection;
+    dialog('Все пять мест заняты',(box,close)=>{
+      box.append(element('p','muted',`Кого заменить на ${nameOf(login)}? Остальные четыре выбора сохранятся.`));
+      for(const old of snapshot.selected_logins){const button=action(`Заменить ${nameOf(old)}`,()=>{const next=snapshot.selected_logins.map(value=>value===old?login:value);close();void saveVideoSelection(next,{expectedVersion:snapshot.version});},true);box.append(button);}
+    },{origin:event.currentTarget,sheet:true});
+  }
+  function renderVideoPicker(target){
+    target.append(element('h1','','Видеопревью'));
+    if(!data.viewer_plus_active){target.append(panel('Фото остаётся доступно','Выбор видео сохранён. Для его использования нужен Plus.'),action('Возможности Plus',()=>getRouter().openDetail('subscription'),true));return;}
+    const status=element('p','video-count',`Выбрано ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`);status.setAttribute('role','status');target.append(status,element('p','lead','Пять мест, включая стримеров вне эфира и на паузе. Статус доставки — под именем.'));
+    const query=element('input','input');query.type='search';query.maxLength=200;query.value=videoQuery;query.setAttribute('aria-label','Найти стримера для видео');query.placeholder='Найти стримера';
+    const list=element('div','video-list');query.addEventListener('input',()=>{videoQuery=query.value;api.storage.setItem('ts-viewer-video-search',videoQuery);renderChoices(list);});target.append(query);
+    if(videoFeedback){const note=element('p','notice',videoFeedback);note.setAttribute('role','status');target.append(note);}
+    renderChoices(list);target.append(list);
+  }
+  function renderChoices(list){
+    list.replaceChildren();const query=videoQuery.trim().toLocaleLowerCase('ru-RU');
+    const rows=data.subscriptions.filter(row=>`${nameOf(row.login)} ${row.login}`.toLocaleLowerCase('ru-RU').includes(query));
+    if(!rows.length){list.append(panel(data.subscriptions.length?'Стример не найден':'Сначала добавьте стримера','Выбирайте видео среди своих подписок.'));return;}
+    for(const row of rows){
+      const label=element('label','video-choice'),input=element('input',''),copy=element('span','row-copy');label.dataset.videoLogin=row.login;label.dataset.rowKey=row.login;
+      input.type='checkbox';input.checked=row.video_selected;input.dataset.focusKey=`video:${row.login}`;input.setAttribute('aria-label',`Видео ${nameOf(row.login)}`);if(videoSaving)input.setAttribute('aria-disabled','true');
+      copy.append(element('strong','streamer-name',nameOf(row.login)),element('small','muted',videoStatus(row)));label.append(input,copy);
+      input.addEventListener('change',event=>{
+        const selected=data.video_selection.selected_logins,was=selected.includes(row.login);input.checked=was;
+        if(videoSaving)return;
+        if(!was&&selected.length>=data.video_selection.limit){replaceVideo(row.login,event);return;}
+        void saveVideoSelection(was?selected.filter(value=>value!==row.login):[...selected,row.login]);
+      });list.append(label);
+    }
   }
   function renderFolders(target) {
     if (!data.viewer_plus_active && !(data.folders || []).length) return;
@@ -489,28 +535,30 @@ export function createViewerFeature(api, getRouter, telegram) {
         : 'Не удалось отменить напоминание. Попробуйте ещё раз.';
     } finally { reminderSaving = false; refresh(); }
   }
-  async function saveVideoSelection(selectedLogins) {
+  async function saveVideoSelection(selectedLogins,{expectedVersion=data.video_selection.version}={}) {
     if (videoSaving) return;
     videoSaving = true;
+    ++loadToken;loading=false;pendingLoad=null;
     videoFeedback = 'Сохраняем выбор…';
     refresh();
     try {
       const saved = await api.post('/app/api/viewer/video-selection', {
         selected_logins: selectedLogins,
-        expected_version: data.video_selection.version,
+        expected_version: expectedVersion,
       });
       data.video_selection = saved;
       for (const entry of data.subscriptions) {
         entry.video_selected = saved.selected_logins.includes(entry.login);
         entry.video_effective = entry.video_selected && saved.effective_ids.includes(saved.selected_ids[saved.selected_logins.indexOf(entry.login)]);
       }
+      await load({fresh:true});
       videoFeedback = 'Выбор сохранён';
     } catch (cause) {
       if (cause instanceof ApiError && cause.code === 'version_conflict') {
-        await load();
+        await load({fresh:true});
         videoFeedback = 'Выбор изменился в другой сессии. Проверьте список и повторите действие.';
       } else if (cause instanceof ApiError && cause.code === 'plus_required') {
-        await load();
+        await load({fresh:true});
         videoFeedback = 'Доступ Viewer Plus завершился. Фото продолжает работать.';
       } else {
         videoFeedback = 'Не удалось сохранить выбор. Попробуйте ещё раз.';
@@ -1111,7 +1159,8 @@ export function createViewerFeature(api, getRouter, telegram) {
         return;
       }
       if (error) banner(target, error, true);
-      if (route.detail === 'history') renderHistory(target);
+      if (route.detail === 'video-selection') renderVideoPicker(target);
+      else if (route.detail === 'history') renderHistory(target);
       else if (route.detail?.startsWith('folder:')) renderFolder(target, route.detail.slice(7));
       else if (route.detail?.startsWith('filter:')) renderFilter(target, route.detail.slice(7));
       else if (route.detail) renderDetail(target, route.detail);
@@ -1120,6 +1169,6 @@ export function createViewerFeature(api, getRouter, telegram) {
       else renderProfile(target);
     },
     refresh: load,
-    dispose(){disposed=true;clearTimeout(searchTimer);searchController?.abort();++searchVersion;document.removeEventListener('visibilitychange',onVisibility);},
+    dispose(){disposed=true;++loadToken;clearTimeout(searchTimer);searchController?.abort();++searchVersion;document.removeEventListener('visibilitychange',onVisibility);},
   };
 }

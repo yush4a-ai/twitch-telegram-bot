@@ -6,7 +6,7 @@ export function createRouter(onChange) {
   let savedMode='viewer';try{savedMode=localStorage.getItem('ts-app-mode')==='streamer'?'streamer':'viewer';}catch{}
   let state={mode:savedMode,tab:TABS[savedMode][0],detail:null},generation=0;
   const stack=[],positions=new Map(),key=item=>`${item.mode}:${item.tab}:${detailKey(item.detail)}`;
-  let activation=null;
+  let activation=null,pendingRestore=null;
   const onPointer=event=>{activation={node:event.target.closest?.('button,a,input,select,textarea'),at:performance.now()};};
   document.addEventListener('pointerdown',onPointer,true);
   function capture({navigation=false}={}){
@@ -17,8 +17,10 @@ export function createRouter(onChange) {
   }
   function restore(position,{navigation=false}={}){
     const token=++generation,activeAtSchedule=document.activeElement;
+    pendingRestore={position:position||{scroll:0},navigation};
     requestAnimationFrame(()=>{
       if(token!==generation)return;
+      pendingRestore=null;
       const snapshot=position||{scroll:0};window.scrollTo(0,snapshot.scroll);
       if(snapshot.anchor){const anchor=[...document.querySelectorAll('#content [data-row-key], #content .list-row')].find(node=>(node.dataset.rowKey||node.textContent)===snapshot.anchor);if(anchor)window.scrollBy(0,anchor.getBoundingClientRect().top-snapshot.top);}
       const active=document.activeElement;
@@ -55,7 +57,12 @@ export function createRouter(onChange) {
     },
     back(){if(!stack.length)return false;navigate(stack.pop(),false);return true;},
     tabs(mode=state.mode){return TABS[mode];},
-    refresh(){const position=capture();onChange(state,stack.length>0);restore(position);},
-    dispose(){document.removeEventListener('pointerdown',onPointer,true);++generation;},
+    refresh(){
+      const active=document.activeElement;
+      // Consecutive renders can detach the focused node before the first RAF.
+      const pending=pendingRestore&&(active===document.body||active===document.getElementById('content'))?pendingRestore:null;
+      const position=pending?pending.position:capture();onChange(state,stack.length>0);restore(position,{navigation:pending?.navigation||false});
+    },
+    dispose(){document.removeEventListener('pointerdown',onPointer,true);pendingRestore=null;++generation;},
   };
 }

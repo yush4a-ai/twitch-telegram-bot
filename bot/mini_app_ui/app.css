@@ -171,3 +171,13 @@ button[aria-disabled=true] { cursor:wait; opacity:.7; }
 .quick-notify:has(input[aria-disabled=true]) { opacity:.6; cursor:wait; }
 .quick-notify:has(input:not(:checked))::after { content:''; position:absolute; width:25px; height:1px; background:currentColor; transform:rotate(-45deg); pointer-events:none; }
 .group-heading { padding:16px 12px 0; }
+.viewer-tools { display:flex; gap:8px; margin:12px 0 0; flex-wrap:wrap; }
+.viewer-tools .button { font-size:.875rem; }
+.video-count { margin-top:12px; font-weight:600; color:var(--accent); }
+.video-list { margin-top:16px; border-radius:var(--radius-group); overflow:hidden; }
+.video-choice { display:flex; align-items:center; gap:12px; min-height:72px; padding:14px 12px; background:var(--surface); cursor:pointer; }
+.video-choice + .video-choice { border-top:1px solid var(--line); }
+.video-choice input { flex:0 0 24px; width:24px; height:24px; accent-color:var(--accent); }
+.video-choice .row-copy { flex:1; }
+.video-choice small { font-size:.8125rem; line-height:1.45; }
+.video-choice:has(input[aria-disabled=true]) { opacity:.65; cursor:wait; }

@@ -1,0 +1,70 @@
+{
+  "journey": "video",
+  "scenario": "independent-viewer",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "video-chromium-picker-390.png",
+      "sha256": "c4b39d24b64c7faef874a8f6566887f802878dcd69dc2ac089f68ffa3aef860b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-pending-390.png",
+      "sha256": "1ba477816e11cdee4b4d8f297f7157d0819a67fe023e1ef7232ccd45df0e9d95",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-five-390.png",
+      "sha256": "97f54d597d1654f8c63e97da163eeba3b560ecacb3b5f354259ff4d20d45203c",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-replace-390.png",
+      "sha256": "1aa119c9e65c6f790f874ff59ac1ca12443babdea5b5a8999ef34e2db44dbf08",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-limited-390.png",
+      "sha256": "9633cab1fbacbd426a6f2a706c7af592fd6ab682c3bd9ac9e6d45002bedb5f99",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-viewer-390.png",
+      "sha256": "5c2ff9628987385e9fdb69e1ab091a8f506e957f01d2b993618b283c08a23966",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-channel-390.png",
+      "sha256": "78daa66588dc33f4c4a43ac8fe75ae9017e79d560fdfc0716723164266f9bf4e",
+      "viewport": "390x844"
+    },
+    {
+      "file": "video-chromium-profile-390.png",
+      "sha256": "1c6bce9a8111b5cffbeb121ea5d4542bf052c74bee1f30475b69cb32e92588b5",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "7561a9587aa52ca561a010fd305cd89ea5c52bb84ec99893933a7a167858ff90",
+    "app.js": "55d0085063d21d3d67dea0e09503565121752cef03da40fb7fc882b64cf846f6",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "621201db680bfc8e631cffbbb6ade9024efcdda19acc21539a338388647ccb26",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "40623078c6e5af361a01a5b01a8816c7beda4daf3457ff7850fb452125a1cc4c",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "842abb8877020e9e8e0aa4ac3735fbadc8b7bcb39ec8692b07ac06b0ebd0795c",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "2d984493603e6a183512dde433ec1c8e951979b6f30c19cc809a63146544de69",
+    "scripts/mini_app_redesign_browser_qa.cjs": "e99c3acbe53dd09b7f4de57c37d70a74f3e57dfe650a5c2d57c9b6a1a4fb8b78"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

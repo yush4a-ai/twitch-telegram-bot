@@ -288,11 +288,11 @@ Profile получает имя только из server bootstrap: `verify_weba
 
 **Интерфейсы:** верхний выбор на любой длине списка; `video-selection` принимает `selected_logins` + `expected_version`, ID определяет сервер. UI показывает selected/effective/delivery отдельно; existing media states video/photo/preparing/limited/unavailable/unknown/offline/returning_photo используют честные тексты.
 
-- [ ] RED `video_selector_counts_offline_search_and_atomically_replaces_sixth`: 4→5→6, offline и pause считаются, search count не уменьшает; шестой предлагает выбрать замену, не silently drop первый. Два окна/409 перечитывают server version, pending не показывает выполненный выбор.
-- [ ] Run QA video и `python -m pytest tests/test_viewer_preview_slots.py tests/test_viewer_video_delivery.py -q`; UI RED прежней неполной композиции отдельно от existing server PASS.
-- [ ] Перенести полноценный picker вместо prototype пояснения. Free видит «Видео · Plus» → возможности без доступа; Plus получает выбор своих logins, статусы/ошибки и cancel без серверной мутации.
-- [ ] PASS 0/6/200, reload, offline count, all subscriptions owner-only; expiry/refund/disable→photo из P04/media, независимый Viewer сохраняется. Нагрузка limited не маскируется как video ready.
-- [ ] Scoped UI/media review → commit/checkpoint.
+- [x] RED `video_selector_counts_offline_search_and_atomically_replaces_sixth`: 4→5→6, offline и pause считаются, search count не уменьшает; шестой предлагает выбрать замену, не silently drop первый. Два окна/409 перечитывают server version, pending не показывает выполненный выбор.
+- [x] Run QA video и `python -m pytest tests/test_viewer_preview_slots.py tests/test_viewer_video_delivery.py -q`; UI RED прежней неполной композиции отдельно от existing server PASS.
+- [x] Перенести полноценный picker вместо prototype пояснения. Free видит «Видео · Plus» → возможности без доступа; Plus получает выбор своих logins, статусы/ошибки и cancel без серверной мутации.
+- [x] PASS 0/6/200, reload, offline count, all subscriptions owner-only; expiry/refund/disable→photo из P04/media, независимый Viewer сохраняется. Нагрузка limited не маскируется как video ready.
+- [x] Scoped UI/media review → commit/checkpoint.
 
 ## P12. Viewer settings: фильтры, категории, reminders, папки, история
 
