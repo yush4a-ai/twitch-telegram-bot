@@ -1,0 +1,7 @@
+{"status":"FAIL","engine":"chromium","screenshots":0,"errors":0}
+First visit is own light even in dark Telegram
++ actual - expected
+
++ 'rgb(16, 23, 34)'
+- 'rgb(245, 246, 248)'
+       ^

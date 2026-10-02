@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P07 PASS, далее P08
+## Текущий checkpoint — 02.10.2026: P08 PASS, далее P09
+
+P07 commit `2a71f82`; theme/SDK RED→PASS9tests/20subtests, Chromium/WebKit по7 реальных PNG/errors0/external0. `P08-THEME.md`, source/image SHA в `theme-*-qa.json`. Light по умолчанию, own dark#171717/#242424, actual Telegram ThemeParams/change, storage denied/reload, four safe max/viewport/dispose/fullscreen fallback. Scoped token/SDK review, PNG просмотрены; прежние transition кадры сохранены. Композиция ещё старая, следующий P09 перенос А/profile/nav4. Native Telegram и staging NOT TESTED, production/деньги не менялись.
+
+## Предыдущий checkpoint — 02.10.2026: P07 PASS, далее P08
 
 P06 commit `7f8b920`; Stars fake adapter/aiogram handlers RED→PASS53tests/74subtests, startup/config/legacy52tests/11subtests. Evidence `P07-STARS.md`. Frozen charge/order/buyer и общий apply, precheckout без доступа, typed refund, unknown invoice не повторяется; GET по Stars не выдуман. Финансовые updates больше не теряются в action throttle. Default service OFF/no sender, env/secrets не включают деньги; shutdown закрывает worker. Настоящие XTR/month/support ещё не утверждены; `/paysupport` P16. Внешних операций и deployment нет; UI пока прежний, следующий P08 темы/SDK.
 

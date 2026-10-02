@@ -85,12 +85,98 @@ async function assertLayout(page) {
 }
 
 async function runJourney(page, scenario) {
+  if (scenario === 'theme') return themeJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Сейчас в эфире', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
   await page.locator('#content .list-row').first().waitFor();
   assert.equal(await page.locator('#content .list-row').count(), 6, 'Server supplies all six subscriptions');
   await assertLayout(page);
+}
+
+async function themeJourney(page) {
+  const pictures=[];
+  async function capture(label) {
+    const file=`theme-${argument('engine','chromium')}-${label}-390.png`;
+    await page.screenshot({path:path.join(output,file),fullPage:false,animations:'disabled'});
+    pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});
+  }
+  await page.getByRole('heading', { name: 'Сейчас в эфире', exact: true }).waitFor();
+  const canvas = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  assert.equal(await canvas(), 'rgb(245, 246, 248)', 'First visit is own light even in dark Telegram');
+  await capture('light');
+  await page.evaluate(async () => (await import('/app/app.js')).theme.setChoice('dark'));
+  assert.equal(await canvas(), 'rgb(23, 23, 23)', 'Own dark is neutral #171717');
+  await capture('dark');
+  await page.reload();
+  await page.getByRole('heading', { name: 'Сейчас в эфире', exact: true }).waitFor();
+  assert.equal(await canvas(), 'rgb(23, 23, 23)', 'Explicit dark survives reload');
+  await page.evaluate(() => {
+    const sdk = window.Telegram.WebApp;
+    sdk.colorScheme = 'light';
+    sdk.themeParams = { bg_color: '#fff5e5', text_color: '#302517', button_color: '#804000', button_text_color: '#ffffff',
+      link_color: '#805500', header_bg_color: '#efe5d5', bottom_bar_bg_color: '#e8dcc8', section_bg_color: '#ffffff',
+      hint_color: '#604d38', section_separator_color: '#c8b79d' };
+    for (const fn of window.__qaSdk.events.get('themeChanged')) fn();
+  });
+  assert.equal(await canvas(), 'rgb(23, 23, 23)', 'Theme event preserves an explicit choice');
+  await page.evaluate(async () => (await import('/app/app.js')).theme.setChoice('telegram'));
+  const tokens = await page.evaluate(() => {
+    const css = getComputedStyle(document.documentElement);
+    return Object.fromEntries(['canvas', 'text', 'button-bg', 'button-fg', 'link', 'header', 'bottom'].map(k => [k, css.getPropertyValue(`--${k}`).trim()]));
+  });
+  assert.deepEqual(tokens, { canvas:'#fff5e5', text:'#302517', 'button-bg':'#804000','button-fg':'#ffffff',link:'#805500',header:'#efe5d5',bottom:'#e8dcc8' });
+  assert.deepEqual(await page.evaluate(()=>[getComputedStyle(document.querySelector('.app-header')).backgroundColor,getComputedStyle(document.querySelector('#tab-bar')).backgroundColor]),['rgb(239, 229, 213)','rgb(232, 220, 200)']);
+  await capture('telegram-light');
+  await page.evaluate(() => {
+    const sdk = window.Telegram.WebApp;
+    sdk.colorScheme = 'dark';
+    sdk.themeParams = {bg_color:'#211d18',text_color:'#f6ecdc',button_color:'#e4c9a0',button_text_color:'#211d18',link_color:'#e4c9a0'};
+    for (const fn of window.__qaSdk.events.get('themeChanged')) fn();
+    sdk.safeAreaInset={top:12,right:18,bottom:24,left:5};
+    sdk.contentSafeAreaInset={top:23,right:7,bottom:11,left:15};
+    sdk.viewportHeight=600; sdk.viewportStableHeight=650;
+    for (const name of ['safeAreaChanged','contentSafeAreaChanged','viewportChanged']) for (const fn of window.__qaSdk.events.get(name)) fn();
+  });
+  assert.equal(await canvas(), 'rgb(33, 29, 24)', 'Telegram event updates actual custom background');
+  await capture('telegram-dark');
+  await page.reload();
+  await page.getByRole('heading', { name: 'Сейчас в эфире', exact: true }).waitFor();
+  // Each reload installs a fresh SDK; the user's telegram choice remains stored.
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.themeChoice), 'telegram');
+  const lifecycle = await page.evaluate(async () => {
+    const {createThemeController} = await import('/app/theme.js');
+    const {createTelegramAdapter} = await import('/app/telegram.js');
+    const before = Object.fromEntries([...window.__qaSdk.events].map(([k,v])=>[k,v.size]));
+    const adapter = createTelegramAdapter(()=>{});
+    let last;
+    const denied = {getItem(){throw new Error('denied');},setItem(){throw new Error('denied');}};
+    const controller = createThemeController({storage:denied,telegram:adapter,applyTokens:value=>{last=value;}});
+    const first=controller.getChoice(); controller.setChoice('dark');
+    window.Telegram.WebApp.themeParams={bg_color:'url(https://invalid.test)',text_color:'#171717',button_color:'#171717',button_text_color:'#171717'};
+    for(const fn of window.__qaSdk.events.get('themeChanged')) fn();
+    const kept=controller.getChoice(); controller.setChoice('telegram');
+    const safe=Object.values(last).every(value=>typeof value !== 'string'||!value.includes('url('));
+    const sdk=window.Telegram.WebApp;
+    sdk.safeAreaInset={top:12,right:18,bottom:24,left:5};sdk.contentSafeAreaInset={top:23,right:7,bottom:11,left:15};sdk.viewportHeight=600;sdk.viewportStableHeight=650;
+    for(const name of ['safeAreaChanged','contentSafeAreaChanged','viewportChanged']) for(const fn of window.__qaSdk.events.get(name))fn();
+    const css=document.documentElement.style;
+    const insets=['top','right','bottom','left'].map(k=>css.getPropertyValue(`--${k}-inset`));
+    const viewport=css.getPropertyValue('--viewport-height');
+    adapter.syncBack(true);adapter.syncBack(true);adapter.syncBack(false);
+    controller.dispose();adapter.dispose();adapter.dispose();
+    const after=Object.fromEntries([...window.__qaSdk.events].map(([k,v])=>[k,v.size]));
+    return {before,after,first,kept,safe,insets,viewport};
+  });
+  assert.deepEqual(lifecycle.after,lifecycle.before,'Repeated adapters clean their own handlers');
+  assert.equal(lifecycle.first,'light');assert.equal(lifecycle.kept,'dark');assert(lifecycle.safe);
+  for(const [i,value] of [23,18,24,15].entries()) assert(lifecycle.insets[i].includes(`${value}px`),'Safe/content max, no sum');
+  assert.equal(lifecycle.viewport,'600px');
+  // Fullscreen rejected by an older client must still leave a usable adapter.
+  await page.evaluate(async()=>{window.Telegram.WebApp.requestFullscreen=()=>{throw new Error('unsupported');};const {createTelegramAdapter}=await import('/app/telegram.js');const adapter=createTelegramAdapter(()=>{});adapter.dispose();});
+  await page.evaluate(async()=>{const {theme}=await import('/app/app.js');theme.setChoice('light');});
+  await assertLayout(page);
+  return pictures;
 }
 
 async function main() {
@@ -118,9 +204,11 @@ async function main() {
       report.externalRequests.push(`${url.origin}${url.pathname}`);
       return route.abort();
     });
-    await installSdk(page);
+    await installSdk(page, {dark:journey === 'theme'});
+    if(journey==='theme')await page.emulateMedia({colorScheme:'dark'});
     await page.goto(server.url);
-    await runJourney(page, journey);
+    const journeyPictures=await runJourney(page, journey);
+    if(journeyPictures)report.screenshots.push(...journeyPictures);
     for (const [name, action] of [
       ['viewer', async () => {}],
       ['channel', async () => { await page.getByRole('button', { name: 'Стример', exact: true }).click(); await page.getByRole('heading', { name: 'Мой канал', exact: true }).waitFor(); }],
@@ -129,7 +217,7 @@ async function main() {
       await action();
       await assertLayout(page);
       const file = `${journey}-${engineName}-${name}-390.png`;
-      await page.screenshot({ path: path.join(output, file), fullPage: false });
+      await page.screenshot({ path: path.join(output, file), fullPage: false, animations:'disabled' });
       report.screenshots.push({ file, sha256: digest(path.join(output, file)), viewport: '390x844' });
     }
     assert.deepEqual(report.errors, []);

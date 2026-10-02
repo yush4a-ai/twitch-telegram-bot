@@ -1,0 +1,19 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ ThemeAssets.test_theme_module_is_allowlisted_without_inline_script_or_private_values _
+
+self = <test_mini_app_theme_assets.ThemeAssets testMethod=test_theme_module_is_allowlisted_without_inline_script_or_private_values>
+
+    async def test_theme_module_is_allowlisted_without_inline_script_or_private_values(self):
+        app, _db = await build_fixture("free-empty")
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        self.addAsyncCleanup(client.close)
+        response = await client.get("/app/theme.js")
+>       self.assertEqual(response.status, 200)
+E       AssertionError: 404 != 200
+
+tests\test_mini_app_theme_assets.py:17: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_theme_assets.py::ThemeAssets::test_theme_module_is_allowlisted_without_inline_script_or_private_values
+1 failed in 3.48s

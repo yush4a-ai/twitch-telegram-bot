@@ -5,6 +5,7 @@ import { element, panel } from './components.js';
 import { createViewerFeature } from './viewer.js';
 import { createStreamerFeature } from './streamer.js';
 import { createSubscriptionFeature } from './subscription.js';
+import { createThemeController } from './theme.js';
 
 const content = document.getElementById('content');
 const modeSwitch = document.getElementById('mode-switch');
@@ -16,10 +17,10 @@ let viewerFeature;
 let streamerFeature;
 let subscriptionFeature;
 let subscriptionOpen = false;
-const telegram = createTelegramAdapter(() => router.back(), (theme) => {
-  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#101722' : '#f7f9fc';
-});
+const telegram = createTelegramAdapter(() => router.back());
+let themeStorage;
+try { themeStorage = window.localStorage; } catch {}
+export const theme = createThemeController({storage:themeStorage,telegram});
 const api = createApi(telegram.initData);
 router = createRouter(render);
 viewerFeature = createViewerFeature(api, () => router, telegram);
@@ -28,7 +29,7 @@ subscriptionFeature = createSubscriptionFeature(api, () => router, () => {
   void viewerFeature.refresh();
   void streamerFeature.refresh();
 });
-window.addEventListener('pagehide', () => telegram.dispose(), { once: true });
+window.addEventListener('pagehide', () => {theme.dispose();telegram.dispose();}, { once: true });
 
 function render(state, canBack) {
   modeSwitch.replaceChildren();

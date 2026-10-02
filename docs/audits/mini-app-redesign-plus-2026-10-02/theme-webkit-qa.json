@@ -1,0 +1,60 @@
+{
+  "journey": "theme",
+  "scenario": "free-six",
+  "engine": "webkit",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "theme-webkit-light-390.png",
+      "sha256": "1a69b6670043b5dd8ad054f78d780893c67aa941500b24502cd4f75661b3ac0b",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-dark-390.png",
+      "sha256": "d8cda27d6c366fd50235ff25766cef396c11bcf9319d3f16268413deac9f4a5c",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-telegram-light-390.png",
+      "sha256": "1141342db0ff4706d71feaa928fa7c93607f70231e6c0ce30f9d8ff08cd433c7",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-telegram-dark-390.png",
+      "sha256": "43cb1609202d097ef28ee4bc6b35876aed502d426c0c7d7e3749e43f1365157d",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-viewer-390.png",
+      "sha256": "c0852c4a9681642e43035cd8cd7a839873acb80455975d953e667807971da6d0",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-channel-390.png",
+      "sha256": "c09e33b0e393061db28300bd71c4c4d49e2bfd544f48ac656626084c815f6384",
+      "viewport": "390x844"
+    },
+    {
+      "file": "theme-webkit-profile-390.png",
+      "sha256": "a371512f26162f40d772a8b22978f86e5844bb41f50f465209997c2bc2c7c524",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "007ffa650a2a6e912ce542fb771cdfd8446f78379afefbe10e75e037e3ab5561",
+    "app.css": "5900d6ded4274b734d60d2a9d5c6ad5e53143ec23ae6e8678b949faf8dbe1dbb",
+    "app.js": "28873f74c5ba15c283013cf903dcb0b3e5141f5d4ebbe360244b2fc062647ebf",
+    "components.js": "db02e21662bfb268f16f3bb3e35f657c924eeafbab837fd8e2209511f31da0fd",
+    "index.html": "9195ed34784a1b3d57f20a3a53c2c17638fe1b994f89277498f9f787d202f95a",
+    "router.js": "4ddd2f8ce360d221ddcbcf60c323de8eefb1e716a1586890d64aab7a049b1e82",
+    "streamer.js": "80e84db3c11fd3ee8b8c8a58954d90ec53aa976ee38567016a197f54e75745f6",
+    "subscription.js": "bc79da0055b4f017fd4952ab07660ce6fc99510247277886dc60c5d463c475ff",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "2d1b9780e41082ae8cd057021d85888cf60b3cbcdab2b6ef3596e7f42d46989e"
+  },
+  "version": "26.5",
+  "status": "PASS"
+}

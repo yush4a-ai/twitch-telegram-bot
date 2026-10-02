@@ -10,7 +10,7 @@
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
 | P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
-| P08–P12 — темы, shell и Viewer | Далее P08 |
+| P08–P12 — темы, shell и Viewer | P08 PASS; далее P09 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
@@ -57,3 +57,7 @@ BASE `93461aa` → lifecycle commit. RED→PASS72tests/57subtests; `P06-LEDGER.m
 ## P07 complete
 
 BASE `7f8b920` → Stars commit. RED→PASS53tests/74subtests + compatibility52tests/11subtests; `P07-STARS.md`. Typed Bot API/frozen charge/common apply, precheckout без grant, no repeat unknown и OFF wiring. RED старого throttle закрыт, money env не активируют release. XTR/период только явная fixture; `/paysupport` P16. Следующий P08.
+
+## P08 complete
+
+BASE `2a71f82` → theme commit. Python9tests/20subtests; Chromium/WebKit по7PNG, errors/external0. `P08-THEME.md`; light default/own neutral dark/actual ThemeParams/events/denied storage/safe4/viewport/dispose/fallback. PNG viewed, transition кадры сохранены перед пересъёмкой. Native NOT TESTED. Следующий P09.

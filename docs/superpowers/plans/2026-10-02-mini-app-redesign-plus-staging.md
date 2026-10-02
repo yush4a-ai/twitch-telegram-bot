@@ -249,11 +249,11 @@
 
 **Интерфейсы:** `createThemeController({storage, telegram, applyTokens}) -> {setChoice, getChoice, dispose}`; choices `light/dark/telegram`. `createTelegramAdapter` сохраняет existing методы, передаёт полный безопасный ThemeParams snapshot и update events; insets top/right/bottom/left + viewport, max каждого safe/content значения, не сумма.
 
-- [ ] Browser RED `theme_first_visit_is_light_even_in_dark_telegram`, `theme_explicit_choice_survives_reload_event_and_denied_storage`: assert exact own dark canvas #171717; Telegram params реально обновляют text/bg/button/link/header/bottom semantic tokens, не `colorScheme`→наша тема.
-- [ ] Run QA `--journey theme --engine chromium` / WebKit → ожидаемый FAIL нынешней двухтемной логики. Asset test проверяет новый модуль/CSP без inline/untrusted code.
-- [ ] Перенести tokens из selected.css выборочно, относительную типографику и один controller; значения ThemeParams валидировать как цвета, fallback контрастный. SDK ready/expand/fullscreen при наличии; old clients fallback, один BackButton handler/event cleanup.
-- [ ] PASS два движка, themeChanged/safeArea/contentSafeArea/viewport repeated init/dispose, explicit choice и storage errors. Никаких canned ThemeParams/live fixture query parameters в рабочем UI.
-- [ ] Scoped design-system/SDK review → commit. Native fullscreen/safe areas пока NOT TESTED.
+- [x] Browser RED `theme_first_visit_is_light_even_in_dark_telegram`, `theme_explicit_choice_survives_reload_event_and_denied_storage`: assert exact own dark canvas #171717; Telegram params реально обновляют text/bg/button/link/header/bottom semantic tokens, не `colorScheme`→наша тема.
+- [x] Run QA `--journey theme --engine chromium` / WebKit → ожидаемый FAIL нынешней двухтемной логики. Asset test проверяет новый модуль/CSP без inline/untrusted code.
+- [x] Перенести tokens из selected.css выборочно, относительную типографику и один controller; значения ThemeParams валидировать как цвета, fallback контрастный. SDK ready/expand/fullscreen при наличии; old clients fallback, один BackButton handler/event cleanup.
+- [x] PASS два движка, themeChanged/safeArea/contentSafeArea/viewport repeated init/dispose, explicit choice и storage errors. Никаких canned ThemeParams/live fixture query parameters в рабочем UI.
+- [x] Scoped design-system/SDK review → commit. Native fullscreen/safe areas пока NOT TESTED.
 
 ## P09. Shell, компоненты и навигация выбранного А
 

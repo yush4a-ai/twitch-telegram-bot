@@ -22,6 +22,7 @@ _ASSETS = {
     "app.css": "text/css",
     "app.js": "application/javascript",
     "telegram.js": "application/javascript",
+    "theme.js": "application/javascript",
     "router.js": "application/javascript",
     "api.js": "application/javascript",
     "components.js": "application/javascript",
@@ -85,7 +86,7 @@ def install_mini_app_routes(
         return web.json_response({"user": {"id": user_id}, "capabilities": asdict(flags)})
 
     app.router.add_get("/app", shell)
-    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js}", asset)
+    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|theme\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
     install_mini_app_viewer_routes(
         app, db, bot_token, capabilities, twitch,

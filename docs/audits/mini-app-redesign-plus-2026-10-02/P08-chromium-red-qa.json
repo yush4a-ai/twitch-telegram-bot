@@ -1,0 +1,24 @@
+{
+  "journey": "theme",
+  "scenario": "free-six",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "007ffa650a2a6e912ce542fb771cdfd8446f78379afefbe10e75e037e3ab5561",
+    "app.css": "044c8e46cb5f26b0abf0215b474c0d50f699843ee27bb565f9d76f4625b5bf19",
+    "app.js": "fc69d87730a79eb9a2e7d3a3615a3469b6ea50a19bac6e56671e18f6b31e5077",
+    "components.js": "db02e21662bfb268f16f3bb3e35f657c924eeafbab837fd8e2209511f31da0fd",
+    "index.html": "14252b32dfdee30582fc90fd4f04e680e73913da226443193a7d36acc40eeee6",
+    "router.js": "4ddd2f8ce360d221ddcbcf60c323de8eefb1e716a1586890d64aab7a049b1e82",
+    "streamer.js": "80e84db3c11fd3ee8b8c8a58954d90ec53aa976ee38567016a197f54e75745f6",
+    "subscription.js": "bc79da0055b4f017fd4952ab07660ce6fc99510247277886dc60c5d463c475ff",
+    "telegram.js": "a950d9a20b8d6df0af44075955d9aa58dcf9f17db255e79bb9239293c70f5cd4",
+    "viewer.js": "2d1b9780e41082ae8cd057021d85888cf60b3cbcdab2b6ef3596e7f42d46989e"
+  },
+  "version": "151.0.7922.34",
+  "status": "FAIL",
+  "failure": "AssertionError [ERR_ASSERTION]: First visit is own light even in dark Telegram\n+ actual - expected\n\n+ 'rgb(16, 23, 34)'\n- 'rgb(245, 246, 248)'\n       ^\n\n    at themeJourney (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:100:10)\n    at async main (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:197:5)"
+}
