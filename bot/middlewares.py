@@ -5,7 +5,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, InaccessibleMessage, TelegramObject
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message, TelegramObject
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,9 @@ class ThrottleMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        if isinstance(event, Message) and (event.successful_payment is not None or event.refunded_payment is not None):
+            # Financial updates must reach the durable, idempotent ledger.
+            return await handler(event, data)
         user = data.get("event_from_user")
         if user is None:
             return await handler(event, data)

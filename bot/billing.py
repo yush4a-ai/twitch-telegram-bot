@@ -133,11 +133,11 @@ class BillingService:
             return CheckoutResult("creation_unknown", snapshot.order_id)
         async with self._store.transaction() as conn:
             current = await self._store.get_attempt(attempt_id)
-            if current.provider_reference not in {None, checkout.reference}:
+            if checkout.reference is not None and current.provider_reference not in {None, checkout.reference}:
                 await conn.execute("UPDATE billing_payment_attempts SET state='manual_review' WHERE attempt_id=?", (attempt_id,))
                 return CheckoutResult("manual_review", snapshot.order_id)
             await conn.execute(
-                "UPDATE billing_payment_attempts SET provider_reference=?,state=CASE WHEN state='creating' THEN 'pending' ELSE state END,"
+                "UPDATE billing_payment_attempts SET provider_reference=COALESCE(?,provider_reference),state=CASE WHEN state='creating' THEN 'pending' ELSE state END,"
                 "next_reconcile_at=CASE WHEN state='creating' THEN ? ELSE next_reconcile_at END WHERE attempt_id=?",
                 (checkout.reference, now, attempt_id),
             )
@@ -300,7 +300,10 @@ class BillingService:
             reference = attempt[0]
             await conn.execute("INSERT INTO billing_payment_refunds(request_key,order_id,actor_telegram_user_id,state,provider_reference,requested_at) VALUES (?,?,?,'requesting',?,?)", (request_key, order_id, actor_id, reference, now))
         try:
-            result = await self._provider.refund_payment(reference, request_key)
+            if order.provider == "telegram_stars":
+                result = await self._provider.refund_payment(reference, request_key, user_id=order.telegram_user_id)
+            else:
+                result = await self._provider.refund_payment(reference, request_key)
             if not isinstance(result, RefundOutcome) or result.state not in {"unsupported", "accepted", "manual_control_required", "declined", "unknown"}:
                 raise ValueError("unverified refund outcome")
         except asyncio.CancelledError:

@@ -101,7 +101,8 @@ class PaymentReconciler:
         self.service._check_now(now)
         if type(limit) is not int or not 1 <= limit <= 10:
             raise ValueError("invalid reconciliation batch")
-        if not self.service._local_runtime() or not callable(getattr(self.service._provider, "get_payment_status", None)):
+        if (not self.service._local_runtime() or getattr(self.service._provider, "can_reconcile", True) is False
+                or not callable(getattr(self.service._provider, "get_payment_status", None))):
             return ReconcileSummary()
         if self._lock.locked():
             return ReconcileSummary(deferred=1)

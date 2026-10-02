@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ StarsContracts.test_payment_updates_are_not_dropped_by_normal_action_throttle _
+
+self = <test_stars_provider.StarsContracts testMethod=test_payment_updates_are_not_dropped_by_normal_action_throttle>
+
+    async def test_payment_updates_are_not_dropped_by_normal_action_throttle(self):
+        order,payload=await self.create()
+        throttle=ThrottleMiddleware()
+        delegate=AsyncMock()
+        user=User(id=101,is_bot=False,first_name="A")
+        ordinary=Message(message_id=1,date=datetime.now(timezone.utc),chat=Chat(id=101,type="private"),from_user=user,text="/start")
+        await throttle(delegate,ordinary,{"event_from_user":user})
+        await throttle(delegate,payment_message(payload),{"event_from_user":user})
+        await throttle(delegate,payment_message(payload,refund=True),{"event_from_user":user})
+>       self.assertEqual(delegate.await_count,3)
+E       AssertionError: 1 != 3
+
+tests\test_stars_provider.py:255: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_stars_provider.py::StarsContracts::test_payment_updates_are_not_dropped_by_normal_action_throttle
+1 failed in 3.66s

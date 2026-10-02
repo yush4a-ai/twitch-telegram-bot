@@ -9,8 +9,8 @@
 |---|---|
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
-| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P06 PASS; далее P07 |
-| P08–P12 — темы, shell и Viewer | Ожидают P07 |
+| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P07 PASS |
+| P08–P12 — темы, shell и Viewer | Далее P08 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
 | P20–P21 — guarded staging и самостоятельная приёмка | Ожидают gates |
@@ -53,3 +53,7 @@ BASE `8474eb8` → provider commit. RED→PASS32tests/57subtests; `P05-PROVIDER.
 ## P06 complete
 
 BASE `93461aa` → lifecycle commit. RED→PASS72tests/57subtests; `P06-LEDGER.md`. Durable inbox/attempt, общий apply, frozen права, monotonic facts, refund/reopen, cross-key guard и shared lease concurrency1 проверены. Четвёртая миграция той же БД; runtime/callback OFF. Scoped ledger/security review; следующий P07 Stars с fake sender.
+
+## P07 complete
+
+BASE `7f8b920` → Stars commit. RED→PASS53tests/74subtests + compatibility52tests/11subtests; `P07-STARS.md`. Typed Bot API/frozen charge/common apply, precheckout без grant, no repeat unknown и OFF wiring. RED старого throttle закрыт, money env не активируют release. XTR/период только явная fixture; `/paysupport` P16. Следующий P08.

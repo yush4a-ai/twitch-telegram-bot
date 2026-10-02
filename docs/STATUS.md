@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P06 PASS, далее P07
+## Текущий checkpoint — 02.10.2026: P07 PASS, далее P08
+
+P06 commit `7f8b920`; Stars fake adapter/aiogram handlers RED→PASS53tests/74subtests, startup/config/legacy52tests/11subtests. Evidence `P07-STARS.md`. Frozen charge/order/buyer и общий apply, precheckout без доступа, typed refund, unknown invoice не повторяется; GET по Stars не выдуман. Финансовые updates больше не теряются в action throttle. Default service OFF/no sender, env/secrets не включают деньги; shutdown закрывает worker. Настоящие XTR/month/support ещё не утверждены; `/paysupport` P16. Внешних операций и deployment нет; UI пока прежний, следующий P08 темы/SDK.
+
+## Предыдущий checkpoint — 02.10.2026: P06 PASS, далее P07
 
 P05 commit `93461aa`; P06 durable lifecycle RED→PASS72tests/57subtests на последнем коде. Evidence `P06-LEDGER.md`/`P06-pass.log`; scoped ledger/security review. Inbox до ACK, attempt до POST, один grant/срок, frozen buyer, monotonic facts, refunds, две DB/cross-key guard/shared worker lease/cancellation проверены. Та же БД, новая миграция r11_004. Настоящий месяц/terms не утверждены; runtime payment OFF, callback404, локальный контракт только fake. Следующий P07 Stars; UI ещё прежний. Staging/production/outbound не менялись, native NOT TESTED.
 

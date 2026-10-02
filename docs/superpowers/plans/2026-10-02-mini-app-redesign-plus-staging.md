@@ -237,11 +237,11 @@
 
 **Интерфейсы:** `TelegramStarsProvider(sender, runtime_policy)`; `validate_precheckout(query, order) -> PrecheckoutDecision`; `successful_payment_to_evidence(message, order) -> VerifiedPaymentEvidence`. Verified Bot API user/charge ID, общая apply из P06. `/paysupport` использует P16 real support/readiness.
 
-- [ ] RED `test_xtr_tbd_disabled_runtime_and_client_paid_cannot_send_invoice_or_grant`: sender calls=0 при первом release/неутверждённом XTR; fake client invoiceClosed/paid/precheckout не дают Plus.
-- [ ] RED `test_verified_stars_payment_is_buyer_scoped_unique_and_refund_tracked`: payload/product/amount/currency/buyer/Streamer binding; duplicate charge не добавляет месяц, foreign charge/refund закрыты. Run `python -m pytest tests/test_stars_provider.py -q` → FAIL adapter/handlers.
-- [ ] Локальные invoices fixtures только с явно заданной QA XTR/period, без настоящего Bot API. Currency XTR/provider_token пустой, no recurring, precheckout ответ ≤10 s, успешный факт — successful_payment; refundStarPayment отдельно от закрытия UI. Не выдумывать Stars GET по charge ID.
-- [ ] PASS fake sender/service/auth; зарегистрировать handlers с той же runtime policy, без денежной активации от env наличия. Не добавлять Stars цену или Telegram test environment.
-- [ ] Scoped review → commit. Настоящий invoice/refund/native остаётся отдельным разрешением.
+- [x] RED `test_xtr_tbd_disabled_runtime_and_client_paid_cannot_send_invoice_or_grant`: sender calls=0 при первом release/неутверждённом XTR; fake client invoiceClosed/paid/precheckout не дают Plus.
+- [x] RED `test_verified_stars_payment_is_buyer_scoped_unique_and_refund_tracked`: payload/product/amount/currency/buyer/Streamer binding; duplicate charge не добавляет месяц, foreign charge/refund закрыты. Run `python -m pytest tests/test_stars_provider.py -q` → FAIL adapter/handlers.
+- [x] Локальные invoices fixtures только с явно заданной QA XTR/period, без настоящего Bot API. Currency XTR/provider_token пустой, no recurring, precheckout ответ ≤10 s, успешный факт — successful_payment; refundStarPayment отдельно от закрытия UI. Не выдумывать Stars GET по charge ID.
+- [x] PASS fake sender/service/auth; зарегистрировать handlers с той же runtime policy, без денежной активации от env наличия. Не добавлять Stars цену или Telegram test environment.
+- [x] Scoped review → commit. Настоящий invoice/refund/native остаётся отдельным разрешением.
 
 ## P08. Три темы и настоящий Telegram SDK adapter
 

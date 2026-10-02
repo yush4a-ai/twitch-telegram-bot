@@ -12,6 +12,12 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
+def first_release_payment_policy():
+    """Money stays OFF regardless of credentials or unrelated environment flags."""
+    from .plan_catalog import BillingRuntimePolicy
+    return BillingRuntimePolicy()
+
 PREVIEW_INITIAL_DELAY_SECONDS = 75
 PREVIEW_INTERVAL_SECONDS = 300
 PREVIEW_MAX_CONCURRENT_JOBS = 1

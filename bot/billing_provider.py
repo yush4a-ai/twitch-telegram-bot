@@ -52,7 +52,7 @@ class RefundOutcome:
 @dataclass(frozen=True)
 class CheckoutSession:
     order_id: str
-    reference: str
+    reference: str | None
     hosted_url: str | None = None
     status: str = "pending"
     checkout_expires_at: float | None = None

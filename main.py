@@ -36,6 +36,8 @@ from bot.config import (
 from bot.database import Database, DatabaseConfigurationError
 from bot.deep_links import TELEGRAM_BOT_USERNAME
 from bot.handlers import register_all_handlers
+from bot.billing import BillingService
+from bot.config import first_release_payment_policy
 from bot.admin_auth import AdminAccess
 from bot.streamer_auth import StreamerAccess
 from bot.admin_metrics import AdminSnapshot
@@ -504,6 +506,7 @@ async def main() -> None:
 
     db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
     bot: Bot | None = None
+    billing_service: BillingService | None = None
     try:
         await db.connect()
         # Между остановкой старого процесса и запуском нового EventSub не слушается:
@@ -531,6 +534,8 @@ async def main() -> None:
             "Проверка Telegram-каналов",
         )
         dp = Dispatcher()
+        billing_service = BillingService(db, runtime_policy=first_release_payment_policy())
+        dp["billing_service"] = billing_service
         dp["channel_username_cache"] = channel_username_cache
         setup_middlewares(dp)
         register_all_handlers(dp)
@@ -803,6 +808,8 @@ async def main() -> None:
                 await _cancel_task(follow_listener_task, "FollowEventListener")
                 await _safe_cleanup("OAuth callback server", oauth_server.stop())
     finally:
+        if billing_service is not None:
+            await _safe_cleanup("Billing worker", billing_service.close())
         if bot is not None:
             await _safe_cleanup("Telegram session", bot.session.close())
         await _safe_cleanup("SQLite", db.close())
