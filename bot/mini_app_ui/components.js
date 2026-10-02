@@ -57,15 +57,16 @@ export function icon(name) {
 let dialogSequence=0;
 const activeDialogs=[];
 export function closeActiveDialog(){const close=activeDialogs.at(-1);if(!close)return false;close();return true;}
-export function dialog(title,buildContent,{sheet=false,origin=document.activeElement}={}) {
+export function dialog(title,buildContent,{sheet=false,origin=document.activeElement,onClose}={}) {
   const overlay=element('dialog',`app-dialog${sheet?' app-sheet':''}`);
   const label=element('h2','',title);label.id=`app-dialog-title-${++dialogSequence}`;overlay.setAttribute('aria-labelledby',label.id);
   const header=element('div','dialog-header'),content=element('div','dialog-content');
   let closed=false;const previousOverflow=document.documentElement.style.overflow;
-  function close(){if(closed)return;closed=true;overlay.close();overlay.remove();activeDialogs.splice(activeDialogs.indexOf(close),1);document.documentElement.style.overflow=previousOverflow;if(origin?.isConnected)origin.focus({preventScroll:true});document.dispatchEvent(new Event('app-dialog-change'));}
+  function close(){if(closed)return;closed=true;overlay.close();overlay.remove();const index=activeDialogs.indexOf(close);if(index>=0)activeDialogs.splice(index,1);document.documentElement.style.overflow=previousOverflow;if(origin?.isConnected)origin.focus({preventScroll:true});onClose?.();document.dispatchEvent(new Event('app-dialog-change'));}
   const dismiss=action('Закрыть',close,true);dismiss.className='icon-button';dismiss.replaceChildren(icon('close'));dismiss.setAttribute('aria-label','Закрыть');
   header.append(label,dismiss);overlay.append(header,content);buildContent(content,close);
   overlay.addEventListener('cancel',event=>{event.preventDefault();close();});
+  overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close();}},true);
   overlay.addEventListener('click',event=>{const r=overlay.getBoundingClientRect();if(event.target===overlay&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))close();});
   document.body.append(overlay);document.documentElement.style.overflow='hidden';overlay.showModal();activeDialogs.push(close);document.dispatchEvent(new Event('app-dialog-change'));
   return {element:overlay,close};

@@ -276,11 +276,11 @@ Profile получает имя только из server bootstrap: `verify_weba
 
 **Интерфейсы:** сохранять `/viewer/state|search|follow|unfollow|notify|plan-activate` payloads; add optional server `display_name` к state. Existing `TwitchClient.get_display_names` — batched по100; bounded cache300 s на максимум2000 public names, timeout5 s/fallback на реальный login, не обязательный сетевой запрос на каждую строку/рендер. Сервисы подписок/лимитов остаются в Database.
 
-- [ ] RED `viewer_free_journey_uses_same_bot_rows_and_preserves_input`: 0→search→follow→pause→reload→unfollow; local search среди собственных отделён; network error сохраняет query, late search не заменяет новый. Server 51-й Free/201-й Plus отвергается атомарно.
-- [ ] Run browser viewer-free + `python -m pytest tests/test_mini_app_viewer.py tests/test_viewer_plus_limits.py -q` → UI RED и scoped server RED только для нового metadata path.
-- [ ] Новая list-row композиция live/offline/stale с counts, category у live, pause отдельный; имена две строки/full detail+accessible name. Home использует реальные server counts/upcoming/reminders, никаких fake metrics; unavailable metadata оставляет login/initials, не invented аватар.
-- [ ] PASS 0/6/200, live marker >300 s stale, offline, reconnect, auth expiry, add write-access только по действию, server pause/priority после expiry не теряется. Bot и app изменяют одни rows.
-- [ ] Scoped journey review → commit/screenshots. Реальное write access/send не утверждать по fake SDK.
+- [x] RED `viewer_free_journey_uses_same_bot_rows_and_preserves_input`: 0→search→follow→pause→reload→unfollow; local search среди собственных отделён; network error сохраняет query, late search не заменяет новый. Server 51-й Free/201-й Plus отвергается атомарно.
+- [x] Run browser viewer-free + `python -m pytest tests/test_mini_app_viewer.py tests/test_viewer_plus_limits.py -q` → UI RED и scoped server RED только для нового metadata path.
+- [x] Новая list-row композиция live/offline/stale с counts, category у live, pause отдельный; имена две строки/full detail+accessible name. Home использует реальные server counts/upcoming/reminders, никаких fake metrics; unavailable metadata оставляет login/initials, не invented аватар.
+- [x] PASS 0/6/200, live marker >300 s stale, offline, reconnect, auth expiry, add write-access только по действию, server pause/priority после expiry не теряется. Bot и app изменяют одни rows.
+- [x] Scoped journey review → commit/screenshots. Реальное write access/send не утверждать по fake SDK.
 
 ## P11. Полный выбор пяти видео и честный media status
 

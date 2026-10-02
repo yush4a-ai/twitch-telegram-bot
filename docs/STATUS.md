@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P09 PASS, далее P10
+## Текущий checkpoint — 02.10.2026: P10 PASS, далее P11
+
+P09 commit `f5549b0`; P10 новая Главная/Стримеры с live/stale/offline, отдельным own search/add и pause. Общие signed rows/API/services, metadata cache300s/2000/5s/fallback login; права после ожидания metadata. Python25tests/23subtests; Chromium/WebKit0/6/200 + shell200,24PNG/hash, JS0/external0, detector[]. Evidence `P10-VIEWER.md`. Settings ещё P12, следующий P11 полный video picker. Внешних send/OAuth/payment/deploy нет; native/staging NOT TESTED, production не менялась.
+
+## Предыдущий checkpoint — 02.10.2026: P09 PASS, далее P10
 
 P08 commit `a229df3`; P09 shell/profile/nav4/shared Subscription/menu/Back/dialog/scroll/focus/draft и signed metadata. Python13tests/37subtests; Chromium/WebKit6/200/theme,26PNG с source hashes, JS0/external0. Evidence `P09-SHELL.md`. Один read-only reviewer установил WebKit MAIN focus, exact regression сохранён; initial render reentrancy и modal Back исправлены. Новый профиль перенесён, feature композиция/Plus/legal ещё P10–P16. Staging/production/Railway/деньги/outbound не менялись; native NOT TESTED. Следующий P10 Viewer.
 

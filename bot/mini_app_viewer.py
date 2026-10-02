@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from urllib.parse import urlsplit
 
 from aiohttp import web
@@ -22,6 +23,48 @@ from .viewer_history import ViewerHistoryService
 logger = logging.getLogger(__name__)
 _SEARCH_WINDOW_SECONDS = 10.0
 _SEARCH_WINDOW_LIMIT = 6
+_NAMES_TIMEOUT = 5.0
+
+
+class _PublicNames:
+    """Small public metadata cache; never a source of user rights or live state."""
+
+    def __init__(self, twitch, *, clock=time.monotonic):
+        self.twitch, self.clock = twitch, clock
+        self.entries = OrderedDict()
+        self.lock = asyncio.Lock()
+
+    async def get(self, logins):
+        requested = tuple(dict.fromkeys(logins))
+        if not requested:
+            return {}
+        try:
+            # The whole budget includes waiting for an overlapping metadata request.
+            async with asyncio.timeout(_NAMES_TIMEOUT):
+                async with self.lock:
+                    now = self.clock()
+                    missing = [login for login in requested if login not in self.entries or now - self.entries[login][0] >= 300]
+                    method = getattr(self.twitch, "get_display_names", None)
+                    found = await method(missing) if missing and callable(method) else {}
+                    if not isinstance(found, dict):
+                        found = {}
+                    for login in missing:
+                        name = found.get(login)
+                        name = name.strip() if isinstance(name, str) and 0 < len(name) <= 256 else login
+                        self.entries[login] = (self.clock(), name or login)
+        except Exception:
+            logger.warning("Mini App public names temporarily unavailable")
+        now = self.clock()
+        result = {}
+        for login in requested:
+            entry = self.entries.get(login)
+            if entry is None or now - entry[0] >= 300:
+                entry = self.entries[login] = (now, login)
+            self.entries.move_to_end(login)
+            result[login] = entry[1]
+        while len(self.entries) > 2000:
+            self.entries.popitem(last=False)
+        return result
 
 
 def normalize_twitch_login(value: object) -> str | None:
@@ -65,6 +108,7 @@ def install_mini_app_viewer_routes(
     reminders = ViewerReminderService(db)
     folders = ViewerFolderService(db)
     history = ViewerHistoryService(db)
+    public_names = _PublicNames(twitch)
 
     def folder_payload(saved) -> dict[str, object]:
         return {
@@ -110,9 +154,10 @@ def install_mini_app_viewer_routes(
         user_id, _values, error = await read(request)
         if error is not None:
             return error
+        rows = await db.list_personal_channel_status(user_id)
+        display_names = await public_names.get([row[0] for row in rows])
         now = time.time()
         flags = await capabilities.for_user(user_id, now=now)
-        rows = await db.list_personal_channel_status(user_id)
         saved_category_preferences = await category_store.list_preferences(user_id)
         category_preferences = {
             row[0]: saved_category_preferences.get(row[0], CategoryAlertPreference(False, (), 0))
@@ -131,6 +176,7 @@ def install_mini_app_viewer_routes(
         subscriptions = [
             {
                 "login": login,
+                "display_name": display_names[login],
                 "notify_enabled": notify_enabled,
                 "paused_by_plan": paused_by_plan,
                 "video_selected": login in video.selected_logins,

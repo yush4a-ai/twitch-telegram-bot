@@ -4,7 +4,9 @@ import os
 import tempfile
 import time
 import unittest
+import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import aiohttp
 
@@ -147,3 +149,44 @@ class MiniAppViewerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 429)
         async with self.request("search", 202, query="alpha") as response:
             self.assertEqual(response.status, 200)
+
+    async def test_state_names_are_public_bounded_cached_and_fallback_to_real_login(self):
+        await self.db.add_channel(101, "alpha")
+        await self.db.add_channel(101, "beta")
+        await self.db.add_channel(202, "gamma")
+        self.twitch.get_display_names = AsyncMock(return_value={
+            "alpha": "Очень длинное русское имя стримера с несколькими словами",
+            "beta": "x" * 257, "gamma": "Чужой стример",
+        })
+        async with self.request("state") as response:
+            rows = (await response.json())["subscriptions"]
+        self.assertEqual(rows[0]["display_name"], "Очень длинное русское имя стримера с несколькими словами")
+        self.assertEqual(rows[1]["display_name"], "beta")
+        self.twitch.get_display_names.assert_awaited_once_with(["alpha", "beta"])
+        async with self.request("state") as response:
+            self.assertEqual((await response.json())["subscriptions"], rows)
+        self.assertEqual(self.twitch.get_display_names.await_count, 1)
+        async with self.request("state", 202) as response:
+            self.assertEqual((await response.json())["subscriptions"][0]["display_name"], "Чужой стример")
+        self.twitch.get_display_names.assert_awaited_with(["gamma"])
+
+    async def test_name_cache_ttl_bound_concurrent_lookup_and_timeout(self):
+        from bot.mini_app_viewer import _PublicNames
+        clock = [10.0]
+        fake = SimpleNamespace(get_display_names=AsyncMock(side_effect=lambda logins: {login: login.upper() for login in logins}))
+        names = _PublicNames(fake, clock=lambda: clock[0])
+        first, second = await asyncio.gather(names.get(["alpha"]), names.get(["alpha"]))
+        self.assertEqual(first, {"alpha": "ALPHA"}); self.assertEqual(first, second)
+        self.assertEqual(fake.get_display_names.await_count, 1)
+        clock[0] += 301
+        self.assertEqual(await names.get(["alpha"]), first)
+        self.assertEqual(fake.get_display_names.await_count, 2)
+        await names.get([f"name{i}" for i in range(2001)])
+        self.assertLessEqual(len(names.entries), 2000)
+        async def blocked(_logins):
+            await asyncio.sleep(1)
+        fake.get_display_names.side_effect = blocked
+        with patch("bot.mini_app_viewer._NAMES_TIMEOUT", .01):
+            self.assertEqual(await names.get(["offline"]), {"offline": "offline"})
+        fake.get_display_names.side_effect = RuntimeError("metadata unavailable")
+        self.assertEqual(await names.get(["unavailable"]), {"unavailable": "unavailable"})

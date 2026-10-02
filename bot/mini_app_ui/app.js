@@ -31,7 +31,7 @@ const onDialogChange=()=>telegram.syncBack(Boolean(document.querySelector('dialo
 document.addEventListener('app-dialog-change',onDialogChange);
 window.addEventListener('pagehide', (event) => {
   if(event.persisted)return;
-  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();resizeNavigation.disconnect();
+  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();resizeNavigation.disconnect();
 });
 const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
 resizeNavigation.observe(tabBar);

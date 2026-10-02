@@ -148,3 +148,26 @@ button[aria-disabled=true] { cursor:wait; opacity:.7; }
 .app-sheet { margin:auto auto 16px; }
 @media(min-width:800px) { .app-shell { padding-top:calc(24px + var(--top-inset)); } .app-header { margin-bottom:24px; } }
 @media(prefers-reduced-motion:reduce) { * { scroll-behavior:auto!important; } }
+
+/* Viewer: grouped subscriptions, local search and a separate add flow. */
+.title-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:10px; }
+.title-row .button { font-size:.875rem; }
+.streamer-section { margin-top:24px; }
+.streamer-group { border-radius:var(--radius-group); background:var(--surface); overflow:hidden; }
+.streamer-row { padding:0 12px; gap:8px; border:0; background:transparent; align-items:center; }
+.streamer-row + .streamer-row { border-top:1px solid var(--line); }
+.streamer-open { flex:1; min-width:0; display:flex; gap:12px; align-items:center; min-height:84px; padding:14px 0; color:var(--text); text-align:left; background:transparent; border:0; }
+.streamer-open .row-copy { flex:1; }
+.streamer-name,.stream-title { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.streamer-name { font-size:1.0625rem; line-height:1.35; }
+.streamer-open small { font-size:.8125rem; line-height:1.4; }
+.stream-status { color:var(--secondary); }
+.stream-status.live { color:var(--accent); }
+.stream-status.live::before { content:''; display:inline-block; width:6px; height:6px; margin-right:6px; border-radius:50%; background:currentColor; }
+.quick-notify { flex:0 0 44px; width:44px; min-height:44px; display:grid; place-items:center; position:relative; border-radius:10px; color:var(--secondary); cursor:pointer; }
+.quick-notify input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; }
+.quick-notify:has(input:checked) { color:var(--accent); background:var(--soft); }
+.quick-notify:has(input:focus-visible) { outline:2px solid var(--accent); outline-offset:2px; }
+.quick-notify:has(input[aria-disabled=true]) { opacity:.6; cursor:wait; }
+.quick-notify:has(input:not(:checked))::after { content:''; position:absolute; width:25px; height:1px; background:currentColor; transform:rotate(-45deg); pointer-events:none; }
+.group-heading { padding:16px 12px 0; }

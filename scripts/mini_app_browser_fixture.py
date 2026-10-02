@@ -139,6 +139,11 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
                 last_seen_live_at=observed_at - 601,
             )
             await db.set_notify_enabled(501, "zeta", False)
+            await db.add_stream_sample(
+                501, "alpha", "fixture-alpha", observed_at, 27,
+                "Длинное название эфира: прохождение, обсуждение игры и общение со зрителями",
+                "Minecraft",
+            )
         if scenario in {"plus-two-hundred", "independent-viewer"}:
             await db.issue_test_viewer_plus(
                 501, "redesign-viewer", starts_at=observed_at - 5,
