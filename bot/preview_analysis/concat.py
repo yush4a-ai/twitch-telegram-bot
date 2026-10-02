@@ -188,24 +188,66 @@ class AnalysisJob:
 
 class AnalysisTempManager:
     def __init__(self, root: Path | None = None) -> None:
-        self.root = Path(root) if root is not None else Path(tempfile.gettempdir()) / "twitch-signalbot-preview-analysis"
+        self._uses_default_root = root is None
+        self.root = (
+            Path(root)
+            if root is not None
+            else Path(tempfile.gettempdir()) / "twitch-signalbot-preview-analysis"
+        )
+
+    @staticmethod
+    def _write_root_marker(root: Path) -> None:
+        marker = root / ROOT_MARKER
+        with marker.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(ROOT_TOKEN)
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    def _create_owned_root(self, root: Path) -> None:
+        try:
+            root.mkdir(parents=True, mode=0o700, exist_ok=False)
+            self._write_root_marker(root)
+        except OSError as exc:
+            raise PermissionError("analysis root initialization failed") from exc
+
+    def _recover_default_root(self) -> None:
+        try:
+            recovered = Path(
+                tempfile.mkdtemp(
+                    prefix="twitch-signalbot-preview-analysis-recovery-",
+                    dir=str(self.root.parent),
+                )
+            )
+            try:
+                self._write_root_marker(recovered)
+            except OSError:
+                shutil.rmtree(recovered, ignore_errors=True)
+                raise
+        except OSError as exc:
+            raise PermissionError("analysis root recovery failed") from exc
+        self.root = recovered
+
+    def _ensure_root(self) -> None:
+        if self.root.exists() or self.root.is_symlink():
+            safe = _safe_directory(self.root, self.root.parent)
+            owned = safe and _has_valid_root_marker(self.root)
+            if owned:
+                return
+            if not self._uses_default_root:
+                if not safe:
+                    raise PermissionError("analysis root is not a safe directory")
+                raise PermissionError("analysis root is not owned")
+            self._recover_default_root()
+            return
+        try:
+            self._create_owned_root(self.root)
+        except PermissionError:
+            if not self._uses_default_root:
+                raise
+            self._recover_default_root()
 
     def create_job(self) -> AnalysisJob:
-        if self.root.exists() or self.root.is_symlink():
-            if not _safe_directory(self.root, self.root.parent):
-                raise PermissionError("analysis root is not a safe directory")
-            if not _has_valid_root_marker(self.root):
-                raise PermissionError("analysis root is not owned")
-        else:
-            try:
-                self.root.mkdir(parents=True, mode=0o700, exist_ok=False)
-                marker = self.root / ROOT_MARKER
-                with marker.open("x", encoding="utf-8", newline="\n") as stream:
-                    stream.write(ROOT_TOKEN)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-            except OSError as exc:
-                raise PermissionError("analysis root initialization failed") from exc
+        self._ensure_root()
         job_path = self.root / f"analysis-{uuid.uuid4().hex}"
         job_path.mkdir(mode=0o700)
         job = AnalysisJob(job_path, self.root)

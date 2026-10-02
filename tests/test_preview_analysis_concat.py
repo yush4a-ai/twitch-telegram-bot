@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bot.preview_capture import SegmentRecord
 
@@ -173,6 +174,23 @@ class ConcatManifestTests(unittest.TestCase):
             Path(os.path.commonpath((manager.root.resolve(), Path(tempfile.gettempdir()).resolve()))),
             Path(tempfile.gettempdir()).resolve(),
         )
+
+    def test_default_root_recovers_from_unowned_stale_directory(self) -> None:
+        concat = _concat()
+        with tempfile.TemporaryDirectory() as raw:
+            parent = Path(raw)
+            stale_root = parent / "twitch-signalbot-preview-analysis"
+            stale_root.mkdir()
+            with mock.patch.object(concat.tempfile, "gettempdir", return_value=raw):
+                manager = concat.AnalysisTempManager()
+                job = manager.create_job()
+            try:
+                self.assertNotEqual(manager.root, stale_root)
+                self.assertEqual(manager.root.parent, parent)
+                self.assertTrue((manager.root / concat.ROOT_MARKER).exists())
+                self.assertTrue(job.path.exists())
+            finally:
+                job.cleanup()
 
     def test_manifest_creation_never_mutates_borrowed_segment(self) -> None:
         concat = _concat()
