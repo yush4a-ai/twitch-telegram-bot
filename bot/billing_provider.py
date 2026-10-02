@@ -10,16 +10,52 @@ import re
 import time
 from dataclasses import dataclass
 from typing import Mapping, Protocol
+from .billing_models import ServerOrderSnapshot, VerifiedPaymentEvidence
 
 
 class PaymentVerificationError(ValueError):
     """A provider notification is unsigned, stale, or malformed."""
 
 
+class PaymentCreationUnknown(Exception):
+    """An external create may have happened; do not repeat its POST."""
+
+
+class ProviderRateLimited(Exception):
+    def __init__(self, retry_after: float):
+        super().__init__("provider rate limit")
+        self.retry_after = retry_after
+
+
+@dataclass(frozen=True)
+class ProviderHttpResponse:
+    status: int
+    headers: Mapping[str, str]
+    body: bytes
+
+
+@dataclass(frozen=True)
+class ProviderNotice:
+    provider: str
+    transaction_id: str
+    raw_status: str
+    event_key: str
+    order_hint: str | None = None
+
+
+@dataclass(frozen=True)
+class RefundOutcome:
+    state: str
+    provider_reference: str | None = None
+
+
 @dataclass(frozen=True)
 class CheckoutSession:
     order_id: str
     reference: str
+    hosted_url: str | None = None
+    status: str = "pending"
+    checkout_expires_at: float | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +81,18 @@ class PaymentProvider(Protocol):
     async def request_refund(self, payment_id: str, request_key: str) -> str: ...
 
     async def cancel_checkout(self, reference: str) -> None: ...
+
+
+class MonetaryPaymentProvider(Protocol):
+    provider_id: str
+
+    async def create_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str) -> CheckoutSession: ...
+
+    async def get_payment_status(self, reference: str) -> VerifiedPaymentEvidence: ...
+
+    def handle_callback(self, body: bytes, headers: Mapping[str, str]) -> ProviderNotice: ...
+
+    async def refund_payment(self, reference: str, request_id: str) -> RefundOutcome: ...
 
 
 _EVENT_FIELDS = {"event_id", "order_id", "payment_id", "type", "units", "currency"}

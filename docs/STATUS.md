@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P04 PASS, далее P05
+## Текущий checkpoint — 02.10.2026: P05 PASS, далее P06
+
+P04 commit `8474eb8`; P05 strict Platega contract только network-free transport; 13/13 актуальных official SHA совпали. RED→PASS32tests/57subtests, safe URL/Decimal/auth/unknown POST/refund/429 проверены; старый mock сохранён. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P05-PROVIDER.md`. Card GET enum требует подтверждения, guessed default отсутствует. Нет live transport/credentials/money/Railway/Telegram операций. Следующий P06 durable lifecycle; UI ещё прежний.
+
+## Предыдущий checkpoint — 02.10.2026: P04 PASS, далее P05
 
 P03 commit `4be57d4`; P04 effective Viewer от frozen buyer Streamer, общий SQL/media gate и непрерывный срок; независимый Viewer сохраняется. RED→PASS130tests/43subtests, два соединения/CAS, revoke-before-edit, animation→photo expiry; scoped review. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P04-INHERITANCE.md`. Legacy unbound/чужие users/placement не получают права. UI прежний; следующий P05 fake Platega adapter. Production/staging/money/outbound не менялись; native NOT TESTED.
 

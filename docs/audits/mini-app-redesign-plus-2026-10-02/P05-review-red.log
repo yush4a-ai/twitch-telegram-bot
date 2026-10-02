@@ -1,0 +1,650 @@
+FFFFF.FF                                                  [100%]
+================================== FAILURES ===================================
+_ PlategaProviderTests.test_callback_authenticated_notice_never_verified_evidence _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_callback_authenticated_notice_never_verified_evidence>
+
+    async def test_callback_authenticated_notice_never_verified_evidence(self):
+>       adapter = provider(FakeTransport())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:151:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0907E46E0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_canonical_get_requires_all_critical_fields_and_exact_decimal _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_canonical_get_requires_all_critical_fields_and_exact_decimal>
+
+    async def test_canonical_get_requires_all_critical_fields_and_exact_decimal(self):
+        transport = FakeTransport(ProviderHttpResponse(200, {},
+            json.dumps(status_body()).replace('"amount": 150', '"amount": 150.00').encode()))
+>       evidence = await provider(transport).get_payment_status(TRANSACTION, now=150)
+                         ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:133:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B09083A8D0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_default_offline_and_nonlocal_transport_never_send _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_default_offline_and_nonlocal_transport_never_send>
+
+    async def test_default_offline_and_nonlocal_transport_never_send(self):
+        transport = FakeTransport()
+        with self.assertRaises(PermissionError):
+>           await provider(transport, BillingRuntimePolicy()).create_payment(snapshot(), ATTEMPT)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:122:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (body=b'{"id":"one","id":"two"}') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+>                   await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:190:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (body=b'{"value":NaN}') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+>                   await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:190:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (body=b'[]') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+>                   await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:190:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (body=b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+>                   await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:190:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (retry='120') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+                    await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+        for retry, expected in (("120", 120), ("Fri, 02 Oct 2026 12:00:00 GMT", 600)):
+            with self.subTest(retry=retry):
+>               adapter = provider(FakeTransport(ProviderHttpResponse(429, {"Retry-After": retry}, b'')))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:193:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E2750>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping (retry='Fri, 02 Oct 2026 12:00:00 GMT') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+                    await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+        for retry, expected in (("120", 120), ("Fri, 02 Oct 2026 12:00:00 GMT", 600)):
+            with self.subTest(retry=retry):
+>               adapter = provider(FakeTransport(ProviderHttpResponse(429, {"Retry-After": retry}, b'')))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:193:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E2C60>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_malformed_responses_rate_limit_and_explicit_card_mapping _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_malformed_responses_rate_limit_and_explicit_card_mapping>
+
+    async def test_malformed_responses_rate_limit_and_explicit_card_mapping(self):
+        for body in (b'{"id":"one","id":"two"}', b'{"value":NaN}', b'[]', b'x'*65537):
+            with self.subTest(body=body[:30]):
+                with self.assertRaises(PaymentVerificationError):
+                    await provider(FakeTransport(ProviderHttpResponse(200, {}, body))).get_payment_status(TRANSACTION)
+        for retry, expected in (("120", 120), ("Fri, 02 Oct 2026 12:00:00 GMT", 600)):
+            with self.subTest(retry=retry):
+                adapter = provider(FakeTransport(ProviderHttpResponse(429, {"Retry-After": retry}, b'')))
+                with self.assertRaises(ProviderRateLimited) as caught:
+                    await adapter.get_payment_status(TRANSACTION, now=1790932200)
+                self.assertEqual(caught.exception.retry_after, expected)
+        # The public GET docs do not establish a card enum; this mapping is
+        # explicitly a fixture contract, never a verified merchant default.
+>       adapter = provider(FakeTransport(response(status_body(paymentMethod="FIXTURE_CARD"))),
+                           status_methods={"FIXTURE_CARD": "bank_card"})
+
+tests\test_platega_provider.py:199:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E2DE0>
+policy = None, kwargs = {'status_methods': {'FIXTURE_CARD': 'bank_card'}}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+---------------------------- Captured stdout call -----------------------------
+uuuuuu
+_ PlategaProviderTests.test_response_bound_and_refund_acceptance_is_not_completion _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_response_bound_and_refund_acceptance_is_not_completion>
+
+    async def test_response_bound_and_refund_acceptance_is_not_completion(self):
+        with self.assertRaises(PaymentVerificationError):
+>           await provider(FakeTransport(ProviderHttpResponse(200, {}, b'x'*65537))).get_payment_status(TRANSACTION)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:173:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_sbp_card_server_money_and_hosted_link_contract (method='sbp') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_sbp_card_server_money_and_hosted_link_contract>
+
+    async def test_sbp_card_server_money_and_hosted_link_contract(self):
+        for method, product, method_id, amount in (("sbp", "viewer_plus", 2, 150),
+                                                  ("bank_card", "streamer_plus", 11, 300)):
+            with self.subTest(method=method):
+                transport = FakeTransport(response({"transactionId": TRANSACTION,
+                    "redirect": "https://pay.platega.io/checkout?id=" + TRANSACTION,
+                    "status": "PENDING", "expiresIn": "00:15:00"}))
+>               checkout = await provider(transport).create_payment(snapshot(method, product), ATTEMPT)
+                                 ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:74:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E1DC0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_sbp_card_server_money_and_hosted_link_contract (method='bank_card') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_sbp_card_server_money_and_hosted_link_contract>
+
+    async def test_sbp_card_server_money_and_hosted_link_contract(self):
+        for method, product, method_id, amount in (("sbp", "viewer_plus", 2, 150),
+                                                  ("bank_card", "streamer_plus", 11, 300)):
+            with self.subTest(method=method):
+                transport = FakeTransport(response({"transactionId": TRANSACTION,
+                    "redirect": "https://pay.platega.io/checkout?id=" + TRANSACTION,
+                    "status": "PENDING", "expiresIn": "00:15:00"}))
+>               checkout = await provider(transport).create_payment(snapshot(method, product), ATTEMPT)
+                                 ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:74:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B08D8E9EE0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='http://pay.platega.io/') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E32C0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='https://pay.platega.io.attacker.test/') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B08FDD16D0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='https://user:password@pay.platega.io/') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B09083B680>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='https://127.0.0.1/pay') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0909B6FC0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='javascript:alert(1)') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0909B4380>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='https://pay.platega.io/?secret=local-contract-fixture-not-a-real-merchant-secret') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0909B4E00>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+_ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed (url='https://pay.platega.io:444/pay') _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+>               adapter = provider(transport)
+                          ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:105:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0909B5CA0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+___ PlategaProviderTests.test_schema_auth_and_unknown_creation_fail_closed ____
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_schema_auth_and_unknown_creation_fail_closed>
+
+    async def test_schema_auth_and_unknown_creation_fail_closed(self):
+        for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
+                        "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
+                        "https://pay.platega.io/?secret=" + SECRET, "https://pay.platega.io:444/pay"):
+            with self.subTest(url=bad_url):
+                transport = FakeTransport(response({"transactionId": TRANSACTION, "redirect": bad_url,
+                    "status": "PENDING", "expiresIn": "00:10:00"}))
+                adapter = provider(transport)
+                with self.assertRaises(PaymentCreationUnknown):
+                    await adapter.create_payment(snapshot(), ATTEMPT)
+                with self.assertRaises(PaymentCreationUnknown):
+                    await adapter.create_payment(snapshot(), ATTEMPT)
+                self.assertEqual(len(transport.calls), 1)
+        transport = FakeTransport(TimeoutError("connection outcome unknown"))
+>       adapter = provider(transport)
+                  ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:112:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0908E35C0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+---------------------------- Captured stdout call -----------------------------
+uuuuuuu
+_ PlategaProviderTests.test_v2_url_is_normalized_without_changing_request_method _
+
+self = <test_platega_provider.PlategaProviderTests testMethod=test_v2_url_is_normalized_without_changing_request_method>
+
+    async def test_v2_url_is_normalized_without_changing_request_method(self):
+        transport = FakeTransport(response({"transactionId": TRANSACTION, "url": "https://pay.platega.io/pay",
+                                            "status": "PENDING", "expiresIn": "00:10:00"}))
+>       self.assertEqual((await provider(transport).create_payment(snapshot(), ATTEMPT)).hosted_url, "https://pay.platega.io/pay")
+                                ^^^^^^^^^^^^^^^^^^^
+
+tests\test_platega_provider.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_platega_provider.FakeTransport object at 0x000001B0909B55B0>
+policy = None, kwargs = {}
+
+    def provider(transport, policy=None, **kwargs):
+>       return PlategaProvider(transport, MERCHANT, SECRET,
+            hosted_hosts=frozenset({"pay.platega.io"}),
+            runtime_policy=policy or BillingRuntimePolicy("sandbox", True, True, False, True, True),
+            buyer_names={101: "@verified_buyer"},
+            return_url="https://worker-staging-2f74.up.railway.app/app",
+            failed_url="https://worker-staging-2f74.up.railway.app/app", **kwargs)
+E       TypeError: PlategaProvider.__init__() got an unexpected keyword argument 'return_url'
+
+tests\test_platega_provider.py:50: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_callback_authenticated_notice_never_verified_evidence
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_canonical_get_requires_all_critical_fields_and_exact_decimal
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_default_offline_and_nonlocal_transport_never_send
+SUBFAILED(body=b'{"id":"one","id":"two"}') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+SUBFAILED(body=b'{"value":NaN}') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+SUBFAILED(body=b'[]') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+SUBFAILED(body=b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+SUBFAILED(retry='120') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+SUBFAILED(retry='Fri, 02 Oct 2026 12:00:00 GMT') tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_malformed_responses_rate_limit_and_explicit_card_mapping
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_response_bound_and_refund_acceptance_is_not_completion
+SUBFAILED(method='sbp') tests/test_platega_provider.py::PlategaProviderTests::test_sbp_card_server_money_and_hosted_link_contract
+SUBFAILED(method='bank_card') tests/test_platega_provider.py::PlategaProviderTests::test_sbp_card_server_money_and_hosted_link_contract
+SUBFAILED(url='http://pay.platega.io/') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='https://pay.platega.io.attacker.test/') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='https://user:password@pay.platega.io/') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='https://127.0.0.1/pay') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='javascript:alert(1)') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='https://pay.platega.io/?secret=local-contract-fixture-not-a-real-merchant-secret') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+SUBFAILED(url='https://pay.platega.io:444/pay') tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_schema_auth_and_unknown_creation_fail_closed
+FAILED tests/test_platega_provider.py::PlategaProviderTests::test_v2_url_is_normalized_without_changing_request_method
+22 failed, 1 passed in 0.44s

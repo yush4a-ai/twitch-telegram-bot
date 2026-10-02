@@ -212,11 +212,11 @@
 
 **Интерфейсы:** сохранить legacy mock методы через adapter; нормализованные async `create_payment(snapshot:ServerOrderSnapshot, attempt_id:str) -> CheckoutSession`, `get_payment_status(reference:str) -> VerifiedPaymentEvidence`, `handle_callback(body:bytes, headers:Mapping[str,str]) -> ProviderNotice`, `refund_payment(reference:str, request_id:str) -> RefundOutcome`. `PlategaProvider(transport, merchant_id, secret, hosted_hosts, runtime_policy)`; real transport запрещён policy первого release. Transport `request(method:str, path:str, *, json:dict|None, headers:Mapping[str,str], timeout:float) -> ProviderHttpResponse(status:int, headers:Mapping[str,str], body:bytes)` внедряется явно; ограничение ответа 65536 bytes и отсутствие raw body/headers в логах проверяются fake transport.
 
-- [ ] RED `test_sbp_card_server_money_and_hosted_link_contract`: methods2/11, exact RUB/Decimal minor units, server orderId/payload/metadata; HTTPS/allowlist без secret, карточные данные не попадают в bot. Test v2 `url` vs v1 `redirect` без изменения основного UX.
-- [ ] RED `test_schema_auth_and_unknown_creation_fail_closed`: duplicate headers/JSON, bool/float/NaN, body bound, отсутствующий `mechantId`, чужой merchant/method/amount/currency, unknown statuses; timeout/crash → creation_unknown и external POST count=1. Run `python -m pytest tests/test_platega_provider.py tests/test_billing_provider.py -q` → FAIL нового adapter.
-- [ ] Сверить актуальные официальные docs с research/sources SHA перед написанием adapter, изменения записать. Не исполнять SDK/helper примеры. Canonical GET требует все критические поля. Нет доказанного recovery/idempotency — создание остаётся выключено для сети.
-- [ ] PASS только fake transport; test-normalized evidence не оказывается в live DB. Mock HMAC/TTL/TEST правила сохраняются и не навязываются Platega. Payout HMAC/recurring6/H2H/cards не добавлять.
-- [ ] Scoped provider/security review → commit. Merchant/test creds/допуск не объявляются проверенными.
+- [x] RED `test_sbp_card_server_money_and_hosted_link_contract`: methods2/11, exact RUB/Decimal minor units, server orderId/payload/metadata; HTTPS/allowlist без secret, карточные данные не попадают в bot. Test v2 `url` vs v1 `redirect` без изменения основного UX.
+- [x] RED `test_schema_auth_and_unknown_creation_fail_closed`: duplicate headers/JSON, bool/float/NaN, body bound, отсутствующий `mechantId`, чужой merchant/method/amount/currency, unknown statuses; timeout/crash → creation_unknown и external POST count=1. Run `python -m pytest tests/test_platega_provider.py tests/test_billing_provider.py -q` → FAIL нового adapter.
+- [x] Сверить актуальные официальные docs с research/sources SHA перед написанием adapter, изменения записать. Не исполнять SDK/helper примеры. Canonical GET требует все критические поля. Нет доказанного recovery/idempotency — создание остаётся выключено для сети.
+- [x] PASS только fake transport; test-normalized evidence не оказывается в live DB. Mock HMAC/TTL/TEST правила сохраняются и не навязываются Platega. Payout HMAC/recurring6/H2H/cards не добавлять.
+- [x] Scoped provider/security review → commit. Merchant/test creds/допуск не объявляются проверенными.
 
 ## P06. Durable callback/reconciliation, атомарные права и refund lifecycle
 

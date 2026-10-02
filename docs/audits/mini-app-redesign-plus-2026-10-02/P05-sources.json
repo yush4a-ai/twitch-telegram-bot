@@ -1,0 +1,96 @@
+{
+  "checked_at": "2026-10-02",
+  "documents": [
+    {
+      "url": "https://docs.platega.io/%D0%B0%D0%B2%D1%82%D0%BE%D1%80%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F-1991638m0.md",
+      "status": 200,
+      "bytes": 1046,
+      "sha256": "ecabab817a97e1b6dc43be565491f7aaa5952069a42c7723ca696af24cadc693",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BF%D0%BB%D0%B0%D1%82%D0%B5%D0%B6%D0%BD%D0%BE%D0%B9-%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B8-%D0%B1%D0%B5%D0%B7-%D0%B7%D0%B0%D0%B4%D0%B0%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE-%D0%BC%D0%B5%D1%82%D0%BE%D0%B4%D0%B0-33845703e0.md",
+      "status": 200,
+      "bytes": 7264,
+      "sha256": "75074978104025232e0f0e4d43071f914a635d1087d567dce021de48c2610b4a",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/%D1%81%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BF%D0%BB%D0%B0%D1%82%D0%B5%D0%B6%D0%BD%D0%BE%D0%B9-%D1%81%D1%81%D1%8B%D0%BB%D0%BA%D0%B8-%D1%81-%D0%B7%D0%B0%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D0%BC-%D0%BC%D0%B5%D1%82%D0%BE%D0%B4%D0%BE%D0%BC-29203843e0.md",
+      "status": 200,
+      "bytes": 9749,
+      "sha256": "a0e073b617c32790a67f869d5dffadc2b532176606a82f2646cd61e3d5af382f",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0-%D1%81%D1%82%D0%B0%D1%82%D1%83%D1%81%D0%B0-%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D1%8B-%D0%BF%D0%BB%D0%B0%D1%82%D0%B5%D0%B6%D0%B0-29203844e0.md",
+      "status": 200,
+      "bytes": 4825,
+      "sha256": "30c1d069016736ad2227410aec094a50af2530006eddc42aa7bc5eeb34bb1502",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B0-%D0%B2%D0%BE%D0%B7%D0%BC%D0%BE%D0%B6%D0%BD%D0%BE%D1%81%D1%82%D0%B8-%D0%BE%D1%82%D0%BC%D0%B5%D0%BD%D1%8B-%D1%82%D1%80%D0%B0%D0%BD%D0%B7%D0%B0%D0%BA%D1%86%D0%B8%D0%B8-38219023e0.md",
+      "status": 200,
+      "bytes": 4649,
+      "sha256": "623ce7777d3e5d8bb85b95410dcdc20f36275f7d79331878e3a8480dda664f01",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/%D0%BE%D1%82%D0%BC%D0%B5%D0%BD%D0%B0-%D1%82%D1%80%D0%B0%D0%BD%D0%B7%D0%B0%D0%BA%D1%86%D0%B8%D0%B8-38225949e0.md",
+      "status": 200,
+      "bytes": 3684,
+      "sha256": "f1796f932e24192f7a3a3d8458895f09a1fefbcd8113ec269df78f9e7923d793",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/callback-%D0%BE%D0%B1-%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B8-%D1%81%D1%82%D0%B0%D1%82%D1%83%D1%81%D0%B0-%D1%82%D1%80%D0%B0%D0%BD%D0%B7%D0%B0%D0%BA%D1%86%D0%B8%D0%B8-29209725e0.md",
+      "status": 200,
+      "bytes": 4994,
+      "sha256": "27a68cab7b57d4b3d77627023256528af7a076672ad636a98a6ffd74beaa4f8a",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/paymentstatus-13226215d0.md",
+      "status": 200,
+      "bytes": 413,
+      "sha256": "fbbc3f1621b15933ce0072f0ddea40190a6a0aa46544a109d8ecf0dd3c8b7994",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/paymentmethodint-13226216d0.md",
+      "status": 200,
+      "bytes": 950,
+      "sha256": "ea404e1031d8dcf9e3904324f652eb9c08095b3107ab4910c30369625e76523e",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/createtransactionrequest-13226217d0.md",
+      "status": 200,
+      "bytes": 2859,
+      "sha256": "fca766df2c591b84438b6b49d01e0ce007598ebf70d7e9145ed0a5502a751607",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/createtransactionresponse-13226218d0.md",
+      "status": 200,
+      "bytes": 2076,
+      "sha256": "199ac809e33d02bb710cbabdfefa5dcfacca98feb47cedce6facdc9e2cc47993",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/transactionstatusresponse-13226219d0.md",
+      "status": 200,
+      "bytes": 2018,
+      "sha256": "c6e31be06825dca549f517f8f4e2725a2af01022c9d0bbc4dbed4667a431f7d6",
+      "unchanged": true
+    },
+    {
+      "url": "https://docs.platega.io/callbackpayload-13226220d0.md",
+      "status": 200,
+      "bytes": 998,
+      "sha256": "37df1b7c4faae045ee315d98f5ac03720474a08727df46b7aa070c97eb73cdb1",
+      "unchanged": true
+    }
+  ]
+}
