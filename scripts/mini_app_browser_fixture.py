@@ -160,6 +160,7 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             await db.issue_test_streamer_plus(
                 "2001", "redesign-streamer", starts_at=observed_at - 5,
                 expires_at=observed_at + 1800, issued_by=425785231, now=observed_at,
+                beneficiary_telegram_user_id=501,
             )
         state = FixtureState(scenario, observed_at, directory, FixtureBot(channel=True), FixtureTwitch(channels))
         app = web.Application()

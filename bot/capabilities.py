@@ -1,4 +1,4 @@
-"""Fail-closed server-side capabilities for the two independent Plus products."""
+"""Fail-closed capabilities, including personal Viewer access from Streamer Plus."""
 
 from __future__ import annotations
 

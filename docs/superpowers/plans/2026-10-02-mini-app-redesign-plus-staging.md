@@ -200,11 +200,11 @@
 
 **Интерфейсы:** `effective_viewer_predicate(user_sql: str, now_sql: str) -> str` принимает только внутренние SQL expressions, не клиентские строки; `resolve_effective_viewer(db, user_id:int, *, now:float) -> EffectiveViewerState(active, sources, expires_at)`. `Database.has_viewer_plus` делегирует общей effective семантике; `get_current_plus_grant` остаётся reader конкретного продукта. New test Streamer grant принимает явный verified `beneficiary_telegram_user_id`, legacy без него не угадывается.
 
-- [ ] RED `test_streamer_grants_viewer_only_to_frozen_buyer_and_independent_viewer_survives`: Streamer у buyer101 → лимит200/слоты5/filters/category/folders/history/reminder; участник202 и actor999 → Free. После expiry/refund Streamer отдельный Viewer продолжает работать; transfer Twitch не переносит личные права. Future grant/разрыв не удлиняет display срок.
-- [ ] RED `test_inheritance_applies_inside_sql_transactions_and_dispatch`: две conn, category INSERT SELECT, history write/read, trial eligibility, 51/201 лимиты, 5→6 CAS; revoke между capture и edit даёт фото. Run `python -m pytest tests/test_entitlement_inheritance.py tests/test_mini_app_capabilities.py -q` → FAIL нынешнего viewer-only SQL.
-- [ ] Общий predicate внедрить в прямые SQL и callbacks/runtime; не ограничиться CapabilityService. Старые тесты независимых legacy unbound grants сохраняют свою compatibility цель; новые paid/bound cases проверяют наследование, не ослабляя чужие placement assertions.
-- [ ] PASS inheritance + existing viewer limits/slots/delivery/filter/folders/history/reminders/trial/category/streamer access tests. Snapshot всех SQL потребителей после scoped `rg`, без whole-repo graphify.
-- [ ] Scoped security/data/media review → commit/checkpoint, оба источника/сроки возвращаются сервером, client mode не участвует.
+- [x] RED `test_streamer_grants_viewer_only_to_frozen_buyer_and_independent_viewer_survives`: Streamer у buyer101 → лимит200/слоты5/filters/category/folders/history/reminder; участник202 и actor999 → Free. После expiry/refund Streamer отдельный Viewer продолжает работать; transfer Twitch не переносит личные права. Future grant/разрыв не удлиняет display срок.
+- [x] RED `test_inheritance_applies_inside_sql_transactions_and_dispatch`: две conn, category INSERT SELECT, history write/read, trial eligibility, 51/201 лимиты, 5→6 CAS; revoke между capture и edit даёт фото. Run `python -m pytest tests/test_entitlement_inheritance.py tests/test_mini_app_capabilities.py -q` → FAIL нынешнего viewer-only SQL.
+- [x] Общий predicate внедрить в прямые SQL и callbacks/runtime; не ограничиться CapabilityService. Старые тесты независимых legacy unbound grants сохраняют свою compatibility цель; новые paid/bound cases проверяют наследование, не ослабляя чужие placement assertions.
+- [x] PASS inheritance + existing viewer limits/slots/delivery/filter/folders/history/reminders/trial/category/streamer access tests. Snapshot всех SQL потребителей после scoped `rg`, без whole-repo graphify.
+- [x] Scoped security/data/media review → commit/checkpoint, оба источника/сроки возвращаются сервером, client mode не участвует.
 
 ## P05. Provider contract и Platega adapter с локальным transport
 

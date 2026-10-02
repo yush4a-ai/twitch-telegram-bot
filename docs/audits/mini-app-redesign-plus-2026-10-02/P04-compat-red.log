@@ -1,0 +1,71 @@
+....................................................... [ 42%]
+............................................................ [ 88%]
+...F...........                                            [100%]
+================================== FAILURES ===================================
+_ MiniAppSubscriptionTests.test_wrong_user_cancel_refund_and_products_remain_separate _
+
+self = <test_mini_app_subscription.MiniAppSubscriptionTests testMethod=test_wrong_user_cancel_refund_and_products_remain_separate>
+
+    async def test_wrong_user_cancel_refund_and_products_remain_separate(self):
+        async with self.request(
+            "/app/api/subscription/test-checkout", actor=303,
+            product="viewer_plus",
+        ) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/subscription/test-checkout", actor=202,
+            product="streamer_plus",
+        ) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/subscription/test-checkout", product="viewer_plus",
+        ) as response:
+            viewer_order = (await response.json())["order_id"]
+        async with self.request(
+            "/app/api/subscription/test-cancel", actor=202,
+            order_id=viewer_order,
+        ) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/subscription/test-confirm", actor=202,
+            order_id=viewer_order,
+        ) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/subscription/test-cancel", order_id=viewer_order,
+        ) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual((await response.json())["status"], "cancelled")
+        async with self.request(
+            "/app/api/subscription/test-confirm", order_id=viewer_order,
+        ) as response:
+            self.assertEqual(response.status, 409)
+        async with self.request(
+            "/app/api/subscription/test-checkout", product="viewer_plus",
+        ) as response:
+            active_viewer = (await response.json())["order_id"]
+        async with self.request(
+            "/app/api/subscription/test-checkout", product="streamer_plus",
+        ) as response:
+            active_streamer = (await response.json())["order_id"]
+        for order_id in (active_viewer, active_streamer):
+            async with self.request(
+                "/app/api/subscription/test-confirm", order_id=order_id,
+            ) as response:
+                self.assertEqual(response.status, 200)
+        async with self.request(
+            "/app/api/subscription/test-refund", actor=202,
+            order_id=active_viewer,
+        ) as response:
+            self.assertEqual(response.status, 403)
+        async with self.request(
+            "/app/api/subscription/test-refund", order_id=active_viewer,
+        ) as response:
+            self.assertEqual(response.status, 200)
+>       self.assertFalse(await self.db.has_viewer_plus(101))
+E       AssertionError: True is not false
+
+tests\test_mini_app_subscription.py:236: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_subscription.py::MiniAppSubscriptionTests::test_wrong_user_cancel_refund_and_products_remain_separate
+1 failed, 129 passed, 43 subtests passed in 132.98s (0:02:12)

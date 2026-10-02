@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P03 PASS, далее P04
+## Текущий checkpoint — 02.10.2026: P04 PASS, далее P05
+
+P03 commit `4be57d4`; P04 effective Viewer от frozen buyer Streamer, общий SQL/media gate и непрерывный срок; независимый Viewer сохраняется. RED→PASS130tests/43subtests, два соединения/CAS, revoke-before-edit, animation→photo expiry; scoped review. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P04-INHERITANCE.md`. Legacy unbound/чужие users/placement не получают права. UI прежний; следующий P05 fake Platega adapter. Production/staging/money/outbound не менялись; native NOT TESTED.
+
+## Предыдущий checkpoint — 02.10.2026: P03 PASS, далее P04
 
 P02 commit `e962a0b`; P03 server catalog15000/30000 RUB, frozen products/features/role offers, one_month/unapproved, XTRNone, noauto. Signed catalog API readable, client overrides400/auth401/403; every money method disabled; orders/grants0. RED10→PASS25tests/22subtests, scoped review. Evidence `P03-CATALOG.md`; следующий P04 effective inheritance/all SQL/media gates. UI пока прежний. Staging/production/payments/outbound не менялись; native NOT TESTED, bank NOT READY.
 

@@ -22,7 +22,7 @@ class RedesignFixtureTests(unittest.IsolatedAsyncioTestCase):
     async def test_fixture_supports_required_scenarios_and_never_calls_external_sender(self):
         cases = (
             ("free-empty", 0, False), ("free-six", 6, False),
-            ("plus-two-hundred", 200, True), ("streamer-plus", 6, False),
+            ("plus-two-hundred", 200, True), ("streamer-plus", 6, True),
             ("independent-viewer", 6, True), ("legacy-group", 6, False),
             ("channel-permissions", 6, False), ("payment-off", 6, False),
             ("legal-unready", 6, False),

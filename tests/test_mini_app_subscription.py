@@ -233,12 +233,19 @@ class MiniAppSubscriptionTests(unittest.IsolatedAsyncioTestCase):
             "/app/api/subscription/test-refund", order_id=active_viewer,
         ) as response:
             self.assertEqual(response.status, 200)
-        self.assertFalse(await self.db.has_viewer_plus(101))
+        self.assertIsNone(await self.db.get_current_plus_grant(101, "viewer_plus"))
+        self.assertTrue(await self.db.has_viewer_plus(101))
         self.assertTrue(await self.db.has_streamer_plus(101))
         async with self.request("/app/api/subscription/state") as response:
             state = await response.json()
             self.assertEqual(state["history"][0]["status"], "paid")
             self.assertEqual(state["history"][1]["status"], "refunded")
+            self.assertTrue(state["viewer"]["active"])
+            self.assertEqual({item["product_id"] for item in state["viewer"]["sources"]}, {"streamer_plus"})
+        async with self.request("/app/api/subscription/test-refund", order_id=active_streamer) as response:
+            self.assertEqual(response.status, 200)
+        self.assertFalse(await self.db.has_viewer_plus(101))
+        self.assertFalse(await self.db.has_streamer_plus(101))
 
     async def test_expired_grant_does_not_look_active(self):
         now = time.time()

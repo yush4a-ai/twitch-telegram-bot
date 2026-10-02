@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 
 from .database import Database
+from .entitlements import effective_viewer_predicate
 
 
 RETENTION_SECONDS = 30 * 86400
@@ -52,10 +53,7 @@ async def record_job_outcome(
         "INSERT OR IGNORE INTO viewer_event_history "
         "(telegram_user_id,event_key,kind,twitch_login,logical_stream_id,"
         "category_name,outcome,happened_at) "
-        "SELECT ?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM entitlement_grants g "
-        "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(? AS TEXT) "
-        "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-        "AND g.starts_at<=? AND g.expires_at>?)",
+        "SELECT ?,?,?,?,?,?,?,? WHERE " + effective_viewer_predicate("?", "?"),
         (user_id, f"job:{job_id}", kind, login, stream_id,
          category_name, outcome, now, user_id, now, now),
     )
@@ -82,10 +80,7 @@ class ViewerHistoryService:
             "SELECT id,kind,twitch_login,logical_stream_id,category_name,"
             "outcome,happened_at FROM viewer_event_history "
             "WHERE telegram_user_id=? AND happened_at>=? AND (? IS NULL OR id<?) "
-            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
-            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(? AS TEXT) "
-            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-            "AND g.starts_at<=? AND g.expires_at>?) "
+            "AND " + effective_viewer_predicate("?", "?") + " "
             "ORDER BY id DESC LIMIT ?",
             (user_id, now - RETENTION_SECONDS, before_id, before_id,
              user_id, now, now, limit + 1),
@@ -116,10 +111,7 @@ class ViewerHistoryService:
                 "SELECT ?,?,'go_live',?,?,NULL,'sent',? FROM tracked_channels "
                 "WHERE chat_id=? AND twitch_login=? AND is_live=1 "
                 "AND last_stream_id=? AND last_message_id=? "
-                "AND EXISTS (SELECT 1 FROM entitlement_grants g "
-                "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(? AS TEXT) "
-                "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-                "AND g.starts_at<=? AND g.expires_at>?)",
+                "AND " + effective_viewer_predicate("?", "?"),
                 (user_id, f"direct:{user_id}:{message_id}", login.lower(),
                  stream_id, now, user_id, login.lower(), stream_id, message_id,
                  user_id, now, now),

@@ -69,7 +69,9 @@ class ViewerBillingProductTests(unittest.IsolatedAsyncioTestCase):
         )
         body, headers = self.signed(viewer.order_id, "viewer-refunded", "refunded", "viewer-pay", now=121)
         self.assertEqual(await self.service.handle_webhook(body, headers, now=121), "refunded")
-        self.assertFalse(await self.db.has_viewer_plus(101, now=122))
+        # The refunded Viewer product is gone; the other product still includes Viewer.
+        self.assertIsNone(await self.db.get_current_plus_grant(101, "viewer_plus", now=122))
+        self.assertTrue(await self.db.has_viewer_plus(101, now=122))
         self.assertTrue(await self.db.has_streamer_plus(101, now=122))
         self.assertEqual((await self.db.get_billing_order(streamer.order_id)).status, "paid")
 

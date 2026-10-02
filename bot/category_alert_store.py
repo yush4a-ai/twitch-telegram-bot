@@ -13,6 +13,7 @@ from .category_alerts import (
     validate_observation,
 )
 from .database import Database
+from .entitlements import effective_viewer_predicate
 from .deep_links import TWITCH_LOGIN_RE
 from .viewer_filter import matches_viewer_filter
 
@@ -252,10 +253,7 @@ class CategoryAlertStore:
             "AND p.twitch_login=t.twitch_login AND p.enabled=1 "
             "WHERE t.chat_id>0 AND t.last_broadcaster_id=? "
             "AND t.last_stream_id=? AND t.is_live=1 AND t.notify_enabled=1 "
-            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
-            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(t.chat_id AS TEXT) "
-            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-            "AND g.starts_at<=? AND g.expires_at>?)",
+            "AND " + effective_viewer_predicate("t.chat_id", "?"),
             (transition.broadcaster_id, transition.logical_stream_id, now, now),
         )
         recipients = await cursor.fetchall()

@@ -14,6 +14,7 @@ from .database import Database
 from .mini_app_auth import verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
 from .plan_catalog import catalog_payload
+from .entitlements import resolve_effective_viewer
 
 
 def install_mini_app_billing_routes(
@@ -52,6 +53,7 @@ def install_mini_app_billing_routes(
         now = time.time()
         identity = await db.get_streamer_identity(user_id)
         viewer = await db.get_current_plus_grant(user_id, "viewer_plus", now=now)
+        effective_viewer = await resolve_effective_viewer(db, user_id, now=now)
         trial_status = await trial.status(user_id, now=now)
         streamer = await db.get_current_plus_grant(user_id, "streamer_plus", now=now)
         orders = await db.list_billing_orders_for_user(user_id)
@@ -64,10 +66,13 @@ def install_mini_app_billing_routes(
             return order.status
 
         return web.json_response({
-            "viewer": {"active": viewer is not None,
-                       "expires_at": viewer[1] if viewer else None,
-                       "source": viewer[0] if viewer else None,
-                       "test_trial_available": allowed(user_id) and not trial_status.used and viewer is None,
+            "viewer": {"active": effective_viewer.active,
+                       "expires_at": effective_viewer.expires_at,
+                       "source": viewer[0] if viewer else ("streamer_plus" if effective_viewer.active else None),
+                       "sources": [{"grant_id": s.grant_id, "product_id": s.product_id,
+                                    "starts_at": s.starts_at, "expires_at": s.expires_at}
+                                   for s in effective_viewer.sources],
+                       "test_trial_available": allowed(user_id) and not trial_status.used and not effective_viewer.active,
                        "test_trial_used": allowed(user_id) and trial_status.used,
                        "test_trial_active": allowed(user_id) and trial_status.active,
                        "test_trial_expires_at": trial_status.expires_at if allowed(user_id) else None},

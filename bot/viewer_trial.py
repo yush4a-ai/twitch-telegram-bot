@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 
 from .database import Database
+from .entitlements import effective_viewer_predicate
 
 
 DAY = 86400
@@ -72,10 +73,8 @@ class ViewerTrialService:
                     await self._db.conn.commit()
                     return TrialStart(existing[0], False)
                 cursor = await self._db.conn.execute(
-                    "SELECT 1 FROM entitlement_grants WHERE subject_kind='viewer' "
-                    "AND subject_id=? AND plan='viewer_plus' AND revoked_at IS NULL "
-                    "AND starts_at<=? AND expires_at>? LIMIT 1",
-                    (str(user_id), now, now),
+                    "SELECT 1 WHERE " + effective_viewer_predicate("?", "?"),
+                    (user_id, now, now),
                 )
                 if await cursor.fetchone() is not None:
                     raise PermissionError("Viewer Plus already active")
@@ -84,10 +83,10 @@ class ViewerTrialService:
                 await self._db.conn.execute(
                     "INSERT INTO entitlement_grants "
                     "(grant_id,request_key,subject_kind,subject_id,plan,source,"
-                    "starts_at,expires_at,issued_by,created_at) "
-                    "VALUES (?,?,'viewer',?,'viewer_plus','test',?,?,?,?)",
+                    "starts_at,expires_at,issued_by,created_at,beneficiary_telegram_user_id) "
+                    "VALUES (?,?,'viewer',?,'viewer_plus','test',?,?,?,?,?)",
                     (grant_id, f"trial:v1:{user_id}", str(user_id), now,
-                     expires_at, user_id, now),
+                     expires_at, user_id, now, user_id),
                 )
                 await self._db.conn.execute(
                     "INSERT INTO entitlement_events "

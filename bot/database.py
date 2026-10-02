@@ -26,6 +26,7 @@ from .streamer_template import StreamerTemplate, validate_streamer_template
 from .viewer_filter import ViewerFilter, validate_viewer_filter
 from .viewer_preferences import VideoSelection, validate_video_choices
 from .plan_catalog import FREE_VIEWER_CHANNEL_LIMIT, VIEWER_PLUS_CHANNEL_LIMIT
+from .entitlements import effective_viewer_predicate, resolve_effective_viewer
 
 if TYPE_CHECKING:
     from .oauth import UserTokenResult
@@ -175,11 +176,9 @@ class PreviewDestinationState:
 # Both products require a current grant and the broadcaster observed for this post.
 _EFFECTIVE_PREVIEW_SQL = (
     "CASE WHEN tc.chat_id>0 THEN EXISTS("
-    "SELECT 1 FROM viewer_video_selections v JOIN entitlement_grants g "
-    "ON g.subject_kind='viewer' AND g.subject_id=CAST(v.telegram_user_id AS TEXT) "
-    "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-    "AND g.starts_at<=?1 AND g.expires_at>?2 "
+    "SELECT 1 FROM viewer_video_selections v "
     "WHERE v.telegram_user_id=tc.chat_id AND v.twitch_login=tc.twitch_login "
+    "AND " + effective_viewer_predicate("v.telegram_user_id", "?1") + " "
     "AND v.broadcaster_id=tc.last_broadcaster_id "
     "AND tc.twitch_login IN (SELECT x.twitch_login FROM tracked_channels x "
     "LEFT JOIN viewer_plan_priority p ON p.telegram_user_id=x.chat_id "
@@ -1284,13 +1283,9 @@ class Database:
         if type(telegram_user_id) is not int or telegram_user_id <= 0:
             return False
         at = time.time() if now is None else now
-        cursor = await self.conn.execute(
-            "SELECT 1 FROM entitlement_grants WHERE subject_kind='viewer' "
-            "AND subject_id=? AND plan='viewer_plus' AND revoked_at IS NULL "
-            "AND starts_at <= ? AND expires_at > ? LIMIT 1",
-            (str(telegram_user_id), at, at),
-        )
-        return await cursor.fetchone() is not None
+        if type(at) not in (int, float) or not math.isfinite(at):
+            return False
+        return (await resolve_effective_viewer(self, telegram_user_id, now=at)).active
 
     async def get_video_selection(
         self, telegram_user_id: int, *, now: float | None = None,
@@ -1401,10 +1396,10 @@ class Database:
         await self.conn.execute(
             "INSERT INTO entitlement_grants "
             "(grant_id,request_key,subject_kind,subject_id,plan,source,"
-            "starts_at,expires_at,issued_by,created_at) "
-            "VALUES (?,?,'viewer',?,'viewer_plus','test',?,?,?,?)",
+            "starts_at,expires_at,issued_by,created_at,beneficiary_telegram_user_id) "
+            "VALUES (?,?,'viewer',?,'viewer_plus','test',?,?,?,?,?)",
             (grant_id, request_key, str(telegram_user_id), starts_at,
-             expires_at, issued_by, at),
+             expires_at, issued_by, at, telegram_user_id),
         )
         await self.conn.execute(
             "INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) "
@@ -1573,10 +1568,7 @@ class Database:
             "DELETE FROM viewer_alert_filters WHERE telegram_user_id=? "
             "AND twitch_login=? AND version=? AND EXISTS "
             "(SELECT 1 FROM tracked_channels WHERE chat_id=? AND twitch_login=?) "
-            "AND EXISTS (SELECT 1 FROM entitlement_grants g "
-            "WHERE g.subject_kind='viewer' AND g.subject_id=CAST(? AS TEXT) "
-            "AND g.plan='viewer_plus' AND g.revoked_at IS NULL "
-            "AND g.starts_at<=? AND g.expires_at>?)",
+            "AND " + effective_viewer_predicate("?", "?"),
             (telegram_user_id, twitch_login.lower(), expected_version,
              telegram_user_id, twitch_login.lower(), telegram_user_id, at, at),
         )
@@ -1799,11 +1791,11 @@ class Database:
                 await self.conn.execute(
                     "INSERT INTO entitlement_grants "
                     "(grant_id,request_key,subject_kind,subject_id,plan,source,"
-                    "starts_at,expires_at,issued_by,created_at) "
-                    "VALUES (?,?,?,?,?,'mock',?,?,0,?)",
+                    "starts_at,expires_at,issued_by,created_at,beneficiary_telegram_user_id) "
+                    "VALUES (?,?,?,?,?,'mock',?,?,0,?,?)",
                     (grant_id, "mock-order:" + order.order_id,
                      order.subject_kind, order.subject_id, order.plan,
-                     now, now + order.duration_seconds, now),
+                     now, now + order.duration_seconds, now, order.beneficiary_telegram_user_id),
                 )
                 await self.conn.execute(
                     "INSERT INTO entitlement_events "
@@ -2269,6 +2261,7 @@ class Database:
     async def issue_test_streamer_plus(
         self, broadcaster_id: str, request_key: str, *, starts_at: float,
         expires_at: float, issued_by: int, now: float | None = None,
+        beneficiary_telegram_user_id: int | None = None,
     ) -> str:
         if not isinstance(request_key, str) or not 1 <= len(request_key) <= 128 or not request_key.isascii():
             raise ValueError("invalid request key")
@@ -2279,13 +2272,23 @@ class Database:
         created_at = time.time() if now is None else now
         if not isinstance(created_at, (int, float)) or not math.isfinite(created_at):
             raise ValueError("invalid creation time")
+        if beneficiary_telegram_user_id is not None:
+            if type(beneficiary_telegram_user_id) is not int or beneficiary_telegram_user_id <= 0:
+                raise ValueError("invalid beneficiary")
+            cursor = await self.conn.execute(
+                "SELECT telegram_user_id FROM streamer_identities WHERE broadcaster_id=?",
+                (broadcaster_id,),
+            )
+            identity = await cursor.fetchone()
+            if identity is None or identity[0] != beneficiary_telegram_user_id:
+                raise PermissionError("beneficiary must be the verified Telegram buyer")
         cursor = await self.conn.execute(
-            "SELECT grant_id, subject_id, starts_at, expires_at, issued_by "
+            "SELECT grant_id, subject_id, starts_at, expires_at, issued_by,beneficiary_telegram_user_id "
             "FROM entitlement_grants WHERE request_key = ?", (request_key,),
         )
         existing = await cursor.fetchone()
         if existing:
-            if existing[1:] != (broadcaster_id, starts_at, expires_at, issued_by):
+            if existing[1:] != (broadcaster_id, starts_at, expires_at, issued_by, beneficiary_telegram_user_id):
                 raise ValueError("idempotency key conflicts with existing grant")
             return existing[0]
         cursor = await self.conn.execute(
@@ -2297,9 +2300,10 @@ class Database:
         await self.conn.execute(
             "INSERT INTO entitlement_grants "
             "(grant_id, request_key, subject_kind, subject_id, plan, source, "
-            "starts_at, expires_at, issued_by, created_at) "
-            "VALUES (?, ?, 'streamer', ?, 'streamer_plus', 'test', ?, ?, ?, ?)",
-            (grant_id, request_key, broadcaster_id, starts_at, expires_at, issued_by, created_at),
+            "starts_at, expires_at, issued_by, created_at,beneficiary_telegram_user_id) "
+            "VALUES (?, ?, 'streamer', ?, 'streamer_plus', 'test', ?, ?, ?, ?, ?)",
+            (grant_id, request_key, broadcaster_id, starts_at, expires_at, issued_by, created_at,
+             beneficiary_telegram_user_id),
         )
         await self.conn.execute(
             "INSERT INTO entitlement_events(grant_id, action, actor_telegram_id, happened_at) "
@@ -3358,9 +3362,13 @@ class Database:
         rows = await cursor.fetchall()
         at = time.time()
         grants = await self.conn.execute(
-            "SELECT DISTINCT subject_id FROM entitlement_grants "
-            "WHERE subject_kind='viewer' AND plan='viewer_plus' AND revoked_at IS NULL "
-            "AND starts_at<=? AND expires_at>?",
+            "SELECT DISTINCT candidates.user_id FROM "
+            "(SELECT CAST(subject_id AS INTEGER) AS user_id FROM entitlement_grants "
+            "WHERE subject_kind='viewer' AND plan='viewer_plus' "
+            "UNION SELECT beneficiary_telegram_user_id FROM entitlement_grants "
+            "WHERE subject_kind='streamer' AND plan='streamer_plus' "
+            "AND beneficiary_telegram_user_id IS NOT NULL) candidates WHERE "
+            + effective_viewer_predicate("candidates.user_id", "?"),
             (at, at),
         )
         plus_users = {int(row[0]) for row in await grants.fetchall() if str(row[0]).isdecimal()}

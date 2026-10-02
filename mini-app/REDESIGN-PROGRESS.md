@@ -9,7 +9,7 @@
 |---|---|
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
-| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02/P03 PASS; P04 начинается |
+| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P04 PASS; далее P05 |
 | P08–P12 — темы, shell и Viewer | Ожидают P07 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
@@ -41,3 +41,7 @@ BASE `ac37c8c` → отдельный migration commit. PASS28tests/5subtests; `
 ## P03 complete
 
 BASE `e962a0b` → catalog commit. RED10 → PASS25tests/22subtests; `P03-CATALOG.md`. Каталог150/300, все методы недоступны для денег; следующий P04.
+
+## P04 complete
+
+BASE `4be57d4` → inheritance commit. RED → PASS130tests/43subtests; `P04-INHERITANCE.md`. Frozen buyer/общие SQL/media gates/непрерывный срок; scoped security/data/media review. Два старых refund assertions уточнены с проверкой конкретного продукта, по прямому решению владельца. Следующий P05.
