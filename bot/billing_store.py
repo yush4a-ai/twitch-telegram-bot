@@ -6,10 +6,21 @@ import re
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
-from .billing_models import PaymentAttempt, ServerOrderSnapshot
+from .billing_models import NoticeReceipt, PaymentAttempt, ServerOrderSnapshot
+from .billing_provider import ProviderNotice
 
 
 _KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+
+
+class PaymentInProgress(Exception):
+    def __init__(self, order_id):
+        super().__init__("another payment is unresolved")
+        self.order_id = order_id
+
+
+class PaymentAlreadyActive(Exception):
+    pass
 
 
 class BillingStore:
@@ -31,7 +42,8 @@ class BillingStore:
                 raise
 
     async def create_order(self, snapshot: ServerOrderSnapshot, request_key: str,
-                           attempt: PaymentAttempt, *, duration_seconds: int = 0):
+                           attempt: PaymentAttempt, *, duration_seconds: int = 0,
+                           enforce_payment_guard: bool = False):
         """Persist server-owned order/attempt before transport. No network or grant."""
         if not isinstance(snapshot, ServerOrderSnapshot) or not isinstance(attempt, PaymentAttempt):
             raise ValueError("server snapshot and attempt required")
@@ -79,6 +91,15 @@ class BillingStore:
                     snapshot.money.currency, product_json, snapshot.terms_version, duration_seconds):
                     raise ValueError("payment request key conflicts with frozen order")
                 return existing
+            active = await (await conn.execute(
+                "SELECT order_id FROM billing_orders WHERE telegram_user_id=? "
+                "AND provider IN ('platega','telegram_stars') AND financial_status IN ('pending','manual_review') LIMIT 1",
+                (snapshot.telegram_user_id,),
+            )).fetchone()
+            if active is not None:
+                raise PaymentInProgress(active[0])
+            if enforce_payment_guard and await self.db.has_viewer_plus(snapshot.telegram_user_id, now=snapshot.created_at):
+                raise PaymentAlreadyActive("effective Viewer access already active")
             await conn.execute(
                 "INSERT INTO billing_orders(order_id,request_key,telegram_user_id,subject_kind,subject_id,broadcaster_id,"
                 "plan,provider,status,units,currency,duration_seconds,created_at,checkout_expires_at,beneficiary_telegram_user_id,"
@@ -104,3 +125,25 @@ class BillingStore:
             "FROM billing_payment_attempts WHERE attempt_id=?", (attempt_id,),
         )).fetchone()
         return PaymentAttempt(*row) if row else None
+
+    async def accept_notice(self, notice: ProviderNotice, digest: str, *, now: float) -> NoticeReceipt:
+        async with self.transaction() as conn:
+            existing = await (await conn.execute(
+                "SELECT transaction_id,raw_status,payload_digest FROM billing_provider_inbox WHERE provider=? AND event_key=?",
+                (notice.provider, notice.event_key),
+            )).fetchone()
+            if existing is not None:
+                if existing != (notice.transaction_id, notice.raw_status, digest):
+                    raise ValueError("provider notice conflicts with durable event")
+                return NoticeReceipt(True, True, notice.event_key)
+            count = (await (await conn.execute(
+                "SELECT count(*) FROM billing_provider_inbox WHERE provider=? AND state<>'done'", (notice.provider,),
+            )).fetchone())[0]
+            if count >= 4096:
+                raise OverflowError("provider inbox capacity reached")
+            await conn.execute(
+                "INSERT INTO billing_provider_inbox(provider,event_key,transaction_id,raw_status,payload_digest,received_at,state,next_reconcile_at) "
+                "VALUES (?,?,?,?,?,?,'pending',?)",
+                (notice.provider, notice.event_key, notice.transaction_id, notice.raw_status, digest, now, now),
+            )
+            return NoticeReceipt(True, False, notice.event_key)

@@ -18,6 +18,7 @@ from .streamer_auth import StreamerAccess
 from .streamer_web import install_streamer_routes
 from .viewer_web import install_viewer_routes
 from .mini_app_web import install_mini_app_routes
+from .payment_web import install_payment_routes
 from .growth_site import install_growth_site
 from .database import Database
 
@@ -251,6 +252,8 @@ class OAuthCallbackServer:
 
     async def start(self) -> None:
         app = web.Application()
+        # No monetary provider or callback is enabled for this first release.
+        install_payment_routes(app)
         app.router.add_get(REDIRECT_PATH, self._handle_callback)
         app.router.add_get(HEALTH_PATH, self._handle_health)
         if self._admin_access is not None:

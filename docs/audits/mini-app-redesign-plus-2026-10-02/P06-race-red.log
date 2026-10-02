@@ -1,0 +1,50 @@
+F.                                                                       [100%]
+================================== FAILURES ===================================
+_ PaymentLifecycleV3Tests.test_two_connections_different_keys_have_one_create_and_reload_keeps_hosted_link _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_two_connections_different_keys_have_one_create_and_reload_keeps_hosted_link>
+
+    async def test_two_connections_different_keys_have_one_create_and_reload_keeps_hosted_link(self):
+        other = Database(str(self.path)); await other.connect(); self.addAsyncCleanup(other.close)
+        second = self.make_service(other)
+>       results = await asyncio.gather(
+            self.service.prepare_payment(101, "streamer_plus", "sbp", "first-key", now=100),
+            second.prepare_payment(101, "streamer_plus", "bank_card", "second-key", now=100))
+
+tests\test_payment_lifecycle_v3.py:222:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\billing.py:133: in prepare_payment
+    await conn.execute(
+.venv\Lib\site-packages\aiosqlite\core.py:223: in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x0000020B4E9529D0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+
+            future, function = tx.get()
+
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.IntegrityError: UNIQUE constraint failed: billing_payment_attempts.provider, billing_payment_attempts.provider_reference
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: IntegrityError
+=========================== short test summary info ===========================
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_two_connections_different_keys_have_one_create_and_reload_keeps_hosted_link
+1 failed, 1 passed in 2.10s

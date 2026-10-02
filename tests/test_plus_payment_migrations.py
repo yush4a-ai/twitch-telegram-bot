@@ -104,7 +104,7 @@ class PlusPaymentMigrationTests(unittest.IsolatedAsyncioTestCase):
         await db.close()
         second = await self.connect()
         versions = await second.schema_versions()
-        for version in ("r11_001_plus_payment_orders", "r11_002_plus_payment_events", "r11_003_entitlement_beneficiary"):
+        for version in ("r11_001_plus_payment_orders", "r11_002_plus_payment_events", "r11_003_entitlement_beneficiary", "r11_004_payment_reconciliation"):
             self.assertEqual(versions.count(version), 1)
         self.assertEqual((await (await second.conn.execute("SELECT count(*) FROM entitlement_grants")).fetchone())[0], 4)
         with self.assertRaises(sqlite3.IntegrityError):

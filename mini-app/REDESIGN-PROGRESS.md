@@ -9,7 +9,7 @@
 |---|---|
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
-| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P05 PASS; далее P06 |
+| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02–P06 PASS; далее P07 |
 | P08–P12 — темы, shell и Viewer | Ожидают P07 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
@@ -49,3 +49,7 @@ BASE `4be57d4` → inheritance commit. RED → PASS130tests/43subtests; `P04-INH
 ## P05 complete
 
 BASE `8474eb8` → provider commit. RED→PASS32tests/57subtests; `P05-PROVIDER.md`, 13/13 официальных SHA совпали. Только network-free injected transport, реальные transport/routes не включены. Card canonical enum и metadata/merchant admission не выдуманы; live запрещён. Scoped provider/security review выполнен. Следующий P06.
+
+## P06 complete
+
+BASE `93461aa` → lifecycle commit. RED→PASS72tests/57subtests; `P06-LEDGER.md`. Durable inbox/attempt, общий apply, frozen права, monotonic facts, refund/reopen, cross-key guard и shared lease concurrency1 проверены. Четвёртая миграция той же БД; runtime/callback OFF. Scoped ledger/security review; следующий P07 Stars с fake sender.

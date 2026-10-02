@@ -15,6 +15,7 @@ ORDER_COLUMNS = {
     "access_starts_at": "REAL",
     "access_expires_at": "REAL",
     "product_snapshot_json": "TEXT",
+    "checkout_url": "TEXT",
 }
 
 
@@ -100,3 +101,31 @@ async def migrate_plus_payments(conn, *, now: float) -> None:
             "WHEN OLD.beneficiary_telegram_user_id IS NOT NULL AND NEW.beneficiary_telegram_user_id IS NOT OLD.beneficiary_telegram_user_id "
             "BEGIN SELECT RAISE(ABORT,'frozen beneficiary'); END"
         )
+    cursor = await conn.execute("SELECT 1 FROM schema_migrations WHERE version='r11_004_payment_reconciliation'")
+    if await cursor.fetchone() is None:
+        order_columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(billing_orders)")).fetchall()}
+        if "checkout_url" not in order_columns:
+            await conn.execute("ALTER TABLE billing_orders ADD COLUMN checkout_url TEXT")
+        for name, definition in {
+            "next_reconcile_at": "REAL",
+            "reconcile_count": "INTEGER NOT NULL DEFAULT 0 CHECK(reconcile_count>=0)",
+            "lease_until": "REAL",
+        }.items():
+            await conn.execute(f"ALTER TABLE billing_provider_inbox ADD COLUMN {name} {definition}")
+        await conn.execute("CREATE INDEX idx_payment_inbox_due ON billing_provider_inbox(provider,state,next_reconcile_at,lease_until)")
+        await conn.execute(
+            "CREATE UNIQUE INDEX idx_payment_buyer_active ON billing_orders(telegram_user_id) "
+            "WHERE provider IN ('platega','telegram_stars') AND financial_status IN ('pending','manual_review')"
+        )
+        await conn.execute(
+            "CREATE UNIQUE INDEX idx_payment_refund_active ON billing_payment_refunds(order_id) "
+            "WHERE state IN ('requesting','unknown','accepted','manual_control_required')"
+        )
+        await conn.execute(
+            "CREATE TABLE billing_provider_quarantine(provider TEXT NOT NULL,transaction_id TEXT NOT NULL,"
+            "payload_digest TEXT NOT NULL,order_hint TEXT NOT NULL,raw_status TEXT NOT NULL,"
+            "amount_minor INTEGER NOT NULL,currency TEXT NOT NULL,method TEXT NOT NULL,observed_at REAL NOT NULL,"
+            "PRIMARY KEY(provider,transaction_id,payload_digest)) WITHOUT ROWID"
+        )
+        await conn.execute("CREATE TABLE billing_worker_lease(provider TEXT PRIMARY KEY,owner TEXT,lease_until REAL) WITHOUT ROWID")
+        await conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES ('r11_004_payment_reconciliation',?)", (now,))

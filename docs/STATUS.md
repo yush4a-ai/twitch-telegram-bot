@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P05 PASS, далее P06
+## Текущий checkpoint — 02.10.2026: P06 PASS, далее P07
+
+P05 commit `93461aa`; P06 durable lifecycle RED→PASS72tests/57subtests на последнем коде. Evidence `P06-LEDGER.md`/`P06-pass.log`; scoped ledger/security review. Inbox до ACK, attempt до POST, один grant/срок, frozen buyer, monotonic facts, refunds, две DB/cross-key guard/shared worker lease/cancellation проверены. Та же БД, новая миграция r11_004. Настоящий месяц/terms не утверждены; runtime payment OFF, callback404, локальный контракт только fake. Следующий P07 Stars; UI ещё прежний. Staging/production/outbound не менялись, native NOT TESTED.
+
+## Предыдущий checkpoint — 02.10.2026: P05 PASS, далее P06
 
 P04 commit `8474eb8`; P05 strict Platega contract только network-free transport; 13/13 актуальных official SHA совпали. RED→PASS32tests/57subtests, safe URL/Decimal/auth/unknown POST/refund/429 проверены; старый mock сохранён. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P05-PROVIDER.md`. Card GET enum требует подтверждения, guessed default отсутствует. Нет live transport/credentials/money/Railway/Telegram операций. Следующий P06 durable lifecycle; UI ещё прежний.
 

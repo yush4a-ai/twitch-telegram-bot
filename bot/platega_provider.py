@@ -89,6 +89,10 @@ def _money(amount: object, currency: object) -> Money:
 class PlategaProvider:
     provider_id = "platega"
 
+    @property
+    def network_free(self):
+        return getattr(self._transport, "network_free", False) is True
+
     def __init__(self, transport: ProviderTransport, merchant_id: str, secret: str, *,
                  hosted_hosts: frozenset[str], runtime_policy: BillingRuntimePolicy,
                  buyer_names: Mapping[int, str] | None = None,
@@ -252,7 +256,9 @@ class PlategaProvider:
                 raise PaymentVerificationError("invalid checkout expiry")
             return CheckoutSession(snapshot.order_id, reference, url, "pending",
                 min(snapshot.checkout_expires_at, snapshot.created_at + duration))
-        except (Exception, asyncio.CancelledError):
+        except asyncio.CancelledError:
+            raise
+        except Exception:
             raise PaymentCreationUnknown("creation outcome unknown; do not repeat POST") from None
 
     async def get_payment_status(self, reference: str, *, now: float | None = None) -> VerifiedPaymentEvidence:
@@ -331,7 +337,9 @@ class PlategaProvider:
                 state = ("manual_control_required" if values["manualControlRequired"]
                          else "accepted" if values["accepted"] else "declined")
                 result = RefundOutcome(state, reference)
-            except (Exception, asyncio.CancelledError):
+            except asyncio.CancelledError:
+                raise
+            except Exception:
                 result = RefundOutcome("unknown", reference)
         self._refunds[key] = result
         return result

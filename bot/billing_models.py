@@ -7,6 +7,46 @@ from typing import Literal
 
 
 @dataclass(frozen=True)
+class AccessPeriodPolicy:
+    rule: str
+    version: str
+
+    def __post_init__(self):
+        if self.rule not in {"30_days", "calendar_month"} or not isinstance(self.version, str) or not 1 <= len(self.version) <= 128:
+            raise ValueError("invalid approved access period")
+
+
+@dataclass(frozen=True)
+class CheckoutResult:
+    state: str
+    order_id: str | None = None
+    hosted_url: str | None = None
+    reason_code: str | None = None
+
+
+@dataclass(frozen=True)
+class ApplyResult:
+    state: str
+    order_id: str
+    grant_id: str | None = None
+
+
+@dataclass(frozen=True)
+class NoticeReceipt:
+    durable: bool
+    duplicate: bool
+    event_key: str
+
+
+@dataclass(frozen=True)
+class ReconcileSummary:
+    attempted: int = 0
+    deferred: int = 0
+    applied: int = 0
+    manual_review: int = 0
+
+
+@dataclass(frozen=True)
 class BillingSubject:
     kind: Literal["viewer", "streamer"]
     subject_id: str
@@ -111,6 +151,7 @@ class BillingOrder:
     access_starts_at: float | None = None
     access_expires_at: float | None = None
     product_snapshot_json: str | None = None
+    checkout_url: str | None = None
 
     @property
     def subject(self) -> BillingSubject:

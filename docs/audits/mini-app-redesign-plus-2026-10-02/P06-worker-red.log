@@ -1,0 +1,126 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ PaymentLifecycleV3Tests.test_tick_is_limited_to_ten_and_shared_worker_lease_blocks_second_connection _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_tick_is_limited_to_ten_and_shared_worker_lease_blocks_second_connection>
+
+    async def test_tick_is_limited_to_ten_and_shared_worker_lease_blocks_second_connection(self):
+        for index in range(11):
+            self.provider.transaction_id = f"{index+3:08x}-2222-4222-8222-222222222222"
+            result = await self.service.prepare_payment(202+index, "viewer_plus", "sbp", f"batch-{index}", now=100)
+            self.assertEqual(result.state, "pending")
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def before_get():
+            entered.set(); await release.wait()
+        self.provider.before_get = before_get
+        other = Database(str(self.path)); await other.connect(); self.addAsyncCleanup(other.close)
+        second = self.make_service(other)
+        first = asyncio.create_task(self.service.reconcile_due(now=101, limit=10))
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        blocked = await second.reconcile_due(now=101, limit=10)
+>       self.assertEqual((blocked.attempted, blocked.deferred), (0, 1))
+E       AssertionError: Tuples differ: (5, 5) != (0, 1)
+E
+E       First differing element 0:
+E       5
+E       0
+E
+E       - (5, 5)
+E       + (0, 1)
+
+tests\test_payment_lifecycle_v3.py:275: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    asyncio:base_events.py:1833 unhandled exception during asyncio.run() shutdown
+task: <Task finished name='Task-3' coro=<BillingService.reconcile_due() done, defined at C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing.py:306> exception=AssertionError('Database.connect() ��� �� ������') created at C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py:420>
+Traceback (most recent call last):
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing_reconciliation.py", line 94, in reconcile_due
+    evidence = await asyncio.wait_for(self.service._provider.get_payment_status(claim[1]), timeout=5)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\tests\test_payment_lifecycle_v3.py", line 55, in get_payment_status
+    await self.before_get()
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\tests\test_payment_lifecycle_v3.py", line 268, in before_get
+    entered.set(); await release.wait()
+                   ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\locks.py", line 212, in wait
+    await fut
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing.py", line 307, in reconcile_due
+    return await self._reconciler.reconcile_due(now=now, limit=limit)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing_reconciliation.py", line 113, in reconcile_due
+    await asyncio.shield(self._finish(claim, state="pending", now=now))
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing_reconciliation.py", line 71, in _finish
+    async with service._store.transaction() as conn:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\billing_store.py", line 33, in transaction
+    conn = self.db.conn
+           ^^^^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\bot\database.py", line 2460, in conn
+    assert self._conn is not None, "Database.connect() ��� �� ������"
+           ^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Database.connect() ��� �� ������
+_ PaymentLifecycleV3Tests.test_worker_shutdown_leaves_no_lease_or_running_task _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_worker_shutdown_leaves_no_lease_or_running_task>
+
+    async def test_worker_shutdown_leaves_no_lease_or_running_task(self):
+        await self.checkout()
+        entered = asyncio.Event()
+        async def before_get():
+            entered.set(); await asyncio.Event().wait()
+        self.provider.before_get = before_get
+        self.service._reconciler.start(interval=5)
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        await self.service.close()
+        self.assertIsNone(self.service._reconciler._task)
+        attempts = await (await self.db.conn.execute("SELECT state,lease_until FROM billing_payment_attempts")).fetchall()
+        self.assertEqual(attempts, [("pending", None)])
+>       leases = await (await self.db.conn.execute("SELECT owner,lease_until FROM billing_worker_lease")).fetchall()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_payment_lifecycle_v3.py:297:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\aiosqlite\core.py:223: in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x000001D5A7B1DD50>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+
+            future, function = tx.get()
+
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: no such table: billing_worker_lease
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+=========================== short test summary info ===========================
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_tick_is_limited_to_ten_and_shared_worker_lease_blocks_second_connection
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_worker_shutdown_leaves_no_lease_or_running_task
+2 failed in 28.03s

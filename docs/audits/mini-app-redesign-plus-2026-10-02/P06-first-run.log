@@ -1,0 +1,109 @@
+...F.F...................                                       [100%]
+================================== FAILURES ===================================
+_ PaymentLifecycleV3Tests.test_creation_unknown_and_refund_unknown_survive_reopen_without_repeat_post _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_creation_unknown_and_refund_unknown_survive_reopen_without_repeat_post>
+
+    async def test_creation_unknown_and_refund_unknown_survive_reopen_without_repeat_post(self):
+        self.provider.create_error = TimeoutError()
+        result = await self.service.prepare_payment(101, "streamer_plus", "sbp", "unknown", now=100)
+        self.assertEqual(result.state, "creation_unknown")
+        other = Database(str(self.path)); await other.connect(); self.addAsyncCleanup(other.close)
+        second = self.make_service(other)
+        result2 = await second.prepare_payment(101, "streamer_plus", "sbp", "unknown", now=120)
+        self.assertEqual((result2.state, result2.order_id), ("creation_unknown", result.order_id))
+        self.assertEqual(len(self.provider.calls), 1)
+        evidence = self.provider.evidence[TX]
+        await second.apply_payment_evidence(evidence, now=125)
+        self.provider.refund_result = TimeoutError()
+>       self.assertEqual((await second.request_payment_refund(999, result.order_id, "refund-unknown", now=130)).state, "unknown")
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_payment_lifecycle_v3.py:175:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\billing.py:267: in request_payment_refund
+    await conn.execute("INSERT INTO billing_payment_refunds(request_key,order_id,actor_telegram_id,state,provider_reference,requested_at) VALUES (?,?,?,'requesting',?,?)", (request_key, order_id, actor_id, reference, now))
+.venv\Lib\site-packages\aiosqlite\core.py:223: in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x00000275B1330AE0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+
+            future, function = tx.get()
+
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: table billing_payment_refunds has no column named actor_telegram_id
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+_ PaymentLifecycleV3Tests.test_late_confirmed_and_refund_preserve_independent_viewer _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_late_confirmed_and_refund_preserve_independent_viewer>
+
+    async def test_late_confirmed_and_refund_preserve_independent_viewer(self):
+        checkout = await self.checkout()
+        independent = await self.db.issue_test_viewer_plus(101, "independent", starts_at=90,
+            expires_at=4000, issued_by=999, now=90)
+        evidence = self.provider.evidence[TX]
+        result = await self.service.apply_payment_evidence(evidence, now=2000)
+        self.assertEqual(result.state, "applied", "invoice expiry must not lose a verified payment")
+        with self.assertRaises(PermissionError):
+            await self.service.request_payment_refund(101, checkout.order_id, "accepted", now=2100)
+>       self.assertEqual((await self.service.request_payment_refund(999, checkout.order_id, "accepted", now=2100)).state, "accepted")
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_payment_lifecycle_v3.py:151:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\billing.py:267: in request_payment_refund
+    await conn.execute("INSERT INTO billing_payment_refunds(request_key,order_id,actor_telegram_id,state,provider_reference,requested_at) VALUES (?,?,?,'requesting',?,?)", (request_key, order_id, actor_id, reference, now))
+.venv\Lib\site-packages\aiosqlite\core.py:223: in execute
+    cursor = await self._execute(self._conn.execute, sql, parameters)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\aiosqlite\core.py:160: in _execute
+    return await future
+           ^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+tx = <_queue.SimpleQueue object at 0x00000275B13313F0>
+
+    def _connection_worker_thread(tx: _TxQueue):
+        """
+        Execute function calls on a separate thread.
+
+        :meta private:
+        """
+        while True:
+            # Continues running until all queue items are processed,
+            # even after connection is closed (so we can finalize all
+            # futures)
+
+            future, function = tx.get()
+
+            try:
+                LOG.debug("executing %s", function)
+>               result = function()
+                         ^^^^^^^^^^
+E               sqlite3.OperationalError: table billing_payment_refunds has no column named actor_telegram_id
+
+.venv\Lib\site-packages\aiosqlite\core.py:63: OperationalError
+=========================== short test summary info ===========================
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_creation_unknown_and_refund_unknown_survive_reopen_without_repeat_post
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_late_confirmed_and_refund_preserve_independent_viewer
+2 failed, 23 passed, 9 subtests passed in 21.01s

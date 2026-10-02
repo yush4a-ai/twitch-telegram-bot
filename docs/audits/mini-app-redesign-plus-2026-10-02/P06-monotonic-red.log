@@ -1,0 +1,19 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ PaymentLifecycleV3Tests.test_stale_pending_or_canceled_cannot_replace_confirmed_fact _
+
+self = <test_payment_lifecycle_v3.PaymentLifecycleV3Tests testMethod=test_stale_pending_or_canceled_cannot_replace_confirmed_fact>
+
+    async def test_stale_pending_or_canceled_cannot_replace_confirmed_fact(self):
+        await self.checkout()
+        evidence = self.provider.evidence[TX]
+        first = await self.service.apply_payment_evidence(evidence, now=110)
+>       self.assertEqual((await self.service.apply_payment_evidence(replace(evidence, status="pending", raw_status="PENDING"), now=120)).state, "already_applied")
+E       AssertionError: 'pending' != 'already_applied'
+E       - pending
+E       + already_applied
+
+tests\test_payment_lifecycle_v3.py:265: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_payment_lifecycle_v3.py::PaymentLifecycleV3Tests::test_stale_pending_or_canceled_cannot_replace_confirmed_fact
+1 failed in 1.02s

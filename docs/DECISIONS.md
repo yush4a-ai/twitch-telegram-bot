@@ -474,3 +474,10 @@
 - **Основание:** финальный промпт владельца §9 и P04.
 - **Решение:** общий resolver/SQL используют immutable beneficiary, не actor/нынешнего владельца Twitch/участников сообщества. Старые test grants без buyer остаются unbound; конкретные продуктовые grants не копируются. Конец доступа — непрерывная сумма интервалов, без будущего разрыва.
 - **Проверка:** P04 PASS130tests/43subtests, два conn/CAS, media expiry/revoke, сохранение отдельного Viewer. Два старых refund ожидания отражают новую effective семантику с сохранённой проверкой возврата конкретного продукта. Внешние проверки не выполнены.
+
+## D065 — финансовый факт и денежный доступ разделены
+
+- **Основание:** P06 утверждённого плана.
+- **Решение:** durable attempt/inbox, canonical evidence и frozen buyer проходят общий атомарный apply. Unknown create/refund не повторяется автоматически; один unresolved order на buyer и refund на order. Shared provider lease ограничивает сверки между соединениями. Terminal fact не заменяется старым pending; конфликт сохраняется для review.
+- **Граница:** callback404/runtimeOFF первого release; настоящий месяц/terms/refund/XTR не выдумываются. Fixture policy30days не утверждает продажу. Финансовые факты не вытесняются ради лимита.
+- **Проверка:** P06 PASS72tests/57subtests, две DB/rollback/reopen/cancellation/refund/monotonic; `P06-LEDGER.md`. Внешние и native NOT TESTED.
