@@ -9,7 +9,7 @@
 |---|---|
 | Сохранить основу и обязательные поправки плана | Commit `3f4fec5` |
 | P01 — временная БД, сценарии и baseline | PASS: 11 tests/21 subtests, Chromium/WebKit 6 PNG |
-| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02 PASS; P03 начинается |
+| P02–P07 — схема, каталог, наследование, provider/lifecycle | P02/P03 PASS; P04 начинается |
 | P08–P12 — темы, shell и Viewer | Ожидают P07 |
 | P13–P17 — Streamer, Plus, purchase, legal, compatibility | Ожидают P12 |
 | P18–P19 — browser/media, полный suite, review, backup | Ожидают P17 |
@@ -37,3 +37,7 @@ BASE `3f4fec5` → отдельный QA commit; evidence `docs/audits/mini-app-
 ## P02 complete
 
 BASE `ac37c8c` → отдельный migration commit. PASS28tests/5subtests; `P02-MIGRATION.md`. Scoped storage/migration review выполнен, staging DB не менялась. Следующий P03.
+
+## P03 complete
+
+BASE `e962a0b` → catalog commit. RED10 → PASS25tests/22subtests; `P03-CATALOG.md`. Каталог150/300, все методы недоступны для денег; следующий P04.

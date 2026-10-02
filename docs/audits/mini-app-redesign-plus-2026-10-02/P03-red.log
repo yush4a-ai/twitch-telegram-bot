@@ -1,0 +1,130 @@
+FFFFF                                                               [100%]
+================================== FAILURES ===================================
+_ ProductCatalogTests.test_catalog_features_preserve_free_and_exclude_unverified_paid_events _
+
+self = <test_product_catalog.ProductCatalogTests testMethod=test_catalog_features_preserve_free_and_exclude_unverified_paid_events>
+
+    def test_catalog_features_preserve_free_and_exclude_unverified_paid_events(self):
+        catalog = getattr(plan_catalog, "catalog_payload", None)
+>       self.assertTrue(callable(catalog))
+E       AssertionError: False is not true
+
+tests\test_product_catalog.py:51: AssertionError
+_ ProductCatalogTests.test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period _
+
+self = <test_product_catalog.ProductCatalogTests testMethod=test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period>
+
+    def test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period(self):
+        get_product = getattr(plan_catalog, "get_product", None)
+>       self.assertTrue(callable(get_product), "server products are required")
+E       AssertionError: False is not true : server products are required
+
+tests\test_product_catalog.py:16: AssertionError
+_ ProductCatalogTests.test_offline_readiness_never_exposes_enabled_money_even_with_credentials_flags _
+
+self = <test_product_catalog.ProductCatalogTests testMethod=test_offline_readiness_never_exposes_enabled_money_even_with_credentials_flags>
+
+    def test_offline_readiness_never_exposes_enabled_money_even_with_credentials_flags(self):
+        policy_type = getattr(plan_catalog, "BillingRuntimePolicy", None)
+>       self.assertTrue(callable(policy_type))
+E       AssertionError: False is not true
+
+tests\test_product_catalog.py:36: AssertionError
+_ ProductCatalogApiTests.test_authenticated_catalog_has_prices_all_methods_and_no_order_or_grant _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_authenticated_catalog_has_prices_all_methods_and_no_order_or_grant>
+
+    async def test_authenticated_catalog_has_prices_all_methods_and_no_order_or_grant(self):
+        response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501)})
+>       self.assertEqual(response.status, 200)
+E       AssertionError: 404 != 200
+
+tests\test_product_catalog.py:73: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields (extra={'amount': 1}) _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+>               self.assertEqual(response.status, 400)
+E               AssertionError: 404 != 400
+
+tests\test_product_catalog.py:89: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields (extra={'product': 'stars_plus'}) _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+>               self.assertEqual(response.status, 400)
+E               AssertionError: 404 != 400
+
+tests\test_product_catalog.py:89: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields (extra={'method': 'crypto'}) _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+>               self.assertEqual(response.status, 400)
+E               AssertionError: 404 != 400
+
+tests\test_product_catalog.py:89: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields (extra={'user_id': 999}) _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+>               self.assertEqual(response.status, 400)
+E               AssertionError: 404 != 400
+
+tests\test_product_catalog.py:89: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields (extra={'paid': True}) _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+>               self.assertEqual(response.status, 400)
+E               AssertionError: 404 != 400
+
+tests\test_product_catalog.py:89: AssertionError
+_ ProductCatalogApiTests.test_catalog_rejects_client_prices_products_and_identity_fields _
+
+self = <test_product_catalog.ProductCatalogApiTests testMethod=test_catalog_rejects_client_prices_products_and_identity_fields>
+
+    async def test_catalog_rejects_client_prices_products_and_identity_fields(self):
+        for extra in ({"amount": 1}, {"product": "stars_plus"}, {"method": "crypto"}, {"user_id": 999}, {"paid": True}):
+            with self.subTest(extra=extra):
+                response = await self.client.post("/app/api/subscription/catalog", json={"init_data": signed_webapp(501), **extra})
+                self.assertEqual(response.status, 400)
+        response = await self.client.post("/app/api/subscription/catalog", json={})
+>       self.assertEqual(response.status, 401)
+E       AssertionError: 404 != 401
+
+tests\test_product_catalog.py:91: AssertionError
+---------------------------- Captured stdout call -----------------------------
+uuuuu
+=========================== short test summary info ===========================
+FAILED tests/test_product_catalog.py::ProductCatalogTests::test_catalog_features_preserve_free_and_exclude_unverified_paid_events
+FAILED tests/test_product_catalog.py::ProductCatalogTests::test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period
+FAILED tests/test_product_catalog.py::ProductCatalogTests::test_offline_readiness_never_exposes_enabled_money_even_with_credentials_flags
+FAILED tests/test_product_catalog.py::ProductCatalogApiTests::test_authenticated_catalog_has_prices_all_methods_and_no_order_or_grant
+SUBFAILED(extra={'amount': 1}) tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+SUBFAILED(extra={'product': 'stars_plus'}) tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+SUBFAILED(extra={'method': 'crypto'}) tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+SUBFAILED(extra={'user_id': 999}) tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+SUBFAILED(extra={'paid': True}) tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+FAILED tests/test_product_catalog.py::ProductCatalogApiTests::test_catalog_rejects_client_prices_products_and_identity_fields
+10 failed in 4.57s

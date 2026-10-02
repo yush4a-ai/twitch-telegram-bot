@@ -13,6 +13,7 @@ from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
 from .mini_app_auth import verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
+from .plan_catalog import catalog_payload
 
 
 def install_mini_app_billing_routes(
@@ -83,6 +84,14 @@ def install_mini_app_billing_routes(
             "test_checkout_available": allowed(user_id),
             "money_charged": False,
         })
+
+    async def catalog(request: web.Request) -> web.Response:
+        _user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data"}:
+            return web.json_response({"error": "invalid_catalog_request"}, status=400)
+        return web.json_response(catalog_payload())
 
     async def test_checkout(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -193,6 +202,7 @@ def install_mini_app_billing_routes(
         return web.json_response({"status": outcome})
 
     app.router.add_post("/app/api/subscription/state", state)
+    app.router.add_post("/app/api/subscription/catalog", catalog)
     app.router.add_post("/app/api/subscription/test-checkout", test_checkout)
     app.router.add_post("/app/api/subscription/test-trial", test_trial)
     app.router.add_post("/app/api/subscription/test-confirm", test_confirm)

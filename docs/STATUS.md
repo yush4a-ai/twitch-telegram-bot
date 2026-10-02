@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 02.10.2026: P02 PASS, далее P03
+## Текущий checkpoint — 02.10.2026: P03 PASS, далее P04
+
+P02 commit `e962a0b`; P03 server catalog15000/30000 RUB, frozen products/features/role offers, one_month/unapproved, XTRNone, noauto. Signed catalog API readable, client overrides400/auth401/403; every money method disabled; orders/grants0. RED10→PASS25tests/22subtests, scoped review. Evidence `P03-CATALOG.md`; следующий P04 effective inheritance/all SQL/media gates. UI пока прежний. Staging/production/payments/outbound не менялись; native NOT TESTED, bank NOT READY.
+
+## Предыдущий checkpoint — 02.10.2026: P02 PASS, далее P03
 
 P01 commit `ac37c8c`; P02: одна существующая DB, R11 metadata/attempts/inbox/frozen beneficiary, совместимые legacy readers. RED→PASS28tests/5subtests; rollback/reopen/two connections, legacy preservation/integrity/backup/foreign keys. Evidence `docs/audits/mini-app-redesign-plus-2026-10-02/P02-MIGRATION.md`; журнал `mini-app/REDESIGN-PROGRESS.md`. Streamer без доказанного buyer остаётся unbound; точный месяц не назначен. Staging/production/data/деньги/outbound не затронуты. Далее P03 server catalog150/300/readiness.
 

@@ -180,7 +180,7 @@
 
 **Интерфейсы:** `get_product(product_id: str) -> ProductSnapshot`, `list_products() -> tuple[ProductSnapshot,...]`, `checkout_readiness(product_id: str, method: str, policy: BillingRuntimePolicy) -> CheckoutReadiness`; методы `stars/sbp/bank_card`. `POST /app/api/subscription/catalog` возвращает один каталог с version/features/offers/readiness; bootstrap содержит только безопасные пользовательские сведения/capabilities.
 
-- [ ] RED `test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period`:
+- [x] RED `test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period`:
   ```python
   assert viewer.rub.amount_minor == 15000
   assert streamer.rub.amount_minor == 30000
@@ -189,10 +189,10 @@
   assert viewer.period_rule == 'unapproved' and not viewer.auto_renew
   assert viewer.xtr is None and set(methods) == {'stars', 'sbp', 'bank_card'}
   ```
-- [ ] Run `python -m pytest tests/test_product_catalog.py -q` → FAIL отсутствующих server offers. Добавить отрицательные client-price/product/method и неизвестные feature ID.
-- [ ] Минимальная immutable catalog version, цены/feature IDs один раз. Existing limits helpers сохраняют 50/200/5. Непроверенные raids/name/spikes/clicks не попадают в активные преимущества.
-- [ ] PASS каталог/API/auth; RUB 150/300 отображается и при `unapproved`, все методы видны с reason, ни один не запускает платежей. Срок month rule не выбирать.
-- [ ] Scoped review → catalog commit/checkpoint.
+- [x] Run `python -m pytest tests/test_product_catalog.py -q` → FAIL отсутствующих server offers. Добавить отрицательные client-price/product/method и неизвестные feature ID.
+- [x] Минимальная immutable catalog version, цены/feature IDs один раз. Existing limits helpers сохраняют 50/200/5. Непроверенные raids/name/spikes/clicks не попадают в активные преимущества.
+- [x] PASS каталог/API/auth; RUB 150/300 отображается и при `unapproved`, все методы видны с reason, ни один не запускает платежей. Срок month rule не выбирать.
+- [x] Scoped review → catalog commit/checkpoint.
 
 ## P04. Effective Viewer из Streamer и все SQL/media gates
 
