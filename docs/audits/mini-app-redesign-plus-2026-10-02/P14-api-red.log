@@ -1,0 +1,29 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ MiniAppStreamerPlusTests.test_draft_example_validates_plus_text_without_save_or_send _
+
+self = <test_mini_app_streamer_plus.MiniAppStreamerPlusTests testMethod=test_draft_example_validates_plus_text_without_save_or_send>
+
+    async def test_draft_example_validates_plus_text_without_save_or_send(self):
+        draft = {'headline':'Мой заголовок', 'body':'Подробный текст',
+                 'buttons':[{'label':'Подробнее','url':'https://example.com/about'}]}
+        async with self.request('/app/api/streamer/post-example', chat_id=-1001, draft=draft) as response:
+>           self.assertEqual(response.status, 403)
+E           AssertionError: 200 != 403
+
+tests\test_mini_app_streamer_plus.py:81: AssertionError
+_ MiniAppStreamerPlusTests.test_network_is_unknown_permission_not_denied_and_changed_type_is_denied _
+
+self = <test_mini_app_streamer_plus.MiniAppStreamerPlusTests testMethod=test_network_is_unknown_permission_not_denied_and_changed_type_is_denied>
+
+    async def test_network_is_unknown_permission_not_denied_and_changed_type_is_denied(self):
+        self.bot.get_chat.side_effect = TimeoutError()
+        async with self.request('/app/api/streamer/template', chat_id=-1001) as response:
+>           self.assertEqual(response.status, 503)
+E           AssertionError: 403 != 503
+
+tests\test_mini_app_streamer_plus.py:68: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_streamer_plus.py::MiniAppStreamerPlusTests::test_draft_example_validates_plus_text_without_save_or_send
+FAILED tests/test_mini_app_streamer_plus.py::MiniAppStreamerPlusTests::test_network_is_unknown_permission_not_denied_and_changed_type_is_denied
+2 failed, 8 deselected in 4.87s

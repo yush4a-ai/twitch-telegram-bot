@@ -10,7 +10,7 @@ from aiohttp import web
 from .database import Database
 from .live_post import LivePostContent
 from .mini_app_auth import verified_payload
-from .streamer_community import verify_community_permission
+from .streamer_community import check_community_permission
 from .streamer_post import compose_streamer_post
 from .streamer_presets import PresetLimit, PresetNameTaken, PresetStale, StreamerPresetService
 from .streamer_template import validate_streamer_template
@@ -58,7 +58,12 @@ def install_mini_app_streamer_plus_routes(
         community = next((row for row in stored if row[0] == chat_id), None)
         if community is None:
             return None, web.json_response({"error": "placement_denied"}, status=403)
-        if bot is None or await verify_community_permission(bot, chat_id, user_id) is None:
+        if bot is None:
+            return None, web.json_response({"error": "verification_unavailable"}, status=503)
+        permission = await check_community_permission(bot, chat_id, user_id)
+        if permission.status == "network_error":
+            return None, web.json_response({"error": "verification_unavailable"}, status=503)
+        if permission.community is None or permission.community.chat_type != community[2]:
             return None, web.json_response({"error": "permission_denied"}, status=403)
         return (chat_id, identity[1], community[2]), None
 
@@ -103,6 +108,17 @@ def install_mini_app_streamer_plus_routes(
             return error
         chat_id, login, kind = own
         plus = await db.has_streamer_plus(user_id)
+        custom_draft = None
+        if "draft" in values:
+            if not plus:
+                return web.json_response({"error": "plus_required"}, status=403)
+            draft = values["draft"]
+            try:
+                if not isinstance(draft, dict) or set(draft) != {"headline", "body", "buttons"}:
+                    raise ValueError("invalid draft")
+                custom_draft = validate_streamer_template(draft["headline"], draft["body"], draft["buttons"])
+            except (ValueError, TypeError, UnicodeError):
+                return web.json_response({"error": "invalid_template"}, status=400)
         # Poller imports OAuth through token storage; load it after route setup.
         from .poller import StreamPoller
         composer = StreamPoller(bot, db, None, 60, bot_username=bot_username)
@@ -115,7 +131,9 @@ def install_mini_app_streamer_plus_routes(
             reply_markup=await composer._build_keyboard(login),
         )
         content = base
-        if plus:
+        if custom_draft is not None:
+            content = compose_streamer_post(base, custom_draft)
+        elif plus:
             saved = await db.get_streamer_template(user_id, chat_id)
             if saved:
                 try:

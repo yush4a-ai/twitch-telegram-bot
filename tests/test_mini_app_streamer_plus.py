@@ -62,6 +62,37 @@ class MiniAppStreamerPlusTests(unittest.IsolatedAsyncioTestCase):
             issued_by=425785231, now=now,
         )
 
+    async def test_network_is_unknown_permission_not_denied_and_changed_type_is_denied(self):
+        self.bot.get_chat.side_effect = TimeoutError()
+        async with self.request('/app/api/streamer/template', chat_id=-1001) as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual((await response.json())['error'], 'verification_unavailable')
+        self.bot.get_chat.side_effect = None
+        self.bot.get_chat.return_value.type = 'channel'
+        self.bot.get_chat_member.return_value.can_post_messages = True
+        async with self.request('/app/api/streamer/post-example', chat_id=-1001) as response:
+            self.assertEqual(response.status, 403)
+        self.bot.send_message.assert_not_awaited()
+
+    async def test_draft_example_validates_plus_text_without_save_or_send(self):
+        draft = {'headline':'Мой заголовок', 'body':'Подробный текст',
+                 'buttons':[{'label':'Подробнее','url':'https://example.com/about'}]}
+        async with self.request('/app/api/streamer/post-example', chat_id=-1001, draft=draft) as response:
+            self.assertEqual(response.status, 403)
+        await self.grant()
+        async with self.request('/app/api/streamer/post-example', chat_id=-1001, draft=draft) as response:
+            self.assertEqual(response.status, 200)
+            payload = await response.json()
+            self.assertIn(draft['headline'], payload['text'])
+            self.assertIn(draft['body'], payload['text'])
+            self.assertIn(draft['buttons'][0], payload['buttons'])
+            self.assertTrue(payload['custom_active'])
+        self.assertIsNone(await self.db.get_streamer_template(101, -1001))
+        async with self.request('/app/api/streamer/post-example', chat_id=-1001,
+                                draft={**draft,'buttons':[{'label':'Unsafe','url':'javascript:alert(1)'}]}) as response:
+            self.assertEqual(response.status, 400)
+        self.bot.send_message.assert_not_awaited()
+
     async def test_free_example_and_stats_are_not_paid_or_sent(self):
         async with self.request("/app/api/streamer/post-example", chat_id=-1001) as response:
             self.assertEqual(response.status, 200)

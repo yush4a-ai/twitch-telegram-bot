@@ -499,3 +499,9 @@
 - Основание: утверждённый P13 и CHANNEL-PERMISSIONS-CONTRACT. Новый flow принимает channel; legacy groups продолжают работать. Публикация требует can_post, чужие edit права не запрашиваются. Сетевая ошибка хранится как неизвестный результат.
 - Проверка:48tests/33subtests,10reports/94PNG; атомарная отмена/срок после DB-lock, late SDK generation fence, verified OAuth binding перед success. Один scoped read-only reviewer; `P13-CONNECTION.md`.
 - Граница: native send/edit/delete/requestChat/account OAuth НЕ проверены; fixture/SDK fake только локально. P14 следующий.
+
+## D069 — предпросмотр не публикует пост
+
+- Основание: утверждённый P14. Draft проходит server validator и прежний composer без записи/send; template/preset/apply/delete остаются отдельными действиями. Каждый placement имеет свой draft/version.
+- Проверка:34tests/38subtests,4reports/34PNG; exact CAS/pending/403/expiry/reload/late ACK. Статистика — подтверждённые own IDs, без views/clicks.
+- Граница: fake browser/DB/sender, native и staging NOT TESTED; `P14-POSTS.md`, следующий P15.

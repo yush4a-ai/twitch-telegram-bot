@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import re
 from dataclasses import asdict
 from pathlib import Path
 
@@ -28,6 +29,7 @@ _ASSETS = {
     "components.js": "application/javascript",
     "viewer.js": "application/javascript",
     "streamer.js": "application/javascript",
+    "streamer_posts.js": "application/javascript",
     "subscription.js": "application/javascript",
     "profile.js": "application/javascript",
     "support.js": "application/javascript",
@@ -88,7 +90,8 @@ def install_mini_app_routes(
         return web.json_response({"user": asdict(identity), "capabilities": asdict(flags)})
 
     app.router.add_get("/app", shell)
-    app.router.add_get("/app/{name:app\\.(?:js|css)|telegram\\.js|theme\\.js|router\\.js|api\\.js|components\\.js|viewer\\.js|streamer\\.js|subscription\\.js|profile\\.js|support\\.js}", asset)
+    asset_pattern = "|".join(re.escape(name) for name in _ASSETS)
+    app.router.add_get(f"/app/{{name:{asset_pattern}}}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
     install_mini_app_viewer_routes(
         app, db, bot_token, capabilities, twitch,

@@ -29,6 +29,7 @@ SCENARIOS = frozenset({
     "independent-viewer", "legacy-group", "channel-permissions",
     "payment-off", "legal-unready", "reminder-inflight", "history",
     "streamer-unconnected", "channel-empty",
+    "streamer-posts",
 })
 
 
@@ -176,12 +177,19 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
         if scenario == "legacy-group":
             await db.add_streamer_community(501, -1002, "Существующая группа", "supergroup", now=observed_at)
             await db.add_channel(-1002, "alpha")
-        if scenario in {"streamer-plus", "independent-viewer"}:
+        if scenario in {"streamer-plus", "independent-viewer", "streamer-posts"}:
             await db.issue_test_streamer_plus(
                 "2001", "redesign-streamer", starts_at=observed_at - 5,
                 expires_at=observed_at + 1800, issued_by=425785231, now=observed_at,
                 beneficiary_telegram_user_id=501,
             )
+        if scenario == "streamer-posts":
+            await db.add_streamer_community(501, -1004, "Второй канал с другим оформлением", "channel", now=observed_at)
+            for chat_id in (-1001, -1004):
+                await db.add_channel(chat_id, "alpha")
+            await db.set_live_state(-1001, "alpha", True, "fixture-publication", broadcaster_id="2001")
+            if not await db.set_live_message_if_current(-1001, "alpha", "fixture-publication", 811):
+                raise AssertionError("fixture publication requires confirmed own message fence")
         if scenario in {"reminder-inflight", "history"}:
             await db.issue_test_viewer_plus(
                 501, "redesign-settings", starts_at=observed_at - 1000,
@@ -256,6 +264,10 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             if mode not in {"ready", "bot_absent", "bot_member", "missing_post_right", "network_error"}:
                 return web.json_response({"error": "invalid_permission"}, status=400)
             state.bot.permission = mode
+            if values.get("expire_plus"):
+                await db.conn.execute("UPDATE entitlement_grants SET expires_at=? WHERE subject_kind='streamer'",
+                                      (time.time() - 1,))
+                await db.conn.commit()
             intent = await db.get_community_intent(values.get("intent_id", ""))
             if values.get("expire") and intent and intent[1] == 501:
                 await db.conn.execute("UPDATE streamer_community_intents SET expires_at=? WHERE intent_id=?",

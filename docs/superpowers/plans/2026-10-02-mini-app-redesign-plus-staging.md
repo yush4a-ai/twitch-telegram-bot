@@ -325,11 +325,11 @@ Profile получает имя только из server bootstrap: `verify_weba
 
 **Интерфейсы:** existing post-example/template/preview/presets/stats API. `renderPosts` показывает Free стандартный пост с фото; verified Streamer editor для конкретного placement; Viewer-only не получает оформление. Variants save ≠ apply; stats 30d +7/7 публикаций, не views/clicks.
 
-- [ ] RED `streamer_post_draft_variant_apply_and_stats_are_real`: свой template version, safe text/HTTPS/buttons, ошибка/late result/два окна, сохранённый draft; preset delete не меняет active post, expired preset читается без paid apply. Неподтверждённая публикация не даёт счётчик.
-- [ ] Run QA streamer-posts + `python -m pytest tests/test_mini_app_streamer_plus.py tests/test_streamer_template.py tests/test_streamer_presets.py tests/test_streamer_stats.py -q`; UI RED/новый contract RED до правки.
-- [ ] Перенести действующий редактор/пример/варианты/аналитику в короткие А screens с двумя placements; не заменять их пустыми табами или local mock данных. Live preview UI не вызывает send; платный текст/media перепроверяются у runtime действия.
-- [ ] PASS Free/Viewer/Streamer/both, wrong broadcaster/community, lost rights, CAS, expiry/regrant preserves settings; stats у verified broadcaster, «Переходы на Twitch · В разработке» отдельно от предоставленных функций без фиктивных чисел.
-- [ ] Scoped journey/template review → commit/screenshots.
+- [x] RED `streamer_post_draft_variant_apply_and_stats_are_real`: свой template version, safe text/HTTPS/buttons, ошибка/late result/два окна, сохранённый draft; preset delete не меняет active post, expired preset читается без paid apply. Неподтверждённая публикация не даёт счётчик.
+- [x] Run QA streamer-posts + `python -m pytest tests/test_mini_app_streamer_plus.py tests/test_streamer_template.py tests/test_streamer_presets.py tests/test_streamer_stats.py -q`; UI RED/новый contract RED до правки.
+- [x] Перенести действующий редактор/пример/варианты/аналитику в короткие А screens с двумя placements; не заменять их пустыми табами или local mock данных. Live preview UI не вызывает send; платный текст/media перепроверяются у runtime действия.
+- [x] PASS Free/Viewer/Streamer/both, wrong broadcaster/community, lost rights, CAS, expiry/regrant preserves settings; stats у verified broadcaster, «Переходы на Twitch · В разработке» отдельно от предоставленных функций без фиктивных чисел.
+- [x] Scoped journey/template review → commit/screenshots.
 
 ## P15. Subscription и три способа покупки с safe unavailable backend
 

@@ -1,0 +1,76 @@
+{
+  "journey": "streamer-posts",
+  "scenario": "streamer-posts",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [
+    {
+      "file": "posts-chromium-overview-390.png",
+      "sha256": "25ebf0f16b3cb024053291ac7c05f39f6d47cb694c5f6f087e1f1437ad38ef88",
+      "viewport": "390x844"
+    },
+    {
+      "file": "posts-chromium-draft-preview-390.png",
+      "sha256": "1bf8a890b5e0547645a4c4ae1ea1adf7535b7d0bad94d59b738954c21e58e07a",
+      "viewport": "390x844"
+    },
+    {
+      "file": "posts-chromium-conflict-390.png",
+      "sha256": "21070ada699811f3e6a65c078692afa26ecc869791c667ab81c252d9dd8aeb2e",
+      "viewport": "390x844"
+    },
+    {
+      "file": "posts-chromium-variants-390.png",
+      "sha256": "46ad601afed0611deea6722facaf2dfe00f59b51e6658a6d23074b9c8c4b9838",
+      "viewport": "390x844"
+    },
+    {
+      "file": "posts-chromium-statistics-390.png",
+      "sha256": "efd4c8aa600994ae5307d019fce15048310f9722aab6183bcd9623dbd987fe73",
+      "viewport": "390x844"
+    },
+    {
+      "file": "posts-chromium-second-placement-390.png",
+      "sha256": "4c29b381d91214787fccadf7cda2da7f54353923a967640964a8337a0856a13a",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-posts-chromium-viewer-390.png",
+      "sha256": "0ebd957c56bfb25910546f6215e6c6df5e9e2bb980f4a7d01e5bdf4cb1cd6e14",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-posts-chromium-channel-390.png",
+      "sha256": "6662358abe5a5332abc6173a2305216a8d256461e04a49146c162e6242d7c8fa",
+      "viewport": "390x844"
+    },
+    {
+      "file": "streamer-posts-chromium-profile-390.png",
+      "sha256": "b7dc40d51c9fa3bd7a6a63c4546dc4c80c1cf26187bcb9120909e73604e1ab08",
+      "viewport": "390x844"
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "9b348810a8d5235fbb0e9132835887c72b634e5c880c1772544fa75f395275a3",
+    "app.js": "900c3d8b75e8fa8abf472fd70d1959b5c9dba03da173bf17af42d23b0a407966",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "e95ff92c5c020e1215632b08dac810493f83c54b3c1edef9ca8a7ae50769f7e7",
+    "streamer_posts.js": "fcf14fb811cad4a6e7b2bdb53357cc2665a10d981d5608dde2ab4e1f3e4fe57a",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "9c8d042afa4c0a32b58c6faf65cb1aba59f52e265dc9c7ce05e04e076f3be15a",
+    "scripts/mini_app_redesign_browser_qa.cjs": "e42778c00f6d783c6c75b54ac04c048f71335c3857290c4744d01f242cdb44ad"
+  },
+  "version": "151.0.7922.34",
+  "status": "PASS"
+}

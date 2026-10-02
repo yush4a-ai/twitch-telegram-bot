@@ -1,0 +1,31 @@
+{
+  "journey": "streamer-posts",
+  "scenario": "streamer-posts",
+  "engine": "chromium",
+  "native": "NOT TESTED",
+  "screenshots": [],
+  "errors": [],
+  "externalRequests": [],
+  "sources": {
+    "api.js": "e2854f29d6038bf676e9fa57355b42537756f65b8bf85589c55572b6f08344cd",
+    "app.css": "9b348810a8d5235fbb0e9132835887c72b634e5c880c1772544fa75f395275a3",
+    "app.js": "900c3d8b75e8fa8abf472fd70d1959b5c9dba03da173bf17af42d23b0a407966",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "bc42c4cf7c42c9ca82b403bdd0672c390a2771d1af8d6bc740e46669c4b98be2",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "e95ff92c5c020e1215632b08dac810493f83c54b3c1edef9ca8a7ae50769f7e7",
+    "streamer_posts.js": "b0bcf33d125f68079358d31f751727fda5383806a0a6ddf9ffd37bbcc3b4a666",
+    "subscription.js": "4467988bf523865d3d546492ccfa93623f70091dfe07914e078319defa160ce9",
+    "support.js": "1cc4c9c4f05f615620a92c9942e716e354111991863d2d606f8607609fb93fe4",
+    "telegram.js": "7e32855f9bed7ea6e7096c45a02fbd9c6ae39e7e00d8fa102a6ef4544ab0791f",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "43212d8020d9707e89fe05b519cb98f034778799c883fda3f04429012a84219f",
+    "bot/mini_app_viewer.py": "c5aae753de1678127ef45835f8b0588448e87b784d8c05f0e3508cf44e205094",
+    "scripts/mini_app_browser_fixture.py": "9c8d042afa4c0a32b58c6faf65cb1aba59f52e265dc9c7ce05e04e076f3be15a",
+    "scripts/mini_app_redesign_browser_qa.cjs": "8c2257a626b51cff3bfc4705706fc94388cf69e06100972b19da670f9819b73d"
+  },
+  "version": "151.0.7922.34",
+  "status": "FAIL",
+  "failure": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0 !== 1\n\n    at streamerPostsJourney (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:797:66)\n    at async main (C:\\Users\\yusha\\AppData\\Local\\Temp\\twitchsignal-redesign-qa.cjs:859:27)"
+}

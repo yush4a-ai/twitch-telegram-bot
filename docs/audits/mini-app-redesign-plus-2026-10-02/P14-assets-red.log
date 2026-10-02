@@ -1,0 +1,16 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ RedesignFixtureTests.test_posts_runtime_module_is_served_by_existing_asset_allowlist _
+
+self = <test_mini_app_redesign_fixture.RedesignFixtureTests testMethod=test_posts_runtime_module_is_served_by_existing_asset_allowlist>
+
+    async def test_posts_runtime_module_is_served_by_existing_asset_allowlist(self):
+        _app, _db, client = await self.build('streamer-posts')
+        response = await client.get('/app/streamer_posts.js')
+>       self.assertEqual(response.status, 200)
+E       AssertionError: 404 != 200
+
+tests\test_mini_app_redesign_fixture.py:73: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_redesign_fixture.py::RedesignFixtureTests::test_posts_runtime_module_is_served_by_existing_asset_allowlist
+1 failed, 6 deselected in 4.01s

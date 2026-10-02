@@ -67,6 +67,29 @@ class RedesignFixtureTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await builder("production")
 
+    async def test_posts_runtime_module_is_served_by_existing_asset_allowlist(self):
+        _app, _db, client = await self.build('streamer-posts')
+        response = await client.get('/app/streamer_posts.js')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.content_type, 'application/javascript')
+        self.assertIn('export function createStreamerPostsFeature', await response.text())
+        response = await client.get('/app/config.py')
+        self.assertEqual(response.status, 404)
+
+    async def test_posts_expiry_control_updates_real_rights_without_sender(self):
+        app, _db, client = await self.build('streamer-posts')
+        identity = {'init_data':signed_webapp(501)}
+        before = await (await client.post('/app/api/streamer/template', json={**identity,'chat_id':-1001})).json()
+        self.assertTrue(before['can_edit'])
+        response = await client.post('/_qa/channel-control', json={'expire_plus':True})
+        self.assertEqual(response.status,200)
+        self.assertEqual((await response.json())['sent_calls'],0)
+        after = await (await client.post('/app/api/streamer/template', json={**identity,'chat_id':-1001})).json()
+        self.assertFalse(after['can_edit'])
+        state = await (await client.post('/app/api/subscription/state',json=identity)).json()
+        self.assertFalse(state['viewer']['active']);self.assertFalse(state['streamer']['active'])
+        self.assertEqual(app[fixture.FIXTURE_STATE_KEY].bot.sent_calls,[])
+
     async def test_reminder_inflight_fixture_uses_delivery_fence_without_sending(self):
         app, _db, client = await self.build("reminder-inflight")
         state = await (await client.post("/app/api/viewer/state", json={

@@ -92,6 +92,7 @@ async function runJourney(page, scenario) {
   if (scenario === 'viewer-settings') return viewerSettingsJourney(page);
   if (scenario === 'streamer-connection') return streamerConnectionJourney(page);
   if (scenario === 'oauth-results') return oauthResultsJourney(page);
+  if (scenario === 'streamer-posts') return streamerPostsJourney(page);
   if (scenario !== 'baseline') throw new Error(`Journey not yet implemented: ${scenario}`);
   await page.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Стримеры', exact: true }).click();
@@ -768,6 +769,102 @@ async function oauthResultsJourney(page) {
     pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844',proof:'fixed public presentation; verified binding covered separately in Python'});
   }
   await page.goto(`${base}/app`);await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();return pictures;
+}
+
+async function streamerPostsJourney(page) {
+  const pictures=[];
+  async function picture(label){const file=`posts-${argument('engine','chromium')}-${label}-390.png`;await assertLayout(page);await page.screenshot({path:path.join(output,file),animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});}
+  async function call(path,values={}){return page.evaluate(async({path,values})=>{const response=await fetch(`/app/api/streamer/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init_data:window.Telegram.WebApp.initData,...values})});return {status:response.status,data:await response.json()};},{path,values});}
+  await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Стример',exact:true}).click();await page.getByRole('button',{name:'Посты',exact:true}).click();
+  await page.getByRole('heading',{name:'Посты',exact:true}).waitFor();
+  if(argument('scenario','streamer-posts')==='streamer-posts')await page.getByLabel('Сообщество',{exact:true}).selectOption('-1001');
+  await page.getByRole('button',{name:'Оформление',exact:true}).waitFor();await picture('overview');
+  if(argument('scenario','streamer-posts')==='free-six'){
+    await page.getByRole('button',{name:'Оформление',exact:true}).click();
+    await page.getByText('Обычный пост доступен бесплатно',{exact:true}).waitFor();
+    assert.equal(await page.getByLabel('Заголовок',{exact:true}).count(),0);await picture('free');return pictures;
+  }
+  await page.getByRole('button',{name:'Видеопревью',exact:true}).click();
+  let releaseVideo,seenVideo;const videoHold=new Promise(resolve=>releaseVideo=resolve),videoSeen=new Promise(resolve=>seenVideo=resolve);
+  await page.route('**/app/api/streamer/preview',async route=>{seenVideo();await videoHold;return route.continue();});
+  try{await page.getByLabel('Включить видеопревью',{exact:true}).check();await videoSeen;
+    await page.evaluate(()=>window.__qaSdk.back());await page.getByLabel('Сообщество',{exact:true}).selectOption('-1004');
+    await page.getByRole('button',{name:'Видеопревью',exact:true}).click();await page.getByLabel('Включить видеопревью',{exact:true}).waitFor();
+    const ack=page.waitForResponse(r=>r.url().endsWith('/app/api/streamer/preview'));releaseVideo();await ack;
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await page.getByLabel('Включить видеопревью',{exact:true}).isChecked(),false);
+    assert.equal(await page.getByText('Видеопревью включено',{exact:true}).count(),0,'Late A feedback stays with A');
+    assert.equal((await call('post-example',{chat_id:-1001})).data.animation_enabled,true);
+    assert.equal((await call('post-example',{chat_id:-1004})).data.animation_enabled,false);await picture('late-video');
+  }finally{releaseVideo();await page.unroute('**/app/api/streamer/preview');}
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByLabel('Сообщество',{exact:true}).selectOption('-1001');
+  await page.getByRole('button',{name:'Оформление',exact:true}).click();
+  await page.getByRole('heading',{name:'Оформление поста',exact:true}).waitFor();
+  await page.getByLabel('Заголовок',{exact:true}).fill('Большой вечерний эфир с подробным обсуждением игры');
+  await page.getByLabel('Текст',{exact:true}).fill('Приходите на трансляцию: обсудим обновление, пройдём сложную главу и ответим на вопросы зрителей. Начало уже скоро.');
+  await page.getByLabel('Кнопка 1 · название',{exact:true}).fill('Подробности эфира');
+  await page.getByLabel('Кнопка 1 · HTTPS-адрес',{exact:true}).fill('https://example.com/stream');
+  await page.locator('[data-draft-preview] .post-preview-text').filter({hasText:'Большой вечерний эфир'}).waitFor();
+  assert.equal((await call('template',{chat_id:-1001})).data.version,0,'Draft preview never saves');await picture('draft-preview');
+  await page.locator('[data-draft-preview]').scrollIntoViewIfNeeded();await picture('draft-rendered');
+  await page.getByLabel('Кнопка 1 · HTTPS-адрес',{exact:true}).fill('javascript:alert(1)');
+  await page.locator('[data-draft-preview]').getByText('Проверьте текст и HTTPS-адреса кнопок.',{exact:true}).waitFor();
+  assert.equal((await call('template',{chat_id:-1001})).data.version,0);
+  await page.getByLabel('Кнопка 1 · HTTPS-адрес',{exact:true}).fill('https://example.com/stream');
+  let releaseSave,seenSave;const saveHold=new Promise(resolve=>releaseSave=resolve),saveSeen=new Promise(resolve=>seenSave=resolve);
+  await page.route('**/app/api/streamer/template',async route=>{if(route.request().postDataJSON().headline===undefined)return route.continue();seenSave();await saveHold;return route.continue();});
+  try{await page.getByRole('button',{name:'Сохранить оформление',exact:true}).click();await saveSeen;
+    assert.equal(await page.getByLabel('Заголовок',{exact:true}).isDisabled(),true);
+    assert.equal(await page.getByRole('button',{name:'Сохранить оформление',exact:true}).isDisabled(),true);
+  }finally{releaseSave();await page.unroute('**/app/api/streamer/template');}
+  await page.getByText('Оформление сохранено',{exact:true}).waitFor();
+  let saved=(await call('template',{chat_id:-1001})).data;assert.equal(saved.version,1);assert.equal(saved.buttons[0].url,'https://example.com/stream');
+  assert.equal((await call('template',{chat_id:-1004})).data.version,0,'Other placement unchanged');
+  assert.equal((await call('template',{...saved,can_edit:undefined,chat_id:-1001,headline:'Изменение в другом окне'})).status,200);
+  await page.getByLabel('Заголовок',{exact:true}).fill('Мой сохранённый черновик при конфликте');
+  await page.getByRole('button',{name:'Сохранить оформление',exact:true}).click();
+  await page.getByText('Оформление изменилось в другом окне. Ваш текст сохранён здесь; обновите версию перед повтором.',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Заголовок',{exact:true}).inputValue(),'Мой сохранённый черновик при конфликте');await picture('conflict');
+  await page.getByRole('button',{name:'Обновить версию',exact:true}).click();
+  await page.getByText('Актуальная версия загружена. Ваш текст сохранён; проверьте его и нажмите «Сохранить оформление».',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Сохранить оформление',exact:true}).click();await page.getByText('Оформление сохранено',{exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Сохранённые варианты',exact:true}).click();
+  await page.getByRole('heading',{name:'Сохранённые варианты',exact:true}).waitFor();
+  await page.getByLabel('Название варианта',{exact:true}).fill('Вечерний эфир с длинным названием');
+  const before=(await call('template',{chat_id:-1001})).data.version;
+  await page.getByRole('button',{name:'Сохранить вариант',exact:true}).click();await page.getByText('Вариант сохранён. Текущее оформление и опубликованные посты не изменились.',{exact:true}).waitFor();
+  assert.equal((await call('template',{chat_id:-1001})).data.version,before);await picture('variants');
+  await page.getByRole('button',{name:'Применить',exact:true}).click();
+  await page.getByText('Вариант «Вечерний эфир с длинным названием» применён к будущим постам этого сообщества.',{exact:true}).waitFor();
+  assert.equal((await call('template',{chat_id:-1001})).data.version,before+1);
+  await page.getByRole('button',{name:'Удалить',exact:true}).click();await page.getByRole('dialog',{name:'Удалить вариант?',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Удалить вариант',exact:true}).click();await page.getByText('Вариант удалён. Текущее оформление сохранено.',{exact:true}).waitFor();
+  assert.equal((await call('template',{chat_id:-1001})).data.version,before+1,'Deleting variant does not change template');
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Статистика публикаций',exact:true}).click();
+  await page.getByRole('heading',{name:'Статистика публикаций',exact:true}).waitFor();assert.equal(await page.locator('[data-published-posts]').textContent(),'1');await picture('statistics');
+  assert.equal((await call('stats')).data.published_posts,1);
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByLabel('Сообщество',{exact:true}).selectOption('-1004');
+  await page.getByRole('button',{name:'Оформление',exact:true}).click();await page.getByLabel('Заголовок',{exact:true}).waitFor();assert.equal(await page.getByLabel('Заголовок',{exact:true}).inputValue(),'');await picture('second-placement');
+  await page.getByLabel('Заголовок',{exact:true}).fill('Черновик второго канала');
+  await page.getByLabel('Текст',{exact:true}).fill('Несохранённый личный черновик второго канала');await page.reload();
+  await page.getByRole('heading',{name:'Мой канал',exact:true}).waitFor();await page.getByRole('button',{name:'Посты',exact:true}).click();
+  await page.getByLabel('Сообщество',{exact:true}).selectOption('-1004');await page.getByRole('button',{name:'Оформление',exact:true}).click();
+  await page.getByLabel('Текст',{exact:true}).waitFor();assert.equal(await page.getByLabel('Текст',{exact:true}).inputValue(),'Несохранённый личный черновик второго канала');
+  await page.locator('[data-draft-preview] .post-preview-text').filter({hasText:'Несохранённый личный черновик второго канала'}).waitFor();
+  const control=values=>page.evaluate(async values=>(await fetch('/_qa/channel-control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(values)})).json(),values);
+  await control({permission:'bot_member'});
+  await page.getByRole('button',{name:'Сохранить оформление',exact:true}).click();
+  await page.getByText('Доступ изменился. Ваш черновик сохранён.',{exact:true}).waitFor();
+  await page.getByText('Обычный пост доступен бесплатно',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Текст',{exact:true}).count(),0,'Denied mutation invalidates editable cache');
+  await page.getByRole('button',{name:'Повторить',exact:true}).waitFor();
+  await control({permission:'ready'});await page.getByRole('button',{name:'Повторить',exact:true}).click();
+  await page.getByLabel('Текст',{exact:true}).waitFor();assert.equal(await page.getByLabel('Текст',{exact:true}).inputValue(),'Несохранённый личный черновик второго канала');
+  await control({expire_plus:true});await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+  await page.getByText('Обычный пост доступен бесплатно',{exact:true}).waitFor();assert.equal(await page.getByLabel('Текст',{exact:true}).count(),0,'Visibility rereads canonical expiry');
+  assert.equal((await call('template',{chat_id:-1004})).data.can_edit,false);await picture('expired');
+  return pictures;
 }
 
 async function main() {
