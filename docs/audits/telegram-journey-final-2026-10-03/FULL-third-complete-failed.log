@@ -1,0 +1,86 @@
+Staging target проверен; commit=e52239814930
+.......................................................... [  3%]
+................................................. [  6%]
+....................................... [  9%]
+.............................................................. [ 13%]
+............................................................................................................ [ 20%]
+..................... [ 21%]
+...................................................... [ 25%]
+..... [ 25%]
+................................................................... [ 30%]
+....................................................................s.............. [ 35%]
+................................................................................................. [ 41%]
+........................................................s........................................................................................ [ 51%]
+................................................................ [ 55%]
+.......................................................................... [ 60%]
+...................................................... [ 63%]
+......................................................................................................................................... [ 72%]
+............F....................................................... [ 76%]
+..................................................... [ 80%]
+................................................................................................................................... [ 88%]
+.................................................................... [ 93%]
+..........................................................................................................    [100%]
+================================== FAILURES ===================================
+_ UserTokenFlowTests.test_import_temporary_error_does_not_publish_partial_selection _
+
+self = <test_regressions.UserTokenFlowTests testMethod=test_import_temporary_error_does_not_publish_partial_selection>
+
+    async def test_import_temporary_error_does_not_publish_partial_selection(self) -> None:
+        message = SimpleNamespace(
+            chat=SimpleNamespace(type="private", id=123),
+            answer=AsyncMock(),
+        )
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.base import StorageKey
+        from aiogram.fsm.storage.memory import MemoryStorage
+        state = FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=123,user_id=123))
+        config = SimpleNamespace(
+            twitch_client_id="client",
+            twitch_client_secret="secret",
+        )
+        result = UserTokenResult(
+            login="channel",
+            broadcaster_id="broadcaster",
+            access_token="access",
+            refresh_token="refresh",
+            expires_at=time.time() + 3600,
+        )
+    
+        with (
+            patch(
+                "bot.handlers.streams.run_authorization_flow",
+                new=AsyncMock(return_value=result),
+            ),
+            patch(
+                "bot.handlers.streams.TwitchClient.get_followed_channels",
+                new=AsyncMock(side_effect=TwitchRateLimitError(30)),
+            ),
+        ):
+>           await _run_import_follows(
+                message,
+                state,
+                self.db,
+                config,
+                SimpleNamespace(),
+            )
+
+tests\test_regressions.py:5965: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\handlers\streams.py:2165: in _run_import_follows
+    if not own_private(message,actor_id):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+message = namespace(chat=namespace(type='private', id=123), answer=<AsyncMock id='2611068153696'>)
+actor_id = None
+
+    def own_private(message, actor_id=None):
+>       actor_id = actor_id if actor_id is not None else (message.from_user.id if message.from_user else None)
+                                                                                  ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'from_user'
+
+bot\telegram_ui.py:13: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_regressions.py::UserTokenFlowTests::test_import_temporary_error_does_not_publish_partial_selection
+1 failed, 1540 passed, 2 skipped, 3638 subtests passed in 1205.84s (0:20:05)
+Полный suite не прошёл; deploy отменён

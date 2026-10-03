@@ -5934,6 +5934,7 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
     async def test_import_temporary_error_does_not_publish_partial_selection(self) -> None:
         message = SimpleNamespace(
             chat=SimpleNamespace(type="private", id=123),
+            from_user=SimpleNamespace(id=123),
             answer=AsyncMock(),
         )
         from aiogram.fsm.context import FSMContext
