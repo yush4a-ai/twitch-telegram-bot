@@ -240,6 +240,16 @@ class FiltergraphTests(unittest.TestCase):
         graph = renderer.build_filtergraph(plans, Fraction(120), models.RenderConfig())
         self.assertEqual(graph.count("fps=60"), 1)
 
+    def test_filtergraph_normalizes_full_range_input_to_limited_range(self) -> None:
+        renderer = _renderer()
+        plans = (
+            type("Plan", (), {"local_start_seconds": 0.0, "duration_seconds": 6.0})(),
+        )
+        graph = renderer.build_filtergraph(
+            plans, Fraction(60), _models().RenderConfig()
+        )
+        self.assertIn("force_divisible_by=2:out_range=tv", graph)
+
     def test_each_branch_has_exact_trim_geometry_and_hard_concat(self) -> None:
         renderer = _renderer()
         config = _models().RenderConfig()
@@ -328,6 +338,7 @@ class FiltergraphTests(unittest.TestCase):
 
         self.assertEqual(argv.count("-i"), 2)
         self.assertIn("fps=30", joined)
+        self.assertEqual(joined.count("out_range=tv"), 2)
         self.assertIn(f"-maxrate {config.max_video_bitrate}", joined)
         self.assertIn("concat=n=2:v=1:a=0", joined)
 

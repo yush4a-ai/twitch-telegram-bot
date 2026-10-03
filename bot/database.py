@@ -3540,10 +3540,12 @@ class Database:
     async def list_private_media_cleanup_candidates(
         self,
     ) -> list[tuple[int, str, str, int]]:
-        """Live private posts that may still show an animation after a plan change."""
+        """Private/channel posts needing cleanup; keep the legacy method name."""
         cursor = await self.conn.execute(
             "SELECT chat_id,twitch_login,last_stream_id,last_message_id "
-            "FROM tracked_channels WHERE chat_id>0 AND is_live=1 "
+            "FROM tracked_channels WHERE (chat_id>0 OR EXISTS(SELECT 1 "
+            "FROM telegram_channels tgc WHERE tgc.chat_id=tracked_channels.chat_id)) "
+            "AND is_live=1 "
             "AND last_stream_id IS NOT NULL AND last_message_id IS NOT NULL "
             "AND (last_message_kind='animation' OR "
             "(last_message_kind='photo' AND media_transition_pending=1 "

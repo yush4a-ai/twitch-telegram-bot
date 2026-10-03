@@ -128,6 +128,49 @@ class QueuedLiveUpdateTests(unittest.IsolatedAsyncioTestCase):
         self.bot.edit_message_media.assert_awaited_once()
         self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "photo")
 
+    async def test_channel_photo_uses_queue_and_preserves_public_caption(self):
+        await self.db.remove_channel(101, "alpha")
+        await self.db.add_channel(-100123, "alpha")
+        await self.db.register_telegram_channel(-100123, "test")
+        await self.db.set_live_state(-100123, "alpha", True, "s1", 701, "Before")
+        self.stream.thumbnail_url = "https://example.test/{width}x{height}.jpg"
+        await self.poll()
+        self.bot.edit_message_media.assert_not_awaited()
+        job = await self.claim()
+        self.assertEqual(job.chat_id, -100123)
+        self.assertIn("640x360", job.media_url)
+        self.assertEqual(await self.poller.send_queued_job(job), NotificationOutcome.SENT)
+        media = self.bot.edit_message_media.await_args.kwargs["media"]
+        self.assertEqual(media.type, "photo")
+        self.assertIn("Подключить уведомления", media.caption)
+        self.assertIn("Зрителей: 42", media.caption)
+        self.assertEqual((await self.db.get_live_post_state(-100123, "alpha")).message_kind, "photo")
+
+    async def test_channel_muted_during_photo_caption_does_not_apply_photo(self):
+        await self.db.remove_channel(101, "alpha")
+        await self.db.add_channel(-100123, "alpha")
+        await self.db.register_telegram_channel(-100123, "test")
+        await self.db.set_live_state(-100123, "alpha", True, "s1", 701, "Before")
+        self.stream.thumbnail_url = "https://example.test/{width}x{height}.jpg"
+        await self.poll()
+        job = await self.claim()
+        real_content = self.poller._live_post_content
+        calls = 0
+
+        async def mute_during_photo(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            content = await real_content(*args, **kwargs)
+            if calls == 2:
+                await self.db.set_notify_enabled(-100123, "alpha", False)
+            return content
+
+        self.poller._live_post_content = mute_during_photo
+        await self.poller.send_queued_job(job)
+        self.assertEqual(calls, 2)
+        self.bot.edit_message_media.assert_not_awaited()
+        self.assertEqual((await self.db.get_live_post_state(-100123, "alpha")).message_kind, "text")
+
     async def test_animation_after_claim_returns_to_photo_without_plus(self):
         self.stream.thumbnail_url = "https://example.test/{width}x{height}.jpg"
         await self.poll()

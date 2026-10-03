@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: Telegram T0–T3 и missing-media M1, локальный PASS
+
+Native journey BASE b294825, текущий committed HEAD e7510b1; T0 copy232 browser checks/58PNG на движок, T3 paging/search/delete54PASS, T2 source/cancel45PASS. Текущий план docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md и ledger mini-app/TELEGRAM-JOURNEY-PROGRESS.md. T4–T8 остаются открыты; новая Mini App композиция/hero/swipe/Undo сохраняются.
+
+Новое замечание владельца M1: registered Telegram-канал без фото при запрещённом видео. Локально перенесены exact production fixes4ce3887/dc9239e, добавлен лёгкий channel photo fallback/public caption и возврат после expiry/revoke/mute. Effective media rights не ослаблены; current samoylov___ raw video1/effective0, identity/community/grant0 в readonly staging. RED→PASS, media211/1existingWindowsSkip/43subtests; независимый reviewer закрыл queued mute race через fresh notify check,90PASS/15subtests +2reviewerPASS. Новых migrations/capture jobs нет. Сейчас backup→migration-copy→clean snapshot→штатный full guard→actual identity/SHA/evidence. Staging пока560f3cc, production dc9239e/deployment466499d5 неизменён. Реальная доставка нового кода ещё NOT TESTED.
+
 ## Текущий checkpoint — 03.10.2026: главная, свайп и краткий Undo опубликованы
 
 Release `560f3ccac05fe8f6c4b1221a28b926b7358edfef`, tree `a8d56fd8acee41c2523313f600b9c7cf3c5118bd`; active SUCCESS deployment `631a94d5-f6a2-4d11-b10d-d620c8f6dc07`. Главная сохраняет персонажа во всех загруженных состояниях; лёгкий whole-row swipe с progress/capture и отдельным удалением; Undo6s с сохранением focus/pending/error/retry. Штатный full gate1491PASS/2existingWindowsSkips/3634subtests/1134.19s; default Chromium и WebKit по232PASS/58PNG, source-confirmation17UIassets. Actual smoke bot8859004067/menu/192runtimeSHA/17HTTPSHA+shell/9auth401/27migrations/integrity/FK/paymentOFF/productionunchanged PASS. Упаковка исключает только audit/design, продуктовые байты проверены; tests не пропущены.

@@ -242,12 +242,14 @@ class LivePostUpdater:
         propagate_retry_after: bool = False,
         require_live: bool | None = None,
     ) -> LivePostMediaResult:
-        # Lightweight private thumbnail path; never starts capture/render work.
+        # Lightweight thumbnail path; never starts capture/render work.
         db = self._require_db()
         async with self.serialized(target.chat_id, target.message_id):
             state = await db.get_live_post_state(target.chat_id, target.twitch_login)
             if not self._is_current(state, target, require_live=require_live):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if not state.notify_enabled:
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
                 return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
 
@@ -257,6 +259,8 @@ class LivePostUpdater:
             state = await db.get_live_post_state(target.chat_id, target.twitch_login)
             if not self._is_current(state, target, require_live=require_live):
                 return LivePostMediaResult(LivePostMediaStatus.STALE_TARGET)
+            if not state.notify_enabled:
+                return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
             if state.media_transition_pending or state.message_kind not in {"text", "photo"}:
                 return LivePostMediaResult(LivePostMediaStatus.STATE_CONFLICT)
 
@@ -514,9 +518,11 @@ class LivePostUpdater:
         allow_active_video_fallback: bool = False,
         propagate_retry_after: bool = False,
     ) -> LivePostMediaResult:
-        """Replace a private animation in place after its effective video right ends."""
+        """Replace an animation after its video right ends or capacity is unavailable."""
         db = self._require_db()
-        if target.chat_id <= 0 or not photo_url.startswith("https://"):
+        if not photo_url.startswith("https://") or (
+            target.chat_id <= 0 and not await db.is_telegram_channel(target.chat_id)
+        ):
             return LivePostMediaResult(LivePostMediaStatus.INVALID_MEDIA)
         async with self.serialized(target.chat_id, target.message_id):
             state = await db.get_live_post_state(target.chat_id, target.twitch_login)

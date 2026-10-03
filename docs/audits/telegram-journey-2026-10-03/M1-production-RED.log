@@ -1,0 +1,84 @@
+FFF.                                                                     [100%]
+================================== FAILURES ===================================
+_ ConcatManifestTests.test_default_root_recovers_from_unowned_stale_directory _
+
+self = <test_preview_analysis_concat.ConcatManifestTests testMethod=test_default_root_recovers_from_unowned_stale_directory>
+
+    def test_default_root_recovers_from_unowned_stale_directory(self) -> None:
+        concat = _concat()
+        with tempfile.TemporaryDirectory() as raw:
+            parent = Path(raw)
+            stale_root = parent / "twitch-signalbot-preview-analysis"
+            stale_root.mkdir()
+            with mock.patch.object(concat.tempfile, "gettempdir", return_value=raw):
+                manager = concat.AnalysisTempManager()
+>               job = manager.create_job()
+                      ^^^^^^^^^^^^^^^^^^^^
+
+tests\test_preview_analysis_concat.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <bot.preview_analysis.concat.AnalysisTempManager object at 0x000001F47C35B560>
+
+    def create_job(self) -> AnalysisJob:
+        if self.root.exists() or self.root.is_symlink():
+            if not _safe_directory(self.root, self.root.parent):
+                raise PermissionError("analysis root is not a safe directory")
+            if not _has_valid_root_marker(self.root):
+>               raise PermissionError("analysis root is not owned")
+E               PermissionError: analysis root is not owned
+
+bot\preview_analysis\concat.py:198: PermissionError
+_ FiltergraphTests.test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder _
+
+self = <test_preview_renderer.FiltergraphTests testMethod=test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder>
+
+    def test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder(self) -> None:
+        renderer = _renderer()
+        models = _models()
+        config = models.RenderConfig()
+        artifacts = tuple(
+            type(
+                "Artifact",
+                (),
+                {
+                    "path": Path(f"snippet-{index}.mp4"),
+                    "duration_seconds": 6.0,
+                    "fps": rate,
+                },
+            )()
+            for index, rate in enumerate((Fraction(60), Fraction(30)))
+        )
+    
+        argv = renderer.build_cumulative_argv(
+            "ffmpeg", artifacts, Path("preview.tmp.mp4"), config
+        )
+        joined = " ".join(argv)
+    
+        self.assertEqual(argv.count("-i"), 2)
+        self.assertIn("fps=30", joined)
+>       self.assertEqual(joined.count("out_range=tv"), 2)
+E       AssertionError: 0 != 2
+
+tests\test_preview_renderer.py:341: AssertionError
+_ FiltergraphTests.test_filtergraph_normalizes_full_range_input_to_limited_range _
+
+self = <test_preview_renderer.FiltergraphTests testMethod=test_filtergraph_normalizes_full_range_input_to_limited_range>
+
+    def test_filtergraph_normalizes_full_range_input_to_limited_range(self) -> None:
+        renderer = _renderer()
+        plans = (
+            type("Plan", (), {"local_start_seconds": 0.0, "duration_seconds": 6.0})(),
+        )
+        graph = renderer.build_filtergraph(
+            plans, Fraction(60), _models().RenderConfig()
+        )
+>       self.assertIn("force_divisible_by=2:out_range=tv", graph)
+E       AssertionError: 'force_divisible_by=2:out_range=tv' not found in '[0:v:0]settb=AVTB,setpts=PTS-STARTPTS,trim=start=0:duration=6,setpts=PTS-STARTPTS,scale=854:480:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=854:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[outv]'
+
+tests\test_preview_renderer.py:251: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_preview_analysis_concat.py::ConcatManifestTests::test_default_root_recovers_from_unowned_stale_directory
+FAILED tests/test_preview_renderer.py::FiltergraphTests::test_cumulative_argv_normalizes_cadence_and_uses_bounded_encoder
+FAILED tests/test_preview_renderer.py::FiltergraphTests::test_filtergraph_normalizes_full_range_input_to_limited_range
+3 failed, 1 passed, 25 deselected in 0.39s

@@ -1,0 +1,28 @@
+.......F...............                                                [100%]
+================================== FAILURES ===================================
+_ PrivateThumbnailLifecycleTests.test_muted_channel_downgrades_animation_without_sending_new_post _
+
+self = <test_stream_thumbnail.PrivateThumbnailLifecycleTests testMethod=test_muted_channel_downgrades_animation_without_sending_new_post>
+
+    async def test_muted_channel_downgrades_animation_without_sending_new_post(self) -> None:
+        await self._track(-100123)
+        await self.db.register_telegram_channel(-100123, "test")
+        await self._poll(-100123, 1000.0, _stream())
+        await self.db.set_live_message_kind_if_current(
+            -100123, "channel", "stream-1", 701, "animation", False,
+        )
+        await self.db.set_notify_enabled(-100123, "channel", False)
+        self.bot.send_message.reset_mock()
+        self.bot.edit_message_media.reset_mock()
+        await self._poll(-100123, 1001.0, _stream())
+>       self.assertEqual(await self._kind(-100123), "photo")
+E       AssertionError: 'animation' != 'photo'
+E       - animation
+E       + photo
+
+tests\test_stream_thumbnail.py:229: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  bot.poller:poller.py:2550 Paused media cleanup пропущен: ProgrammingError
+=========================== short test summary info ===========================
+FAILED tests/test_stream_thumbnail.py::PrivateThumbnailLifecycleTests::test_muted_channel_downgrades_animation_without_sending_new_post
+1 failed, 22 passed, 2 subtests passed in 20.01s

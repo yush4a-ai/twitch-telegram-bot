@@ -1,0 +1,31 @@
+{
+  "diagnosis": [
+    {
+      "login": "samoylov___",
+      "observed_broadcaster": "1193685437",
+      "identity_matches": 0,
+      "community_matches": 0,
+      "active_streamer_grant": 0
+    }
+  ],
+  "outbound_messages": 0,
+  "data_writes": 0,
+  "status_before": {
+    "staging": [
+      {
+        "id": "631a94d5-f6a2-4d11-b10d-d620c8f6dc07",
+        "status": "SUCCESS",
+        "commit": null,
+        "cliMessage": "staging 560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+      }
+    ],
+    "production": [
+      {
+        "id": "466499d5-6979-4a81-8aee-67efcf628976",
+        "status": "SUCCESS",
+        "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+        "cliMessage": null
+      }
+    ]
+  }
+}

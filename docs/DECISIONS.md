@@ -2,6 +2,10 @@
 
 Записываются только подтверждённые решения. Новые продуктовые/коммерческие параметры здесь не предполагаются.
 
+## 03.10.2026 — M1: фото, когда видео недоступно
+
+Владелец подтвердил: при отсутствии доступного видео эфирный пост должен показывать фото. Registered Telegram-каналы получают лёгкую Twitch-thumbnail через текущий sender/updater, с публичной подписью и действующим template; legacy группы сохраняют прежнее поведение. Animation→photo после потери effective entitlement/выключения или capacity fallback; raw preview_enabled не выдаёт права. Переносим verified production fixes4ce3887/dc9239e только в тестовую ветку. Диагностика production/Telegram history только чтением; чужие identity/community/grants не добавляются для получения видео. M1 — безопасный промежуточный выпуск текущего плана T0–T8 после штатного полного guard; затем продолжаются T4–T8. ОплатаOFF/production/HTML/export сохраняются. Native screenshot/внешние тестовые отправки без отдельного разрешения не объявляются проверенными.
+
 ## 03.10.2026 — главная и жесты: выпуск560f3cc
 
 Общий home hero и последующие замечания к swipe/Undo опубликованы на pinned staging: SHA560f3ccac05fe8f6c4b1221a28b926b7358edfef/treea8d56fd8acee41c2523313f600b9c7cf3c5118bd/deployment631a94d5-f6a2-4d11-b10d-d620c8f6dc07. Full1491/2existing skips/3634subtests и default232browser checks каждый движок,192runtime/17HTTP assets actual smoke PASS. Все изменения UI, schema/backend и serverUndo60s не менялись. Toast6s не исчезает при фокусе/запросе; свайп28px раскрывает кнопку и сохраняет простые нажатия/вертикальную прокрутку. Отдельное удаление остаётся обязательным. Owner native acceptance ожидается; production/payment/legal readiness не объявлены изменёнными. Последний handoff: docs/audits/mini-app-owner-corrections-2026-10-03/HOME-STATES.md.

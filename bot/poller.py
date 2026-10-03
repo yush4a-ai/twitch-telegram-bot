@@ -993,6 +993,7 @@ class StreamPoller:
                 pending_samples[login] = (stream, now, sampled_chat_ids)
             for chat_id in chat_ids:
                 include_track_link = chat_id in telegram_channel_ids
+                thumbnail_destination = chat_id > 0 or include_track_link
                 include_video_submission_link = (
                     self._telegram_channel_username_cache.get(chat_id) == "papapavertv"
                 )
@@ -1104,7 +1105,7 @@ class StreamPoller:
 
                     game_name = stream.game_name or None
                     photo_fallback_due = bool(
-                        chat_id > 0 and last_message_id is not None
+                        thumbnail_destination and last_message_id is not None
                         and thumbnail_url is not None
                         and await self._photo_fallback_due(chat_id, login)
                     )
@@ -1143,8 +1144,8 @@ class StreamPoller:
                                 message_id = last_message_id
                                 message_kind = last_message_kind
                                 if (
-                                    chat_id > 0
-                                    and (thumbnail_refresh_due or photo_fallback_due)
+                                    thumbnail_destination
+                                    and (thumbnail_refresh_due or photo_fallback_due or message_kind == "text")
                                     and thumbnail_url is not None
                                     and message_kind != "video"
                                 ):
@@ -1351,10 +1352,9 @@ class StreamPoller:
                     if (
                         not self._notification_queue_enabled
                         and
-                        chat_id > 0
+                        thumbnail_destination
                         and notify_enabled
                         and message_id is not None
-                        and thumbnail_refresh_due
                         and thumbnail_url is not None
                         and message_kind == "text"
                     ):
@@ -1392,7 +1392,7 @@ class StreamPoller:
                     ):
                         media_url = (
                             thumbnail_url
-                            if chat_id > 0 and (thumbnail_refresh_due or photo_fallback_due)
+                            if thumbnail_destination and (thumbnail_refresh_due or photo_fallback_due or message_kind == "text")
                             and message_kind != "video"
                             else None
                         )
@@ -2630,7 +2630,7 @@ class StreamPoller:
             )
         if result is not LivePostUpdateResult.UPDATED:
             raise NotificationTerminalError("queued live edit rejected")
-        if job.chat_id > 0 and job.media_url and state.message_kind != "video":
+        if (job.chat_id > 0 or include_track_link) and job.media_url and state.message_kind != "video":
             media_result = await self._refresh_thumbnail(
                 job.chat_id, state.message_id, job.twitch_login,
                 job.logical_stream_id, title, viewers, game_name,
@@ -2823,14 +2823,19 @@ class StreamPoller:
             logical_stream_id=logical_stream_id,
             message_id=message_id,
         )
+        include_track_link = await self._db.is_telegram_channel(chat_id)
         content = lambda: self._live_post_content(
             login,
             title,
             game_name,
             viewer_count,
             return_note,
-            include_track_link=False,
-            private_chat=True,
+            include_track_link=include_track_link,
+            include_video_submission_link=(
+                self._telegram_channel_username_cache.get(chat_id) == "papapavertv"
+            ),
+            private_chat=chat_id > 0,
+            chat_id=chat_id,
         )
         state = await self._db.get_live_post_state(chat_id, login)
         if state is not None and (

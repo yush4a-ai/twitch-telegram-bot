@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bot.preview_capture import SegmentRecord
 
@@ -174,6 +175,23 @@ class ConcatManifestTests(unittest.TestCase):
             Path(tempfile.gettempdir()).resolve(),
         )
 
+    def test_default_root_recovers_from_unowned_stale_directory(self) -> None:
+        concat = _concat()
+        with tempfile.TemporaryDirectory() as raw:
+            parent = Path(raw)
+            stale_root = parent / "twitch-signalbot-preview-analysis"
+            stale_root.mkdir()
+            with mock.patch.object(concat.tempfile, "gettempdir", return_value=raw):
+                manager = concat.AnalysisTempManager()
+                job = manager.create_job()
+            try:
+                self.assertNotEqual(manager.root, stale_root)
+                self.assertEqual(manager.root.parent, parent)
+                self.assertTrue((manager.root / concat.ROOT_MARKER).exists())
+                self.assertTrue(job.path.exists())
+            finally:
+                job.cleanup()
+
     def test_manifest_creation_never_mutates_borrowed_segment(self) -> None:
         concat = _concat()
         with tempfile.TemporaryDirectory() as raw:
@@ -188,6 +206,36 @@ class ConcatManifestTests(unittest.TestCase):
                 self.assertEqual(segment.path.stat().st_size, segment.size_bytes)
             finally:
                 job.cleanup()
+
+    def test_recovery_preserves_foreign_file_and_reuses_one_owned_root(self) -> None:
+        concat = _concat()
+        with tempfile.TemporaryDirectory() as raw:
+            stale = Path(raw) / "twitch-signalbot-preview-analysis"
+            stale.write_bytes(b"foreign-data-must-survive")
+            with mock.patch.object(concat.tempfile, "gettempdir", return_value=raw):
+                manager = concat.AnalysisTempManager()
+                first = manager.create_job()
+                recovered = manager.root
+                second = manager.create_job()
+            self.assertEqual(stale.read_bytes(), b"foreign-data-must-survive")
+            self.assertEqual(manager.root, recovered)
+            self.assertNotEqual(first.path, second.path)
+            self.assertTrue(first.cleanup())
+            self.assertTrue(second.cleanup())
+
+    def test_custom_unowned_or_tampered_roots_are_rejected_without_recovery(self) -> None:
+        concat = _concat()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw) / "custom"
+            root.mkdir()
+            marker = root / concat.ROOT_MARKER
+            marker.write_text("foreign", encoding="utf-8")
+            manager = concat.AnalysisTempManager(root=root)
+            with self.assertRaises(PermissionError):
+                manager.create_job()
+            self.assertEqual(manager.root, root)
+            self.assertEqual(marker.read_text(encoding="utf-8"), "foreign")
+            self.assertEqual(tuple(root.iterdir()), (marker,))
 
 
 if __name__ == "__main__":

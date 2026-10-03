@@ -45,4 +45,14 @@ Scoped review: общий cancel_ui сохраняет saved rows; shared purcha
 
 ## Ограничения
 
+## M1: расследование (BASE e7510b1)
+
+Владелец прислал Telegram-канал test с текстовым live-постом без media. Прочитан вчерашний ChatGPT «Проверка видеопревью стрима»: ошибка phase=analysis. Фактический production commit 4ce3887 восстанавливает default analysis temp root; dc9239e добавляет out_range=tv в обе сборки renderer. Эти две правки отсутствуют в текущей ветке. Read-only comparison не изменяет production. Дополнительно thumbnail refresh ограничен chat_id>0, поэтому зарегистрированный Telegram-канал остаётся без фото при отсутствии видео; старые группы сохраняют прежний контракт. Screenshot не подтверждает конкретную причину отсутствия видео/права владельца. Диагностика pinned staging только чтением, без grants и отправок. После M1 продолжается текущий план T4–T8.
+
+M1 локальный PASS: exact ports двух production-файлов; channel thumbnail через текущий queue/updater и публичный caption/template, при unavailable видео — photo, действующий animation сохраняется, expiry/revoke/mute возвращают photo. Новая text-card в shared stream не ждёт общего5-minute bucket. Новых DB migrations/capture jobs/прав нет. Подпись и button сохранены; старые группы остаются text.
+
+RED: production3FAIL; channel2FAIL/1PASS; shared/muted2FAIL. Первый muted GREEN выявил неполную async fixture: cleanup работал после db.close; fixture теперь ожидает фактическую cleanup task и shutdown до close, без изменения assertions. Focused40PASS/1existingWindowsSkip/12subtests; media211PASS/1existingWindowsSkip/43subtests/210.55s с настоящим FFmpeg и нагрузкой. Reviewer нашёл queued mute race, новый RED awaited1; apply_photo проверяет notify после обеих fresh reads. GREEN90PASS/15subtests/74.57s; reviewer самостоятельно2PASS/4.47s, открытых findings нет. Полный suite финального committed snapshot и actual staging evidence ещё впереди.
+
+Read-only staging: samoylov___ raw video=1, effective video=0; observed broadcaster1193685437 не совпадает с linked identity/community и не имеет active streamer grant. Это существующий серверный отказ видео, его не обходить. Фото отсутствует по подтверждённому channel-only bug. Production остаётся dc9239e/deployment466499d5. Старые reports/evidence сохранены; новые QA helpers переиспользуют предыдущий guard с отдельной output-папкой, не перезаписывают прежние отчёты.
+
 Текущий staging560f3cc не покрывает новые изменения. Реальные native, OAuth и отправки по новому snapshot ещё не проверены. Production и платёжные права не менялись.

@@ -70,7 +70,8 @@ def build_filtergraph(
             f"duration={_number(plan.duration_seconds)},"
             "setpts=PTS-STARTPTS,"
             f"scale={config.width}:{config.height}:"
-            "force_original_aspect_ratio=decrease:force_divisible_by=2,"
+            "force_original_aspect_ratio=decrease:force_divisible_by=2:"
+            "out_range=tv,"
             f"pad={config.width}:{config.height}:(ow-iw)/2:(oh-ih)/2,"
             f"setsar=1,format=yuv420p[{output_label}]"
         )
@@ -188,7 +189,8 @@ def build_cumulative_argv(
     branches = [
         f"[{index}:v:0]settb=AVTB,setpts=PTS-STARTPTS,"
         f"fps={fps_expression},scale={config.width}:{config.height}:"
-        "force_original_aspect_ratio=decrease:force_divisible_by=2,"
+        "force_original_aspect_ratio=decrease:force_divisible_by=2:"
+        "out_range=tv,"
         f"pad={config.width}:{config.height}:(ow-iw)/2:(oh-ih)/2,"
         f"setsar=1,format=yuv420p[v{index}]"
         for index in range(len(paths))
