@@ -25,12 +25,43 @@ def expected_release_hashes(sha,names):
  with _committed_bundle(sha) as bundle:
   raw={n:hashlib.sha256((bundle/n).read_bytes()).hexdigest() for n in names}
   served_names=['bot/mini_app_ui/index.html']+['bot/mini_app_ui/'+n for n in ASSET_NAMES]
-  served={n:hashlib.sha256(((bundle/n).read_bytes() if n.endswith('.png') else (bundle/n).read_text(encoding='utf-8').encode('utf-8'))).hexdigest() for n in served_names}
+  served={n:hashlib.sha256(((bundle/n).read_text(encoding='utf-8').encode('utf-8') if n.endswith('/index.html') else (bundle/n).read_bytes())).hexdigest() for n in served_names}
  return raw,served
 def fake():
  hashes={'bot/mini_app_ui/index.html':'shell',**{'bot/mini_app_ui/'+n:'asset' for n in ASSET_NAMES}}
  return hashes,{'deployment':'d','cli_sha':'s','bot':{'username':'TwitchSignalTestbot','is_bot':True},'menu':{'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'},'integrity':'ok','foreign_key_check':[],'versions':['v'],'money':{'mode':'offline','external_create':False,'invoice':False,'live_callback':404},'file_hashes':hashes,'health':{'status':'ok','http':200},'app':{'http':200,'xfo':None,'ancestors':'https://web.telegram.org','hash':'shell'},'unsigned':{n:401 for n in UNSIGNED_NAMES},'http_asset_hashes':{n:'asset' for n in ASSET_NAMES},'legal_http':{n:503 for n in ['privacy','agreement','support','tariffs','payments']},'trial_owner_allowlisted':True}
 class SmokeGuards(unittest.TestCase):
+ def test_http_hashes_match_real_asset_routes_with_crlf(self):
+  import asyncio,tempfile
+  from contextlib import contextmanager
+  from unittest.mock import patch
+  from aiohttp import web
+  from aiohttp.test_utils import TestClient,TestServer
+  from bot.database import Database
+  from bot.mini_app_web import install_mini_app_routes
+  async def check():
+   with tempfile.TemporaryDirectory() as directory:
+    root=pathlib.Path(directory);ui=root/'bot/mini_app_ui';ui.mkdir(parents=True)
+    names=['bot/mini_app_ui/index.html']+['bot/mini_app_ui/'+n for n in ASSET_NAMES]
+    for name in names:(root/name).write_bytes(b'first\r\nsecond\r\n')
+    @contextmanager
+    def fixture_bundle(_sha):yield root
+    db=Database(str(root/'test.db'));await db.connect()
+    try:
+     with patch('bot.mini_app_web._UI_DIR',ui),patch('scripts.staging_deploy._committed_bundle',fixture_bundle):
+      raw,served=expected_release_hashes('isolated-local-fixture',names)
+      app=web.Application();install_mini_app_routes(app,db,'123456:local-public-route-test')
+      async with TestClient(TestServer(app)) as client:
+       for name in names:
+        path='/app' if name.endswith('index.html') else '/app/'+pathlib.Path(name).name
+        async with client.get(path) as response:
+         self.assertEqual(response.status,200)
+         body=await response.read()
+         self.assertEqual(served[name],hashlib.sha256(body).hexdigest(),name)
+         self.assertEqual(body,b'first\nsecond\n' if path=='/app' else b'first\r\nsecond\r\n')
+      self.assertNotEqual(raw['bot/mini_app_ui/index.html'],served['bot/mini_app_ui/index.html'])
+    finally:await db.close()
+  asyncio.run(check())
  def test_asset_headers_are_case_insensitive_and_keep_exact_deny(self):
   import ast
   tree=ast.parse(REMOTE)
@@ -60,7 +91,7 @@ class SmokeGuards(unittest.TestCase):
   self.assertEqual(namespace['hashes'],expected)
  def test_raw_artifact_and_normalized_http_hashes_remain_separate(self):
   import copy
-  served,result=fake();raw={n:'raw-'+h for n,h in served.items()};result['file_hashes']=raw
+  served,result=fake();raw=dict(served);raw['bot/mini_app_ui/index.html']='raw-shell';result['file_hashes']=raw
   self.assertTrue(verify(result,'s',raw,['v'],'d',served))
   for field in ['file_hashes','app']:
    bad=copy.deepcopy(result)
@@ -149,7 +180,7 @@ if __name__=='__main__':
   verify(result,sha,hashes,versions,stage['id'],http_hashes);after=ops.status();assert after==before
   original=json.loads((ROOT/'docs/audits/mini-app-owner-corrections-2026-10-03/STAGING-staging-before.json').read_text(encoding='utf-8'))['status']['production']
   assert after['production']==original,'Production metadata changed since initial checkpoint'
-  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Exact committed Git archive artifact bytes; HTTP text uses the server read_text UTF-8/universal-newline normalization',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0)
+  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Exact committed Git archive artifact bytes; HTTP assets JS/CSS/PNG remain raw; only index.html uses server read_text UTF-8/universal-newline normalization',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0)
   import re
   logs=ops._capture(['railway','logs',stage['id'],'--project',T['project_id'],'--environment',T['staging_environment_id'],'--service',T['service_id'],'--lines','100','--json'])
   entries=[json.loads(line) for line in logs.splitlines() if line.strip()]

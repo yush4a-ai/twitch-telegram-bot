@@ -1,0 +1,27 @@
+....F...
+======================================================================
+FAIL: test_http_hashes_match_real_asset_routes_with_crlf (__main__.SmokeGuards.test_http_hashes_match_real_asset_routes_with_crlf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\docs\audits\mini-app-owner-corrections-2026-10-03\twitchsignal-ui-smoke.py", line 64, in test_http_hashes_match_real_asset_routes_with_crlf
+    asyncio.run(check())
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\docs\audits\mini-app-owner-corrections-2026-10-03\twitchsignal-ui-smoke.py", line 60, in check
+    self.assertEqual(served[name],hashlib.sha256(body).hexdigest(),name)
+AssertionError: 'dbea9325179efe46ea2add94f7b6b745ca983fabb208dc6d34aa064623d7ee23' != 'f8e0f1568dd9254c3262d199d5dcfc9ff6d4855e18ec53a7176f9eab948ed93e'
+- dbea9325179efe46ea2add94f7b6b745ca983fabb208dc6d34aa064623d7ee23
++ f8e0f1568dd9254c3262d199d5dcfc9ff6d4855e18ec53a7176f9eab948ed93e
+ : bot/mini_app_ui/app.css
+
+----------------------------------------------------------------------
+Ran 8 tests in 22.245s
+
+FAILED (failures=1)

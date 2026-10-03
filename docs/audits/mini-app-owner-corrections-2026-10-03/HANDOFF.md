@@ -1,6 +1,6 @@
 # Правки Mini App: проверка владельцем
 
-Статус выпуска уточняется в конце этого файла. Вход: [@TwitchSignalTestbot](https://t.me/TwitchSignalTestbot) → «Приложение». При открытом старом окне закройте его и откройте приложение заново. Адрес shell: https://worker-staging-2f74.up.railway.app/app; личные данные доступны только из подтверждённого Telegram-входа.
+Исправления опубликованы на тестовом боте, проверка после выкладки PASS. Вход: [@TwitchSignalTestbot](https://t.me/TwitchSignalTestbot) → «Приложение». При открытом старом окне закройте его и откройте приложение заново. Адрес shell: https://worker-staging-2f74.up.railway.app/app; личные данные доступны только из подтверждённого Telegram-входа.
 
 ## Что посмотреть
 
@@ -18,4 +18,6 @@ RELEASE-chromium/report.json и RELEASE-webkit/report.json: по137 провер
 
 ## Выпуск
 
-Код: 38f5f21ce197bda5de65ed710ffb6f1884a2539d. Свежая backup/restore PASS, source-confirmation PASS. Проверка миграции на копии и полный guard выполняются до развёртывания. Этот промежуточный статус не подтверждает выпуск.
+Код: `38f5f21ce197bda5de65ed710ffb6f1884a2539d`; развёрнутый snapshot `720962b69c0703177437422cf29400985c529081`, deployment `00481223-a132-4903-b3b2-5db606899f89`, active SUCCESS. Полный suite: 1491 passed / 2 прежних Windows skips / 3627 subtests; backup/restore, migration-copy и фактическая проверка версии/бота/ресурсов/БД после выкладки PASS. Production не менялся. Подробности упаковки, тестов и ограничений — [RELEASE.md](RELEASE.md).
+
+Правовые страницы остаются недоступны (503), оплата выключена. Новые сценарии на настоящем телефоне и окончательная визуальная приёмка ожидаются.

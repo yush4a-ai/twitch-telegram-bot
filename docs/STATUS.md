@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: правки владельца выпущены, уточняется главная без эфиров
+
+Код `38f5f21`, release `720962b69c0703177437422cf29400985c529081`, tree `1ec0015fe4553c2abad35ed358cd7f00c002d6a0`; active SUCCESS deployment `00481223-a132-4903-b3b2-5db606899f89`. Full suite 1491 passed / 2 прежних Windows skips / 3627 subtests / 939,27 с; Chromium и WebKit по137 PASS/41PNG. Backup/migration-copy и actual smoke (192 runtime-файла/17 HTTP-assets/бот8859004067/27 migrations/9 auth401/paymentOFF/production unchanged) PASS. HTTP 413 устранён упаковкой того же SHA без docs/audits и docs/design; CRLF oracle исправлен RED→8 selftests PASS, без runtime changes. Подробности: `docs/audits/mini-app-owner-corrections-2026-10-03/RELEASE.md`.
+
+Новое замечание владельца: на iPhone при subscriptions>0/live=0 нет персонажа, тогда как сравнение показывало live-состояние. Rootcause подтверждён: hero расположен внутри live-ветки renderHome. Следующий ограниченный сценарий — общий hero и честные состояния live/no-live/stale/no-subscriptions, отдельные regression/screenshots и новый gate. Новый native UI/окончательная приёмка ещё не подтверждены. Production/деньги/старые группы/HTML не менялись.
+
 ## Текущий checkpoint — 03.10.2026: Mini App polish опубликован на тестовом боте
 
 Release3189fa83b1b78ff4f741831dd53aff8f73ceccb4; deployment36e6e769-fa8a-4554-8551-7450b1cd87ea activeSUCCESS. Guard1462PASS/2skipped/3274subtests989.84s;40browserjourneys +46targeted each engine PASS, AFTER409PNG/BEFORE241PNG.185artifactSHA/14HTTPassets+/app/Bot8859004067/paymentOFF/5auth401/integrity/FK/25migrations/freshproductioncompare PASS. Safe areas/навигация/формы/первое действие/ошибки/честный checkout исправлены, данные/права/цены/HTML/export/legacy groups сохранены. FINAL-REPORT.md и COMPARISON.html в docs/audits/mini-app-polish-2026-10-03. Native owner visual acceptance/signedliveAPI/OAuth/outbound/payment NOT TESTED; legal/support/bank NOT READY. Следующий шаг — приёмка на телефоне по MANUAL-CHECK.md. Последующий docs/evidence commit не заменяет published SHA.
