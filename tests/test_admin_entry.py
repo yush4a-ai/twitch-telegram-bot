@@ -6,6 +6,7 @@ from aiogram.enums import ChatType
 
 from bot.handlers.streams import _main_menu_keyboard, cmd_admin, cmd_start
 from main import _private_bot_commands
+from bot.telegram_ui import more_keyboard
 
 
 OWNER_ID = 425785231
@@ -31,7 +32,8 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
         private = _main_menu_keyboard(
             ChatType.PRIVATE, viewer_url="https://staging.example.test/viewer",
         )
-        self.assertIn("Мои оповещения", str(private))
+        self.assertNotIn("Мои оповещения", str(private))
+        self.assertIn("Мои оповещения", str(more_keyboard(legacy_viewer_url="https://staging.example.test/viewer")))
         self.assertNotIn("Админ-панель", str(private))
         for chat_type in (ChatType.GROUP, ChatType.SUPERGROUP, ChatType.CHANNEL):
             with self.subTest(chat_type=chat_type):
@@ -56,19 +58,20 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(button.web_app.url, "https://staging.example.test/admin")
 
     async def test_start_menu_is_owner_only(self):
-        state = SimpleNamespace(clear=AsyncMock())
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
         db = SimpleNamespace(mark_known_private_user=AsyncMock())
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
         regular = fake_message(OWNER_ID + 1, OWNER_ID + 1, ChatType.PRIVATE)
         group = fake_message(OWNER_ID, -100123, ChatType.SUPERGROUP)
         for message in (owner, regular, group):
             await cmd_start(message, state, db, CONFIG)
-        self.assertIn("Админ-панель", str(owner.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Админ-панель", str(owner.answer.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(owner.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
         self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))
 
     async def test_staging_viewer_start_menu_keeps_owner_admin_isolated(self):
-        state = SimpleNamespace(clear=AsyncMock())
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
         db = SimpleNamespace(mark_known_private_user=AsyncMock())
         config = SimpleNamespace(**vars(CONFIG), viewer_plus_enabled=True)
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
@@ -76,8 +79,10 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
         group = fake_message(101, -100123, ChatType.SUPERGROUP)
         for message in (owner, regular, group):
             await cmd_start(message, state, db, config)
-        self.assertIn("Мои оповещения", str(owner.answer.await_args.kwargs["reply_markup"]))
-        self.assertIn("Мои оповещения", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Мои оповещения", str(owner.answer.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(owner.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
+        self.assertNotIn("Мои оповещения", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(regular.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
         self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Мои оповещения", str(group.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))

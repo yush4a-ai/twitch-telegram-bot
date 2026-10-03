@@ -27,7 +27,7 @@ class GrowthHandlersTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.db = Database(":memory:")
         await self.db.connect()
-        self.state = SimpleNamespace(clear=AsyncMock())
+        self.state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
         self.twitch = SimpleNamespace()
 
     async def asyncTearDown(self):
@@ -53,7 +53,8 @@ class GrowthHandlersTests(unittest.IsolatedAsyncioTestCase):
         await streams.cmd_start_link(
             own, SimpleNamespace(args="src_site"), self.state, self.db, self.twitch, STAGE,
         )
-        self.assertIn("Выбери действие", own.answer.await_args.args[0])
+        self.assertEqual(own.answer.await_args.args[0],streams.MENU_TEXT)
+        self.assertEqual(len(own.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
         self.assertNotIn("Админ-панель", str(own.answer.await_args.kwargs["reply_markup"]))
         for denied in (
             message(-1001, 101, ChatType.GROUP), message(202, 101),

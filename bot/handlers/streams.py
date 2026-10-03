@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import html
@@ -29,6 +29,7 @@ import aiohttp
 from ..config import Config
 from ..database import Database
 from ..plan_catalog import viewer_channel_limit
+from ..telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard, cancel_ui, own_private
 from ..deep_links import (
     TRACK_START_PREFIX,
     TWITCH_LOGIN_RE,
@@ -142,45 +143,7 @@ def _main_menu_keyboard(
     chat_type: str, *, admin_url: str | None = None,
     viewer_url: str | None = None,
 ) -> InlineKeyboardMarkup:
-    # сгруппировано по смыслу: каналы -> отчёты -> настройки чата -> справка,
-    # вместо плоского списка из разнородных пунктов
-    rows = [
-        [
-            InlineKeyboardButton(text="📡 Мои каналы", callback_data="menu:list"),
-            InlineKeyboardButton(text="➕ Добавить оповещение", callback_data="menu:add"),
-        ],
-    ]
-    rows.append([InlineKeyboardButton(text="📊 Отчёт по стриму", callback_data="menu:report")])
-    rows.append([InlineKeyboardButton(text="🔴 Кто стримит?", callback_data="menu:live")])
-    if chat_type != ChatType.PRIVATE:
-        # в личке привязывать некуда — привязка личного чата имеет смысл только для групп/каналов
-        rows.append(
-            [InlineKeyboardButton(text="🔗 Привязать отчёты к личке", callback_data="menu:link_stats")]
-        )
-    else:
-        # а в личке, наоборот, можно управлять настройками своих групп удалённо
-        rows.append(
-            [InlineKeyboardButton(text="💬 Мои сообщества", callback_data="menu:manage_group")]
-        )
-        rows.append(
-            [InlineKeyboardButton(text="🌙 Тихие часы", callback_data="menu:quiet_hours")]
-        )
-        if viewer_url:
-            rows.append([
-                InlineKeyboardButton(
-                    text="Приложение" if viewer_url.endswith("/app") else "🔔 Мои оповещения",
-                    web_app=WebAppInfo(url=viewer_url),
-                )
-            ])
-            if viewer_url.endswith("/app"):
-                rows.append([InlineKeyboardButton(
-                    text="Возможности Plus",
-                    web_app=WebAppInfo(url=viewer_url + "?screen=subscription"),
-                )])
-    rows.append([InlineKeyboardButton(text="ℹ️ Что умею", callback_data="menu:about")])
-    if chat_type == ChatType.PRIVATE and admin_url:
-        rows.append([InlineKeyboardButton(text="🛡️ Админ-панель", web_app=WebAppInfo(url=admin_url))])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    return home_keyboard(chat_type, app_url=viewer_url)
 
 
 def _owner_admin_url(message: Message, config: Config | None, *, actor_id: int | None = None) -> str | None:
@@ -459,11 +422,7 @@ async def _ensure_stats_recipient(message: Message, db: Database) -> str | None:
     )
 
 
-MENU_TEXT = (
-    "Привет! Я слежу за стримами на Twitch: оповещаю о начале и присылаю подробный "
-    "отчёт по завершении. Подробнее — кнопка «ℹ️ Что умею».\n\n"
-    "Выбери действие:"
-)
+MENU_TEXT = HOME_TEXT
 
 ABOUT_TEXT = (
     "👋 <b>Я слежу за Twitch, пока ты занят</b>\n\n"
@@ -637,14 +596,15 @@ async def cmd_start_link(
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, state: FSMContext, db: Database, config: Config | None = None) -> None:
-    await state.clear()
-    if message.chat.type == ChatType.PRIVATE:
+async def cmd_start(message: Message, state: FSMContext, db: Database, config: Config | None = None,
+                    oauth_server: OAuthCallbackServer | None = None) -> None:
+    await cancel_ui(state, actor_id=message.from_user.id if message.from_user else message.chat.id,
+                    db=db, oauth_server=oauth_server)
+    if own_private(message):
         await db.mark_known_private_user(message.chat.id)
+        await message.answer('Возвращайся сюда кнопкой «Меню».', reply_markup=menu_keyboard())
     await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(
-        message.chat.type, admin_url=_owner_admin_url(message, config),
-        viewer_url=_viewer_url(message, config),
-    ))
+        message.chat.type, viewer_url=_viewer_url(message, config)))
 
 
 @router.message(Command("admin"))
@@ -952,13 +912,11 @@ async def on_bot_membership_changed(
 
 
 @router.callback_query(lambda c: c.data == "menu:home")
-async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Config | None = None) -> None:
-    await state.clear()
+async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Config | None = None,
+                       db: Database | None = None, oauth_server: OAuthCallbackServer | None = None) -> None:
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server)
     await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(
-        callback.message.chat.type,
-        admin_url=_owner_admin_url(callback.message, config, actor_id=callback.from_user.id),
-        viewer_url=_viewer_url(callback.message, config, actor_id=callback.from_user.id),
-    ))
+        callback.message.chat.type, viewer_url=_viewer_url(callback.message, config, actor_id=callback.from_user.id)))
     await callback.answer()
 
 

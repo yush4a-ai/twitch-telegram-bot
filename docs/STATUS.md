@@ -1,5 +1,10 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: обычный Telegram UI, Task1 PASS
+
+Новый owner request §§0–36; base608acff. Аудит58button constructions/31callbacks/16commands сохранён в docs/audits/telegram-ui-2026-10-03/UI-MAP.md. Новый exacthome4, owner admin только More, persistent Menu с одним builder и перехватом до FSM. RED5→PASS21tests/34subtests; ledger mini-app/TELEGRAM-UI-PROGRESS.md. Старые callbacks/commands/HTML/Mini App сохранены. Далее Add confirmation, Streamer, shared Plus, compatibility/review/fullsuite/guardedstaging. Deployment пока прежний; payment OFF/production не менялись/native NOT TESTED.
+
+
 ## Текущий checkpoint — 02.10.2026: P01–P21 завершены, инженерный staging release
 
 Код `52e56e9633a77f7e5025a1be7dacbbf8c0769970`, deployment `fba34520-f2a7-4d5d-aa86-1e8e3b0072b1` active SUCCESS. Штатный guard suite1403passed/2skipped/3248subtests/850.45s; actual getMe `@TwitchSignalTestbot` id8859004067 и кнопка «Приложение»,174artifactSHA/14HTTPassets/25migrations/integrity/FK/auth401/paymentOFF/secret0/last100logs0/production compare PASS. Operational headercase/CRLFarchive expectations закрыты RED→7selftestsPASS и одним reviewer, product/guard не менялись. Browser92journeys/2520checks/984PNG; backup/restore/migration-copy/actualkey PASS. Media-пределы и actualstage1job/2sessions сохранены. Пакет `docs/audits/mini-app-redesign-plus-2026-10-02/OWNER-ACCEPTANCE.md`. Owner acceptance ожидается; native/signed live API/OAuth/send/payments NOT TESTED, legal503/support input/bank NOT READY. Production freshdc9239 до/после совпадает. Следующий шаг — замечания владельца. Последующий commit содержит только evidence/docs и не заменяет SHA развёрнутого кода.

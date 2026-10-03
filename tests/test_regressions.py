@@ -7636,7 +7636,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         twitch: SimpleNamespace | None = None,
     ) -> tuple[SimpleNamespace, SimpleNamespace, SimpleNamespace]:
         message = self._message(chat_id, chat_type, user_id=user_id)
-        state = SimpleNamespace(clear=AsyncMock())
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
         twitch = twitch or SimpleNamespace(channel_exists=AsyncMock(return_value=True))
         await cmd_start_link(
             message,

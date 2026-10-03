@@ -1,0 +1,862 @@
+{
+  "base": "608acffa29ff5195d9716ca9651199bde59fee99",
+  "button_constructions": [
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1037,
+      "builder": "_add_to_group_button",
+      "type": "InlineKeyboardButton",
+      "text": "'➕ Добавить в группу'",
+      "url": "link"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1055,
+      "builder": "cb_menu_manage_group",
+      "type": "InlineKeyboardButton",
+      "text": "'➕ Добавить в канал'",
+      "callback_data": "'menu:add_channel_hint'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 516,
+      "builder": "cmd_start_link",
+      "type": "KeyboardButton",
+      "text": "'Выбрать Telegram-канал'",
+      "request_chat": "KeyboardButtonRequestChat(request_id=row[2], chat_is_channel=True, bot_is_member=True, request_title=True)"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 149,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'📡 Мои каналы'",
+      "callback_data": "'menu:list'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 150,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'➕ Добавить оповещение'",
+      "callback_data": "'menu:add'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 153,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'📊 Отчёт по стриму'",
+      "callback_data": "'menu:report'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 154,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'🔴 Кто стримит?'",
+      "callback_data": "'menu:live'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 180,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'ℹ️ Что умею'",
+      "callback_data": "'menu:about'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 263,
+      "builder": "_channels_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "back_callback"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 290,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f\"Уведомление о начале: {('🔔 вкл' if notify_enabled else '🔕 выкл')}\"",
+      "callback_data": "f'togglenotify:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 326,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'📊 Автоотчёт после стрима: ✅ вкл' if auto_report_enabled else '📊 Автоотчёт после стрима: ❌ выкл'",
+      "callback_data": "f'toggleautoreport:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 351,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f'Формат отчёта: {format_label}'",
+      "callback_data": "f'toggleformat:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 359,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f\"Детектор рейдов: {('⚡ вкл' if raid_detection_enabled else 'выкл')}\"",
+      "callback_data": "f'toggleraid:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 376,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'❌ Удалить канал'",
+      "callback_data": "f'untrack:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 378,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад к списку'",
+      "callback_data": "back_callback"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 390,
+      "builder": "_report_channels_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f'📊 {login}'",
+      "callback_data": "f'report:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 393,
+      "builder": "_report_channels_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1073,
+      "builder": "cb_menu_manage_group",
+      "type": "InlineKeyboardButton",
+      "text": "title",
+      "callback_data": "f'managegroup:{gid}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1078,
+      "builder": "cb_menu_manage_group",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1126,
+      "builder": "_quiet_hours_screen_text_and_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'✏️ Свой интервал'",
+      "callback_data": "'qh:custom'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1164,
+      "builder": "_quiet_hours_screen_text_and_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1962,
+      "builder": "cb_menu_add",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "back_callback"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2033,
+      "builder": "_offer_search_results",
+      "type": "InlineKeyboardButton",
+      "text": "f\"{('🔴 ' if r.is_live else '')}{r.display_name} ({r.login})\"",
+      "callback_data": "f'addfound:{target_chat_id}:{r.login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2543,
+      "builder": "_build_live_list",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 158,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'🔗 Привязать отчёты к личке'",
+      "callback_data": "'menu:link_stats'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 163,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'💬 Мои сообщества'",
+      "callback_data": "'menu:manage_group'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 166,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'🌙 Тихие часы'",
+      "callback_data": "'menu:quiet_hours'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 182,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'🛡️ Админ-панель'",
+      "web_app": "WebAppInfo(url=admin_url)"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 253,
+      "builder": "_channels_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f'{name}  {status_icons}'",
+      "callback_data": "f'channelcard:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 261,
+      "builder": "_channels_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'➕ Добавить канал'",
+      "callback_data": "f'menu:add:{target_chat_id}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 299,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'Итоговый отчёт в канал: ✅ вкл' if channel_report_enabled else 'Итоговый отчёт в канал: ❌ выкл'",
+      "callback_data": "f'togglechannelreport:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 312,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f'Формат отчёта: {format_label}'",
+      "callback_data": "f'toggleformat:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 319,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'❌ Удалить канал'",
+      "callback_data": "f'untrack:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 321,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад к списку'",
+      "callback_data": "back_callback"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 342,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "f'Итоговый отчёт → {recipient_label}'",
+      "callback_data": "f'togglerecipient:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 369,
+      "builder": "_channel_card_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "exempt_label",
+      "callback_data": "f'qhx:{target_chat_id}:{login}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1124,
+      "builder": "_quiet_hours_screen_text_and_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "label",
+      "callback_data": "f'qhpreset:{start_hour}:{end_hour}'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1133,
+      "builder": "_quiet_hours_screen_text_and_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "notify_label",
+      "callback_data": "'qh:togglenotifyafter'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1134,
+      "builder": "_quiet_hours_screen_text_and_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'❌ Выключить тихие часы'",
+      "callback_data": "'qh:disable'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1958,
+      "builder": "cb_menu_add",
+      "type": "InlineKeyboardButton",
+      "text": "'📥 Импортировать подписки с Twitch'",
+      "callback_data": "'menu:import_follows'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2537,
+      "builder": "_build_live_list",
+      "type": "InlineKeyboardButton",
+      "text": "f'▶ {login}'",
+      "url": "twitch_url",
+      "icon_custom_emoji_id": "TWITCH_CUSTOM_EMOJI_ID if custom_emoji else None"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 170,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'Приложение' if viewer_url.endswith('/app') else '🔔 Мои оповещения'",
+      "web_app": "WebAppInfo(url=viewer_url)"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 384,
+      "builder": "_back_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 401,
+      "builder": "_start_link_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'✉️ Получать посты в личку'",
+      "url": "link"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1256,
+      "builder": "process_custom_quiet_hours",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:quiet_hours'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 176,
+      "builder": "_main_menu_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'Возможности Plus'",
+      "web_app": "WebAppInfo(url=viewer_url + '?screen=subscription')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2334,
+      "builder": "process_login_input",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "_channels_list_back_callback(message.chat.id, target_chat_id)"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 658,
+      "builder": "cmd_admin",
+      "type": "InlineKeyboardButton",
+      "text": "'Открыть админ-панель'",
+      "web_app": "WebAppInfo(url=url)"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1089,
+      "builder": "cb_add_channel_hint",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:manage_group'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1246,
+      "builder": "cb_quiet_hours_custom",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:quiet_hours'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2222,
+      "builder": "_run_import_follows",
+      "type": "InlineKeyboardButton",
+      "text": "f'➕ Добавить все ({len(to_add)})'",
+      "callback_data": "'importfollows:add'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2225,
+      "builder": "_run_import_follows",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Отмена'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1066,
+      "builder": "cb_menu_manage_group",
+      "type": "InlineKeyboardButton",
+      "text": "'⬅️ Назад'",
+      "callback_data": "'menu:home'"
+    },
+    {
+      "file": "bot/mini_app_streamer.py",
+      "line": 157,
+      "builder": "community_intent",
+      "type": "KeyboardButton",
+      "text": "'Выбрать Telegram-канал'",
+      "request_chat": "KeyboardButtonRequestChat(request_id=request_id, chat_is_channel=True, bot_is_member=True, request_title=True)"
+    },
+    {
+      "file": "bot/poller.py",
+      "line": 773,
+      "builder": "_send_quiet_hours_digest",
+      "type": "InlineKeyboardButton",
+      "text": "'Показать'",
+      "callback_data": "f'quietdigest:show:{chat_id}'"
+    },
+    {
+      "file": "bot/poller.py",
+      "line": 774,
+      "builder": "_send_quiet_hours_digest",
+      "type": "InlineKeyboardButton",
+      "text": "'Не нужно'",
+      "callback_data": "f'quietdigest:skip:{chat_id}'"
+    },
+    {
+      "file": "bot/poller.py",
+      "line": 2302,
+      "builder": "_build_keyboard",
+      "type": "InlineKeyboardButton",
+      "text": "'Открыть Twitch' if ended else 'Смотреть на Twitch'",
+      "url": "f'https://twitch.tv/{login}'"
+    },
+    {
+      "file": "bot/streamer_post.py",
+      "line": 22,
+      "builder": "compose_streamer_post",
+      "type": "InlineKeyboardButton",
+      "text": "button.label",
+      "url": "button.url"
+    }
+  ],
+  "callback_routes": [
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 955,
+      "handler": "cb_menu_home",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:home')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 966,
+      "handler": "cb_menu_about",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:about')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 972,
+      "handler": "cb_menu_link_stats",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:link_stats')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1051,
+      "handler": "cb_menu_manage_group",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:manage_group')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1085,
+      "handler": "cb_add_channel_hint",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:add_channel_hint')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1169,
+      "handler": "cb_menu_quiet_hours",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:quiet_hours')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1213,
+      "handler": "cb_quiet_hours_preset",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('qhpreset:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1241,
+      "handler": "cb_quiet_hours_custom",
+      "filter": "router.callback_query(lambda c: c.data == 'qh:custom')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1290,
+      "handler": "cb_quiet_hours_disable",
+      "filter": "router.callback_query(lambda c: c.data == 'qh:disable')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1300,
+      "handler": "cb_quiet_hours_toggle_notify_after",
+      "filter": "router.callback_query(lambda c: c.data == 'qh:togglenotifyafter')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1316,
+      "handler": "cb_quiet_digest_response",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('quietdigest:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1416,
+      "handler": "cb_manage_group",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('managegroup:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1558,
+      "handler": "cb_menu_list",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:list')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1642,
+      "handler": "cb_channel_card",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('channelcard:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1665,
+      "handler": "cb_channel_list_back",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('channellist:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1706,
+      "handler": "cb_toggle_notify",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('togglenotify:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1727,
+      "handler": "cb_toggle_preview",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('togglepreview:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1747,
+      "handler": "cb_toggle_recipient",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('togglerecipient:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1794,
+      "handler": "cb_toggle_channel_report",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('togglechannelreport:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1829,
+      "handler": "cb_toggle_auto_report",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('toggleautoreport:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1859,
+      "handler": "cb_toggle_format",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('toggleformat:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1881,
+      "handler": "cb_toggle_raid",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('toggleraid:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1906,
+      "handler": "cb_toggle_quiet_hours_exempt",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith(('qhx:', 'togglequiethoursexempt:')))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1928,
+      "handler": "cb_menu_add",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('menu:add'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1973,
+      "handler": "cb_untrack",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('untrack:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2240,
+      "handler": "cb_menu_import_follows",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:import_follows')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2251,
+      "handler": "cb_import_follows_add",
+      "filter": "router.callback_query(lambda c: c.data == 'importfollows:add')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2285,
+      "handler": "cb_add_found_channel",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('addfound:'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2573,
+      "handler": "cb_menu_live",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:live')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2824,
+      "handler": "cb_menu_report",
+      "filter": "router.callback_query(lambda c: c.data == 'menu:report')"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2840,
+      "handler": "cb_report_channel",
+      "filter": "router.callback_query(lambda c: c.data and c.data.startswith('report:'))"
+    }
+  ],
+  "commands": [
+    {
+      "command": "auth_twitch",
+      "file": "bot/handlers/auth.py",
+      "line": 85
+    },
+    {
+      "command": "streamer_connect",
+      "file": "bot/handlers/auth.py",
+      "line": 92
+    },
+    {
+      "command": "paysupport",
+      "file": "bot/handlers/payments.py",
+      "line": 90
+    },
+    {
+      "command": "start",
+      "file": "bot/handlers/streams.py",
+      "line": 639
+    },
+    {
+      "command": "admin",
+      "file": "bot/handlers/streams.py",
+      "line": 650
+    },
+    {
+      "command": "invite",
+      "file": "bot/handlers/streams.py",
+      "line": 663
+    },
+    {
+      "command": "myid",
+      "file": "bot/handlers/streams.py",
+      "line": 682
+    },
+    {
+      "command": "stats",
+      "file": "bot/handlers/streams.py",
+      "line": 687
+    },
+    {
+      "command": "health",
+      "file": "bot/handlers/streams.py",
+      "line": 705
+    },
+    {
+      "command": "help",
+      "file": "bot/handlers/streams.py",
+      "line": 908
+    },
+    {
+      "command": "import_follows",
+      "file": "bot/handlers/streams.py",
+      "line": 2231
+    },
+    {
+      "command": "track",
+      "file": "bot/handlers/streams.py",
+      "line": 2400
+    },
+    {
+      "command": "untrack",
+      "file": "bot/handlers/streams.py",
+      "line": 2454
+    },
+    {
+      "command": "list",
+      "file": "bot/handlers/streams.py",
+      "line": 2471
+    },
+    {
+      "command": "live",
+      "file": "bot/handlers/streams.py",
+      "line": 2561
+    },
+    {
+      "command": "report",
+      "file": "bot/handlers/streams.py",
+      "line": 2803
+    }
+  ],
+  "message_routes": [
+    {
+      "file": "bot/handlers/auth.py",
+      "line": 25,
+      "handler": "on_streamer_community_shared",
+      "filter": "router.message(F.chat_shared)"
+    },
+    {
+      "file": "bot/handlers/auth.py",
+      "line": 86,
+      "handler": "cmd_auth_twitch",
+      "filter": "router.message(Command('auth_twitch'))"
+    },
+    {
+      "file": "bot/handlers/auth.py",
+      "line": 93,
+      "handler": "cmd_streamer_connect",
+      "filter": "router.message(Command('streamer_connect'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 491,
+      "handler": "cmd_start_link",
+      "filter": "router.message(CommandStart(deep_link=True))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 640,
+      "handler": "cmd_start",
+      "filter": "router.message(Command('start'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 651,
+      "handler": "cmd_admin",
+      "filter": "router.message(Command('admin'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 664,
+      "handler": "cmd_invite",
+      "filter": "router.message(Command('invite'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 683,
+      "handler": "cmd_myid",
+      "filter": "router.message(Command('myid'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 688,
+      "handler": "cmd_stats",
+      "filter": "router.message(Command('stats'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 706,
+      "handler": "cmd_health",
+      "filter": "router.message(Command('health'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 909,
+      "handler": "cmd_help",
+      "filter": "router.message(Command('help'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1188,
+      "handler": "process_utc_offset_input",
+      "filter": "router.message(StateFilter(QuietHoursSetup.waiting_for_offset))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 1253,
+      "handler": "process_custom_quiet_hours",
+      "filter": "router.message(StateFilter(QuietHoursSetup.waiting_for_custom_time))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2232,
+      "handler": "cmd_import_follows",
+      "filter": "router.message(Command('import_follows'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2328,
+      "handler": "process_login_input",
+      "filter": "router.message(StateFilter(AddChannel.waiting_for_login))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2401,
+      "handler": "cmd_track",
+      "filter": "router.message(Command('track'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2455,
+      "handler": "cmd_untrack",
+      "filter": "router.message(Command('untrack'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2472,
+      "handler": "cmd_list",
+      "filter": "router.message(Command('list'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2562,
+      "handler": "cmd_live",
+      "filter": "router.message(Command('live'))"
+    },
+    {
+      "file": "bot/handlers/streams.py",
+      "line": 2804,
+      "handler": "cmd_report",
+      "filter": "router.message(Command('report'))"
+    }
+  ]
+}

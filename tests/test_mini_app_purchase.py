@@ -144,13 +144,16 @@ class MiniAppPurchaseTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PurchaseMenuTests(unittest.TestCase):
-    def test_plus_is_private_app_link_only_and_query_selects_no_rights(self):
+    def test_plus_moves_to_more_and_home_keeps_four_actions(self):
         from bot.handlers.streams import _main_menu_keyboard
+        from bot.telegram_ui import more_keyboard
         private = _main_menu_keyboard("private", viewer_url="https://staging.example.test/app")
         buttons = [b for row in private.inline_keyboard for b in row]
-        plus = next(b for b in buttons if b.text == "Возможности Plus")
-        self.assertEqual(plus.web_app.url, "https://staging.example.test/app?screen=subscription")
-        for kind, url in (("supergroup", "https://staging.example.test/app"),
-                          ("private", "https://staging.example.test/viewer"), ("private", None)):
-            self.assertFalse(any(b.text == "Возможности Plus" for row in
-                                 _main_menu_keyboard(kind, viewer_url=url).inline_keyboard for b in row))
+        self.assertEqual(len(buttons),4)
+        self.assertEqual(buttons[0].web_app.url,"https://staging.example.test/app")
+        self.assertFalse(any(b.text=="Возможности Plus" for b in buttons))
+        plus = next(b for row in more_keyboard().inline_keyboard for b in row if b.text=="⭐ Plus и подписка")
+        self.assertEqual(plus.callback_data,"menu:plus")
+        for kind in ("group","supergroup","channel"):
+            menu = _main_menu_keyboard(kind, viewer_url="https://staging.example.test/app")
+            self.assertFalse(any(b.web_app for row in menu.inline_keyboard for b in row))
