@@ -119,10 +119,13 @@ async def cb_streamer_channel(callback,state,db,oauth_server=None):
     await callback.answer()
 
 
-async def cb_streamer_posts(callback,db,config=None):
+async def cb_streamer_posts(callback,db,config=None,state=None,oauth_server=None):
     if not await private_callback(callback): return
     if await db.get_streamer_identity(callback.from_user.id) is None:
         await callback.answer("Сначала подключи Twitch.",show_alert=True);return
+    if state is not None:
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,
+                        oauth_server=oauth_server,message=callback.message)
     url=_viewer_url(callback.message,config,actor_id=callback.from_user.id)
     rows=[]
     if url and url.endswith('/app'):

@@ -12,13 +12,20 @@ GREEN: быстрый141checks/28PNG, Chromium232checks/58PNG и WebKit232checks
 Focused pytest: tariff copy/Telegram Plus/Mini App user copy/subscription/purchase —24PASS/3047subtests/22.18s. Единственное предупреждение: нет записи в старый .pytest_cache; assertions/skips не менялись. Полный suite запланирован на финальный snapshot.
 Evidence: `docs/audits/telegram-journey-2026-10-03/copy/`. Scoped diff review: одна runtime-подпись; QA selectors отражают правило владельца и продолжают проверять реальный переход, цену и состав features. Stop-Slop copy pass: «О тарифе» обозначает назначение ссылки.
 
-## T1: выполняется
+## T1: complete (BASE 527b0c3)
 
 Сверка исходного аудита с текущим кодом: /start и «Меню» уже отвечают внизу чата (show_home previous=None), поэтому старое замечание не воспроизводится этим кодом и не требует возврата скрытого редактирования. Переход streamer:posts действительно не вызывает cancel_ui — незавершённый selector может остаться. Следующий RED покрывает отмену и поздний chat_shared без сохранения соединения.
 Фильтр viewer_filter применяется к личному стартовому сигналу: точное название игры (casefold), любое из включённых слов/фраз как подстрока, исключения имеют приоритет; группы обходят личный фильтр. Отдельный category detector требует стабильной смены категории. Новый сигнал только от изменения заголовка не входит в этот контракт; не изобретается в рамках проверки.
 
 Pre-flight interfaces: T2/T3 — текущая Telegram reply_markup/источник возврата; T3/T5 — Add target/return; T4/T5 — media-caption/keyboard restoration; T6/T7 — существующие фильтры и права; T7/T8 — неизменный snapshot и штатный guard. Источники page/query будут только серверной navigation-state, без изменений доменных прав.
 Ruling: Windows bookkeeping ведётся видимым ledger без запуска отсутствующих Bash community helpers. Модель/усилие основного исполнителя сохраняются.
+
+Карта `docs/audits/telegram-journey-2026-10-03/UI-CONTRACTS.md` связывает экраны, callbacks, данные, права, возвраты и контракт фильтров. Изменение названия эфира не обещается как уже реализованное дополнительное уведомление.
+
+## T2: выполняется (BASE 527b0c3)
+
+Selector→posts: RED pending != cancelled; минимальное подключение существующего cancel_ui к cb_streamer_posts. GREEN27PASS/7subtests/16.92s: реальный router/FSM/DB, fake Telegram transport, восстановленный Меню, late share отклонён, сохранённый канал не удалён, чужой actor не отменяет owner intent. Один промежуточный запуск выявил неполную late-message fixture (не было bot); fixture исправлена без изменения assertions. Scoped review: доменные проверки прежние; state/oauth необязательны для legacy прямых вызовов, действующий router передаёт их.
+Ruling: сохранение page/query/card source реализуется вместе с T3, где появляется сам paginated list contract; повторно переделывать старую временную навигацию перед T3 не нужно.
 
 ## Ограничения
 
