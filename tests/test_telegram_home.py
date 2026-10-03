@@ -97,6 +97,18 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         from bot.telegram_home import BANNER_PATH
         self.assertTrue(BANNER_PATH.is_file());self.assertLess(BANNER_PATH.stat().st_size,10*1024*1024)
 
+    async def test_explicit_start_and_menu_answer_below_the_latest_input(self):
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        for text in ('Меню', '/start'):
+            self.transport.next_id += 10
+            incoming=self.incoming().model_copy(update={'text':text,'message_id':self.transport.next_id}).as_(self.bot)
+            before=len(self.transport.calls)
+            await cmd_start(incoming,self.state,self.db,CONFIG)
+            calls=self.transport.calls[before:]
+            self.assertEqual([m.__api_method__ for m in calls],['sendPhoto'])
+            latest=list(self.transport.messages.values())[-1]
+            self.assertGreater(latest.message_id,incoming.message_id)
+
     async def test_subscriptions_live_zero_one_many_cap_and_escaping(self):
         for i in range(6): await self.db.add_channel(101,f'live{i}')
         view=await self.state_for()
@@ -131,7 +143,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.transport.calls,[])
         callback.answer.assert_awaited_once()
 
-    async def test_menu_reuses_message_caption_then_text_and_fallback_once(self):
+    async def test_explicit_menu_replies_and_inline_navigation_edits_with_fallback(self):
         from bot.handlers.navigation import cb_more
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)
         photo=list(self.transport.messages.values())[-1]
@@ -140,21 +152,24 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.transport.calls[-1].__api_method__,'editMessageCaption')
         await cb_menu_home(callback,self.state,CONFIG,self.db)
         for _ in range(6): await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),2)
+        self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),8)
         await self.db.add_channel(101,'alpha')
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)
         self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),2)
         for _ in range(5): await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),2)
+        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),7)
+        current=list(self.transport.messages.values())[-1]
+        callback.message=current
         self.transport.fail_edit=True
-        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),3)
-        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),3)
+        await cb_menu_home(callback,self.state,CONFIG,self.db)
+        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),8)
+        callback.message=list(self.transport.messages.values())[-1]
+        await cb_menu_home(callback,self.state,CONFIG,self.db)
+        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),8)
 
     async def test_concurrent_menu_and_per_bot_file_id_reuse(self):
         await asyncio.gather(*(cmd_start(self.incoming(),self.state,self.db,CONFIG) for _ in range(8)))
-        self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),2)
+        self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),9)
         await cmd_start(self.incoming(202),self.state,self.db,CONFIG)
         second=[m for m in self.transport.calls if m.__api_method__=='sendPhoto'][-1]
         self.assertEqual(second.photo,'banner-777')
@@ -177,7 +192,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         restored=[m for m in self.transport.calls if m.__api_method__=='sendMessage' and m.text=='Выбор канала отменён.']
         self.assertEqual(len(restored),1)
         self.assertEqual([[b.text for b in row] for row in restored[0].reply_markup.keyboard],[['Меню']])
-        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),1)
+        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),2)
 
     async def test_home_replaces_unrelated_photo_and_caption_excludes_text_only_options(self):
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)

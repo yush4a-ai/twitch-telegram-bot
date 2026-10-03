@@ -170,6 +170,10 @@ async def show_home(message, view, *, app_url=None, callback=False):
             ready = True
         if callback:
             previous = message
+        else:
+            # An explicit command must answer at the bottom of the chat. The
+            # cached Home may be far above newer channel-selection messages.
+            previous = None
         if view.banner:
             photo = store.banner_file_id if store and store.banner_file_id else FSInputFile(BANNER_PATH)
             if previous is not None:
