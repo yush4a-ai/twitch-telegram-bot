@@ -10,6 +10,22 @@ from datetime import datetime, timezone
 MAX_CHATTERS_IN_REPORT = 5000
 
 
+def format_stream_period(started_at: str | None, ended_at: float | None) -> str:
+    """Use the stored stream timestamps, never the later report delivery date."""
+    try:
+        start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+        if start.tzinfo is None:
+            raise ValueError('timezone missing')
+        start_text = start.astimezone(timezone.utc).strftime('%d.%m.%Y, %H:%M UTC')
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        start_text = 'не сохранено'
+    try:
+        end_text = datetime.fromtimestamp(ended_at, timezone.utc).strftime('%d.%m.%Y, %H:%M UTC')
+    except (TypeError, ValueError, OverflowError, OSError):
+        end_text = 'не сохранено'
+    return f'Начало: {start_text}\nЗавершение: {end_text}\n'
+
+
 def _js_json(value) -> str:
     """JSON для вставки внутрь <script>.
 

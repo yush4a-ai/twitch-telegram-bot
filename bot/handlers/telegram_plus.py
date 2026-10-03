@@ -4,7 +4,7 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from ..plan_catalog import catalog_payload
+from ..plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE
 from ..subscription_state import SubscriptionService
 from ..telegram_ui import back_keyboard, cancel_ui
 from .telegram_streamer import private_callback
@@ -17,7 +17,8 @@ def product_view(product_id):
 
 def benefits(product):
     features=catalog_payload()['features']
-    return '\n'.join('• '+features[feature]['title'] for feature in product['feature_ids'])
+    return '\n'.join('• '+features[feature]['title']+' — '+features[feature]['description']
+                     for feature in product['feature_ids'])
 
 
 def product_route(data, action):
@@ -97,6 +98,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         if product['includes']: text+='В Стример Plus включены все возможности Зритель Plus.\n\n'
         text+=benefits(product)
         if product['includes']: text+='\n\n'+benefits(product_view('viewer_plus'))
+        text+='\n\n'+PAYMENT_UNAVAILABLE_MESSAGE
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source))
     await callback.answer()
 
@@ -114,7 +116,8 @@ async def cb_buy(callback,state,db,oauth_server=None):
     rows=[[InlineKeyboardButton(text=m['title'],callback_data=f"plus:pay:{nonce}:{m['id']}")] for m in catalog_payload()['methods']]
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"{product['title']}\n{product['price_label']} / {product['period_label'].removeprefix('1 ')}\n\nВыбери способ оплаты.\n"
-        "Telegram Stars — через Telegram. СБП и банковская карта — через Platega.\n\nАвтопродление выключено.",
+        "Telegram Stars — через Telegram. СБП и банковская карта — через Platega.\n\n"
+        +PAYMENT_UNAVAILABLE_MESSAGE+"\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
 

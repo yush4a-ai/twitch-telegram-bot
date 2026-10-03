@@ -1,0 +1,92 @@
+FFFFF                                                                    [100%]
+================================== FAILURES ===================================
+____ HelpReportTests.test_automatic_report_persists_the_same_stream_period ____
+
+self = <test_telegram_help_reports.HelpReportTests testMethod=test_automatic_report_persists_the_same_stream_period>
+
+    async def test_automatic_report_persists_the_same_stream_period(self):
+        end = await self.seed()
+        await self.db.set_auto_report_enabled(101, 'channel', True)
+        poller = StreamPoller(self.msg.bot, self.db, SimpleNamespace(), 60)
+        poller._compute_new_followers = AsyncMock(return_value=None)
+        poller._fetch_top_clips = AsyncMock(return_value=[])
+        poller._fetch_and_save_vod = AsyncMock(return_value=None)
+        await poller._send_stats(101, 'channel', 'stream-2', 'Название',
+            '2026-10-02T10:00:00Z', 100, 50, 1, None, ended_at=end)
+>       self.assert_period(self.msg.bot.send_message.await_args.args[1])
+
+tests\test_telegram_help_reports.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_help_reports.py:56: in assert_period
+    self.assertIn('Начало: 02.10.2026, 10:00 UTC', text)
+E   AssertionError: 'Начало: 02.10.2026, 10:00 UTC' not found in '📊 Стрим <b>channel</b> завершён\n\nНазвание\n\nДлительность: 1 ч 0 мин\nПик зрителей: 100\nСреднее число зрителей: 50\n\nПик зрителей +0% от среднего по прошлым 1 стримам'
+____ HelpReportTests.test_help_has_guides_without_requiring_a_subscription ____
+
+self = <test_telegram_help_reports.HelpReportTests testMethod=test_help_has_guides_without_requiring_a_subscription>
+
+    def test_help_has_guides_without_requiring_a_subscription(self):
+        text, keyboard = telegram_help.help_screen(CONFIG)
+        actions = {b.callback_data for row in keyboard.inline_keyboard for b in row}
+        for topic in ('about', 'import', 'quiet', 'reports'):
+>           self.assertIn('help:topic:' + topic, actions)
+E           AssertionError: 'help:topic:about' not found in {'menu:more', 'help:commands'}
+
+tests\test_telegram_help_reports.py:34: AssertionError
+__ HelpReportTests.test_manual_free_report_has_stream_dates_and_retains_html __
+
+self = <test_telegram_help_reports.HelpReportTests testMethod=test_manual_free_report_has_stream_dates_and_retains_html>
+
+    async def test_manual_free_report_has_stream_dates_and_retains_html(self):
+        end = await self.seed()
+        await self.db.set_report_format(101, 'channel', 'full')
+        with patch('bot.handlers.streams.time.time', return_value=end + 3600):
+            self.assertTrue(await streams._deliver_report(self.msg, 101, 'channel', self.db))
+        text = self.msg.bot.send_message.await_args.args[1]
+>       self.assert_period(text)
+
+tests\test_telegram_help_reports.py:65: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_help_reports.py:56: in assert_period
+    self.assertIn('Начало: 02.10.2026, 10:00 UTC', text)
+E   AssertionError: 'Начало: 02.10.2026, 10:00 UTC' not found in '📊 Стрим <b>channel</b> завершён\n\nДлинное название &lt;эфира&gt;\n\nДлительность: 1 ч 0 мин\nПик зрителей: 100\nСреднее число зрителей: 50\nНовых фолловеров: 10\nДанные чата: неполные после перезапуска бота'
+___ HelpReportTests.test_missing_start_is_unknown_instead_of_delivery_date ____
+
+self = <test_telegram_help_reports.HelpReportTests testMethod=test_missing_start_is_unknown_instead_of_delivery_date>
+
+    async def test_missing_start_is_unknown_instead_of_delivery_date(self):
+        end = await self.seed()
+        await self.db.conn.execute('UPDATE stream_history SET started_at=NULL')
+        await self.db.conn.commit()
+        await streams._deliver_report(self.msg, 101, 'channel', self.db)
+>       self.assertIn('Начало: не сохранено', self.msg.bot.send_message.await_args.args[1])
+E       AssertionError: 'Начало: не сохранено' not found in '📊 Стрим <b>channel</b> завершён\n\nДлинное название &lt;эфира&gt;\n\nДлительность: 1 ч 0 мин\nПик зрителей: 100\nСреднее число зрителей: 50\nНовых фолловеров: 10\nДанные чата: неполные после перезапуска бота'
+
+tests\test_telegram_help_reports.py:78: AssertionError
+_ HelpReportTests.test_tariff_explains_personal_slots_and_payment_off_before_checkout _
+
+self = <test_telegram_help_reports.HelpReportTests testMethod=test_tariff_explains_personal_slots_and_payment_off_before_checkout>
+
+    async def test_tariff_explains_personal_slots_and_payment_off_before_checkout(self):
+        await telegram_plus.cb_plus(self.cb('menu:plus'), self.state, self.db, CONFIG)
+        text = self.msg.edit_text.await_args.args[0]
+>       self.assertIn('включая тех, кто сейчас не в эфире', text)
+E       AssertionError: 'включая тех, кто сейчас не в эфире' not found in 'Тариф\n\nЗритель Plus\n150 ₽ / месяц\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История'
+
+tests\test_telegram_help_reports.py:40: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [Errno 13] Permission denied: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_help_reports.py::HelpReportTests::test_automatic_report_persists_the_same_stream_period
+FAILED tests/test_telegram_help_reports.py::HelpReportTests::test_help_has_guides_without_requiring_a_subscription
+FAILED tests/test_telegram_help_reports.py::HelpReportTests::test_manual_free_report_has_stream_dates_and_retains_html
+FAILED tests/test_telegram_help_reports.py::HelpReportTests::test_missing_start_is_unknown_instead_of_delivery_date
+FAILED tests/test_telegram_help_reports.py::HelpReportTests::test_tariff_explains_personal_slots_and_payment_off_before_checkout
+5 failed, 2 warnings in 6.62s

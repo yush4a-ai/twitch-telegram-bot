@@ -73,7 +73,8 @@ def build_navigation_router():
     router.callback_query.register(cb_plus,(F.data == 'menu:plus') | F.data.startswith('plus:show:'))
     router.callback_query.register(cb_buy,F.data.startswith('plus:buy:'))
     router.callback_query.register(cb_payment_method,F.data.startswith('plus:pay:'))
-    from .telegram_help import cb_help, cb_commands
+    from .telegram_help import cb_help, cb_commands, cb_help_topic
     router.callback_query.register(cb_help,F.data == 'menu:help')
     router.callback_query.register(cb_commands,F.data == 'help:commands')
+    router.callback_query.register(cb_help_topic,F.data.startswith('help:topic:'))
     return router

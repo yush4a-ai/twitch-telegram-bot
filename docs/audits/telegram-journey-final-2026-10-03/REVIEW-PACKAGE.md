@@ -1,0 +1,11 @@
+# Финальный scoped review T0–T6/M1
+
+Read-only review, sole reviewer, no agents, no edits/index/HEAD/state changes, no external calls. Root implements fixes. Review runtime/test diff from b29482589be27adefaad4d30e7be635c0695cf73 to current HEAD. Exclude docs/audits and docs/design bytes from reading diff; reports/assets themselves are retained. Main branch/model unaffected.
+
+Requirements: docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md; owner approved detailed plan C:/Users/yusha/Documents/Codex/2026-10-03/realtime-voice-chat-4/outputs/TwitchSignalBot-plan.md. Ledger/rulings mini-app/TELEGRAM-JOURNEY-PROGRESS.md. Product baseline R0–R9 / prior redesign not reimplemented.
+
+Implemented: owned cancel/FSM generation/source-aware tariff Back, fresh/nearly repeated photo Home, honest tracking vs notification and unknown live, 8/page/search/live/delete confirm, add result/cancel/import ownership, native channel selector approved guide/help/resume/readiness, quiet local preview/nonce+actor+chat+expiry confirmation, Help topics, precise tariff/paymentOFF, stored UTC report dates. M1 photo fallback and prior production FFmpeg fixes already independently reviewed and deployed; inspect integration for regressions.
+
+Review focus: permissions before cancellation/mutations; foreign actors/private-vs-group; late OAuth/chat_shared after Menu; callbacks carrying navigation never grant Plus; sixth video server guard remains; saved community/readiness includes fresh rights and notify false; unreadable live unknown; caption >1024 sends text without losing markup/media; asset file_id per bot; quiet UTC changes/cancel/expiry/one-use; report delivery destination/outbox/HTML/Free; paymentOFF/no invoices/POST/grants. Preserve legacy groups/callbacks, prices150/300 and product titles.
+
+Checks: T4 51PASS/4subtests, T5 54PASS/4subtests, T6 70PASS/10subtests plus report/compat51PASS. Full gate pending final immutable snapshot, native/OAuth/outbound NOT TESTED. Broad audit outside changed files is not requested. Return file:line, reproducible findings, Critical/Important/Minor, declined-to-judge list, readiness verdict; Russian concise. No test skips/assertion relaxation or speculative improvements.

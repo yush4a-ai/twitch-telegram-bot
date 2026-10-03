@@ -56,7 +56,7 @@ from ..poller import (
     _split_twitch_mentions,
     _strip_links,
 )
-from ..report import build_report_html, format_duration_seconds
+from ..report import build_report_html, format_duration_seconds, format_stream_period
 from ..report_delivery import validate_report_destination
 from ..token_store import TokenStore
 from ..twitch import TwitchAuthError, TwitchClient, TwitchUserTokenError
@@ -2688,6 +2688,9 @@ def _build_report_summary(
     raid_events: list,
     collab_logins: list,
     vod_url: str | None,
+    *,
+    started_at: str | None = None,
+    ended_at: float | None = None,
 ) -> str:
     """Текстовая выжимка по стриму — та же, что приходит сразу после эфира.
 
@@ -2701,6 +2704,7 @@ def _build_report_summary(
     text = (
         f"📊 Стрим <b>{html.escape(login)}</b> завершён{collab_label}\n\n"
         f"{html.escape(title or '(без названия)')}\n\n"
+        f"{format_stream_period(started_at, ended_at)}"
         f"Длительность: {duration_text}\n"
         f"Пик зрителей: {peak_viewers}\n"
         f"Среднее число зрителей: {avg_viewers}"
@@ -2855,6 +2859,7 @@ async def _deliver_report(
             bool(join_reliable) if join_reliable is not None else True,
             _safe_json_list(top_chatters_json), _safe_json_list(raid_events_json),
             _safe_json_list(collab_json), vod[0] if vod else None,
+            started_at=started_at, ended_at=ended_at,
         ),
         disable_web_page_preview=True,
     )

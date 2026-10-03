@@ -33,7 +33,7 @@ from .live_post import (
     LivePostUpdater,
     LivePostUpdateResult,
 )
-from .report import build_report_html
+from .report import build_report_html, format_stream_period
 from .report_delivery import validate_report_destination
 from .preview_runtime import PreviewObservation, PreviewObserver
 from . import stream_thumbnail
@@ -1999,6 +1999,7 @@ class StreamPoller:
         text = (
             f"📊 Стрим <b>{html.escape(login)}</b> завершён{collab_label}\n\n"
             f"{html.escape(title or '(без названия)')}\n\n"
+            f"{format_stream_period(started_at, history_record.ended_at)}"
             f"Длительность: {duration_text}\n"
             f"Пик зрителей: {peak}\n"
             f"Среднее число зрителей: {avg_viewers}"

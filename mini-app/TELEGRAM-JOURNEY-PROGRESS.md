@@ -13,6 +13,12 @@ T5 complete (BASE fe58189): RED6 сценариев + quick UTC/readiness/cancel
 
 ## M1: staging complete — release160703a
 
+## T6: complete (BASE 69a8fa7)
+
+RED5 реальных отсутствующих сценариев; GREEN70PASS/10subtests/53.52s (telegram help/reports/plus/navigation/guided/compat/tariff, viewer_filter/category/notification_cutover), manual/automatic report guards отдельно51PASS/35.79s. Первый focused запуск с неверным именем test_tariff_copy не выполнил tests, сохранён как ошибка команды; повтор исправлен. Помощь содержит on-demand about/import/quiet/reports и реальные configured support/legal links. Личные пять preview включают offline; описание каждого feature из canonical catalog, paymentOFF заранее на offer/method screen. Автоматический outbox и ручной отчёт используют сохранённые начало/завершение UTC; неизвестный start не подменяется датой доставки. Free full report и HTML файл проверены через real SQLite/fake transport. Existing follower warning уже требует подключение самим стримером, help поясняет, что viewer OAuth не даёт чужие followers. Copy Stop-Slop reviewed: точные действия, реальная навигация, raid exception и retention24h без новых обещаний. No migrations/grants/payments/provider requests. New images: 0; три approved original assets сохранены, подробные настройки текстом. Scoped diff review PASS, full final suite и fresh reviewer остаются T7/T8.
+
+Ruling: browser evidence T0 может переиспользоваться только после проверки неизменности всех Mini App source/assets — текущие T4–T6 меняют Telegram, не web surface; иначе потребуется повторная browser matrix. Native Telegram/owner visual acceptance не заменяется pytest или макетом. Стоимость неверной идентичности — незамеченная web regression; identity proof сохраняется отдельно.
+
 Штатный full guard1517PASS/2existingWindowsSkips/3638subtests/1117.61s и guarded SUCCESS deploymentac62b912-b6bb-4633-899b-6afa1ffecfd4. Exact runtime/HTTP bytes, bot8859004067, постоянный menu«Приложение», auth401, integrity/FK/paymentOFF/production unchanged подтверждены actual smoke. Обычный poller перевёл существующие сообщения28/29 (`samoylov___`/`gofns`) в photo; проверка readonly DB, без отдельной тестовой отправки. Native BEFORE сохранён; AFTER NOT TESTED из-за перекрытого окна и активного ввода владельца. Backup/restore свежий PASS; migration-copy evidence переиспользован после проверки неизменности schema/cipher. Отчёт M1-RELEASE.md и все RED/intermediate/PASS logs сохранены. T2 частично, T4–T8 остаются открыты.
 
 ## T0: complete (BASE b294825)
