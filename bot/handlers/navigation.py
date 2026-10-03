@@ -27,8 +27,10 @@ async def cb_more(callback, config=None, state=None, db=None, oauth_server=None)
     await callback.answer()
 
 
-async def cb_open_app(callback, config=None):
+async def cb_open_app(callback, config=None, state=None, db=None, oauth_server=None):
     msg = callback.message
+    if state is not None and msg is not None:
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=msg)
     url = _viewer_url(msg,config,actor_id=callback.from_user.id) if msg else None
     if url and url.endswith('/app'):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[

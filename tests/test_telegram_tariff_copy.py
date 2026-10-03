@@ -26,6 +26,6 @@ class TariffCopyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(buttons[1].text,'Тариф для стримера')
         await db.link_streamer_identity(101,'11','alpha',verified_at=1)
         cb.data='menu:streamer';await cb_streamer(cb,db)
-        self.assertEqual(next(b.text for row in msg.edit_text.await_args.kwargs['reply_markup'].inline_keyboard for b in row if b.callback_data=='plus:show:streamer_plus'),'Тариф для стримера')
+        self.assertEqual(next(b.text for row in msg.edit_text.await_args.kwargs['reply_markup'].inline_keyboard for b in row if b.callback_data=='plus:show:streamer_plus:streamer'),'Тариф для стримера')
         cb.data='plus:buy:streamer_plus';await cb_buy(cb,state,db)
         self.assertIn('Стример Plus\n300 ₽ / месяц',msg.edit_text.await_args.args[0])

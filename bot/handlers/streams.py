@@ -1030,10 +1030,13 @@ ADD_TO_CHANNEL_HINT = (
 
 
 @router.callback_query(lambda c: c.data == "menu:manage_group")
-async def cb_menu_manage_group(callback: CallbackQuery, db: Database) -> None:
+async def cb_menu_manage_group(callback: CallbackQuery, db: Database, state: FSMContext | None = None,
+                               oauth_server: OAuthCallbackServer | None = None) -> None:
     if not own_private(callback.message,callback.from_user.id):
         await callback.answer('Открой свой личный чат с ботом.',show_alert=True)
         return
+    if state is not None:
+        await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server, message=callback.message)
     await callback.answer('Проверяю подключения…')
     chats = await _admin_groups_for_user(callback, db)
     rows = [[InlineKeyboardButton(text=title,callback_data=f'managegroup:{gid}')] for gid,title in chats]
@@ -1541,11 +1544,14 @@ async def _check_read_permission(callback: CallbackQuery, target_chat_id: int) -
 
 
 @router.callback_query(lambda c: c.data == "menu:list")
-async def cb_menu_list(callback: CallbackQuery, db: Database) -> None:
+async def cb_menu_list(callback: CallbackQuery, db: Database, state: FSMContext | None = None,
+                       oauth_server: OAuthCallbackServer | None = None) -> None:
     from ..telegram_lists import can_read, new_context, show_context
     if not await can_read(callback, callback.message.chat.id):
         await callback.answer('Нет доступа к этому чату.', show_alert=True)
         return
+    if state is not None:
+        await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server, message=callback.message)
     await show_context(callback, db, new_context(callback, callback.message.chat.id))
 
 

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from aiogram import Dispatcher
+from aiogram import Dispatcher, F, Router
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
@@ -65,6 +65,57 @@ class JourneyCancellationTests(unittest.IsolatedAsyncioTestCase):
         edits.assert_not_awaited()
         self.assertEqual((await self.db.get_community_intent('a'*32))[6], 'pending')
         self.assertEqual(await self.state.get_data(), {'telegram_community_intent': 'a'*32})
+
+    async def test_primary_entries_cancel_selector_and_restore_native_menu(self):
+        from bot.handlers.streams import cb_menu_list, cb_menu_manage_group
+        legacy = Router()
+        legacy.callback_query.register(cb_menu_list, F.data == 'menu:list')
+        legacy.callback_query.register(cb_menu_manage_group, F.data == 'menu:manage_group')
+        self.dp.include_router(legacy)
+        for route in ['menu:list','menu:help','menu:open_app','menu:manage_group']:
+            with self.subTest(route=route):
+                await self.db.conn.execute("UPDATE streamer_community_intents SET status='pending' WHERE intent_id=?", ('a'*32,))
+                await self.db.conn.commit()
+                await self.state.set_data({'telegram_community_intent': 'a'*32})
+                update = self.update()
+                update = update.model_copy(update={'callback_query': update.callback_query.model_copy(update={'data': route})})
+                with (patch.object(Message, 'answer', new_callable=AsyncMock) as replies,
+                      patch.object(Message, 'edit_text', new_callable=AsyncMock),
+                      patch.object(CallbackQuery, 'answer', new_callable=AsyncMock)):
+                    await self.dp.feed_update(self.bot, update, db=self.db, config=CONFIG)
+                self.assertEqual((await self.db.get_community_intent('a'*32))[6], 'cancelled')
+                self.assertEqual(await self.state.get_data(), {})
+                self.assertEqual([[b.text for b in row] for row in replies.await_args.kwargs['reply_markup'].keyboard], [['Меню']])
+
+
+class TariffOriginTests(unittest.IsolatedAsyncioTestCase):
+    async def test_streamer_offer_secondary_payment_and_back_keep_source_and_product(self):
+        from bot.handlers.telegram_streamer import cb_streamer
+        from bot.handlers.telegram_plus import cb_plus, cb_buy, cb_payment_method
+        from bot.billing import BillingService
+        db = Database(':memory:')
+        await db.connect()
+        self.addAsyncCleanup(db.close)
+        await db.link_streamer_identity(101, '11', 'alpha', verified_at=time.time())
+        state = FSMContext(MemoryStorage(), StorageKey(bot_id=999, chat_id=101, user_id=101))
+        msg = message()
+        cb = SimpleNamespace(data='menu:streamer', message=msg, from_user=msg.from_user, answer=AsyncMock())
+        buttons = lambda: [b for row in msg.edit_text.await_args.kwargs['reply_markup'].inline_keyboard for b in row]
+        await cb_streamer(cb, db, CONFIG)
+        cb.data = next(b.callback_data for b in buttons() if b.text == 'Тариф для стримера')
+        await cb_plus(cb, state, db, CONFIG)
+        self.assertEqual(buttons()[-1].callback_data, 'menu:streamer')
+        cb.data = buttons()[1].callback_data
+        await cb_plus(cb, state, db, CONFIG)
+        self.assertIn('Зритель Plus\n150 ₽ / месяц', msg.edit_text.await_args.args[0])
+        self.assertEqual(buttons()[-1].callback_data, 'menu:streamer')
+        cb.data = buttons()[0].callback_data
+        await cb_buy(cb, state, db)
+        self.assertEqual(buttons()[-1].callback_data, 'plus:show:viewer_plus:streamer')
+        cb.data = buttons()[0].callback_data
+        await cb_payment_method(cb, state, SimpleNamespace(public_purchase=BillingService.public_purchase))
+        self.assertEqual(buttons()[-1].callback_data, 'plus:show:viewer_plus:streamer')
+        self.assertEqual((await (await db.conn.execute('SELECT count(*) FROM entitlement_grants')).fetchone())[0], 0)
 
 
 class NativeListTests(unittest.IsolatedAsyncioTestCase):

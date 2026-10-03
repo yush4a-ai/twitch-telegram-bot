@@ -3,7 +3,7 @@ from ..telegram_home import edit_menu
 import html
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from ..legal_documents import get_support_state
-from ..telegram_ui import back_keyboard
+from ..telegram_ui import back_keyboard, cancel_ui
 from .streams import _owner_admin_url
 
 
@@ -25,7 +25,9 @@ def help_screen(config=None):
     return text,InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def cb_help(callback,config=None):
+async def cb_help(callback,config=None,state=None,db=None,oauth_server=None):
+    if state is not None:
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
     text,kb=help_screen(config)
     await edit_menu(callback.message,text,reply_markup=kb)
     await callback.answer()

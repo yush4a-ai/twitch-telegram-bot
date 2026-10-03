@@ -37,6 +37,12 @@ Scoped review: callback payloads bounded (nonce вместо query); live обо
 
 Следующий шаг: оставшиеся T2 primary cancel/source-aware tariff back, затем T4 assets/Home и T5/T6. Отдельный полный gate и свежий reviewer остаются T7.
 
+## T2: source/cancel complete (BASE 4d4dcf1)
+
+Primary list/help/open_app/manage_group отменяют незавершённый owned selector и восстанавливают native Меню. Тариф из Streamer сохраняет source через secondary Viewer и payment-unavailable; назад ведёт к выбранному продукту, затем к Streamer. Старые callbacks без source по-прежнему работают, неизвестный source безопасно возвращает More; source не выдаёт права.
+RED: source возвращал menu:more вместо menu:streamer. Первые четыре primary subtests имели ошибку fixture (изменение frozen CallbackQuery); это не засчитано как behavioral RED. Исправлена fixture через model_copy, временно удалены только новые primary cancel calls, получен настоящий RED pending!=cancelled на4 маршрутах, calls повторно добавлены. GREEN45PASS/4subtests/33.57s; logs T2-primary-corrected-RED/T2-final-GREEN. Assertions не ослаблены; production решения не подгонялись под fixture.
+Scoped review: общий cancel_ui сохраняет saved rows; shared purchase/state/catalog/paymentOFF не меняются. Navigation source ограничен more/streamer. Старый Menu отвечает снизу, callbacks редактируют текущую карточку; ограниченный nearby repeat reuse будет проверен вместе с фото-презентацией T4.
+
 ## Ограничения
 
 Текущий staging560f3cc не покрывает новые изменения. Реальные native, OAuth и отправки по новому snapshot ещё не проверены. Production и платёжные права не менялись.

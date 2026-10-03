@@ -23,7 +23,7 @@ async def cb_streamer(callback,db,config=None,state=None,oauth_server=None):
     if identity:
         text=f"Twitch подключён: {identity[1]}"
         items=[('Telegram-канал','streamer:channel'),('Настройки публикаций','streamer:posts'),
-               ('Тариф для стримера','plus:show:streamer_plus'),('Назад','menu:home')]
+               ('Тариф для стримера','plus:show:streamer_plus:streamer'),('Назад','menu:home')]
     else:
         text="Подключи Twitch, чтобы бот мог создавать публикации о твоих эфирах."
         items=[('Подключить Twitch','streamer:connect'),('Что получит стример?','streamer:benefits'),('Назад','menu:home')]
