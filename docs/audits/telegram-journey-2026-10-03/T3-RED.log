@@ -1,0 +1,83 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_ NativeListTests.test_42_streamers_show_eight_and_offer_next_page_and_search _
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_42_streamers_show_eight_and_offer_next_page_and_search>
+
+    async def test_42_streamers_show_eight_and_offer_next_page_and_search(self):
+        from bot.handlers.streams import cb_menu_list
+        for i in range(42):
+            await self.db.add_channel(101, f'channel{i:03d}')
+        await cb_menu_list(self.cb('menu:list'), self.db)
+        buttons = self.buttons()
+>       self.assertEqual(len([b for b in buttons if (b.callback_data or '').startswith('channelcard:')]), 8)
+E       AssertionError: 42 != 8
+
+tests\test_telegram_journey_refinement.py:93: AssertionError
+_ NativeListTests.test_confirm_delete_is_owned_once_and_preserves_other_user __
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_confirm_delete_is_owned_once_and_preserves_other_user>
+
+    async def test_confirm_delete_is_owned_once_and_preserves_other_user(self):
+        from bot.handlers.streams import cb_untrack
+>       from bot.telegram_lists import cb_delete_confirm
+E       ModuleNotFoundError: No module named 'bot.telegram_lists'
+
+tests\test_telegram_journey_refinement.py:153: ModuleNotFoundError
+_ NativeListTests.test_legacy_inline_delete_first_asks_confirmation_without_mutation _
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_legacy_inline_delete_first_asks_confirmation_without_mutation>
+
+    async def test_legacy_inline_delete_first_asks_confirmation_without_mutation(self):
+        from bot.handlers.streams import cb_untrack
+        await self.db.add_channel(101, 'alpha')
+        await cb_untrack(self.cb('untrack:101:alpha'), self.db)
+>       self.assertEqual(await self.db.list_channels(101), ['alpha'])
+E       AssertionError: Lists differ: [] != ['alpha']
+E       
+E       Second list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - []
+E       + ['alpha']
+
+tests\test_telegram_journey_refinement.py:102: AssertionError
+__ NativeListTests.test_page_and_live_filter_survive_card_and_toggle_return ___
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_page_and_live_filter_survive_card_and_toggle_return>
+
+    async def test_page_and_live_filter_survive_card_and_toggle_return(self):
+        from bot.handlers.streams import cb_menu_list, cb_channel_card, cb_toggle_notify
+>       from bot.telegram_lists import cb_list_page, cb_list_filter
+E       ModuleNotFoundError: No module named 'bot.telegram_lists'
+
+tests\test_telegram_journey_refinement.py:109: ModuleNotFoundError
+__ NativeListTests.test_remote_card_returns_directly_to_named_list_with_add ___
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_remote_card_returns_directly_to_named_list_with_add>
+
+    async def test_remote_card_returns_directly_to_named_list_with_add(self):
+        from bot.handlers.streams import cb_manage_group, cb_channel_card
+>       from bot.telegram_lists import cb_list_page
+E       ModuleNotFoundError: No module named 'bot.telegram_lists'
+
+tests\test_telegram_journey_refinement.py:169: ModuleNotFoundError
+___ NativeListTests.test_search_is_local_and_other_actor_cannot_replay_page ___
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_search_is_local_and_other_actor_cannot_replay_page>
+
+    async def test_search_is_local_and_other_actor_cannot_replay_page(self):
+        from bot.handlers.streams import cb_menu_list
+>       from bot.telegram_lists import cb_list_page, cb_list_search, process_list_search
+E       ModuleNotFoundError: No module named 'bot.telegram_lists'
+
+tests\test_telegram_journey_refinement.py:130: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_42_streamers_show_eight_and_offer_next_page_and_search
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_confirm_delete_is_owned_once_and_preserves_other_user
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_legacy_inline_delete_first_asks_confirmation_without_mutation
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_page_and_live_filter_survive_card_and_toggle_return
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_remote_card_returns_directly_to_named_list_with_add
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_search_is_local_and_other_actor_cannot_replay_page
+6 failed in 8.06s

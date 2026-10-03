@@ -1400,13 +1400,8 @@ async def cb_manage_group(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("Ты больше не админ этой группы/канала.", show_alert=True)
         return
 
-    text, keyboard = await _render_channels_list(
-        target_chat_id, db,
-        back_callback="menu:manage_group", allow_add=True,
-        title_prefix="Управление удалённо:\n",
-    )
-    await edit_menu(callback.message,text, reply_markup=keyboard)
-    await callback.answer()
+    from ..telegram_lists import new_context, show_context
+    await show_context(callback, db, new_context(callback, target_chat_id, back='menu:manage_group'))
 
 
 _CHANNELS_HINT = (
@@ -1476,6 +1471,10 @@ async def _check_manage_permission(callback: CallbackQuery, target_chat_id: int)
     диалога. Личным чатом управляет его владелец; группой или каналом — только
     администратор/владелец, независимо от того, где открыто меню."""
     current_chat_id = _callback_chat_id(callback)
+    if current_chat_id is not None and current_chat_id > 0 and (
+        callback.from_user is None or callback.from_user.id != current_chat_id
+    ):
+        return False
     if target_chat_id > 0:
         return (
             current_chat_id == target_chat_id
@@ -1526,7 +1525,14 @@ async def _may_change_recipient(
 async def _check_read_permission(callback: CallbackQuery, target_chat_id: int) -> bool:
     """Просмотр списка каналов и карточек чужого чата. Достаточно быть участником,
     но посторонний не должен видеть чужие настройки, даже зная chat_id."""
-    if _callback_chat_id(callback) == target_chat_id:
+    current_chat_id = _callback_chat_id(callback)
+    if target_chat_id > 0:
+        return current_chat_id == target_chat_id and callback.from_user is not None and callback.from_user.id == target_chat_id
+    if current_chat_id is not None and current_chat_id > 0 and (
+        callback.from_user is None or callback.from_user.id != current_chat_id
+    ):
+        return False
+    if current_chat_id == target_chat_id:
         return True
     if callback.from_user is None:
         return False
@@ -1536,9 +1542,11 @@ async def _check_read_permission(callback: CallbackQuery, target_chat_id: int) -
 
 @router.callback_query(lambda c: c.data == "menu:list")
 async def cb_menu_list(callback: CallbackQuery, db: Database) -> None:
-    text, keyboard = await _render_channels_list(callback.message.chat.id, db,back_callback="menu:more")
-    await edit_menu(callback.message,text, reply_markup=keyboard)
-    await callback.answer()
+    from ..telegram_lists import can_read, new_context, show_context
+    if not await can_read(callback, callback.message.chat.id):
+        await callback.answer('Нет доступа к этому чату.', show_alert=True)
+        return
+    await show_context(callback, db, new_context(callback, callback.message.chat.id))
 
 
 def _channels_list_back_callback(current_chat_id: int, target_chat_id: int) -> str:
@@ -1608,14 +1616,16 @@ async def _render_channel_card(
         target_chat_id, login, notify_enabled, post_recipient, chat_default_recipient,
         report_format, raid_detection_enabled, quiet_hours_exempt,
         channel_report_enabled,
-        back_callback=f"channellist:{target_chat_id}:{list_back_callback}",
+        back_callback=(list_back_callback if list_back_callback.startswith('listpage:')
+                       else f"channellist:{target_chat_id}:{list_back_callback}"),
         show_recipient_toggle=not is_private,
         preview_enabled=preview_enabled,
         auto_report_enabled=auto_report_enabled,
         is_telegram_channel=is_telegram_channel,
         show_quiet_hours_toggle=show_quiet_hours_toggle,
     )
-    return text, keyboard
+    from ..telegram_lists import context_title
+    return await context_title(db, target_chat_id) + '\n\n' + text, keyboard
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("channelcard:"))
@@ -1631,7 +1641,8 @@ async def cb_channel_card(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("Нет доступа к этому чату.", show_alert=True)
         return
 
-    list_back = _channels_list_back_callback(current_chat_id, target_chat_id)
+    from ..telegram_lists import source_from_message
+    list_back = source_from_message(callback, target_chat_id).page_callback()
     result = await _render_channel_card(target_chat_id, login, db, list_back_callback=list_back)
     if result is None:
         await callback.answer("Канал больше не отслеживается.", show_alert=True)
@@ -1660,12 +1671,9 @@ async def cb_channel_list_back(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("Нет доступа к этому чату.", show_alert=True)
         return
 
-    text, keyboard = await _render_channels_list(
-        target_chat_id, db, back_callback=list_back_callback,
-        allow_add=current_chat_id == target_chat_id,
-    )
-    await edit_menu(callback.message,text, reply_markup=keyboard)
-    await callback.answer()
+    from ..telegram_lists import new_context, show_context
+    back = list_back_callback if list_back_callback in {'menu:home','menu:more','menu:manage_group'} else None
+    await show_context(callback, db, new_context(callback, target_chat_id, back=back))
 
 
 async def _refresh_channel_card(
@@ -1674,7 +1682,8 @@ async def _refresh_channel_card(
     current_chat_id = _callback_chat_id(callback)
     if current_chat_id is None:
         return
-    list_back = _channels_list_back_callback(current_chat_id, target_chat_id)
+    from ..telegram_lists import source_from_message
+    list_back = source_from_message(callback, target_chat_id).page_callback()
     result = await _render_channel_card(target_chat_id, login, db, list_back_callback=list_back)
     if result is None:
         return
@@ -1964,14 +1973,11 @@ async def cb_untrack(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("Только админы этой группы могут менять настройки.", show_alert=True)
         return
 
-    await db.remove_channel(target_chat_id, login)
-    back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
-    text, keyboard = await _render_channels_list(
-        target_chat_id, db, back_callback=back_callback, allow_add=current_chat_id == target_chat_id
-    )
-    text = "Канал удалён.\n\n" + text
-    await edit_menu(callback.message,text, reply_markup=keyboard)
-    await callback.answer()
+    if login not in await db.list_channels(target_chat_id):
+        await callback.answer('Стример уже удалён.', show_alert=True)
+        return
+    from ..telegram_lists import ask_delete
+    await ask_delete(callback, db, target_chat_id, login)
 
 
 async def _offer_search_results(

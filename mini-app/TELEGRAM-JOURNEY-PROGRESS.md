@@ -27,6 +27,16 @@ Ruling: Windows bookkeeping ведётся видимым ledger без запу
 Selector→posts: RED pending != cancelled; минимальное подключение существующего cancel_ui к cb_streamer_posts. GREEN27PASS/7subtests/16.92s: реальный router/FSM/DB, fake Telegram transport, восстановленный Меню, late share отклонён, сохранённый канал не удалён, чужой actor не отменяет owner intent. Один промежуточный запуск выявил неполную late-message fixture (не было bot); fixture исправлена без изменения assertions. Scoped review: доменные проверки прежние; state/oauth необязательны для legacy прямых вызовов, действующий router передаёт их.
 Ruling: сохранение page/query/card source реализуется вместе с T3, где появляется сам paginated list contract; повторно переделывать старую временную навигацию перед T3 не нужно.
 
+## T3: complete (BASE ba5a615)
+
+RED:42 вместо8 строк, inline delete сразу удалял; отсутствовали page/search/filter/owned-confirm APIs. Дополнительные RED: cancel оставлял действующим старое удаление; старая card могла пройти синтетическую чужую private actor/member проверку; More ещё содержал8 верхних действий.
+GREEN:54PASS/7subtests/52.37s (`telegram_journey_refinement`, navigation, compatibility, add, streamer, review_regressions, tariff_copy); scoped log `T3-final-focused.log`.
+Реализованы8/page, поиск по нику, All/Live, сохранение страницы/фильтра после карточки и переключателя; remote list/card показывают название канала, возвращаются напрямую с Add; inline delete требует owned10-minute one-use confirmation, отмена его блокирует. Legacy untrack callback теперь открывает подтверждение; /untrack остаётся явной командой. Сохранены старые callback регистрации и функции. More6разделов, live доступен фильтром списка, about сохраняется старым маршрутом и будет включён в помощь T6.
+Навигационный кэш максимум1024 contexts и1024 delete intents,30/10минут, bound bot/chat/actor; доменные права всегда сверяются отдельно. Это не новая БД и не исполнитель. SQL только существующих таблиц, без migrations. Private cross-actor/other-user cards fail closed; remote page/delete проверяет права, старые группы не удаляются.
+Scoped review: callback payloads bounded (nonce вместо query); live обозначен по последней проверке, а не обещанием текущей готовности. Старые HTML/экспорт и Mini App вне T0 не менялись. Native screenshot новых Telegram-экранов ещё NOT TESTED: пока fake transport, не выдавать за клиент.
+
+Следующий шаг: оставшиеся T2 primary cancel/source-aware tariff back, затем T4 assets/Home и T5/T6. Отдельный полный gate и свежий reviewer остаются T7.
+
 ## Ограничения
 
 Текущий staging560f3cc не покрывает новые изменения. Реальные native, OAuth и отправки по новому snapshot ещё не проверены. Production и платёжные права не менялись.

@@ -30,11 +30,10 @@ def home_keyboard(chat_type, *, app_url=None):
 
 
 def more_keyboard(*, admin_url=None, legacy_viewer_url=None):
-    pairs = [("📡 Мои стримеры","menu:list"),("🔴 Кто сейчас в эфире","menu:live"),
-             ("📊 Отчёты","menu:report"),("🌙 Тихие часы","menu:quiet_hours"),
-             ("💬 Мои подключения","menu:manage_group"),("Тариф","menu:plus"),
-             ("ℹ️ Что умеет бот","menu:about"),("❓ Помощь","menu:help")]
-    rows = [[InlineKeyboardButton(text=t, callback_data=c) for t,c in pairs[i:i+2]] for i in range(0,len(pairs),2)]
+    pairs = [("📡 Мои стримеры","menu:list"),("📊 Отчёты","menu:report"),
+             ("🔔 Настройки оповещений","menu:quiet_hours"),("💬 Мои Telegram-каналы","menu:manage_group"),
+             ("Тариф","menu:plus"),("❓ Помощь","menu:help")]
+    rows = [[InlineKeyboardButton(text=t, callback_data=c)] for t,c in pairs]
     if legacy_viewer_url:
         rows.append([InlineKeyboardButton(text="Мои оповещения", web_app=WebAppInfo(url=legacy_viewer_url))])
     if admin_url:
@@ -49,6 +48,9 @@ def back_keyboard(target="menu:more", text="← Назад"):
 
 async def cancel_ui(state, *, actor_id, db=None, oauth_server=None, message=None,
                     preserve_community_intent=None):
+    if message is not None:
+        from .telegram_lists import discard_deletions
+        discard_deletions(message, actor_id)
     data = await state.get_data()
     # Clear first: any late legacy OAuth/import result sees a different generation.
     await state.clear()

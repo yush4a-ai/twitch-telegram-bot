@@ -44,6 +44,13 @@ async def cb_open_app(callback, config=None):
 def build_navigation_router():
     router = Router(name="telegram_navigation")
     router.message.register(on_menu,F.text == "Меню")
+    from aiogram.filters import StateFilter
+    from ..telegram_lists import ListSearch, cb_list_page, cb_list_filter, cb_list_search, process_list_search, cb_delete_confirm
+    router.message.register(process_list_search, StateFilter(ListSearch.waiting))
+    router.callback_query.register(cb_list_page, F.data.startswith('listpage:'))
+    router.callback_query.register(cb_list_filter, F.data.startswith('listfilter:'))
+    router.callback_query.register(cb_list_search, F.data.startswith('listsearch:'))
+    router.callback_query.register(cb_delete_confirm, F.data.startswith('untrackconfirm:'))
     router.callback_query.register(cb_more,F.data == "menu:more")
     router.callback_query.register(cb_open_app,F.data == "menu:open_app")
     from .telegram_add import cb_confirm_add, cb_pick_add
