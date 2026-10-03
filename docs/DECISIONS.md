@@ -561,3 +561,5 @@ Checkpoint 03.10.2026: разрешённый guarded staging выполнен �
 - Не повторяем bootstrap на401/403; повтор сетевой ошибки одноразовый в полёте и отменяется приpagehide. Сообщения подключения scoped к обзору канала и ревизии; публикации scoped к текущему экрану.
 - Payment readiness отображается до выбора, три способа сохранены; постоянный503 не получает бессмысленный повтор, сетевой сбой получает. Права/цены/биллинг не менялись.
 - Чистая ветка сохраняется без merge/push main/master. Штатный guard выполняет полный suite финального commit перед staging; нельзя считать старый full gate доказательством нового кода. Native visual acceptance отдельно.
+
+- Итог polish: release3189fa8 прошёл guard full1462/3274 и фактическую pinned staging проверку185files/Testbot8859004067; deployment36e6e769 activeSUCCESS. Нативная приёмка и внешние коммерческие блокеры явно остаются NOT TESTED/NOT READY. Ветка сохраняется, только evidence/docs checkpoint после release.

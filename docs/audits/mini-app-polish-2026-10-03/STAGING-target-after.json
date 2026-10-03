@@ -1,0 +1,18 @@
+{
+  "staging": [
+    {
+      "id": "36e6e769-fa8a-4554-8551-7450b1cd87ea",
+      "status": "SUCCESS",
+      "commit": null,
+      "cliMessage": "staging 3189fa83b1b78ff4f741831dd53aff8f73ceccb4"
+    }
+  ],
+  "production": [
+    {
+      "id": "466499d5-6979-4a81-8aee-67efcf628976",
+      "status": "SUCCESS",
+      "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+      "cliMessage": null
+    }
+  ]
+}

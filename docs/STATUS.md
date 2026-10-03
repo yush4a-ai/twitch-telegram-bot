@@ -1,5 +1,10 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: Mini App polish опубликован на тестовом боте
+
+Release3189fa83b1b78ff4f741831dd53aff8f73ceccb4; deployment36e6e769-fa8a-4554-8551-7450b1cd87ea activeSUCCESS. Guard1462PASS/2skipped/3274subtests989.84s;40browserjourneys +46targeted each engine PASS, AFTER409PNG/BEFORE241PNG.185artifactSHA/14HTTPassets+/app/Bot8859004067/paymentOFF/5auth401/integrity/FK/25migrations/freshproductioncompare PASS. Safe areas/навигация/формы/первое действие/ошибки/честный checkout исправлены, данные/права/цены/HTML/export/legacy groups сохранены. FINAL-REPORT.md и COMPARISON.html в docs/audits/mini-app-polish-2026-10-03. Native owner visual acceptance/signedliveAPI/OAuth/outbound/payment NOT TESTED; legal/support/bank NOT READY. Следующий шаг — приёмка на телефоне по MANUAL-CHECK.md. Последующий docs/evidence commit не заменяет published SHA.
+
+
 ## Текущий checkpoint — 03.10.2026: Mini App polish, локальный gate PASS
 
 Base098736f. Аудит D01–D16 и текущая стилистика сохранены; safe/content insets, floating navigation, time fields, first CTA, bootstrap retry/auth/pagehide, scoped feedback, честный payment OFF и focus loop реализованы.40browserjourneys/352PNG +46targetedchecks each engine/56PNG PASS,15UI hashes/current verified; AFTER409PNG, BEFORE241PNG. Один reviewer, RED→GREEN10; focused27tests/2717subtests;7smoke selftests;detector[]. Новый product-код ещё не опубликован: следующий шаг clean commit → штатный guarded full suite → pinned staging identity/SHA/actual smoke. Существующий staging bd2534d не выдаётся за новый. Native/OAuth/outbound/payment NOT TESTED. Пакет docs/audits/mini-app-polish-2026-10-03/FINAL-REPORT.md.

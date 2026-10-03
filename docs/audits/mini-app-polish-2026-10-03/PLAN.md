@@ -69,6 +69,6 @@
 - [x] Одна полная визуальная партия AFTER тех же экранов, затем общий список исправлений и одна подтверждающая партия. Конкретные функциональные ошибки остаются блокерами.
 - [x] Stop-slop по изменённой копии; web-design-guidelines; один detector по итоговым UI файлам.
 - [x] Один scoped read-only review всего diff; исправить доказанные дефекты с регрессиями.
-- [ ] Required full suite финального snapshot и guarded pinned staging при сохранённом разрешении/доступности. При внешнем блокере сохранить код и evidence, не утверждать deployment.
-- [ ] STATUS/DECISIONS: SHA/tree, проверки, staging identity, owner/native pending, следующий шаг.
-- [ ] Читаемый отчёт, галерея BEFORE→AFTER, сценарии, референсы, что сохранено и что оставлено V2.
+- [x] Required full suite финального snapshot и guarded pinned staging при сохранённом разрешении/доступности. При внешнем блокере сохранить код и evidence, не утверждать deployment.
+- [x] STATUS/DECISIONS: SHA/tree, проверки, staging identity, owner/native pending, следующий шаг.
+- [x] Читаемый отчёт, галерея BEFORE→AFTER, сценарии, референсы, что сохранено и что оставлено V2.
