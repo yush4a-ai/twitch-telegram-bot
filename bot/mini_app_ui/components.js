@@ -66,7 +66,16 @@ export function dialog(title,buildContent,{sheet=false,origin=document.activeEle
   const dismiss=action('Закрыть',close,true);dismiss.className='icon-button';dismiss.replaceChildren(icon('close'));dismiss.setAttribute('aria-label','Закрыть');
   header.append(label,dismiss);overlay.append(header,content);buildContent(content,close);
   overlay.addEventListener('cancel',event=>{event.preventDefault();close();});
-  overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close();}},true);
+  overlay.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();close();return;}
+    if(event.key!=='Tab')return;
+    const focusable=[...overlay.querySelectorAll('button,a[href],input,select,textarea,[tabindex]')]
+      .filter(node=>node.tabIndex>=0&&!node.disabled&&node.getClientRects().length&&!node.closest('[inert]'));
+    const first=focusable[0],last=focusable.at(-1),active=document.activeElement;
+    if(first&&((event.shiftKey&&active===first)||(!event.shiftKey&&active===last))){
+      event.preventDefault();(event.shiftKey?last:first).focus();
+    }
+  },true);
   overlay.addEventListener('click',event=>{const r=overlay.getBoundingClientRect();if(event.target===overlay&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))close();});
   document.body.append(overlay);document.documentElement.style.overflow='hidden';overlay.showModal();activeDialogs.push(close);document.dispatchEvent(new Event('app-dialog-change'));
   return {element:overlay,close};

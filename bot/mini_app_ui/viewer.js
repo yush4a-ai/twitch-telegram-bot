@@ -80,7 +80,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     const stale = tracked.some((row) => row.status === 'stale');
     target.append(element('p','lead',`${tracked.length} из ${data.channel_limit} стримеров · ${tracked.filter(row=>row.notify_enabled&&!row.paused_by_plan).length} с уведомлениями`));
     if (!tracked.length) {
-      target.append(panel('Здесь появятся эфиры', 'Добавьте стримера, чтобы получать оповещения о его эфирах.'));
+      target.append(panel('Не пропускайте эфиры на Twitch', 'Добавьте любимых стримеров. Бот сообщит в Telegram, когда они выйдут в эфир.'));
     } else if (!live.length) {
       target.append(panel(stale ? 'Проверяем статус эфиров' : 'Пока нет подтверждённого эфира', 'Бот обновит статус после следующей проверки. Ваши подписки остаются в разделе «Стримеры».'));
     } else {
@@ -98,7 +98,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       target.append(list);
     }
     const actions = element('div', 'actions');
-    actions.append(action('Мои стримеры', () => getRouter().setTab('streamers'),true));
+    actions.append(tracked.length ? action('Мои стримеры', () => getRouter().setTab('streamers'),true) : action('Добавить стримера',openAdd));
     target.append(actions);
     const upcoming=tracked.filter(row=>row.reminder?.status==='scheduled').sort((a,b)=>a.reminder.due_at-b.reminder.due_at);
     if(upcoming.length){const box=element('section','navigation-group');box.append(element('h2','group-heading','Напоминания'));for(const row of upcoming)box.append(action(`${nameOf(row.login)} · ${new Date(row.reminder.due_at*1000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})}`,()=>getRouter().openDetail(row.login),true));target.append(box);}
@@ -110,7 +110,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     const copy=element('span','row-copy');copy.append(element('strong','streamer-name',name));
     const status=element('small',`stream-status ${row.status}`,row.status==='live'?'В эфире':row.status==='stale'?'Статус уточняется':'Не в эфире');copy.append(status);
     if(row.status==='live'&&row.live?.category)copy.append(element('small','muted',row.live.category));
-    if(home&&row.live?.title)copy.append(element('small','stream-title',row.live.title));
+    if(home&&row.live?.title)copy.append(element('small','stream-title',`«${row.live.title}»`));
     if(row.paused_by_plan)copy.append(element('small','muted','Приостановлено по лимиту'));
     else if(!row.notify_enabled)copy.append(element('small','muted','Уведомления на паузе'));
     const folder=data.folders?.find(value=>value.id===row.folder_id);if(folder)copy.append(element('small','muted',folder.name));
@@ -196,7 +196,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     }
   }
   function renderStreamers(target) {
-    const head=element('div','title-row');head.append(element('h1','','Стримеры'),action('Добавить стримера',openAdd,true));target.append(head);
+    const head=element('div','title-row');head.append(element('h1','','Стримеры'),action('Добавить стримера',openAdd));target.append(head);
     target.append(element('p','lead',`${data.subscriptions.length} из ${data.channel_limit} стримеров`));
     const input = element('input', 'input');
     input.type='search';input.name='subscription_search';input.maxLength=200;input.autocomplete='off';input.placeholder='Поиск по подпискам';input.setAttribute('aria-label','Поиск по подпискам');input.value=listDraft;
@@ -955,7 +955,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     }
     const section = element('section', 'settings-group quiet-panel');
     section.append(element('h2', '', 'Тихие часы'));
-    section.append(element('p', 'muted', 'В это время бот не присылает обычные оповещения. Время берём из часового пояса устройства при сохранении.'));
+    section.append(element('p', 'muted', 'Обычные оповещения будут на паузе. При сохранении используем часовой пояс устройства.'));
     const form = element('div', 'time-fields');
     for (const [key, labelText] of [['start', 'Начало тихих часов'], ['end', 'Конец тихих часов']]) {
       const label = element('label', '', labelText);

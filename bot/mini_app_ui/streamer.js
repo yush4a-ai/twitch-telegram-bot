@@ -8,6 +8,15 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let requested = false;
   let error = '';
   let feedback = '';
+  let feedbackRevision = 0;
+  function clearFeedback() { feedback = ''; ++feedbackRevision; }
+  function connectionFeedbackWriter() {
+    const revision = feedbackRevision;
+    return message => {
+      const route = getRouter().state;
+      if (!disposed && revision === feedbackRevision && route.mode === 'streamer' && route.tab === 'channel' && !route.detail) feedback = message;
+    };
+  }
   let connectIntent = '';
   let connectUrl = '';
   let communityIntent = '';
@@ -30,7 +39,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
     try { if (value) api.storage.setItem(key, value); else api.storage.removeItem(key); } catch {}
   };
   function heading(target, title, lead) {
-    target.append(element('p', 'eyebrow', 'Стример'), element('h1', '', title), element('p', 'lead', lead));
+    target.append(element('h1', '', title), element('p', 'lead', lead));
   }
   const permissionText = {
     ready: 'Готов к публикациям', bot_absent: 'Бот не добавлен в канал',
@@ -52,7 +61,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
     profileController?.abort(); profileController = new AbortController();
     const controller = profileController, generation = ++profileGeneration;
     requested = true; loading = true;
-    if (!data) refresh();
+    refresh();
     const promise = (async () => {
       try {
         const result = await api.post('/app/api/streamer/profile', {}, {signal:controller.signal});
@@ -82,6 +91,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
   }
   async function checkIntent() {
     if (disposed || document.hidden || checking || connectionBusy) return;
+    const writeFeedback = connectionFeedbackWriter();
     checking = true; const generation = intentGeneration;
     try {
       const twitchId = connectIntent, channelId = communityIntent;
@@ -90,12 +100,12 @@ export function createStreamerFeature(api, getRouter, telegram) {
         if (disposed || generation !== intentGeneration || connectIntent !== twitchId) return;
         if (status.status === 'connected') {
           connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
-          feedback = `Twitch подключён: ${status.twitch_login}.`; await load({fresh:true});
+          writeFeedback(`Twitch подключён: ${status.twitch_login}.`); await load({fresh:true});
         } else if (!['pending', 'verifying'].includes(status.status)) {
           connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
-          feedback = status.status === 'cancelled' ? 'Подключение Twitch отменено.'
+          writeFeedback(status.status === 'cancelled' ? 'Подключение Twitch отменено.'
             : status.status === 'expired' ? 'Срок подключения истёк. Начните снова.'
-            : 'Twitch не подключён. Попробуйте ещё раз.';
+            : 'Twitch не подключён. Попробуйте ещё раз.');
         }
       }
       if (channelId && channelId === communityIntent) {
@@ -105,95 +115,101 @@ export function createStreamerFeature(api, getRouter, telegram) {
           clearCommunity(); await load({fresh:true});
           if (!disposed && generation === intentGeneration) {
             const saved = data?.communities.find(item => item.chat_id === status.chat_id);
-            feedback = saved ? `Канал подключён. Публикации ${saved.publishing ? 'включены' : 'выключены'}.`
-              : 'Подключение подтверждено. Обновите список каналов.';
+            writeFeedback(saved ? `Канал подключён. Публикации ${saved.publishing ? 'включены' : 'выключены'}.`
+              : 'Подключение подтверждено. Обновите список каналов.');
           }
         } else if (!['pending', 'verifying'].includes(status.status)) {
           clearCommunity();
-          feedback = status.status === 'cancelled' ? 'Выбор отменён. Канал не подключён.'
+          writeFeedback(status.status === 'cancelled' ? 'Добавление нового канала отменено.'
             : status.status === 'expired' ? 'Срок выбора истёк. Выберите канал снова.'
             : status.permission_reason === 'network_error' ? 'Telegram не ответил. Права канала пока не подтверждены.'
-            : permissionText[status.permission_reason] || 'Канал не подключён. Попробуйте выбрать его снова.';
+            : permissionText[status.permission_reason] || 'Канал не подключён. Попробуйте выбрать его снова.');
         }
       }
     } catch (cause) {
       if (disposed || generation !== intentGeneration) return;
       if (cause instanceof ApiError && cause.status === 403) {
         connectIntent = ''; connectUrl = ''; clearCommunity(); remember('ts-streamer-connect-intent', '');
-        feedback = 'Срок входа истёк. Откройте приложение из чата бота.';
-      } else feedback = 'Не удалось проверить подключение. Повторим, когда связь восстановится.';
+        writeFeedback('Срок входа истёк. Откройте приложение из чата бота.');
+      } else writeFeedback('Не удалось проверить подключение. Повторим, когда связь восстановится.');
     } finally { checking = false; if (!disposed) { refresh(); scheduleStatus(); } }
   }
   const onVisibility = () => { if (!document.hidden && requested && !disposed) { postsFeature.refresh(); void load({fresh:true}); void checkIntent(); } };
   document.addEventListener('visibilitychange', onVisibility);
   async function startConnect() {
     if (disposed || connectionBusy || connectIntent) return;
+    const writeFeedback = connectionFeedbackWriter();
     connectionBusy = true; const generation = ++intentGeneration; refresh();
     try {
       const intent = await api.post('/app/api/streamer/connect-intent');
       if (disposed || generation !== intentGeneration) return;
       connectIntent = intent.intent_id; connectUrl = intent.authorize_url;
       remember('ts-streamer-connect-intent', connectIntent);
-      feedback = 'Подтвердите подключение в Twitch. После возврата проверим результат.';
+      writeFeedback('Подтвердите подключение в Twitch. После возврата проверим результат.');
       telegram.openLink(intent.authorize_url);
     } catch (cause) {
-      if (!disposed && generation === intentGeneration) feedback = cause instanceof ApiError && cause.code === 'connect_unavailable'
-        ? 'Подключение Twitch сейчас недоступно. Попробуйте позже.' : 'Не удалось начать подключение. Попробуйте ещё раз.';
+      if (!disposed && generation === intentGeneration) writeFeedback(cause instanceof ApiError && cause.code === 'connect_unavailable'
+        ? 'Подключение Twitch сейчас недоступно. Попробуйте позже.' : 'Не удалось начать подключение. Попробуйте ещё раз.');
     } finally { if (generation === intentGeneration) { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } } }
   }
   async function cancelConnect() {
     if (!connectIntent || connectionBusy || disposed) return;
+    const writeFeedback = connectionFeedbackWriter();
     connectionBusy = true; ++intentGeneration; const id = connectIntent; refresh();
     try {
       await api.post('/app/api/streamer/connect-intent/cancel', {intent_id:id});
       if (disposed || connectIntent !== id) return;
       connectIntent = ''; connectUrl = ''; remember('ts-streamer-connect-intent', '');
-      feedback = 'Подключение Twitch отменено.';
-    } catch { feedback = 'Не удалось отменить подключение. Проверим его статус.'; }
+      writeFeedback('Подключение Twitch отменено.');
+    } catch { writeFeedback('Не удалось отменить подключение. Проверим его статус.'); }
     finally { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } }
   }
   async function cancelCommunity() {
     if (!communityIntent || connectionBusy || disposed) return;
+    const writeFeedback = connectionFeedbackWriter();
     connectionBusy = true; ++intentGeneration; const id = communityIntent; refresh();
     try {
       await api.post('/app/api/streamer/community-intent/cancel', {intent_id:id});
       if (disposed || communityIntent !== id) return;
-      clearCommunity(); feedback = 'Выбор отменён. Канал не подключён.';
-    } catch { feedback = 'Не удалось подтвердить отмену. Проверим статус выбора.'; }
+      clearCommunity(); writeFeedback('Добавление нового канала отменено.');
+    } catch { writeFeedback('Не удалось подтвердить отмену. Проверим статус выбора.'); }
     finally { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } }
   }
   async function startCommunity() {
     if (connectionBusy || communityIntent || disposed) return;
+    const writeFeedback = connectionFeedbackWriter();
     connectionBusy = true; const generation = ++intentGeneration; refresh();
     try {
       const intent = await api.post('/app/api/streamer/community-intent', {chat_type:'channel'});
       if (disposed || generation !== intentGeneration) return;
       communityIntent = intent.intent_id; communityFallback = intent.fallback_url || '';
       remember('ts-streamer-community-intent', communityIntent);
-      connectionBusy = false; feedback = 'Выберите Telegram-канал. Затем проверим права.';
+      connectionBusy = false; writeFeedback('Выберите Telegram-канал. Затем проверим права.');
       refresh(); scheduleStatus();
       const sent = await telegram.requestChat(intent.prepared_id);
       if (disposed || generation !== intentGeneration || communityIntent !== intent.intent_id) return;
       if (sent === true) {
-        feedback = 'Выбор отправлен. Проверяем канал…'; void checkIntent();
+        writeFeedback('Выбор отправлен. Проверяем канал…'); void checkIntent();
       } else if (sent === false) { await cancelCommunity(); return; }
       else if (communityFallback) {
-        feedback = 'Выберите канал через кнопку в чате бота, затем вернитесь сюда.';
+        writeFeedback('Выберите канал через кнопку в чате бота, затем вернитесь сюда.');
         telegram.openTelegramLink(communityFallback);
-      } else feedback = 'Выбор канала сейчас недоступен. Попробуйте позже.';
-    } catch { if (!disposed && generation === intentGeneration) feedback = 'Не удалось начать выбор канала. Попробуйте ещё раз.'; }
+      } else writeFeedback('Выбор канала сейчас недоступен. Попробуйте позже.');
+    } catch { if (!disposed && generation === intentGeneration) writeFeedback('Не удалось начать выбор канала. Попробуйте ещё раз.'); }
     finally { if (generation === intentGeneration) { connectionBusy = false; if (!disposed) { refresh(); scheduleStatus(); } } }
   }
   async function togglePublishing(community, enabled) {
     if (disposed || publishingPending.has(community.chat_id)) return;
+    clearFeedback();
+    const revision = feedbackRevision;
     publishingPending.add(community.chat_id); refresh();
     try {
       await api.post('/app/api/streamer/communities/toggle', {chat_id:community.chat_id,enabled});
       if (disposed) return;
-      feedback = enabled ? 'Публикации включены. Бот отправит обычный пост при следующем подтверждённом эфире.' : 'Публикации приостановлены.';
+      if (revision === feedbackRevision) feedback = enabled ? 'Публикации включены. Бот отправит обычный пост при следующем подтверждённом эфире.' : 'Публикации приостановлены.';
       await load({fresh:true});
     } catch (cause) {
-      if (!disposed) feedback = cause instanceof ApiError && cause.code === 'verification_unavailable'
+      if (!disposed && revision === feedbackRevision) feedback = cause instanceof ApiError && cause.code === 'verification_unavailable'
         ? 'Telegram не ответил. Публикации не изменены.'
         : cause instanceof ApiError && cause.code === 'permission_denied'
           ? 'Права изменились. Проверьте их и попробуйте снова.' : 'Не удалось изменить публикации. Попробуйте ещё раз.';
@@ -204,13 +220,14 @@ export function createStreamerFeature(api, getRouter, telegram) {
   }
   const postsFeature=createStreamerPostsFeature(api,getRouter,()=>data);
   function renderChannel(target) {
-    heading(target, 'Мой канал', 'Подключение Twitch и публикации в Telegram.');
+    heading(target, 'Мой канал', 'Посты о ваших эфирах в Telegram-канале.');
     const identity = element('section', 'connection-identity');
     identity.append(icon('channel'), element('div', 'row-copy'));
     identity.lastChild.append(element('strong', '', data.connected ? data.twitch_login : 'Twitch не подключён'),
       element('small', 'muted', data.connected ? 'Аккаунт подтверждён' : 'Войдите в свой аккаунт Twitch'));
     target.append(identity);
     if (!data.connected) {
+      target.append(element('p', 'connection-steps', 'Сначала подтвердите свой аккаунт Twitch. Затем выберите Telegram-канал и включите публикации.'));
       target.append(element('p', 'lead', 'Подключение канала и стандартный пост с фото доступны бесплатно.'));
       if (!connectIntent) target.append(connectionAction('Подключить Twitch', startConnect));
       else {
@@ -262,7 +279,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
       toggle.disabled = pending; toggle.classList.add('connection-action'); target.append(toggle);
     }
     target.append(element('p', 'notice', community.publishing ? 'Публикации включены' : 'Публикации выключены'));
-    const retry = action('Проверить права', () => load({fresh:true}), true); retry.disabled = loading; retry.classList.add('connection-action'); target.append(retry);
+    const retry = action('Проверить права', () => { clearFeedback(); return load({fresh:true}); }, true); retry.disabled = loading; retry.classList.add('connection-action'); target.append(retry);
     if (typeof community.public_url === 'string' && /^https:\/\/t\.me\/[A-Za-z][A-Za-z0-9_]{4,31}$/.test(community.public_url)) {
       target.append(connectionAction('Открыть канал', () => telegram.openTelegramLink(community.public_url), true));
     }
@@ -277,6 +294,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
     target.append(access);
   }
   return {
+    clearFeedback,
     render(target, route) {
       if (!requested) { queueMicrotask(() => { if (!requested) void load(); }); target.append(element('div', 'status-panel', 'Загружаем данные стримера…')); return; }
       if (!data) { target.append(element('div', 'status-panel', error || 'Загружаем данные стримера…')); return; }

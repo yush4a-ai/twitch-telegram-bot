@@ -1,7 +1,7 @@
 import { createApi, ApiError } from './api.js';
 import { createTelegramAdapter } from './telegram.js';
 import { createRouter } from './router.js';
-import { element, panel, icon, dialog, navigationRow, closeActiveDialog } from './components.js';
+import { element, action, icon, dialog, navigationRow, closeActiveDialog } from './components.js';
 import { createViewerFeature } from './viewer.js';
 import { createStreamerFeature } from './streamer.js';
 import { createSubscriptionFeature } from './subscription.js';
@@ -15,6 +15,11 @@ const modeSwitch = document.getElementById('mode-switch');
 const tabBar = document.getElementById('tab-bar');
 let session = null;
 let authError = null;
+let canRetryEntry = false;
+let bootstrapPending = false;
+let bootstrapController = null;
+let disposed = false;
+let renderContext = null;
 let router;
 let viewerFeature;
 let streamerFeature;
@@ -35,6 +40,7 @@ const onDialogChange=()=>telegram.syncBack(Boolean(document.querySelector('dialo
 document.addEventListener('app-dialog-change',onDialogChange);
 window.addEventListener('pagehide', (event) => {
   if(event.persisted)return;
+  disposed = true; bootstrapController?.abort();
   document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();resizeNavigation.disconnect();
 });
 const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
@@ -49,6 +55,9 @@ document.getElementById('app-menu').addEventListener('click',event=>{
 document.getElementById('app-menu').append(icon('more'));
 
 function render(state, canBack) {
+  if(disposed)return;
+  const context=JSON.stringify([state.mode,state.tab,state.detail]);
+  if(context!==renderContext){streamerFeature?.clearFeedback();renderContext=context;}
   modeSwitch.replaceChildren();
   for (const [mode, label] of [['viewer', 'Зритель'], ['streamer', 'Стример']]) {
     const button = element('button', '', label);
@@ -63,7 +72,7 @@ function render(state, canBack) {
     ? [['home', 'Главная', 'home'], ['streamers', 'Стримеры', 'people'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']]
     : [['channel', 'Мой канал', 'channel'], ['posts', 'Посты', 'posts'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']];
   const detailName=typeof state.detail==='object'?state.detail?.name:state.detail;
-  if(detailName==='history'&&!historyOpen)viewerFeature.resetHistory();
+  if(detailName==='history'&&!historyOpen)viewerFeature?.resetHistory();
   historyOpen=detailName==='history';
   const plusActive=['subscription','purchase','purchase-order'].includes(detailName);
   for (const [id, label, glyph] of tabs) {
@@ -79,13 +88,13 @@ function render(state, canBack) {
   telegram.syncBack(canBack||Boolean(document.querySelector('dialog[open]')));
   content.replaceChildren();
   if (authError) {
-    content.append(element('p', 'eyebrow', 'Вход'), element('h1', '', 'Откройте приложение из Telegram'));
+    content.append(element('h1', '', canRetryEntry ? 'Не удалось загрузить приложение' : 'Откройте приложение из Telegram'));
     content.append(element('p', 'lead', authError));
-    content.append(panel('Сохраните введённое', 'При повторном открытии вернитесь к нужному разделу. Данные на сервер не отправлены.'));
+    if(canRetryEntry)content.append(action('Повторить вход',bootstrap));
     return;
   }
   if (!session) {
-    content.append(element('div', 'status-panel', 'Проверяем вход…'));
+    const status=element('div', 'status-panel', 'Проверяем вход…');status.setAttribute('role','status');content.append(status);
     return;
   }
   if(detailName!=='purchase-order')purchaseOrderOpen=null;
@@ -112,14 +121,17 @@ function render(state, canBack) {
   streamerFeature.render(content, featureState);
 }
 
-router.refresh();
-if (!telegram.initData) {
-  authError = 'Для входа нужна кнопка приложения в чате бота.';
+async function bootstrap() {
+  if(disposed||bootstrapPending||session||!telegram.initData)return;
+  bootstrapPending=true;authError=null;canRetryEntry=false;
+  const controller=new AbortController();bootstrapController=controller;
+  const timer=setTimeout(()=>controller.abort(),5000);
   router.refresh();
-} else {
   try {
-    session = await api.post('/app/api/bootstrap');
-    api.bindIdentity(session.user);
+    const verified = await api.post('/app/api/bootstrap',{}, {signal:controller.signal});
+    if(disposed)return;
+    api.bindIdentity(verified.user);
+    session=verified;
     viewerFeature=createViewerFeature(api,()=>router,telegram);
     streamerFeature=createStreamerFeature(api,()=>router,telegram);
     profileFeature=createProfileFeature(api,()=>router,theme);
@@ -128,9 +140,18 @@ if (!telegram.initData) {
     purchaseFeature=createPurchaseFeature(api,()=>router,telegram);
     if(new URLSearchParams(location.search).get('screen')==='subscription')router.openDetail('subscription');
   } catch (error) {
-    authError = error instanceof ApiError && (error.status === 401 || error.status === 403)
+    if(disposed)return;
+    canRetryEntry = !(error instanceof ApiError && (error.status === 401 || error.status === 403));
+    authError = !canRetryEntry
       ? 'Время входа истекло. Откройте приложение заново из чата бота.'
-      : 'Связь прервалась. Откройте приложение заново, когда сеть восстановится.';
+      : 'Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.';
+  } finally {
+    clearTimeout(timer);bootstrapPending=false;bootstrapController=null;
+    if(!disposed)router.refresh();
   }
-  router.refresh();
 }
+
+if (!telegram.initData) {
+  authError = 'Для входа нужна кнопка приложения в чате бота.';
+  router.refresh();
+} else await bootstrap();

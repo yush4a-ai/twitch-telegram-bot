@@ -1,0 +1,239 @@
+{
+  "base": "098736fc1e713e18bb2fa114f1d4b5fe5ce0fec9",
+  "native": "NOT TESTED",
+  "product_hashes": {
+    "bot/mini_app_ui/api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "bot/mini_app_ui/app.css": "32c49c67306494863ead053607add027f380f010f2eabfa8a6434d2c1456280a",
+    "bot/mini_app_ui/app.js": "4b76b3112ae81d9795cb00924ba16508c19c0f46cf2a67e86ed302b5a067c07d",
+    "bot/mini_app_ui/components.js": "0f69cad45a478a93a982c24aec838d85a968d8625c10335ee682dca8ca544dbb",
+    "bot/mini_app_ui/index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "bot/mini_app_ui/profile.js": "405edd827b14708feacd2a7f874b8e22e149fc70cb242d315838c7d40493566f",
+    "bot/mini_app_ui/purchase.js": "d8cf5748593347ac4472e16563acd2f03783657612975b260f0122b9e1a4fd1c",
+    "bot/mini_app_ui/router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "bot/mini_app_ui/streamer.js": "b9d9301c82e088074b2c7c63d9084e39ac155211044d82e83f2f611627c8b465",
+    "bot/mini_app_ui/streamer_posts.js": "e9ae01b7a42034d83dc52491bee04f925ab7833984134d5cac7dad548ac5b677",
+    "bot/mini_app_ui/subscription.js": "6d72909a1fb6864e07c500e82e7b82fe1a0c9bfefa03f30fc1ddac972c54cd62",
+    "bot/mini_app_ui/support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "bot/mini_app_ui/telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "bot/mini_app_ui/theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "bot/mini_app_ui/viewer.js": "197b691d34a3319350307ac89b07a9361e6d27c9c3826e2136e7d5115ddf6bdc"
+  },
+  "reports": [
+    {
+      "file": "AFTER/chromium/legal-legal-unready/legal-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 11
+    },
+    {
+      "file": "AFTER/chromium/matrix-free-six/matrix-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 28
+    },
+    {
+      "file": "AFTER/chromium/oauth-results-channel-permissions/oauth-results-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 9
+    },
+    {
+      "file": "AFTER/chromium/purchase-free-six/purchase-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 12
+    },
+    {
+      "file": "AFTER/chromium/purchase-purchase-history/purchase-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 18
+    },
+    {
+      "file": "AFTER/chromium/shell-free-six/shell-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/chromium/streamer-connection-channel-permissions/streamer-connection-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 14
+    },
+    {
+      "file": "AFTER/chromium/streamer-connection-legacy-group/streamer-connection-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 15
+    },
+    {
+      "file": "AFTER/chromium/streamer-connection-streamer-unconnected/streamer-connection-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/chromium/streamer-posts-free-six/streamer-posts-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/chromium/streamer-posts-streamer-posts/streamer-posts-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 12
+    },
+    {
+      "file": "AFTER/chromium/theme-free-six/theme-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 7
+    },
+    {
+      "file": "AFTER/chromium/video-plus-two-hundred/video-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 8
+    },
+    {
+      "file": "AFTER/chromium/viewer-free-free-empty/viewer-free-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/chromium/viewer-free-free-six/viewer-free-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/chromium/viewer-settings-free-six-quiet/viewer-settings-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 4
+    },
+    {
+      "file": "AFTER/chromium/viewer-settings-history-history/viewer-settings-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/chromium/viewer-settings-plus-two-hundred-category/viewer-settings-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 4
+    },
+    {
+      "file": "AFTER/chromium/viewer-settings-plus-two-hundred-filter-folder/viewer-settings-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/chromium/viewer-settings-plus-two-hundred-reminder/viewer-settings-chromium-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/polish-chromium/report.json",
+      "checks": 46,
+      "status": "PASS",
+      "screenshots": 28
+    },
+    {
+      "file": "AFTER/webkit/legal-legal-unready/legal-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 11
+    },
+    {
+      "file": "AFTER/webkit/matrix-free-six/matrix-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 28
+    },
+    {
+      "file": "AFTER/webkit/oauth-results-channel-permissions/oauth-results-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 9
+    },
+    {
+      "file": "AFTER/webkit/purchase-free-six/purchase-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 12
+    },
+    {
+      "file": "AFTER/webkit/purchase-purchase-history/purchase-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 18
+    },
+    {
+      "file": "AFTER/webkit/shell-free-six/shell-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/webkit/streamer-connection-channel-permissions/streamer-connection-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 14
+    },
+    {
+      "file": "AFTER/webkit/streamer-connection-legacy-group/streamer-connection-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 15
+    },
+    {
+      "file": "AFTER/webkit/streamer-connection-streamer-unconnected/streamer-connection-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/webkit/streamer-posts-free-six/streamer-posts-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/webkit/streamer-posts-streamer-posts/streamer-posts-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 12
+    },
+    {
+      "file": "AFTER/webkit/theme-free-six/theme-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 7
+    },
+    {
+      "file": "AFTER/webkit/video-plus-two-hundred/video-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 8
+    },
+    {
+      "file": "AFTER/webkit/viewer-free-free-empty/viewer-free-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/webkit/viewer-free-free-six/viewer-free-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 3
+    },
+    {
+      "file": "AFTER/webkit/viewer-settings-free-six-quiet/viewer-settings-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 4
+    },
+    {
+      "file": "AFTER/webkit/viewer-settings-history-history/viewer-settings-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/webkit/viewer-settings-plus-two-hundred-category/viewer-settings-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 4
+    },
+    {
+      "file": "AFTER/webkit/viewer-settings-plus-two-hundred-filter-folder/viewer-settings-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/webkit/viewer-settings-plus-two-hundred-reminder/viewer-settings-webkit-qa.json",
+      "status": "PASS",
+      "screenshots": 5
+    },
+    {
+      "file": "AFTER/polish-webkit/report.json",
+      "checks": 46,
+      "status": "PASS",
+      "screenshots": 28
+    }
+  ],
+  "broad_screenshots": 352,
+  "before_png": 241,
+  "after_png": 409,
+  "note": "Broad report sources include their exact QA script snapshots; later supplemental focus assertion changed only the QA script, not product hashes above."
+}

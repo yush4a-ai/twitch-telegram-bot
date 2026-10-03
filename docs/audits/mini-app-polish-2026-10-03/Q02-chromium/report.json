@@ -1,0 +1,283 @@
+{
+  "engine": "chromium",
+  "phase": "AFTER",
+  "native": "NOT TESTED",
+  "checks": [
+    {
+      "name": "safe-top-320",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 304,
+        "bottom": 170,
+        "width": 288,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-320",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-320",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 308,
+        "bottom": 798,
+        "width": 296,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "safe-top-390",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 374,
+        "bottom": 170,
+        "width": 358,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-390",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-390",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 378,
+        "bottom": 798,
+        "width": 366,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "safe-top-430",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 414,
+        "bottom": 170,
+        "width": 398,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-430",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-430",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 418,
+        "bottom": 798,
+        "width": 406,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "selected-tab-shape",
+      "pass": true,
+      "detail": {
+        "bg": "rgb(237, 243, 255)",
+        "other": "rgb(255, 255, 255)"
+      }
+    },
+    {
+      "name": "stream-title-is-marked",
+      "pass": false
+    },
+    {
+      "name": "time-field-bounds-320",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 485.46875,
+            "right": 273,
+            "bottom": 533.46875,
+            "width": 241,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 459.171875,
+            "right": 273,
+            "bottom": 533.46875,
+            "width": 241,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 571.765625,
+            "right": 273,
+            "bottom": 619.765625,
+            "width": 241,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 545.46875,
+            "right": 273,
+            "bottom": 619.765625,
+            "width": 241,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-390",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 441.96875,
+            "right": 343,
+            "bottom": 489.96875,
+            "width": 311,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 415.671875,
+            "right": 343,
+            "bottom": 489.96875,
+            "width": 311,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 528.265625,
+            "right": 343,
+            "bottom": 576.265625,
+            "width": 311,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 501.96875,
+            "right": 343,
+            "bottom": 576.265625,
+            "width": 311,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-430",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 441.96875,
+            "right": 209,
+            "bottom": 489.96875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 415.671875,
+            "right": 209,
+            "bottom": 489.96875,
+            "width": 177,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 221,
+            "y": 441.96875,
+            "right": 398,
+            "bottom": 489.96875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 221,
+            "y": 415.671875,
+            "right": 398,
+            "bottom": 489.96875,
+            "width": 177,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "short-viewport-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "desktop-no-mobile-gap",
+      "pass": true
+    },
+    {
+      "name": "javascript-errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "external-requests",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "source-snapshot-unchanged",
+      "pass": true
+    }
+  ],
+  "screenshots": [
+    "home-320.png",
+    "home-390.png",
+    "home-430.png",
+    "profile.png",
+    "theme-dialog.png",
+    "quiet-dark-320.png",
+    "quiet-dark-390.png",
+    "quiet-dark-430.png",
+    "quiet-short-viewport.png",
+    "desktop.png"
+  ],
+  "errors": [],
+  "external": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "091fb6ef3c70e11bd56c24e760f4ef7e8b2a8a43a622d2ae9485b37cbaf27897",
+    "app.js": "2085e7de65529e0be3b80c4095853ad7af0b10f70135a42a3ecd16bb29e3710f",
+    "components.js": "80e4983c42d2932a043986116f9b82ce2c2a30fab3eedb4024099cf9f82791b1",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "405edd827b14708feacd2a7f874b8e22e149fc70cb242d315838c7d40493566f",
+    "purchase.js": "b0b18c7b7fdf0da3d7b40670599e29638414891d728a2616d930ccd32bc9275e",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "2a212cfce762158e9ba51b31d2203f0fb7737e0797cb67d8d187f193e528f188",
+    "streamer_posts.js": "e9ae01b7a42034d83dc52491bee04f925ab7833984134d5cac7dad548ac5b677",
+    "subscription.js": "6d72909a1fb6864e07c500e82e7b82fe1a0c9bfefa03f30fc1ddac972c54cd62",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "52c1490bc063d633fdf0be1e15a785ee7b69a4961ad1ef13d5c10ac41f907051"
+  },
+  "status": "FAIL"
+}

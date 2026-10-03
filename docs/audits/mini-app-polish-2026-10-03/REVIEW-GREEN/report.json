@@ -1,0 +1,73 @@
+{
+  "engine": "webkit",
+  "phase": "AFTER",
+  "native": "NOT TESTED",
+  "checks": [
+    {
+      "name": "retry-single-flight",
+      "pass": true,
+      "detail": 2
+    },
+    {
+      "name": "retry-keeps-selected-route",
+      "pass": true
+    },
+    {
+      "name": "background-render-keeps-dialog-focus",
+      "pass": true
+    },
+    {
+      "name": "dialog-traps-tab",
+      "pass": true
+    },
+    {
+      "name": "back-closes-only-dialog",
+      "pass": true
+    },
+    {
+      "name": "late-channel-cancel-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "permission-refresh-clears-success-immediately",
+      "pass": true
+    },
+    {
+      "name": "javascript-errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "external-requests",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "source-snapshot-unchanged",
+      "pass": true
+    }
+  ],
+  "screenshots": [
+    "late-cancel-new-context.png"
+  ],
+  "errors": [],
+  "external": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "32c49c67306494863ead053607add027f380f010f2eabfa8a6434d2c1456280a",
+    "app.js": "4b76b3112ae81d9795cb00924ba16508c19c0f46cf2a67e86ed302b5a067c07d",
+    "components.js": "0f69cad45a478a93a982c24aec838d85a968d8625c10335ee682dca8ca544dbb",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "405edd827b14708feacd2a7f874b8e22e149fc70cb242d315838c7d40493566f",
+    "purchase.js": "d8cf5748593347ac4472e16563acd2f03783657612975b260f0122b9e1a4fd1c",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "b9d9301c82e088074b2c7c63d9084e39ac155211044d82e83f2f611627c8b465",
+    "streamer_posts.js": "e9ae01b7a42034d83dc52491bee04f925ab7833984134d5cac7dad548ac5b677",
+    "subscription.js": "6d72909a1fb6864e07c500e82e7b82fe1a0c9bfefa03f30fc1ddac972c54cd62",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "197b691d34a3319350307ac89b07a9361e6d27c9c3826e2136e7d5115ddf6bdc"
+  },
+  "status": "PASS"
+}

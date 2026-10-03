@@ -25,11 +25,13 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
   if (sdk) {
     safeCall('ready');
     safeCall('expand');
-    safeCall('requestFullscreen');
     safeCall('onEvent', 'themeChanged', handleTheme);
     safeCall('onEvent', 'safeAreaChanged', applyInsets);
     safeCall('onEvent', 'contentSafeAreaChanged', applyInsets);
     safeCall('onEvent', 'viewportChanged', applyInsets);
+    safeCall('onEvent', 'fullscreenChanged', applyInsets);
+    safeCall('onEvent', 'fullscreenFailed', applyInsets);
+    safeCall('requestFullscreen');
     handleTheme();
     applyInsets();
   }
@@ -40,7 +42,9 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
     const root = document.documentElement.style;
     const inset = value => typeof value === 'number' && Number.isFinite(value) ? Math.min(1024, Math.max(0, value)) : 0;
     for (const side of ['top','right','bottom','left']) {
-      root.setProperty(`--${side}-inset`, `max(${Math.max(inset(safe[side]),inset(content[side]))}px, env(safe-area-inset-${side}, 0px))`);
+      // Telegram controls occupy an additional area inside the device safe area.
+      // CSS env and safeAreaInset describe the same device edge: never add both.
+      root.setProperty(`--${side}-inset`, `calc(max(${inset(safe[side])}px, env(safe-area-inset-${side}, 0px)) + ${inset(content[side])}px)`);
     }
     for (const [name,value] of [['viewport-height',sdk?.viewportHeight],['viewport-stable-height',sdk?.viewportStableHeight]]) {
       root.setProperty(`--${name}`, typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 10000 ? `${value}px` : '100dvh');
@@ -114,6 +118,8 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
       safeCall('offEvent','safeAreaChanged', applyInsets);
       safeCall('offEvent','contentSafeAreaChanged', applyInsets);
       safeCall('offEvent','viewportChanged', applyInsets);
+      safeCall('offEvent','fullscreenChanged', applyInsets);
+      safeCall('offEvent','fullscreenFailed', applyInsets);
       themeListeners.clear();
       for (const finish of pending) finish(null);
     },

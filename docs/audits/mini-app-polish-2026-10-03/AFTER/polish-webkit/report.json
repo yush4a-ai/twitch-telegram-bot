@@ -1,0 +1,418 @@
+{
+  "engine": "webkit",
+  "phase": "AFTER",
+  "native": "NOT TESTED",
+  "checks": [
+    {
+      "name": "safe-top-320",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 304,
+        "bottom": 170,
+        "width": 288,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-320",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-320",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 308,
+        "bottom": 798,
+        "width": 296,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "safe-top-390",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 374,
+        "bottom": 170,
+        "width": 358,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-390",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-390",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 378,
+        "bottom": 798,
+        "width": 366,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "safe-top-430",
+      "pass": true,
+      "detail": {
+        "x": 16,
+        "y": 120,
+        "right": 414,
+        "bottom": 170,
+        "width": 398,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-430",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-430",
+      "pass": true,
+      "detail": {
+        "x": 12,
+        "y": 729.40625,
+        "right": 418,
+        "bottom": 798,
+        "width": 406,
+        "height": 68.59375
+      }
+    },
+    {
+      "name": "selected-tab-shape",
+      "pass": true,
+      "detail": {
+        "bg": "rgb(237, 243, 255)",
+        "other": "rgb(255, 255, 255)"
+      }
+    },
+    {
+      "name": "stream-title-is-marked",
+      "pass": true
+    },
+    {
+      "name": "dialog-safe-bounds",
+      "pass": true,
+      "detail": {
+        "x": 25,
+        "y": 333,
+        "width": 380,
+        "height": 250
+      }
+    },
+    {
+      "name": "time-field-bounds-320",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 463.71875,
+            "right": 288,
+            "bottom": 511.71875,
+            "width": 256,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 437.421875,
+            "right": 288,
+            "bottom": 511.71875,
+            "width": 256,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 550.015625,
+            "right": 288,
+            "bottom": 598.015625,
+            "width": 256,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 523.71875,
+            "right": 288,
+            "bottom": 598.015625,
+            "width": 256,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-390",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 441.96875,
+            "right": 358,
+            "bottom": 489.96875,
+            "width": 326,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 415.671875,
+            "right": 358,
+            "bottom": 489.96875,
+            "width": 326,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 528.265625,
+            "right": 358,
+            "bottom": 576.265625,
+            "width": 326,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 501.96875,
+            "right": 358,
+            "bottom": 576.265625,
+            "width": 326,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-430",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 420.21875,
+            "right": 209,
+            "bottom": 468.21875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 393.921875,
+            "right": 209,
+            "bottom": 468.21875,
+            "width": 177,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 221,
+            "y": 420.21875,
+            "right": 398,
+            "bottom": 468.21875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 221,
+            "y": 393.921875,
+            "right": 398,
+            "bottom": 468.21875,
+            "width": 177,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "short-viewport-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "desktop-no-mobile-gap",
+      "pass": true
+    },
+    {
+      "name": "first-step-direct-add",
+      "pass": true
+    },
+    {
+      "name": "first-step-primary",
+      "pass": true
+    },
+    {
+      "name": "delete-confirmation-and-cancel",
+      "pass": true,
+      "detail": "Удалить Alpha из подписок?"
+    },
+    {
+      "name": "availability-before-method",
+      "pass": true
+    },
+    {
+      "name": "availability-above-method",
+      "pass": true
+    },
+    {
+      "name": "permanent-unavailable-no-retry",
+      "pass": true
+    },
+    {
+      "name": "bootstrap-offline-has-retry",
+      "pass": true
+    },
+    {
+      "name": "bootstrap-retry-recovers",
+      "pass": true
+    },
+    {
+      "name": "permission-refresh-no-stale-success",
+      "pass": true
+    },
+    {
+      "name": "fullscreen-event-updates-geometry",
+      "pass": true
+    },
+    {
+      "name": "fullscreen-failed-restores-geometry",
+      "pass": true
+    },
+    {
+      "name": "auth-failure-no-inplace-retry",
+      "pass": true
+    },
+    {
+      "name": "auth-failure-no-private-data",
+      "pass": true
+    },
+    {
+      "name": "auth-failure-no-inplace-retry",
+      "pass": true
+    },
+    {
+      "name": "auth-failure-no-private-data",
+      "pass": true
+    },
+    {
+      "name": "pagehide-no-late-bootstrap-ui",
+      "pass": true
+    },
+    {
+      "name": "pagehide-no-private-requests",
+      "pass": true,
+      "detail": 0
+    },
+    {
+      "name": "late-publishing-feedback-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "retry-single-flight",
+      "pass": true,
+      "detail": 2
+    },
+    {
+      "name": "retry-keeps-selected-route",
+      "pass": true
+    },
+    {
+      "name": "background-render-keeps-dialog-focus",
+      "pass": true
+    },
+    {
+      "name": "dialog-traps-tab",
+      "pass": true
+    },
+    {
+      "name": "back-closes-only-dialog",
+      "pass": true
+    },
+    {
+      "name": "retry-then-auth-denial-stops",
+      "pass": true
+    },
+    {
+      "name": "late-channel-cancel-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "permission-refresh-clears-success-immediately",
+      "pass": true
+    },
+    {
+      "name": "javascript-errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "external-requests",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "source-snapshot-unchanged",
+      "pass": true
+    }
+  ],
+  "screenshots": [
+    "home-320.png",
+    "home-390.png",
+    "home-430.png",
+    "profile.png",
+    "theme-dialog.png",
+    "quiet-dark-320.png",
+    "quiet-dark-390.png",
+    "quiet-dark-430.png",
+    "quiet-short-viewport.png",
+    "desktop.png",
+    "new-viewer-home.png",
+    "add-dialog.png",
+    "add-result.png",
+    "added-success.png",
+    "streamer-detail.png",
+    "delete-cancelled.png",
+    "viewer-plus.png",
+    "payment-before-selection.png",
+    "payment-unavailable.png",
+    "streamer-plus.png",
+    "bootstrap-loading.png",
+    "bootstrap-offline.png",
+    "publishing-success.png",
+    "changed-permission.png",
+    "expired-auth-401.png",
+    "expired-auth-403.png",
+    "late-publishing-new-context.png",
+    "late-cancel-new-context.png"
+  ],
+  "errors": [],
+  "external": [],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "32c49c67306494863ead053607add027f380f010f2eabfa8a6434d2c1456280a",
+    "app.js": "4b76b3112ae81d9795cb00924ba16508c19c0f46cf2a67e86ed302b5a067c07d",
+    "components.js": "0f69cad45a478a93a982c24aec838d85a968d8625c10335ee682dca8ca544dbb",
+    "index.html": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da",
+    "profile.js": "405edd827b14708feacd2a7f874b8e22e149fc70cb242d315838c7d40493566f",
+    "purchase.js": "d8cf5748593347ac4472e16563acd2f03783657612975b260f0122b9e1a4fd1c",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "b9d9301c82e088074b2c7c63d9084e39ac155211044d82e83f2f611627c8b465",
+    "streamer_posts.js": "e9ae01b7a42034d83dc52491bee04f925ab7833984134d5cac7dad548ac5b677",
+    "subscription.js": "6d72909a1fb6864e07c500e82e7b82fe1a0c9bfefa03f30fc1ddac972c54cd62",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "theme.js": "f366e5d7867c332b0c66af9e7419208dd430fa9d2c498a971f33d67654da2f60",
+    "viewer.js": "197b691d34a3319350307ac89b07a9361e6d27c9c3826e2136e7d5115ddf6bdc"
+  },
+  "status": "PASS"
+}

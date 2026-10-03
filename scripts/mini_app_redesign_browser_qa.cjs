@@ -366,7 +366,11 @@ async function themeJourney(page) {
   });
   assert.deepEqual(lifecycle.after,lifecycle.before,'Repeated adapters clean their own handlers');
   assert.equal(lifecycle.first,'light');assert.equal(lifecycle.kept,'dark');assert(lifecycle.safe);
-  for(const [i,value] of [23,18,24,15].entries()) assert(lifecycle.insets[i].includes(`${value}px`),'Safe/content max, no sum');
+  // iOS reports status-bar safe area and the additional Telegram controls separately.
+  for(const [i,[safe,content]] of [[12,23],[18,7],[24,11],[5,15]].entries()) {
+    assert(lifecycle.insets[i].includes(`max(${safe}px, env(`),'CSS env is a device-safe-area fallback');
+    assert(lifecycle.insets[i].endsWith(`+ ${content}px)`),'Telegram content area is additional');
+  }
   assert.equal(lifecycle.viewport,'600px');
   // Fullscreen rejected by an older client must still leave a usable adapter.
   await page.evaluate(async()=>{window.Telegram.WebApp.requestFullscreen=()=>{throw new Error('unsupported');};const {createTelegramAdapter}=await import('/app/telegram.js');const adapter=createTelegramAdapter(()=>{});adapter.dispose();});
@@ -457,7 +461,7 @@ async function shellAuthGates(browser,url) {
   await offline.route('**/app/api/bootstrap',async route=>{await gate;await route.fulfill({status:503,contentType:'application/json',body:'{"error":"unavailable"}'});});
   await installSdk(offline);await offline.goto(url,{waitUntil:'domcontentloaded'});
   await offline.getByText('Проверяем вход…',{exact:true}).waitFor();release();
-  await offline.getByText('Связь прервалась. Откройте приложение заново, когда сеть восстановится.',{exact:true}).waitFor();
+  await offline.getByText('Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.',{exact:true}).waitFor();
   assert.equal(await offline.locator('#content h1').count(),1,'Bootstrap error has one clear heading');
   await assertLayout(offline);await offline.close();
 }
@@ -742,7 +746,7 @@ async function streamerConnectionJourney(page) {
   const intent=await page.evaluate(()=>JSON.parse(JSON.stringify([...Object.keys(localStorage)].filter(k=>k.endsWith('ts-streamer-community-intent')).map(k=>localStorage[k])[0])));
   assert(intent);assert((await page.evaluate(()=>window.__qaSdk.prepared)).startsWith('fixture-prepared-'));
   await page.getByRole('button',{name:'Отменить выбор',exact:true}).click();
-  await page.getByText('Выбор отменён. Канал не подключён.',{exact:true}).waitFor();
+  await page.getByText('Добавление нового канала отменено.',{exact:true}).waitFor();
   assert.equal((await control({intent_id:intent,complete:true})).connected,false);
   await picture('cancelled');
   await page.getByRole('button',{name:'Подключить Telegram-канал',exact:true}).click();
@@ -958,7 +962,8 @@ async function purchaseJourney(page) {
     await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
     assert.equal(await page.getByRole('button',{name:label,exact:true}).isDisabled(),false);await picture(method);
   }
-  await page.getByRole('button',{name:'Повторить',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'Повторить',exact:true}).count(),0,'Permanent unavailable is not a network retry');
+  await page.getByRole('button',{name:'Банковская карта',exact:true}).click();
   await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
   await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
   let release,seen;const held=new Promise(r=>release=r),started=new Promise(r=>seen=r);

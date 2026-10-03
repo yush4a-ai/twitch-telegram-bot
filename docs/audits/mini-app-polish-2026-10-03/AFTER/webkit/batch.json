@@ -1,0 +1,85 @@
+{
+  "engine": "webkit",
+  "results": [
+    {
+      "name": "matrix-free-six",
+      "exit": 0
+    },
+    {
+      "name": "shell-free-six",
+      "exit": 0
+    },
+    {
+      "name": "theme-free-six",
+      "exit": 0
+    },
+    {
+      "name": "viewer-free-free-empty",
+      "exit": 0
+    },
+    {
+      "name": "viewer-free-free-six",
+      "exit": 0
+    },
+    {
+      "name": "video-plus-two-hundred",
+      "exit": 0
+    },
+    {
+      "name": "viewer-settings-free-six-quiet",
+      "exit": 0
+    },
+    {
+      "name": "viewer-settings-plus-two-hundred-filter-folder",
+      "exit": 0
+    },
+    {
+      "name": "viewer-settings-plus-two-hundred-category",
+      "exit": 0
+    },
+    {
+      "name": "viewer-settings-plus-two-hundred-reminder",
+      "exit": 0
+    },
+    {
+      "name": "viewer-settings-history-history",
+      "exit": 0
+    },
+    {
+      "name": "streamer-connection-streamer-unconnected",
+      "exit": 0
+    },
+    {
+      "name": "streamer-connection-channel-permissions",
+      "exit": 0
+    },
+    {
+      "name": "streamer-connection-legacy-group",
+      "exit": 0
+    },
+    {
+      "name": "streamer-posts-streamer-posts",
+      "exit": 0
+    },
+    {
+      "name": "streamer-posts-free-six",
+      "exit": 0
+    },
+    {
+      "name": "purchase-free-six",
+      "exit": 0
+    },
+    {
+      "name": "purchase-purchase-history",
+      "exit": 0
+    },
+    {
+      "name": "legal-legal-unready",
+      "exit": 0
+    },
+    {
+      "name": "oauth-results-channel-permissions",
+      "exit": 0
+    }
+  ]
+}

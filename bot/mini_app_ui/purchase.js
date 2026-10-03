@@ -68,10 +68,14 @@ export function createPurchaseFeature(api,getRouter,telegram) {
       const current=purchase(id);
       target.append(element('h1','','Как оплатить?'),element('h2','',offer.title),element('p','subscription-price',`${offer.price_label} / месяц`));
       target.append(element('p','muted','1 месяц. Без автопродления.'),element('p','','Telegram Stars — через Telegram.'),element('p','','СБП и банковская карта — через Platega.'));
+      if(catalog.methods.length && catalog.methods.every(method=>offer.method_readiness?.[method.id]?.enabled===false)) {
+        const note=element('p','purchase-availability','Оформление Plus пока недоступно. Бесплатные функции работают.');
+        note.dataset.paymentAvailability='unavailable';target.append(note);
+      }
       const methods=element('div','navigation-group purchase-methods');
       for(const method of catalog.methods){const button=navigationRow(method.title,method.provider==='platega'?'Внешняя оплата через Platega':'Оплата в Telegram','buttons',()=>choose(id,method.id));button.disabled=current.busy;button.setAttribute('aria-pressed',String(method.id===current.method));methods.append(button);}target.append(methods);
       if(current.busy){const note=element('p','notice','Проверяем доступность оплаты…');note.setAttribute('role','status');target.append(note);}
-      if(current.message){const note=element('p',current.failed?'notice error':'notice',current.message);note.setAttribute('role',current.failed?'alert':'status');target.append(note,action('Повторить',()=>choose(id,current.method),true));}
+      if(current.message){const note=element('p',current.failed?'notice error':'notice',current.message);note.setAttribute('role',current.failed?'alert':'status');target.append(note);if(current.failed)target.append(action('Повторить',()=>choose(id,current.method),true));}
       target.append(navigationRow('Документы и поддержка','','help',()=>getRouter().openDetail('support')));
     },
     dispose(){disposed=true;++generation;controller?.abort();for(const request of requests)request.abort();document.removeEventListener('visibilitychange',visibility);},

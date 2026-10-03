@@ -1,0 +1,312 @@
+{
+  "engine": "chromium",
+  "phase": "BEFORE",
+  "native": "NOT TESTED",
+  "checks": [
+    {
+      "name": "safe-top-320",
+      "pass": false,
+      "detail": {
+        "x": 16,
+        "y": 73,
+        "right": 304,
+        "bottom": 123,
+        "width": 288,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-320",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-320",
+      "pass": false,
+      "detail": {
+        "x": 0,
+        "y": 683.8125,
+        "right": 320,
+        "bottom": 844,
+        "width": 320,
+        "height": 160.1875
+      }
+    },
+    {
+      "name": "safe-top-390",
+      "pass": false,
+      "detail": {
+        "x": 16,
+        "y": 73,
+        "right": 374,
+        "bottom": 123,
+        "width": 358,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-390",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-390",
+      "pass": false,
+      "detail": {
+        "x": 0,
+        "y": 742.40625,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 101.59375
+      }
+    },
+    {
+      "name": "safe-top-430",
+      "pass": false,
+      "detail": {
+        "x": 16,
+        "y": 73,
+        "right": 414,
+        "bottom": 123,
+        "width": 398,
+        "height": 50
+      }
+    },
+    {
+      "name": "overflow-430",
+      "pass": true
+    },
+    {
+      "name": "floating-navigation-430",
+      "pass": false,
+      "detail": {
+        "x": 0,
+        "y": 742.40625,
+        "right": 430,
+        "bottom": 844,
+        "width": 430,
+        "height": 101.59375
+      }
+    },
+    {
+      "name": "selected-tab-shape",
+      "pass": false,
+      "detail": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "other": "rgb(255, 255, 255)"
+      }
+    },
+    {
+      "name": "stream-title-is-marked",
+      "pass": false
+    },
+    {
+      "name": "time-field-bounds-320",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 438.46875,
+            "right": 273,
+            "bottom": 486.46875,
+            "width": 241,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 412.171875,
+            "right": 273,
+            "bottom": 486.46875,
+            "width": 241,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 524.765625,
+            "right": 273,
+            "bottom": 572.765625,
+            "width": 241,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 498.46875,
+            "right": 273,
+            "bottom": 572.765625,
+            "width": 241,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-390",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 394.96875,
+            "right": 343,
+            "bottom": 442.96875,
+            "width": 311,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 368.671875,
+            "right": 343,
+            "bottom": 442.96875,
+            "width": 311,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 32,
+            "y": 481.265625,
+            "right": 343,
+            "bottom": 529.265625,
+            "width": 311,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 454.96875,
+            "right": 343,
+            "bottom": 529.265625,
+            "width": 311,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "time-field-bounds-430",
+      "pass": true,
+      "detail": [
+        {
+          "input": {
+            "x": 32,
+            "y": 394.96875,
+            "right": 209,
+            "bottom": 442.96875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 32,
+            "y": 368.671875,
+            "right": 209,
+            "bottom": 442.96875,
+            "width": 177,
+            "height": 74.296875
+          }
+        },
+        {
+          "input": {
+            "x": 221,
+            "y": 394.96875,
+            "right": 398,
+            "bottom": 442.96875,
+            "width": 177,
+            "height": 48
+          },
+          "label": {
+            "x": 221,
+            "y": 368.671875,
+            "right": 398,
+            "bottom": 442.96875,
+            "width": 177,
+            "height": 74.296875
+          }
+        }
+      ]
+    },
+    {
+      "name": "short-viewport-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "desktop-no-mobile-gap",
+      "pass": true
+    },
+    {
+      "name": "first-step-direct-add",
+      "pass": false
+    },
+    {
+      "name": "availability-before-method",
+      "pass": false
+    },
+    {
+      "name": "permanent-unavailable-no-retry",
+      "pass": false
+    },
+    {
+      "name": "bootstrap-offline-has-retry",
+      "pass": false
+    },
+    {
+      "name": "permission-refresh-no-stale-success",
+      "pass": false
+    },
+    {
+      "name": "fullscreen-event-updates-geometry",
+      "pass": false
+    },
+    {
+      "name": "fullscreen-failed-restores-geometry",
+      "pass": false
+    },
+    {
+      "name": "auth-failure-no-inplace-retry",
+      "pass": true
+    },
+    {
+      "name": "auth-failure-no-private-data",
+      "pass": true
+    },
+    {
+      "name": "javascript-errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "external-requests",
+      "pass": true,
+      "detail": []
+    }
+  ],
+  "screenshots": [
+    "home-320.png",
+    "home-390.png",
+    "home-430.png",
+    "profile.png",
+    "theme-dialog.png",
+    "quiet-dark-320.png",
+    "quiet-dark-390.png",
+    "quiet-dark-430.png",
+    "quiet-short-viewport.png",
+    "desktop.png",
+    "new-viewer-home.png",
+    "add-dialog.png",
+    "add-result.png",
+    "added-success.png",
+    "streamer-detail.png",
+    "viewer-plus.png",
+    "payment-before-selection.png",
+    "payment-unavailable.png",
+    "streamer-plus.png",
+    "bootstrap-loading.png",
+    "bootstrap-offline.png",
+    "publishing-success.png",
+    "changed-permission.png",
+    "expired-auth.png"
+  ],
+  "errors": [],
+  "external": [],
+  "status": "FAIL"
+}
