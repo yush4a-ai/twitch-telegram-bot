@@ -9,6 +9,7 @@ import weakref
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, FSInputFile, InputMediaPhoto
@@ -58,18 +59,23 @@ async def load_home_state(db, user_id: int) -> HomeState:
 
 def build_home(state: HomeState) -> HomeView:
     if state.tracked:
-        lines = ['<b>Твои стримеры</b>', f'В списке: <b>{state.tracked}</b>']
+        lines = ['<b>Твои оповещения</b>', f'В списке: <b>{state.tracked}</b>']
         if state.notifications is not None:
             lines.append(f'Оповещения о старте: <b>{state.notifications} из {state.tracked}</b>')
             if not state.notifications: lines.append('Оповещения о старте выключены.')
         if not state.live_known:
             lines += ['', 'Статус эфиров пока недоступен. Попробуй позже.']
         elif state.live:
-            lines += ['', f'<b>В эфире: {len(state.live)}</b>', '<i>По последней проверке</i>']
+            lines += ['', f'<b>В эфире: {len(state.live)}</b>']
+            entries = []
             for login, category in state.live[:3]:
-                lines.append('<b>' + html.escape(login[:60]) + '</b>')
-                if category: lines.append('<i>' + html.escape(category[:100]) + '</i>')
-            if len(state.live) > 3: lines.append(f'<i>И ещё {len(state.live)-3} в эфире</i>')
+                url = 'https://www.twitch.tv/' + quote(login, safe='')
+                entry = '<a href="' + url + '"><b>' + html.escape(login[:60]) + '</b></a>'
+                if category: entry += '\n' + html.escape(category[:100])
+                entries.append(entry)
+            lines.append('<blockquote>' + '\n\n'.join(entries) + '</blockquote>')
+            lines.append('<i>По последней проверке</i>')
+            if len(state.live) > 3: lines.append(f'И ещё {len(state.live)-3} в эфире')
         else:
             lines += ['', 'По последней проверке эфиров нет.']
         text = '\n'.join(lines)
@@ -84,7 +90,7 @@ def build_home(state: HomeState) -> HomeView:
         if state.communities == 0:
             text += '\nTelegram-канал пока не выбран. Продолжи в «Я стример».'
         elif state.communities:
-            text += f'\nTelegram-подключений: <b>{state.communities}</b>\nПрава и публикации: «Я стример».'
+            text += f' · Telegram-подключений: <b>{state.communities}</b>\nПрава и публикации: «Я стример».'
     return HomeView(text, not state.tracked and not state.verified)
 
 

@@ -114,17 +114,17 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         for i in range(6): await self.db.add_channel(101,f'live{i}')
         view=await self.state_for()
         self.assertFalse(view.banner)
-        self.assertEqual(view.text,'<b>Твои стримеры</b>\nВ списке: <b>6</b>\nОповещения о старте: <b>6 из 6</b>\n\nПо последней проверке эфиров нет.')
+        self.assertEqual(view.text,'<b>Твои оповещения</b>\nВ списке: <b>6</b>\nОповещения о старте: <b>6 из 6</b>\n\nПо последней проверке эфиров нет.')
         await self.db.conn.execute("UPDATE tracked_channels SET is_live=1 WHERE chat_id=101 AND twitch_login='live0'")
         await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('<b>В эфире: 1</b>\n<i>По последней проверке</i>',view.text);self.assertEqual(view.text.count('live0'),1)
+        view=await self.state_for();self.assertIn('<b>В эфире: 1</b>',view.text);self.assertIn('<i>По последней проверке</i>',view.text);self.assertEqual(view.text.count('<b>live0</b>'),1)
         await self.db.conn.execute('UPDATE tracked_channels SET is_live=1 WHERE chat_id=101');await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('<b>В эфире: 6</b>\n<i>По последней проверке</i>',view.text);self.assertIn('И ещё 3 в эфире',view.text)
+        view=await self.state_for();self.assertIn('<b>В эфире: 6</b>',view.text);self.assertIn('<i>По последней проверке</i>',view.text);self.assertIn('И ещё 3 в эфире',view.text)
         for i in range(3): self.assertIn(f'live{i}',view.text)
         for i in range(3,6): self.assertNotIn(f'live{i}',view.text)
         from bot.telegram_home import HomeState,build_home
         text=build_home(HomeState(tracked=1,live=(('longname','<Category & other>'),),verified=True)).text
-        self.assertIn('<b>longname</b>\n<i>&lt;Category &amp; other&gt;</i>',text)
+        self.assertIn('<a href="https://www.twitch.tv/longname"><b>longname</b></a>\n&lt;Category &amp; other&gt;',text)
 
     async def test_verified_only_compact_status_never_claims_publishing(self):
         await self.db.save_user_token('alpha','11','access','refresh',time.time()+300)

@@ -1,6 +1,7 @@
 """Telegram Home typography must preserve counts, escaping and honest status."""
 import unittest
 from html.parser import HTMLParser
+from urllib.parse import urlsplit, quote
 
 from bot.telegram_home import HomeState, build_home
 
@@ -12,11 +13,23 @@ class Caption(HTMLParser):
         self.plain = []
         self.bold = []
         self.italic = []
+        self.quotes = 0
+        self.links = []
         self.feed(source)
         assert not self.stack
 
     def handle_starttag(self, tag, attrs):
-        assert tag in ('b', 'i') and not attrs
+        assert tag in ('b', 'i', 'blockquote', 'a')
+        if tag == 'a':
+            assert len(attrs) == 1 and attrs[0][0] == 'href'
+            parsed = urlsplit(attrs[0][1])
+            assert parsed.scheme == 'https' and parsed.netloc == 'www.twitch.tv'
+            self.links.append(attrs[0][1])
+        else:
+            assert not attrs
+        if tag == 'blockquote':
+            assert 'blockquote' not in self.stack
+            self.quotes += 1
         self.stack.append(tag)
 
     def handle_endtag(self, tag):
@@ -35,11 +48,16 @@ class HomeCopyTests(unittest.TestCase):
         live = (('derzko69', 'Just Chatting'), ('dmitry_lixxx', 'Counter-Strike'),
                 ('hesoyamof1974', 'Delta Force'), *[(f'other{i}', None) for i in range(4)])
         caption = Caption(build_home(HomeState(41, live, True, 26, True, 1)).text)
-        self.assertEqual(caption.bold, ['Твои стримеры', '41', '26 из 41', 'В эфире: 7',
+        self.assertEqual(caption.bold, ['Твои оповещения', '41', '26 из 41', 'В эфире: 7',
                                        'derzko69', 'dmitry_lixxx', 'hesoyamof1974',
                                        'Твой Twitch подключён', '1'])
-        self.assertIn('По последней проверке', caption.italic)
-        self.assertIn('Just Chatting', caption.italic)
+        self.assertEqual(caption.quotes, 1)
+        self.assertEqual(caption.links, ['https://www.twitch.tv/derzko69',
+                                        'https://www.twitch.tv/dmitry_lixxx',
+                                        'https://www.twitch.tv/hesoyamof1974'])
+        self.assertIn('По последней проверке', ''.join(caption.plain))
+        self.assertIn('Just Chatting', ''.join(caption.plain))
+        self.assertNotIn('Just Chatting', caption.italic)
         text = ''.join(caption.plain)
         self.assertIn('И ещё 4 в эфире', text)
         self.assertIn('Права и публикации: «Я стример».', text)
@@ -61,7 +79,8 @@ class HomeCopyTests(unittest.TestCase):
         caption = Caption(build_home(HomeState(200, tuple((login, category) for _ in range(5)),
                                                True, 200, True, 99)).text)
         self.assertEqual(caption.bold.count(login[:60]), 3)
-        self.assertEqual(caption.italic.count(category[:100]), 3)
+        self.assertEqual(''.join(caption.plain).count(category[:100]), 3)
+        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(login, safe='')] * 3)
         self.assertLessEqual(len(''.join(caption.plain).encode('utf-16-le')) // 2, 1024)
         self.assertIn('И ещё 2 в эфире', ''.join(caption.plain))
 
@@ -72,3 +91,11 @@ class HomeCopyTests(unittest.TestCase):
         self.assertIn('Пока никого не отслеживаешь.', text)
         self.assertIn('Telegram-канал пока не выбран', text)
         self.assertNotIn('публикации включены', text)
+
+    def test_link_cannot_escape_twitch_origin_or_inject_a_caption_entity(self):
+        hostile = '//evil.example/?q="</a><a href="javascript:alert(1)">'
+        caption = Caption(build_home(HomeState(tracked=1, live=((hostile, '</blockquote><b>fake'),))).text)
+        self.assertEqual(caption.quotes, 1)
+        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(hostile, safe='')])
+        self.assertIn('</blockquote><b>fake', ''.join(caption.plain))
+        self.assertNotIn('fake', caption.bold)

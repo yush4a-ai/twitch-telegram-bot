@@ -23,3 +23,7 @@
 ## Контрольная точка перед full gate
 
 Шаги 1–2 завершены. Focused32PASS, smoke-helper8PASS и unknown-start1PASS. Scoped self-review завершён, критичных замечаний нет. Chromium390/1440 макет проверен. Свежая staging backup/remote+local restore: PASS, integrityok,63tables,3,416,064bytes. Шаг3: commit и штатный full gate на неизменном snapshot; результат ещё не объявлен.
+
+## Уточнение владельца: сильнее разделить блоки
+
+Первый макет отклонён: bold/italic недостаточно. Полный прогон на042d996 остановлен на20% по новой правке владельца до upload/deploy; STOPPED log сохранён, полного PASS нет. Второй вариант: один нативный blockquote для live списка, интервалы между стримерами, кликабельные Twitch logins, категории обычным шрифтом; summary и Twitch footer снаружи блока. Новый RED2FAIL/2PASS → focused33PASS. Preview-v2.html и screenshot390/1440 отдельно, v1 сохранён. Full gate перезапускается только на новом clean snapshot.
