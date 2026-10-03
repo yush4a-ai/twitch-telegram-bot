@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "schema_versions": [
+    "mini_001_viewer_preferences",
+    "mini_002_category_alerts",
+    "mini_003_category_delivery",
+    "mini_004_streamer_intents",
+    "mini_005_viewer_reminders",
+    "mini_006_viewer_folders",
+    "mini_007_viewer_history",
+    "mini_008_streamer_presets",
+    "mini_009_viewer_trial",
+    "mini_010_viewer_favorites",
+    "mini_011_viewer_undo",
+    "r10_001_billing_subjects",
+    "r11_001_plus_payment_orders",
+    "r11_002_plus_payment_events",
+    "r11_003_entitlement_beneficiary",
+    "r11_004_payment_reconciliation",
+    "r11_005_channel_intent_reasons",
+    "r3_001_observations",
+    "r3_002_notification_jobs",
+    "r3_003_live_update_revision",
+    "r4_001_streamer_access",
+    "r4_002_streamer_communities",
+    "r4_003_streamer_templates",
+    "r4_004_streamer_stats",
+    "r5_001_billing_ledger",
+    "r7_001_viewer_filters",
+    "r8_001_growth_attribution"
+  ],
+  "reuse_reason": "No schema/connection/migration/encryption changes; only cleanup-candidate read query differs. Owner allows reuse of identical verified evidence. Fresh backup/restore in this checkpoint. Remote retry failed before migration execution due Railway transport.",
+  "verified_code": {
+    "bot/__init__.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/database.py": {
+      "only_changed_method": "list_private_media_cleanup_candidates",
+      "all_other_module_ast_identical": true
+    },
+    "bot/billing_models.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/billing_migrations.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/billing_provider.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/deep_links.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/streamer_template.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/viewer_filter.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/viewer_preferences.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/viewer_undo.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/plan_catalog.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    },
+    "bot/entitlements.py": {
+      "identical_to_release": "560f3ccac05fe8f6c4b1221a28b926b7358edfef"
+    }
+  },
+  "original_evidence": "docs/audits/mini-app-owner-corrections-2026-10-03/STAGING-migration-copy.json"
+}

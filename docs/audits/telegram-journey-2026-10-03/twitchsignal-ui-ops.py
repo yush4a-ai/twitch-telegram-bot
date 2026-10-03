@@ -3,6 +3,16 @@ ROOT=pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT))
 from scripts.staging_deploy import _capture,_load_target,validate_target,_nodes,_instance,_resolve_executable
 T=_load_target()
+_original_resolve_executable = _resolve_executable
+def _resolve_executable(argv):
+ if os.name == 'nt' and argv[0] == 'railway':
+  shim=pathlib.Path(shutil.which('railway') or '')
+  native=shim.parent/'node_modules/@railway/cli/bin/railway.exe'
+  if not native.is_file():raise RuntimeError('Verified installed Railway native CLI missing')
+  return [str(native),*argv[1:]]
+ return _original_resolve_executable(argv)
+import scripts.staging_deploy as _guard_module
+_guard_module._resolve_executable = _resolve_executable
 GUARD='''import os,json,pathlib,hashlib,base64,sys,sqlite3,tempfile,asyncio
 expected=%r
 assert all(os.environ.get(k)==v for k,v in expected.items()), 'Pinned staging runtime mismatch'
