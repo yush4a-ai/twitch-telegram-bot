@@ -312,6 +312,7 @@ html[data-theme-choice=dark] body { background:radial-gradient(ellipse 90% 400px
 .swipe-delete { position:absolute; top:0; right:0; bottom:0; width:88px; border:0; background:var(--danger); color:var(--canvas); font:inherit; font-size:.875rem; font-weight:600; visibility:hidden; }
 .swipe-open .streamer-row { transform:translateX(-88px); }
 .swipe-open .swipe-delete { visibility:visible; }
+.swipe-dragging .swipe-delete { visibility:visible; }
 @media (prefers-reduced-motion:reduce) { .swipe-shell .streamer-row { transition:none; } }
 @media (prefers-reduced-motion:no-preference) { .plus-hero { animation:plus-arrive 220ms ease-out; } @keyframes plus-arrive { from { opacity:.6; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } } }
 
@@ -351,3 +352,9 @@ html[data-theme-choice=dark] body { background:radial-gradient(ellipse 90% 400px
 @media(max-width:350px) { .home-live-heading { padding:18px 16px; } .home-mascot { width:140px; height:150px; top:-20px; right:-5px; } .home-hero-copy h2 { font-size:1.45rem; } .home-delivery-note { font-size:.75rem; padding-inline:9px; } .home-streamers .avatar { width:44px; height:44px; flex-basis:44px; } }
 
 .undo-notice.undo-reserve { position:static; visibility:hidden; pointer-events:none; margin-top:12px; }
+
+.home-live-heading { container-type:inline-size; container-name:home-hero; }
+@container home-hero (width < 18rem) {
+  .home-hero-copy { max-width:none; padding-top:152px; }
+  .home-mascot { right:0; top:0; }
+}

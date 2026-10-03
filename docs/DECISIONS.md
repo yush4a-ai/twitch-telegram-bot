@@ -4,6 +4,8 @@
 
 ## 03.10.2026 — выпуск правок и замечание к главной без эфиров
 
+Последующий пакет владельца включает общий home hero, лёгкий свайп и краткое уведомление удаления. UI Undo показывается6s; server token60s/ownership/one-use/limits не меняются. Жест раскрывает кнопку с28px и сохраняет scroll/tap; удаления одним свайпом нет. Новая default browser matrix включает home иinteraction сценарии:232PASS/58PNG каждый движок. Новый full gate/deployment остаются обязательны; это пока локальное изменение.
+
 Release `720962b`/deployment `00481223-a132-4903-b3b2-5db606899f89` подтверждён actual smoke; full suite1491/2existing skips/3627subtests,192runtime hashes/17HTTP assets PASS. После HTTP413 разрешённая staging-выкладка повторена на том же неизменном SHA с исключением только docs/audits и docs/design из временного пакета; полный path/hash manifest сохранён, permanent skip-tests не добавлен. Проверочный oracle CRLF уточнён по настоящему handler с RED→GREEN и одним read-only reviewer; приложение для этого не менялось.
 
 Владелец показал реальную главную без live: персонаж отсутствует. Сравнение live с no-live было неполным. Продолжаем исправление общего оформления во всех загруженных состояниях без вымышленных эфиров и статуса уведомлений; старая матрица не является доказательством нового кода. Подробности и SHA/tree: docs/audits/mini-app-owner-corrections-2026-10-03/RELEASE.md. Native visual acceptance остаётся открыта.

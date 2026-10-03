@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TwitchSignal · Главная без эфиров</title>
+<style>body{margin:0;background:#f3f0fa;color:#21182e;font:16px/1.5 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:28px 20px}h1{font-size:30px;line-height:1.2}p{max-width:88ch;color:#5d526b}a{color:#7135cc}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.states{grid-template-columns:repeat(4,minmax(0,1fr))}figure{margin:0;min-width:0}figcaption{font-weight:650;margin:20px 0 12px}img{display:block;width:100%;height:auto;border-radius:22px}small{display:block;color:#675b73;font-weight:400;margin-top:5px}h2{margin-top:40px}@media(max-width:760px){.grid,.states{grid-template-columns:1fr}main{padding:20px}figure{max-width:440px;margin:auto}}</style>
+<main><h1>Один экран — разные состояния</h1>
+<p>Раньше персонаж появлялся только при активных эфирах. На присланном скриншоте подписки есть, но подтверждённых эфиров нет — поэтому верхний блок исчез. Сравнение с заполненным списком не показывало эту ошибку.</p>
+<p><strong>Справа — исправленные компоненты на локальных тестовых данных.</strong> Верхний блок теперь сохраняется независимо от статуса эфиров. Новая выкладка и проверка на телефоне отмечаются отдельно в <a href="HOME-STATES.md">статусе исправления</a>.</p>
+<div class="grid">
+<figure><figcaption>Твой экран<small>Настоящий iPhone, подписки без эфиров</small></figcaption><img src="OWNER-home-no-live.png" alt="Присланный экран: нет персонажа"></figure>
+<figure><figcaption>Что я показывал раньше<small>Другие данные: есть активные эфиры</small></figcaption><img src="RELEASE-chromium/home-light.png" alt="Прежнее сравнение с активными эфирами"></figure>
+<figure><figcaption>Исправление для твоего состояния<small>Подписки есть, эфиров нет; локальная проверка</small></figcaption><img src="STATES-RELEASE-chromium/home-offline-light.png" alt="Исправленная главная без активных эфиров"></figure>
+</div>
+<h2>Проверены все четыре состояния</h2><div class="grid states">
+<figure><figcaption>Есть эфиры</figcaption><img src="STATES-RELEASE-chromium/home-live-light.png" alt="Главная с активными эфирами" loading="lazy"></figure>
+<figure><figcaption>Эфиров нет</figcaption><img src="STATES-RELEASE-chromium/home-offline-light.png" alt="Главная с подписками без эфиров" loading="lazy"></figure>
+<figure><figcaption>Статус уточняется</figcaption><img src="STATES-RELEASE-chromium/home-stale-light.png" alt="Главная при устаревшем статусе" loading="lazy"></figure>
+<figure><figcaption>Первая подписка</figcaption><img src="STATES-RELEASE-chromium/home-empty-light.png" alt="Главная без подписок" loading="lazy"></figure>
+</div><p>Системные кнопки Telegram есть только на твоём снимке. Браузерные изображения показывают компоненты приложения и не заменяют проверку на устройстве.</p></main></html>

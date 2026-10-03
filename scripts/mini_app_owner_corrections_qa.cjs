@@ -45,8 +45,84 @@ async function pageFor(kind,mode='viewer',theme='light',access={}){
 }
 async function shot(p,name){if(name!=='streamers-swipe')await p.evaluate(()=>scrollTo(0,0));await p.evaluate(()=>Promise.all([...document.images].map(i=>i.decode().catch(()=>{}))));const file=name+'.png';await p.screenshot({path:path.join(out,file),fullPage:false,animations:'disabled'});report.screenshots.push(file);}
 async function settle(p){await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));}
+async function homeStates(){
+ for(const theme of fast?['light']:['light','dark']){
+  const page=await pageFor('viewer','viewer',theme);
+  await page.evaluate(async()=>{qa.homeRows=structuredClone(qa.viewer.subscriptions);qa.homeRows[1].is_favorite=true;qa.homeRows.push({login:'unknown',display_name:'Статус пока неизвестен',status:'stale',notify_enabled:true,is_favorite:false});await qa.installRouter();qa.realRouter.setTab('home');document.querySelectorAll('#tab-bar button').forEach((b,i)=>b.setAttribute('aria-current',i===0?'page':'false'));});
+  for(const state of ['live','offline','stale','empty','live-again']){
+   await page.evaluate(async state=>{qa.viewer.subscriptions=state==='empty'?[]:structuredClone(qa.homeRows).map(row=>['offline','stale'].includes(state)?{...row,status:state}:row);await qa.feature.refresh({fresh:true});},state);await settle(page);
+   const label=`home-${state}-${theme}`,live=state.startsWith('live');
+   check(label+'-one-hero',await page.locator('.home-live-heading').count()===1);
+   check(label+'-one-whole-character',await page.locator('.home-mascot').count()===1&&await page.locator('.empty-mascot').count()===0);
+   check(label+'-honest-content',await page.locator('.home-streamers .streamer-row').count()===(live?2:0)&&await page.locator('.watch-link').count()===(live?2:0));
+   check(label+'-no-search-or-fake-notifications',await page.getByRole('searchbox').count()===0&&await page.getByText('Уведомления включены',{exact:true}).count()===0);
+   if(live){check(label+'-favorites-and-count',await page.locator('.home-streamers .streamer-row').first().getAttribute('data-row-key')==='longstreamerloginabcdefghijklmn'&&await page.locator('.section-head .muted').textContent()==='2');}
+   else {check(label+'-correct-explanation',await page.getByText(state==='offline'?'Пока нет подтверждённого эфира':state==='stale'?'Проверяем статус эфиров':'Ваш первый стример',{exact:true}).count()===1);}
+   if(state!=='live-again')await shot(page,label);
+   if(['offline','empty'].includes(state)){
+    for(const [width,font]of fast?[[320,16]]:[[320,16],[390,32]]){
+     await page.setViewportSize({width,height:844});await page.evaluate(size=>document.documentElement.style.fontSize=size+'px',font);await settle(page);
+     check(`${label}-${width}-text${font}-no-overflow`,await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+     check(`${label}-${width}-text${font}-character-clear`,await page.evaluate(()=>{const image=document.querySelector('.home-mascot');if(!image)return false;const a=image.getBoundingClientRect(),copy=document.querySelector('.home-hero-copy'),walker=document.createTreeWalker(copy,NodeFilter.SHOW_TEXT),rects=[];let node;while(node=walker.nextNode()){const range=document.createRange();range.selectNodeContents(node);rects.push(...range.getClientRects());}return a.left>=0&&a.right<=innerWidth&&a.top>=document.querySelector('.app-header').getBoundingClientRect().bottom&&rects.every(b=>a.left>=b.right||a.right<=b.left||a.bottom<=b.top||a.top>=b.bottom);}));
+     await shot(page,`${label}-${width}-text${font}`);
+    }
+    await page.setViewportSize({width:390,height:844});await page.evaluate(()=>document.documentElement.style.fontSize='16px');
+   }
+   if(state==='offline'){await page.getByRole('button',{name:'Мои стримеры',exact:true}).click();check(label+'-real-router-all-streamers',await page.getByRole('heading',{name:'Стримеры',exact:true}).count()===1);await page.evaluate(()=>qa.realRouter.setTab('home'));}
+   if(state==='empty'){await page.getByRole('button',{name:'Добавить стримера',exact:true}).click();check(label+'-add-opens',await page.getByRole('dialog',{name:'Добавить стримера',exact:true}).isVisible());await page.keyboard.press('Escape');}
+  }
+  await page.close();
+ }
+ check('home-states-no-js-errors',report.errors.length===0,report.errors);
+ check('home-states-no-api-or-auth-requests',!report.network.some(x=>/api|telegram|init_data/.test(x)),report.network);
+ check('home-states-source-snapshot-unchanged',files.every(f=>report.sources[f]===hash(f)));
+}
+async function swipeAndUndo(){
+ const page=await pageFor('viewer');
+ const gesture=async(selector,dx,dy,finish=true)=>page.locator(selector).evaluate((node,{dx,dy,finish})=>{node.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,clientX:210,clientY:200}));node.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,cancelable:true,pointerId:1,clientX:210+dx,clientY:200+dy}));if(finish)node.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1,clientX:210+dx,clientY:200+dy}));},{dx,dy,finish});
+ await gesture('.swipe-shell[data-row-key=alpha] .favorite-toggle',-34,7);
+ check('swipe-starts-on-right-side-control',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>node.classList.contains('swipe-open')));
+ await page.locator('.swipe-shell[data-row-key=alpha] .favorite-toggle').evaluate(node=>node.click());await settle(page);
+ check('swipe-does-not-toggle-favorite-or-open-detail',await page.evaluate(()=>!qa.viewer.subscriptions.find(row=>row.login==='alpha').is_favorite&&qa.route.detail===null));
+ await gesture('.swipe-shell[data-row-key=alpha]',35,2);
+ check('swipe-right-closes',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>!node.classList.contains('swipe-open')));
+ await gesture('.swipe-shell[data-row-key=alpha] .quick-notify',-34,8);
+ await page.locator('.swipe-shell[data-row-key=alpha] input').evaluate(node=>node.click());await settle(page);
+ check('swipe-starts-on-notify-without-toggling',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>node.classList.contains('swipe-open'))&&await page.evaluate(()=>qa.viewer.subscriptions.find(row=>row.login==='alpha').notify_enabled));
+ await gesture('.swipe-shell[data-row-key=alpha]',35,2);
+ await gesture('.swipe-shell[data-row-key=alpha] .streamer-open',-18,3,false);
+ check('swipe-card-follows-finger',await page.locator('.swipe-shell[data-row-key=alpha] .streamer-row').evaluate(node=>new DOMMatrixReadOnly(getComputedStyle(node).transform).m41<-10));
+ await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>node.dispatchEvent(new PointerEvent('pointercancel',{bubbles:true,pointerId:1})));
+ check('swipe-cancel-restores-card',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>!node.classList.contains('swipe-open')&&!node.classList.contains('swipe-dragging')));
+ await gesture('.swipe-shell[data-row-key=alpha]',-12,70);
+ check('swipe-keeps-vertical-scroll',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>!node.classList.contains('swipe-open')));
+ await gesture('.swipe-shell[data-row-key=alpha] .streamer-open',-32,11);
+ check('swipe-short-diagonal-reveals-without-delete',await page.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>node.classList.contains('swipe-open'))&&await page.evaluate(()=>qa.viewer.subscriptions.length===3));
+ await shot(page,'swipe-short-right-edge');await page.clock.install();
+ await gesture('.swipe-shell[data-row-key=alpha]',-90,2);await page.locator('.swipe-shell[data-row-key=alpha] .swipe-delete').click();await settle(page);
+ check('undo-notice-one-copy',await page.getByText('Alpha удалён из подписок',{exact:true}).count()===2&&await page.locator('[data-feedback]').getByText('Alpha удалён из подписок',{exact:true}).count()===0);
+ await page.clock.runFor(5500);check('undo-notice-enough-time',await page.getByRole('button',{name:'Отменить удаление',exact:true}).count()===1);
+ await page.clock.runFor(700);check('undo-notice-hides-after-six-seconds',await page.getByRole('button',{name:'Отменить удаление',exact:true}).count()===0&&await page.getByText('Alpha удалён из подписок',{exact:true}).count()===0);await page.close();
+ const pending=await pageFor('viewer');await pending.clock.install();await gestureOn(pending);await pending.locator('.swipe-shell[data-row-key=alpha] .swipe-delete').click();await settle(pending);
+ await pending.clock.runFor(5000);await pending.evaluate(()=>{qa.hold=true;qa.holdRoute='/unfollow/undo';});await pending.getByRole('button',{name:'Отменить удаление',exact:true}).click();await pending.clock.runFor(8000);
+ check('undo-in-flight-remains-visible',await pending.getByRole('button',{name:'Отменить удаление',exact:true}).count()===1&&await pending.locator('.undo-notice:not(.undo-reserve)').getByText('Возвращаем…',{exact:true}).count()===1);
+ await pending.evaluate(()=>{qa.hold=false;qa.release();});await settle(pending);check('undo-in-flight-restores-server-row',await pending.locator('.swipe-shell[data-row-key=alpha]').count()===1);await pending.close();
+ async function gestureOn(p){await p.locator('.swipe-shell[data-row-key=alpha]').evaluate(node=>{for(const[type,x]of[['pointerdown',210],['pointermove',110],['pointerup',110]])node.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:1,clientX:x,clientY:200}));});}
+ const focused=await pageFor('viewer');await focused.evaluate(()=>qa.installRouter());await settle(focused);await focused.clock.install();await gestureOn(focused);await focused.locator('.swipe-shell[data-row-key=alpha] .swipe-delete').click();await settle(focused);await focused.clock.runFor(5000);await focused.getByRole('button',{name:'Отменить удаление',exact:true}).focus();await focused.evaluate(()=>qa.realRouter.refresh());await focused.clock.runFor(2500);check('undo-keeps-keyboard-focus',await focused.getByRole('button',{name:'Отменить удаление',exact:true}).count()===1&&await focused.evaluate(()=>document.activeElement?.dataset.focusKey==='undo-restore'));
+ await focused.evaluate(()=>{qa.hold=true;qa.holdRoute='/unfollow/undo';qa.failure=503;});await focused.getByRole('button',{name:'Отменить удаление',exact:true}).press('Enter');await focused.clock.runFor(250);check('undo-pending-keeps-focus',await focused.evaluate(()=>document.activeElement?.dataset.focusKey==='undo-restore'),await focused.evaluate(()=>({active:document.activeElement.outerHTML.slice(0,300),buttons:[...document.querySelectorAll('.undo-notice button')].map(node=>({key:node.dataset.focusKey,disabled:node.disabled,inert:!!node.closest('[inert]')}))})));await focused.getByRole('button',{name:'Отменить удаление',exact:true}).evaluate(node=>node.click());check('undo-busy-does-not-repeat-request',await focused.evaluate(()=>qa.calls.filter(route=>route.endsWith('/unfollow/undo')).length===1));await focused.evaluate(()=>{qa.hold=false;qa.release();});await focused.clock.runFor(250);check('undo-error-keeps-focus-and-retry',await focused.evaluate(()=>document.activeElement?.dataset.focusKey==='undo-restore')&&await focused.locator('.undo-notice:not(.undo-reserve)').getByText('Не удалось вернуть подписку. Проверьте связь и повторите.',{exact:true}).count()===1,await focused.evaluate(()=>({active:document.activeElement.outerHTML.slice(0,300)})));
+ await focused.getByRole('searchbox',{name:'Поиск по подпискам',exact:true}).focus();await focused.clock.runFor(6200);check('undo-hides-after-focus-leaves',await focused.getByRole('button',{name:'Отменить удаление',exact:true}).count()===0);await focused.close();
+ const actual=await pageFor('viewer');await actual.clock.install();const shell=actual.locator('.swipe-shell[data-row-key=alpha]');await shell.evaluate(node=>{qa.captured=false;node.addEventListener('gotpointercapture',()=>qa.captured=true);});
+ const star=await shell.locator('.favorite-toggle').boundingBox();await actual.mouse.move(star.x+star.width/2,star.y+star.height/2);await actual.mouse.down();await actual.mouse.move(star.x+star.width/2-35,star.y+star.height/2+4,{steps:5});await actual.mouse.up();await settle(actual);
+ check('swipe-trusted-pointer-capture-and-control-start',await actual.evaluate(()=>qa.captured&&!qa.viewer.subscriptions.find(row=>row.login==='alpha').is_favorite)&&await shell.evaluate(node=>node.classList.contains('swipe-open')));
+ await actual.clock.runFor(450);await shell.getByRole('button',{name:'Добавить Alpha в избранное',exact:true}).click();await settle(actual);check('swipe-preserves-normal-favorite-tap',await actual.getByRole('button',{name:'Убрать Alpha из избранного',exact:true}).count()===1);await actual.getByRole('checkbox',{name:'Уведомления Alpha',exact:true}).uncheck();await settle(actual);check('swipe-preserves-normal-notify-tap',!await actual.getByRole('checkbox',{name:'Уведомления Alpha',exact:true}).isChecked());await actual.close();
+ check('swipe-undo-no-js-errors',report.errors.length===0,report.errors);
+}
 (async()=>{
  browser=await({chromium,webkit}[engine]).launch({headless:false});
+ if(process.env.CORRECTIONS_INTERACTION_ONLY==='1'){await swipeAndUndo();report.status=report.checks.every(x=>x.pass)?'PASS':'FAIL';return;}
+ await homeStates();
+ if(process.env.CORRECTIONS_HOME_ONLY==='1'){report.status=report.checks.every(x=>x.pass)?'PASS':'FAIL';return;}
+ await swipeAndUndo();
  const p=await pageFor('channel','streamer');
  check('channel-name-is-heading',await p.getByRole('heading',{name:'Канал стримера',exact:true}).count()===1);
  await p.clock.install();await p.evaluate(()=>qa.hold=true);await p.getByRole('button',{name:'Проверить права',exact:true}).click();await p.clock.runFor(6100);check('rights-slow-valid-server-budget',await p.getByRole('button',{name:'Проверяем…',exact:true}).count()===1);await p.clock.resume();
@@ -102,7 +178,7 @@ async function settle(p){await p.evaluate(()=>new Promise(r=>requestAnimationFra
  const detail=await pageFor('viewer');detail.on('dialog',dialog=>dialog.accept());await detail.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await detail.evaluate(()=>{qa.hold=true;qa.holdRoute='/notify';});await detail.getByRole('checkbox',{name:'Уведомлять об эфирах',exact:true}).uncheck();await detail.evaluate(async()=>{qa.route.detail=null;qa.render();await qa.feature.refresh({fresh:true});qa.hold=false;qa.release();});await settle(detail);
  check('detail-notify-back-and-refresh-keeps-result',!await detail.getByRole('checkbox',{name:'Уведомления Alpha',exact:true}).isChecked());await detail.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await detail.getByRole('button',{name:'Удалить подписку',exact:true}).click();await settle(detail);
  check('detail-delete-has-undo',await detail.getByRole('button',{name:'Отменить удаление',exact:true}).count()===1);check('detail-delete-refreshes-active-limit',await detail.locator('.swipe-shell[data-row-key=zeta]').getByText('Приостановлено по лимиту',{exact:true}).count()===0);await detail.close();
-  for(const theme of fast?['light']:['light','dark']){const viewer=await pageFor('viewer','viewer',theme);await shot(viewer,'streamers-'+theme);await viewer.evaluate(()=>{qa.route.tab='home';qa.render();document.querySelectorAll('#tab-bar button').forEach((b,i)=>b.setAttribute('aria-current',i===0?'page':'false'));});check('home-'+theme+'-only-live',await viewer.locator('.streamer-row').count()===2);check('home-'+theme+'-no-extra-search',await viewer.getByRole('searchbox').count()===0);await shot(viewer,'home-'+theme);await viewer.evaluate(async()=>{qa.viewer.subscriptions=[];await qa.feature.refresh({fresh:true});});check('empty-'+theme+'-whole-mascot',await viewer.locator('.empty-mascot').evaluate(image=>{const a=image.getBoundingClientRect(),b=image.parentElement.getBoundingClientRect();return a.left>=b.left&&a.right<=b.right&&a.top>=b.top&&a.bottom<=b.bottom;}));await shot(viewer,'home-empty-'+theme);await viewer.close();}
+  for(const theme of fast?['light']:['light','dark']){const viewer=await pageFor('viewer','viewer',theme);await shot(viewer,'streamers-'+theme);await viewer.evaluate(()=>{qa.route.tab='home';qa.render();document.querySelectorAll('#tab-bar button').forEach((b,i)=>b.setAttribute('aria-current',i===0?'page':'false'));});check('home-'+theme+'-only-live',await viewer.locator('.streamer-row').count()===2);check('home-'+theme+'-no-extra-search',await viewer.getByRole('searchbox').count()===0);await shot(viewer,'home-'+theme);await viewer.evaluate(async()=>{qa.viewer.subscriptions=[];await qa.feature.refresh({fresh:true});});check('empty-'+theme+'-one-shared-mascot',await viewer.locator('.home-mascot').count()===1&&await viewer.locator('.empty-mascot').count()===0);await shot(viewer,'home-empty-'+theme);await viewer.close();}
  const routed=await pageFor('viewer');await routed.evaluate(async()=>{qa.viewer.subscriptions=Array.from({length:100},(_,i)=>({login:'channel'+i,display_name:'Канал '+i,status:i%2?'offline':'live',notify_enabled:true,is_favorite:i%5===0}));await qa.feature.refresh({fresh:true});await qa.installRouter();});await settle(routed);await routed.getByRole('searchbox',{name:'Поиск по подпискам',exact:true}).fill('Канал');await routed.getByRole('button',{name:'Только избранные',exact:true}).click();await routed.getByRole('button',{name:'Открыть Канал 40',exact:true}).scrollIntoViewIfNeeded();const beforeScroll=await routed.evaluate(()=>scrollY);await routed.getByRole('button',{name:'Открыть Канал 40',exact:true}).click();await settle(routed);await routed.evaluate(()=>qa.realRouter.back());await settle(routed);check('router-list-scroll-restored',Math.abs(await routed.evaluate(()=>scrollY)-beforeScroll)<3);check('router-search-filter-restored',await routed.getByRole('searchbox',{name:'Поиск по подпискам',exact:true}).inputValue()==='Канал'&&await routed.getByRole('button',{name:'Только избранные',exact:true}).getAttribute('aria-pressed')==='true');await routed.close();
  for(const mode of ['viewer','streamer'])for(const theme of fast?['light']:['light','dark']){
   const page=await pageFor('subscription',mode,theme);const product=mode==='viewer'?'viewer_plus':'streamer_plus';
