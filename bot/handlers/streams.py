@@ -1505,6 +1505,17 @@ async def _render_channels_list(
     return text, keyboard
 
 
+async def _tracking_result_keyboard(message, db, target_chat_id, *, actor_id=None):
+    """Bounded result navigation after the caller has authorized the mutation."""
+    from types import SimpleNamespace
+    from ..telegram_lists import source_from_message, render_context
+    actor = actor_id if actor_id is not None else message.from_user.id
+    proxy = SimpleNamespace(message=message, from_user=SimpleNamespace(id=actor))
+    ctx = source_from_message(proxy, target_chat_id)
+    _, keyboard = await render_context(ctx, db, allow_add=True)
+    return keyboard
+
+
 MEMBER_STATUSES = ("creator", "administrator", "member", "restricted")
 ADMIN_STATUSES = ("creator", "administrator")
 
@@ -2339,7 +2350,8 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
         if result == _TRACK_CREATED:
             added += 1
 
-    _, keyboard = await _render_channels_list(current_chat_id, db)
+    keyboard = await _tracking_result_keyboard(callback.message, db, current_chat_id,
+                                                actor_id=callback.from_user.id)
     await edit_menu(callback.message,
         f"Готово, добавил каналов: {added}.\n\n"
         "Как только кто-то из них выйдет в эфир — пришлю уведомление.",
@@ -2384,11 +2396,8 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
     else:
         text = f"Канал «{login}» уже отслеживается в этом чате."
 
-    back_callback = _channels_list_back_callback(callback.message.chat.id, target_chat_id)
-    _, keyboard = await _render_channels_list(
-        target_chat_id, db, back_callback=back_callback,
-        allow_add=callback.message.chat.id == target_chat_id,
-    )
+    keyboard = await _tracking_result_keyboard(callback.message, db, target_chat_id,
+                                                actor_id=callback.from_user.id)
     await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
@@ -2462,10 +2471,7 @@ async def process_login_input(
             )
             return
 
-    back_callback = _channels_list_back_callback(message.chat.id, target_chat_id)
-    _, keyboard = await _render_channels_list(
-        target_chat_id, db, back_callback=back_callback, allow_add=target_chat_id == message.chat.id
-    )
+    keyboard = await _tracking_result_keyboard(message, db, target_chat_id)
     await message.answer(text, reply_markup=keyboard)
 
 

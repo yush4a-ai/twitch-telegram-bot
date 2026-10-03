@@ -1,0 +1,21 @@
+{
+  "approved_assets": {
+    "telegram-welcome.png": {
+      "source": "C:\\Users\\yusha\\Documents\\Codex\\2026-10-03\\realtime-voice-chat-4\\outputs\\TwitchSignalBot-welcome-v1.png",
+      "sha256": "2474d99db8ce29ca12b922ef0b94b24898bb5aa5259576e5c0e695fb809cc1c4",
+      "identical": true
+    },
+    "telegram-home.png": {
+      "source": "C:\\Users\\yusha\\Documents\\Codex\\2026-10-03\\realtime-voice-chat-4\\outputs\\TwitchSignalBot-home-v1.png",
+      "sha256": "52ecd38b8180f3a0c236f7e94e044c728b4ad10e24065a07d6d15d96915f9102",
+      "identical": true
+    },
+    "telegram-channel-guide.png": {
+      "source": "C:\\Users\\yusha\\Documents\\Codex\\2026-10-03\\realtime-voice-chat-4\\outputs\\TwitchSignalBot-channel-guide-v1.png",
+      "sha256": "d65f75782189d8787077434e22f9180476baf75201e61b0839e13781ac016b5e",
+      "identical": true
+    }
+  },
+  "new_generated": 0,
+  "exact_unchanged": true
+}

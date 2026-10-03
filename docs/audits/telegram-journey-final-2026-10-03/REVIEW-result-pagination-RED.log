@@ -1,0 +1,35 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ NativeListTests.test_import_result_uses_eight_rows_and_preserves_full_list __
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_import_result_uses_eight_rows_and_preserves_full_list>
+
+    async def test_import_result_uses_eight_rows_and_preserves_full_list(self):
+        from bot.handlers.streams import cb_import_follows_add
+        from bot.telegram_lists import cb_list_page
+        await self.state.update_data(import_logins=[f'channel{i:03d}' for i in range(42)])
+        await cb_import_follows_add(self.cb('importfollows:add'), self.state, self.db)
+        buttons = self.buttons()
+>       self.assertEqual(len([b for b in buttons if (b.callback_data or '').startswith('channelcard:')]), 8)
+E       AssertionError: 42 != 8
+
+tests\test_telegram_journey_refinement.py:307: AssertionError
+_ NativeListTests.test_remote_legacy_add_result_uses_eight_rows_with_channel_back _
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_remote_legacy_add_result_uses_eight_rows_with_channel_back>
+
+    async def test_remote_legacy_add_result_uses_eight_rows_with_channel_back(self):
+        from bot.handlers.streams import cb_add_found_channel
+        await self.db.register_telegram_channel(-1001, 'Мой Telegram-канал')
+        for i in range(41):
+            await self.db.add_channel(-1001, f'channel{i:03d}')
+        await cb_add_found_channel(self.cb('addfound:-1001:lastchannel'), self.state, self.db)
+        buttons = self.buttons()
+>       self.assertEqual(len([b for b in buttons if (b.callback_data or '').startswith('channelcard:')]), 8)
+E       AssertionError: 42 != 8
+
+tests\test_telegram_journey_refinement.py:320: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_import_result_uses_eight_rows_and_preserves_full_list
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_remote_legacy_add_result_uses_eight_rows_with_channel_back
+2 failed, 16 deselected in 7.66s

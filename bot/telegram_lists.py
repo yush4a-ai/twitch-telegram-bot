@@ -268,7 +268,11 @@ async def cb_delete_confirm(callback, db):
     if not await _check_manage_permission(callback, intent[1]):
         await callback.answer('Настройки этого чата тебе недоступны.', show_alert=True)
         return
-    _deletes.pop(token, None)
+    # Permission lookup yields: Cancel/Menu or another confirmation may claim it.
+    claimed = _deletes.pop(token, None)
+    if claimed is not intent or intent[4] <= time.monotonic():
+        await callback.answer('Подтверждение устарело. Открой список заново.', show_alert=True)
+        return
     await db.remove_channel(intent[1], intent[2])
     ctx = get_context(callback.message, callback.from_user.id, intent[3], intent[1]) or new_context(callback, intent[1])
     await show_context(callback, db, ctx)

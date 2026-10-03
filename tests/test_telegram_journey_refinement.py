@@ -1,5 +1,6 @@
 """Native journey contracts with real router/FSM/SQLite and fake transport."""
 import time
+import asyncio
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -215,6 +216,73 @@ class NativeListTests(unittest.IsolatedAsyncioTestCase):
         await cb_delete_confirm(self.cb(choice), self.db)
         self.assertEqual(self.db.conn.total_changes, changes)
 
+    async def test_cancel_while_channel_permission_is_pending_fences_delete(self):
+        from bot.handlers.streams import cb_untrack
+        from bot.telegram_lists import cb_delete_confirm, discard_deletions
+        await self.db.add_channel(-1001, 'alpha')
+        await cb_untrack(self.cb('untrack:-1001:alpha'), self.db)
+        choice = next(b.callback_data for b in self.buttons() if b.text == 'Удалить alpha')
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def delayed_permission(*args, **kwargs):
+            entered.set()
+            await release.wait()
+            return SimpleNamespace(status='administrator')
+        self.msg.bot.get_chat_member.side_effect = delayed_permission
+        task = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered.wait()
+        discard_deletions(self.msg, 101)
+        release.set()
+        await task
+        self.assertEqual(await self.db.list_channels(-1001), ['alpha'])
+
+    async def test_two_confirmations_cannot_delete_a_readded_channel(self):
+        from bot.handlers.streams import cb_untrack
+        from bot.telegram_lists import cb_delete_confirm
+        await self.db.add_channel(-1001, 'alpha')
+        await cb_untrack(self.cb('untrack:-1001:alpha'), self.db)
+        choice = next(b.callback_data for b in self.buttons() if b.text == 'Удалить alpha')
+        entered, release = [asyncio.Event(), asyncio.Event()], [asyncio.Event(), asyncio.Event()]
+        index = 0
+        async def delayed_permission(*args, **kwargs):
+            nonlocal index
+            i = index
+            index += 1
+            if i < 2:
+                entered[i].set()
+                await release[i].wait()
+            return SimpleNamespace(status='administrator')
+        self.msg.bot.get_chat_member.side_effect = delayed_permission
+        first = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered[0].wait()
+        second = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered[1].wait()
+        release[0].set()
+        await first
+        self.assertEqual(await self.db.list_channels(-1001), [])
+        await self.db.add_channel(-1001, 'alpha')
+        release[1].set()
+        await second
+        self.assertEqual(await self.db.list_channels(-1001), ['alpha'])
+
+    async def test_expired_confirmation_after_permission_wait_never_deletes(self):
+        from bot.handlers.streams import cb_untrack
+        from bot.telegram_lists import cb_delete_confirm
+        await self.db.add_channel(-1001, 'alpha')
+        await cb_untrack(self.cb('untrack:-1001:alpha'), self.db)
+        choice = next(b.callback_data for b in self.buttons() if b.text == 'Удалить alpha')
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def delayed_permission(*args, **kwargs):
+            entered.set()
+            await release.wait()
+            return SimpleNamespace(status='administrator')
+        self.msg.bot.get_chat_member.side_effect = delayed_permission
+        task = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered.wait()
+        with patch('bot.telegram_lists.time', SimpleNamespace(monotonic=lambda: time.monotonic()+601)):
+            release.set()
+            await task
+        self.assertEqual(await self.db.list_channels(-1001), ['alpha'])
+
     async def test_remote_card_returns_directly_to_named_list_with_add(self):
         from bot.handlers.streams import cb_manage_group, cb_channel_card
         from bot.telegram_lists import cb_list_page
@@ -229,6 +297,30 @@ class NativeListTests(unittest.IsolatedAsyncioTestCase):
         await cb_list_page(self.cb(back), self.db)
         self.assertTrue(any(b.callback_data == 'menu:add:-1001' for b in self.buttons()))
         self.assertEqual(self.buttons()[-1].callback_data, 'menu:manage_group')
+
+    async def test_import_result_uses_eight_rows_and_preserves_full_list(self):
+        from bot.handlers.streams import cb_import_follows_add
+        from bot.telegram_lists import cb_list_page
+        await self.state.update_data(import_logins=[f'channel{i:03d}' for i in range(42)])
+        await cb_import_follows_add(self.cb('importfollows:add'), self.state, self.db)
+        buttons = self.buttons()
+        self.assertEqual(len([b for b in buttons if (b.callback_data or '').startswith('channelcard:')]), 8)
+        next_page = next(b.callback_data for b in buttons if b.text == 'Дальше →')
+        await cb_list_page(self.cb(next_page), self.db)
+        self.assertIn('2 / 6', [b.text for b in self.buttons()])
+        self.assertEqual(len(await self.db.list_channels(101)), 42)
+
+    async def test_remote_legacy_add_result_uses_eight_rows_with_channel_back(self):
+        from bot.handlers.streams import cb_add_found_channel
+        await self.db.register_telegram_channel(-1001, 'Мой Telegram-канал')
+        for i in range(41):
+            await self.db.add_channel(-1001, f'channel{i:03d}')
+        await cb_add_found_channel(self.cb('addfound:-1001:lastchannel'), self.state, self.db)
+        buttons = self.buttons()
+        self.assertEqual(len([b for b in buttons if (b.callback_data or '').startswith('channelcard:')]), 8)
+        self.assertTrue(any(b.text == 'Дальше →' for b in buttons))
+        self.assertEqual(buttons[-1].callback_data, 'menu:manage_group')
+        self.assertEqual(len(await self.db.list_channels(-1001)), 42)
 
     async def test_cancel_delete_fences_old_confirmation_and_cancel_search_ends_input(self):
         from bot.handlers.streams import cb_untrack, cb_menu_list

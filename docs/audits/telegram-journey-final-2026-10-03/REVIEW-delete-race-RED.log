@@ -1,0 +1,80 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ NativeListTests.test_cancel_while_channel_permission_is_pending_fences_delete _
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_cancel_while_channel_permission_is_pending_fences_delete>
+
+    async def test_cancel_while_channel_permission_is_pending_fences_delete(self):
+        from bot.handlers.streams import cb_untrack
+        from bot.telegram_lists import cb_delete_confirm, discard_deletions
+        await self.db.add_channel(-1001, 'alpha')
+        await cb_untrack(self.cb('untrack:-1001:alpha'), self.db)
+        choice = next(b.callback_data for b in self.buttons() if b.text == 'Удалить alpha')
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def delayed_permission(*args, **kwargs):
+            entered.set()
+            await release.wait()
+            return SimpleNamespace(status='administrator')
+        self.msg.bot.get_chat_member.side_effect = delayed_permission
+        task = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered.wait()
+        discard_deletions(self.msg, 101)
+        release.set()
+        await task
+>       self.assertEqual(await self.db.list_channels(-1001), ['alpha'])
+E       AssertionError: Lists differ: [] != ['alpha']
+E       
+E       Second list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - []
+E       + ['alpha']
+
+tests\test_telegram_journey_refinement.py:236: AssertionError
+___ NativeListTests.test_two_confirmations_cannot_delete_a_readded_channel ____
+
+self = <test_telegram_journey_refinement.NativeListTests testMethod=test_two_confirmations_cannot_delete_a_readded_channel>
+
+    async def test_two_confirmations_cannot_delete_a_readded_channel(self):
+        from bot.handlers.streams import cb_untrack
+        from bot.telegram_lists import cb_delete_confirm
+        await self.db.add_channel(-1001, 'alpha')
+        await cb_untrack(self.cb('untrack:-1001:alpha'), self.db)
+        choice = next(b.callback_data for b in self.buttons() if b.text == 'Удалить alpha')
+        entered, release = [asyncio.Event(), asyncio.Event()], [asyncio.Event(), asyncio.Event()]
+        index = 0
+        async def delayed_permission(*args, **kwargs):
+            nonlocal index
+            i = index
+            index += 1
+            if i < 2:
+                entered[i].set()
+                await release[i].wait()
+            return SimpleNamespace(status='administrator')
+        self.msg.bot.get_chat_member.side_effect = delayed_permission
+        first = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered[0].wait()
+        second = asyncio.create_task(cb_delete_confirm(self.cb(choice), self.db))
+        await entered[1].wait()
+        release[0].set()
+        await first
+        self.assertEqual(await self.db.list_channels(-1001), [])
+        await self.db.add_channel(-1001, 'alpha')
+        release[1].set()
+        await second
+>       self.assertEqual(await self.db.list_channels(-1001), ['alpha'])
+E       AssertionError: Lists differ: [] != ['alpha']
+E       
+E       Second list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - []
+E       + ['alpha']
+
+tests\test_telegram_journey_refinement.py:265: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_cancel_while_channel_permission_is_pending_fences_delete
+FAILED tests/test_telegram_journey_refinement.py::NativeListTests::test_two_confirmations_cannot_delete_a_readded_channel
+2 failed, 13 deselected in 4.81s

@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: T4–T6 и финальные исправления локально PASS
+
+T4 approvedwelcome/compactHome/channelguide PNG, tracking/notify/unknownlive; T5 add/import/channel/quiet preview+ownedconfirm; T6 help guides/reportUTC/FreeHTML/tariffpaymentOFF. Commits fe58189/69a8fa7/1d1cca7, текущий fix pass закрывает fresh-review delete cancellation race и legacy import/add42rows→8/page. Evidence T4 51PASS, T5 54PASS, T6 70PASS/10subtests +report51PASS; review79PASS/4subtests, final52PASS/4subtests. Один reviewer, code diffcheckPASS, Stop-Slop тексты проверены. Полный final suite и deployment ещё впереди; staging пока160703a/ac62b912, production466499d5/dc9239e неизменён.
+
+Новых generatedimages0, триapprovedassets byteidentical. Дополнительные гайды текстом/on-demand. Свежий stagebackup/restore63tablesPASS; migrationcopy и Chromium/WebKit232checks/58PNG переиспользованы после identity13schema/cipher/18webfiles. NativeDesktop/mobile/OAuth/outbound остаются NOT TESTED: окно Telegram перекрыто и открыта сторонняя переписка; inputs/отправки не выполнялись. Evidence docs/audits/telegram-journey-final-2026-10-03, SCENARIOS.md. HTML/export/Free/цены150/300/paymentOFF сохранены.
+
 ## Текущий checkpoint — 03.10.2026: M1 опубликован, фото восстановлено
 
 Testbot release `160703a1a669dd31bc9dd15d339a1346bc927ef8`, SUCCESS deployment `ac62b912-b6bb-4633-899b-6afa1ffecfd4`. Полный штатный guard: 1517PASS/2existingWindowsSkips/3638subtests/1117.61s; actual smoke exact runtime/HTTP hashes, bot8859004067, menu«Приложение», auth401, integrity/FK, paymentOFF, production unchanged PASS. После обычного poller сообщения28 (`samoylov___`) и29 (`gofns`) в зарегистрированном канале имеют `last_message_kind=photo`; ручных тестовых отправок/правок данных не было. Перенесены прежние production fixes4ce3887/dc9239e, права на видео сохранены.
