@@ -53,3 +53,7 @@
 
 
 Миграция committed кода 38f5f21 на свежей копии staging завершилась PASS: 60→63 таблицы, 27 schema versions; все прежние строки/ID сохранены, reopen и rollback после искусственной ошибки подтверждены, два Fernet-поля читаются текущим ключом без его экспорта. Активная БД не заменялась, исходящих сообщений нет. Selftest release smoke: 7 PASS. Следующий шаг — штатный полный guard/deploy на чистой ветке autonomous/twitchsignal-roadmap.
+
+## Последний выпуск: главная, свайп, Undo — 03.10.2026
+
+SHA560f3ccac05fe8f6c4b1221a28b926b7358edfef, treea8d56fd8acee41c2523313f600b9c7cf3c5118bd; pinned staging631a94d5-f6a2-4d11-b10d-d620c8f6dc07 activeSUCCESS. Общий home hero во всех загруженных состояниях; свайп начинается на правых элементах, следует за указателем и раскрывает кнопку с28px; Undo6s с сохранением focus/pending/error/retry. Серверные60s/ownership/one-use/limits не менялись. RED→GREEN, один scoped reviewer, default Chromium/WebKit по232PASS/58PNG; штатный full1491PASS/2existingWindowsSkips/3634subtests/1134.19s. Actual smoke bot8859004067/menu/192runtimeSHA/17HTTP assets/27migrations/integrity/FK/9auth401/paymentOFF/productionunchanged PASS. Только audit/design исключены из проверенной упаковки; test gate сохранён. Новый handoff и сравнение: docs/audits/mini-app-owner-corrections-2026-10-03/HOME-STATES.md и HOME-STATE-COMPARISON.html. Native/signed-live/OAuth/outbound/визуальная приёмка ожидаются; legal503 и реальные платежи остаются отдельными ограничениями. Последующий doc commit не заменяет releaseSHA.

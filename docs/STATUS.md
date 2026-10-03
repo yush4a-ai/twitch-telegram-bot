@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: главная, свайп и краткий Undo опубликованы
+
+Release `560f3ccac05fe8f6c4b1221a28b926b7358edfef`, tree `a8d56fd8acee41c2523313f600b9c7cf3c5118bd`; active SUCCESS deployment `631a94d5-f6a2-4d11-b10d-d620c8f6dc07`. Главная сохраняет персонажа во всех загруженных состояниях; лёгкий whole-row swipe с progress/capture и отдельным удалением; Undo6s с сохранением focus/pending/error/retry. Штатный full gate1491PASS/2existingWindowsSkips/3634subtests/1134.19s; default Chromium и WebKit по232PASS/58PNG, source-confirmation17UIassets. Actual smoke bot8859004067/menu/192runtimeSHA/17HTTPSHA+shell/9auth401/27migrations/integrity/FK/paymentOFF/productionunchanged PASS. Упаковка исключает только audit/design, продуктовые байты проверены; tests не пропущены.
+
+Вход @TwitchSignalTestbot → «Приложение», shell https://worker-staging-2f74.up.railway.app/app. Сравнение присланного iPhone с прежним live-показом и новым no-live: docs/audits/mini-app-owner-corrections-2026-10-03/HOME-STATE-COMPARISON.html. Последний handoff: HOME-STATES.md/HANDOFF.md там же. Следующий шаг — проверка владельцем главной, короткого свайпа и Undo на телефоне. Native/signed-live/OAuth/outbound и визуальная приёмка NOT TESTED; legal503/paymentOFF сохраняются. Production466499d5/dc9239e, старые группы/HTML/export сохранены. Последующий doc commit не меняет опубликованный SHA.
+
 ## Текущий checkpoint — 03.10.2026: правки владельца выпущены, уточняется главная без эфиров
 
 Продолжение: замечания к subscribed/no-live, трудному свайпу и долгому Undo реализованы локально. Общий hero во всех загруженных состояниях; swipe whole-row/28px/progress/capture, вертикальная прокрутка и обычные действия сохранены; Undo6s с сохранением фокуса и pending/error/retry. RED→GREEN и один scoped reviewer; новые финальные `STATES-RELEASE-*` по232PASS/58PNG, 9shell/copy PASS/3030subtests. Следующий шаг — commit/clean и новый штатный full gate с проверенной упаковкой без audit/design, затем actual smoke нового SHA. Старый release720 не покрывает эту правку.

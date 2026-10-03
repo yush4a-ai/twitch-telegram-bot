@@ -2,6 +2,10 @@
 
 Записываются только подтверждённые решения. Новые продуктовые/коммерческие параметры здесь не предполагаются.
 
+## 03.10.2026 — главная и жесты: выпуск560f3cc
+
+Общий home hero и последующие замечания к swipe/Undo опубликованы на pinned staging: SHA560f3ccac05fe8f6c4b1221a28b926b7358edfef/treea8d56fd8acee41c2523313f600b9c7cf3c5118bd/deployment631a94d5-f6a2-4d11-b10d-d620c8f6dc07. Full1491/2existing skips/3634subtests и default232browser checks каждый движок,192runtime/17HTTP assets actual smoke PASS. Все изменения UI, schema/backend и serverUndo60s не менялись. Toast6s не исчезает при фокусе/запросе; свайп28px раскрывает кнопку и сохраняет простые нажатия/вертикальную прокрутку. Отдельное удаление остаётся обязательным. Owner native acceptance ожидается; production/payment/legal readiness не объявлены изменёнными. Последний handoff: docs/audits/mini-app-owner-corrections-2026-10-03/HOME-STATES.md.
+
 ## 03.10.2026 — выпуск правок и замечание к главной без эфиров
 
 Последующий пакет владельца включает общий home hero, лёгкий свайп и краткое уведомление удаления. UI Undo показывается6s; server token60s/ownership/one-use/limits не меняются. Жест раскрывает кнопку с28px и сохраняет scroll/tap; удаления одним свайпом нет. Новая default browser matrix включает home иinteraction сценарии:232PASS/58PNG каждый движок. Новый full gate/deployment остаются обязательны; это пока локальное изменение.

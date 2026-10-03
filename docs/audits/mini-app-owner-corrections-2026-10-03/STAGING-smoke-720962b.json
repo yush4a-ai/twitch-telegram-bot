@@ -1,6 +1,6 @@
 {
-  "deployment": "631a94d5-f6a2-4d11-b10d-d620c8f6dc07",
-  "cli_sha": "560f3ccac05fe8f6c4b1221a28b926b7358edfef",
+  "deployment": "00481223-a132-4903-b3b2-5db606899f89",
+  "cli_sha": "720962b69c0703177437422cf29400985c529081",
   "bot": {
     "username": "TwitchSignalTestbot",
     "id": 8859004067,
@@ -70,7 +70,7 @@
     "bot/mini_app_streamer.py": "add7452076f0fee206cf5e7f1fe96204c063f246014d7a78975fe4790a9a0a4a",
     "bot/mini_app_streamer_plus.py": "90ea07e5e682ec12d3d03597b1a1759f834d4c17dd73204ebd0752509102b0ec",
     "bot/mini_app_ui/api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
-    "bot/mini_app_ui/app.css": "4a42998fe3594b9cb40eaddeeaddc9e2cd3abfadec12228a00ad8bad88fcf006",
+    "bot/mini_app_ui/app.css": "1208e9b0b88ab53e5bb4ade6c112a6ffaa3501d62d586da00765359399ea98b3",
     "bot/mini_app_ui/app.js": "87e9866fa36f206e0cbecfa92fd169677fa06fb92b95d800a9b893da8ccc841f",
     "bot/mini_app_ui/components.js": "4e16f8f8b97c75b58ea4d450210832b919658aab5570c342bfc7a5d4159cbf90",
     "bot/mini_app_ui/index.html": "349ca2812e8e9acb28c7d2b61ccd2ddf9b518b5a5c64de3b2a652d1c899a2dc3",
@@ -86,7 +86,7 @@
     "bot/mini_app_ui/support.js": "6ac16bc6196ffa7ba0ab2e0e3a9f80b028ba8e60c3389bb284f6560df2b54d16",
     "bot/mini_app_ui/telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
     "bot/mini_app_ui/theme.js": "1bf15afba76046a8103ec021ef2993ca5305f02ddb2ca086a43f3eae8ea3da7f",
-    "bot/mini_app_ui/viewer.js": "713c534f2ac896522bbab31db9434d8e73bf1dbcd1d2f2b2efe495f0a0f7ea1d",
+    "bot/mini_app_ui/viewer.js": "840db6134d22309f68c6feb633293180b56557c95d21c3410d1c3e2373a1d728",
     "bot/mini_app_viewer.py": "b856214212b89713e7e139a124a652fca138f8cc5985b457db3a83d9730a4d62",
     "bot/mini_app_web.py": "459ad4eebd5fe44d2cd9c10fecc9cbbd361821b8f767fd8bd5e2e860746c1fb6",
     "bot/notification_queue.py": "aa191dbc82b3f72b9ffee69de1e7a062bf652e4198fefe82c565920736e2121e",
@@ -171,7 +171,7 @@
     "scripts/mini_app_browser_qa.js": "dc81a0131c0b74088560f9530f545aa76139cfecdf6c3081e99d9ab7cd2e3795",
     "scripts/mini_app_design_polish_qa.cjs": "154ad135321b716f7489ac6346633f28a94773627402f3131c928c91f62197c5",
     "scripts/mini_app_media_load.py": "997995258d24e8b43c8af4f787dfb75540077273bcf6f262d6f30c06935fba7b",
-    "scripts/mini_app_owner_corrections_qa.cjs": "2dbe36245e0dfaf0de16aa6e0bd80d73eae7fc4cb37b4d5d4bec6a640f49a39c",
+    "scripts/mini_app_owner_corrections_qa.cjs": "35627c822ed23ca65890beb3728a539f4e03b3b6014d9839111290b31a468ec5",
     "scripts/mini_app_polish_batch_qa.cjs": "e44d7c607783202c0f3c614e70a719e058a6c00ec56c2d5b87c9de779509ae31",
     "scripts/mini_app_redesign_browser_qa.cjs": "67b1b8aaf503ff292a56a5bf9d4350c3a93484cfba7b920ef264b6a2da97a3a6",
     "scripts/mini_app_redesign_matrix_qa.cjs": "7a6a94e97d843f28d608d5ca4e1f4151c139de659baf42a2de0e50d1f2925af9",
@@ -247,7 +247,7 @@
     "hash": "0085c95cf6e68b898a94cf1578568368248b17b9ca4a8231398f9b61939a90da"
   },
   "http_asset_hashes": {
-    "app.css": "4a42998fe3594b9cb40eaddeeaddc9e2cd3abfadec12228a00ad8bad88fcf006",
+    "app.css": "1208e9b0b88ab53e5bb4ade6c112a6ffaa3501d62d586da00765359399ea98b3",
     "reports.js": "b856c198717e2900acd6c4fd7c7532358384377624e1bf3336e5d35be31c8a2f",
     "app.js": "87e9866fa36f206e0cbecfa92fd169677fa06fb92b95d800a9b893da8ccc841f",
     "telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
@@ -255,7 +255,7 @@
     "router.js": "7d4abd2a59b2927e1cb3bb298c4599a9849a7b6db7356742bc446745a4e85fb3",
     "api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
     "components.js": "4e16f8f8b97c75b58ea4d450210832b919658aab5570c342bfc7a5d4159cbf90",
-    "viewer.js": "713c534f2ac896522bbab31db9434d8e73bf1dbcd1d2f2b2efe495f0a0f7ea1d",
+    "viewer.js": "840db6134d22309f68c6feb633293180b56557c95d21c3410d1c3e2373a1d728",
     "streamer.js": "1bc5770a6446bc4d4bf3d41cd36aae8a8fd8efca246c3f389833872037fe7c79",
     "streamer_posts.js": "a39303d331255f334556d398da1b03f5b30bd6dd8c5d1a93da33595fdb71183a",
     "subscription.js": "f1ca784b82d154847f3800000a053a4373b5838a0284e8e13f2c04904a26c274",
@@ -299,7 +299,7 @@
   },
   "client_secret_matches": 0,
   "status": "PASS",
-  "sha": "560f3ccac05fe8f6c4b1221a28b926b7358edfef",
+  "sha": "720962b69c0703177437422cf29400985c529081",
   "production_before_after_equal": true,
   "source_note": "Exact committed Git archive artifact bytes; HTTP assets JS/CSS/PNG remain raw; only index.html uses server read_text UTF-8/universal-newline normalization",
   "native": "NOT TESTED",
@@ -307,8 +307,8 @@
   "external_payments": 0,
   "outbound_messages": 0,
   "log_scan": {
-    "deployment": "631a94d5-f6a2-4d11-b10d-d620c8f6dc07",
-    "sample_entries": 10,
+    "deployment": "00481223-a132-4903-b3b2-5db606899f89",
+    "sample_entries": 87,
     "credential_pattern_matches": [
       0,
       0,
