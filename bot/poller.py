@@ -1208,6 +1208,12 @@ class StreamPoller:
                             message_id = fresh_post.message_id
                             message_kind = fresh_post.message_kind
                             queue_waiting = True
+                        elif chat_id > 0 and await self._db.is_restored_viewer_session(chat_id, login, last_stream_id):
+                            # Undo resumes the previous session, without creating a second
+                            # sender after its queued delivery was acknowledged while absent.
+                            message_id = None
+                            message_kind = "text"
+                            queue_waiting = True
                         else:
                             message_id = (
                                 await self._notify(

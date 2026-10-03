@@ -1,0 +1,320 @@
+{
+  "engine": "chromium",
+  "kind": "isolated-components-no-auth-no-api",
+  "checks": [
+    {
+      "name": "channel-name-is-heading",
+      "pass": true
+    },
+    {
+      "name": "rights-slow-valid-server-budget",
+      "pass": true
+    },
+    {
+      "name": "rights-check-visible-pending",
+      "pass": true
+    },
+    {
+      "name": "rights-check-unchanged-success",
+      "pass": true
+    },
+    {
+      "name": "rights-check-does-not-toggle-publishing",
+      "pass": true
+    },
+    {
+      "name": "rights-check-error-near-control",
+      "pass": true
+    },
+    {
+      "name": "rights-error-no-success",
+      "pass": true
+    },
+    {
+      "name": "rights-missing-specific-result",
+      "pass": true
+    },
+    {
+      "name": "rights-late-response-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "favorites-first-across-live-offline",
+      "pass": true
+    },
+    {
+      "name": "favorite-controls-present",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-present",
+      "pass": true
+    },
+    {
+      "name": "filter-only-favorite",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-survives-refresh",
+      "pass": true
+    },
+    {
+      "name": "favorite-independent-notifications",
+      "pass": true
+    },
+    {
+      "name": "notifications-independent-favorite",
+      "pass": true
+    },
+    {
+      "name": "notify-completion-survives-concurrent-state",
+      "pass": true
+    },
+    {
+      "name": "favorite-failure-retains-star",
+      "pass": true
+    },
+    {
+      "name": "swipe-shell-present",
+      "pass": true
+    },
+    {
+      "name": "vertical-scroll-does-not-reveal-delete",
+      "pass": true
+    },
+    {
+      "name": "swipe-reveals-without-deleting",
+      "pass": true
+    },
+    {
+      "name": "delete-failure-keeps-row",
+      "pass": true
+    },
+    {
+      "name": "delete-refreshes-released-plan-slot",
+      "pass": true
+    },
+    {
+      "name": "delete-click-removes-only-target",
+      "pass": true
+    },
+    {
+      "name": "undo-visible-after-delete",
+      "pass": true
+    },
+    {
+      "name": "undo-server-restores-favorite-and-notify",
+      "pass": true
+    },
+    {
+      "name": "favorite-touch-target-44",
+      "pass": false
+    },
+    {
+      "name": "long-name-and-controls-fit-320",
+      "pass": true
+    },
+    {
+      "name": "delete-during-other-favorite-reloads-after-settle",
+      "pass": false
+    },
+    {
+      "name": "undo-during-other-notify-restores-visible-row",
+      "pass": false
+    },
+    {
+      "name": "detail-notify-back-and-refresh-keeps-result",
+      "pass": false
+    },
+    {
+      "name": "detail-delete-has-undo",
+      "pass": false
+    },
+    {
+      "name": "detail-delete-refreshes-active-limit",
+      "pass": false
+    },
+    {
+      "name": "home-light-only-live",
+      "pass": true
+    },
+    {
+      "name": "home-light-no-extra-search",
+      "pass": true
+    },
+    {
+      "name": "router-list-scroll-restored",
+      "pass": true
+    },
+    {
+      "name": "router-search-filter-restored",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-price",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-price",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "profile-light-compact-account",
+      "pass": true
+    },
+    {
+      "name": "profile-light-inline-theme",
+      "pass": true
+    },
+    {
+      "name": "profile-light-reports-meaning",
+      "pass": true
+    },
+    {
+      "name": "viewer-reports-save",
+      "pass": true
+    },
+    {
+      "name": "viewer-reports-independent-notify",
+      "pass": true
+    },
+    {
+      "name": "streamer-reports-save",
+      "pass": true
+    },
+    {
+      "name": "streamer-reports-independent-notify",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "screenshots": [
+    "channel-pending.png",
+    "channel-ready.png",
+    "channel-error.png",
+    "channel-no-rights.png",
+    "streamers-swipe.png",
+    "streamers-320.png",
+    "streamers-light.png",
+    "home-light.png",
+    "home-empty-light.png",
+    "viewer-light-details.png",
+    "viewer-light-390.png",
+    "viewer-light-text200.png",
+    "streamer-light-details.png",
+    "streamer-light-390.png",
+    "streamer-light-text200.png",
+    "profile-light.png",
+    "reports-viewer.png",
+    "reports-streamer.png"
+  ],
+  "sources": {
+    "api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
+    "app.css": "38196bcdb3107beab0f71081039f08eb7266002f28f1e00d1fdea385e000211d",
+    "app.js": "143e08604f35fcc92917db31b1a229581aec1cd677beb6f9d11af21f8edf8f82",
+    "components.js": "005997dc0bf142eb199a19ecfe26709b70cfe14fd6444ac20b0318997fe45f60",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "4ab0118a8ea9f70f8513b246d161b657337a7627760df8548f911fabb7b40352",
+    "purchase.js": "a8a0fb612c82c7fb9ff40a4b592e92d4ecd6415c8ee2182f5d6d9684d6b13fc3",
+    "reports.js": "22acb6c90f069987237893f4ec9ac5d7ff993dcf56950f5f7bd1513ee3b3ac73",
+    "router.js": "7d4abd2a59b2927e1cb3bb298c4599a9849a7b6db7356742bc446745a4e85fb3",
+    "streamer.js": "f695b9f3eb5c82e047fe7080363ba673f52f0954af701914c624c62fbd06f9bd",
+    "streamer_posts.js": "a39303d331255f334556d398da1b03f5b30bd6dd8c5d1a93da33595fdb71183a",
+    "subscription.js": "9b1cb655ed97eea54b2632f8ad8c0e221c018f5b843c842e80e31d8d254eca11",
+    "support.js": "6ac16bc6196ffa7ba0ab2e0e3a9f80b028ba8e60c3389bb284f6560df2b54d16",
+    "telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
+    "theme.js": "c0bdfa3e147ff354b0ffd276746d3da82a3da17f6258b445da3f03195f7a8d45",
+    "viewer.js": "4530dae2a32f4669694121310ea2810a5db76ce037ed7cb46441b569976ca4e7"
+  },
+  "status": "ERROR",
+  "failure": "page.evaluate: TypeError: Invalid detail route\n    at Object.openDetail (data:text/javascript;base64,Y29uc3QgVEFCUz17dmlld2VyOlsnaG9tZScsJ3N0cmVhbWVycycsJ3Byb2ZpbGUnLCdwbHVzJ10sc3RyZWFtZXI6WydjaGFubmVsJywncG9zdHMnLCdwcm9maWxlJywncGx1cyddfTsNCmNvbnN0IGRldGFpbEtleT1kZXRhaWw9PmRldGFpbCYmdHlwZW9mIGRldGFpbD09PSdvYmplY3QnP2Ake2RldGFpbC5uYW1lfToke2RldGFpbC5pZHx8Jyd9YDpkZXRhaWx8fCcnOw0KY29uc3QgZm9jdXNLZXk9bm9kZT0+bm9kZT8uZGF0YXNldD8uZm9jdXNLZXl8fG5vZGU/LmlkfHwobm9kZT8uZ2V0QXR0cmlidXRlPy4oJ2FyaWEtbGFiZWwnKXx8bm9kZT8udGV4dENvbnRlbnQ/LnRyaW0oKSk/LnNsaWNlKDAsNTEyKTsNCg0KZXhwb3J0IGZ1bmN0aW9uIGNyZWF0ZVJvdXRlcihvbkNoYW5nZSkgew0KICBsZXQgc2F2ZWRNb2RlPSd2aWV3ZXInO3RyeXtzYXZlZE1vZGU9bG9jYWxTdG9yYWdlLmdldEl0ZW0oJ3RzLWFwcC1tb2RlJyk9PT0nc3RyZWFtZXInPydzdHJlYW1lcic6J3ZpZXdlcic7fWNhdGNoe30NCiAgbGV0IHN0YXRlPXttb2RlOnNhdmVkTW9kZSx0YWI6VEFCU1tzYXZlZE1vZGVdWzBdLGRldGFpbDpudWxsfSxnZW5lcmF0aW9uPTA7DQogIGNvbnN0IHN0YWNrPVtdLHBvc2l0aW9ucz1uZXcgTWFwKCksa2V5PWl0ZW09PmAke2l0ZW0ubW9kZX06JHtpdGVtLnRhYn06JHtkZXRhaWxLZXkoaXRlbS5kZXRhaWwpfWA7DQogIGxldCBhY3RpdmF0aW9uPW51bGwscGVuZGluZ1Jlc3RvcmU9bnVsbDsNCiAgY29uc3Qgb25Qb2ludGVyPWV2ZW50PT57YWN0aXZhdGlvbj17bm9kZTpldmVudC50YXJnZXQuY2xvc2VzdD8uKCdidXR0b24sYSxpbnB1dCxzZWxlY3QsdGV4dGFyZWEnKSxhdDpwZXJmb3JtYW5jZS5ub3coKX07fTsNCiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcigncG9pbnRlcmRvd24nLG9uUG9pbnRlcix0cnVlKTsNCiAgZnVuY3Rpb24gY2FwdHVyZSh7bmF2aWdhdGlvbj1mYWxzZX09e30pew0KICAgIGNvbnN0IGFjdGl2ZT1uYXZpZ2F0aW9uJiZhY3RpdmF0aW9uPy5ub2RlPy5pc0Nvbm5lY3RlZCYmcGVyZm9ybWFuY2Uubm93KCktYWN0aXZhdGlvbi5hdDwxNTAwP2FjdGl2YXRpb24ubm9kZTpkb2N1bWVudC5hY3RpdmVFbGVtZW50Ow0KICAgIGNvbnN0IHJvd3M9Wy4uLmRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJyNjb250ZW50IFtkYXRhLXJvdy1rZXldLCAjY29udGVudCAubGlzdC1yb3cnKV07DQogICAgY29uc3QgYW5jaG9yPXJvd3MuZmluZChub2RlPT57Y29uc3Qgcj1ub2RlLmdldEJvdW5kaW5nQ2xpZW50UmVjdCgpO3JldHVybiByLmJvdHRvbT4wJiZyLnRvcDxpbm5lckhlaWdodDt9KTsNCiAgICByZXR1cm4ge3Njcm9sbDp3aW5kb3cuc2Nyb2xsWSxmb2N1czphY3RpdmUhPT1kb2N1bWVudC5ib2R5P2ZvY3VzS2V5KGFjdGl2ZSk6bnVsbCxhbmNob3I6YW5jaG9yPy5kYXRhc2V0LnJvd0tleXx8YW5jaG9yPy50ZXh0Q29udGVudCx0b3A6YW5jaG9yPy5nZXRCb3VuZGluZ0NsaWVudFJlY3QoKS50b3B9Ow0KICB9DQogIGZ1bmN0aW9uIHJlc3RvcmUocG9zaXRpb24se25hdmlnYXRpb249ZmFsc2V9PXt9KXsNCiAgICBjb25zdCB0b2tlbj0rK2dlbmVyYXRpb24sYWN0aXZlQXRTY2hlZHVsZT1kb2N1bWVudC5hY3RpdmVFbGVtZW50Ow0KICAgIHBlbmRpbmdSZXN0b3JlPXtwb3NpdGlvbjpwb3NpdGlvbnx8e3Njcm9sbDowfSxuYXZpZ2F0aW9ufTsNCiAgICByZXF1ZXN0QW5pbWF0aW9uRnJhbWUoKCk9PnsNCiAgICAgIGlmKHRva2VuIT09Z2VuZXJhdGlvbilyZXR1cm47DQogICAgICBwZW5kaW5nUmVzdG9yZT1udWxsOw0KICAgICAgY29uc3Qgc25hcHNob3Q9cG9zaXRpb258fHtzY3JvbGw6MH07d2luZG93LnNjcm9sbFRvKDAsc25hcHNob3Quc2Nyb2xsKTsNCiAgICAgIGlmKHNuYXBzaG90LmFuY2hvcil7Y29uc3QgYW5jaG9yPVsuLi5kb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCcjY29udGVudCBbZGF0YS1yb3cta2V5XSwgI2NvbnRlbnQgLmxpc3Qtcm93JyldLmZpbmQobm9kZT0+KG5vZGUuZGF0YXNldC5yb3dLZXl8fG5vZGUudGV4dENvbnRlbnQpPT09c25hcHNob3QuYW5jaG9yKTtpZihhbmNob3Ipd2luZG93LnNjcm9sbEJ5KDAsYW5jaG9yLmdldEJvdW5kaW5nQ2xpZW50UmVjdCgpLnRvcC1zbmFwc2hvdC50b3ApO30NCiAgICAgIGNvbnN0IGFjdGl2ZT1kb2N1bWVudC5hY3RpdmVFbGVtZW50Ow0KICAgICAgLy8gV2ViS2l0IGxlYXZlcyBjbGljayBmb2N1cyBvbiB0aGUgcGVyc2lzdGVudCBtYWluIHdoaWxlIGl0cyBjaGlsZHJlbiBjaGFuZ2UuDQogICAgICAvLyBQcmVzZXJ2ZSBhbnkgbmV3IHVzZXIgZm9jdXMsIGJ1dCBhbGxvdyByZXN0b3JhdGlvbiBwYXN0IHRoYXQgY29udGFpbmVyLg0KICAgICAgaWYoYWN0aXZlIT09ZG9jdW1lbnQuYm9keSYmYWN0aXZlPy5pc0Nvbm5lY3RlZCYmIShhY3RpdmU9PT1hY3RpdmVBdFNjaGVkdWxlJiZhY3RpdmU9PT1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY29udGVudCcpKSlyZXR1cm47DQogICAgICBjb25zdCBmb2N1c2VkPXNuYXBzaG90LmZvY3VzJiZbLi4uZG9jdW1lbnQucXVlcnlTZWxlY3RvckFsbCgnYnV0dG9uLGlucHV0LHNlbGVjdCx0ZXh0YXJlYSxhLFt0YWJpbmRleF0nKV0uZmluZChub2RlPT5mb2N1c0tleShub2RlKT09PXNuYXBzaG90LmZvY3VzKTsNCiAgICAgIGlmKGZvY3VzZWQpZm9jdXNlZC5mb2N1cyh7cHJldmVudFNjcm9sbDp0cnVlfSk7DQogICAgICBlbHNlIGlmKG5hdmlnYXRpb24pe2NvbnN0IGhlYWRpbmc9ZG9jdW1lbnQucXVlcnlTZWxlY3RvcignI2NvbnRlbnQgaDEnKTtpZihoZWFkaW5nKXtoZWFkaW5nLnRhYkluZGV4PS0xO2hlYWRpbmcuZm9jdXMoe3ByZXZlbnRTY3JvbGw6dHJ1ZX0pO319DQogICAgfSk7DQogIH0NCiAgZnVuY3Rpb24gbmF2aWdhdGUobmV4dCxwdXNoPXRydWUpew0KICAgIHBvc2l0aW9ucy5zZXQoa2V5KHN0YXRlKSxjYXB0dXJlKHtuYXZpZ2F0aW9uOnRydWV9KSk7YWN0aXZhdGlvbj1udWxsO2lmKHBvc2l0aW9ucy5zaXplPjUxMilwb3NpdGlvbnMuZGVsZXRlKHBvc2l0aW9ucy5rZXlzKCkubmV4dCgpLnZhbHVlKTsNCiAgICBpZihwdXNoKXtzdGFjay5wdXNoKHN0YXRlKTtpZihzdGFjay5sZW5ndGg+MTAwKXN0YWNrLnNoaWZ0KCk7fQ0KICAgIHN0YXRlPW5leHQ7b25DaGFuZ2Uoc3RhdGUsc3RhY2subGVuZ3RoPjApO3Jlc3RvcmUocG9zaXRpb25zLmdldChrZXkoc3RhdGUpKSx7bmF2aWdhdGlvbjp0cnVlfSk7DQogIH0NCiAgcmV0dXJuIHsNCiAgICBnZXQgc3RhdGUoKXtyZXR1cm4gc3RhdGU7fSwNCiAgICBnZXQgY2FuQmFjaygpe3JldHVybiBzdGFjay5sZW5ndGg+MDt9LA0KICAgIHNldE1vZGUobW9kZSl7DQogICAgICBpZighVEFCU1ttb2RlXXx8bW9kZT09PXN0YXRlLm1vZGUpcmV0dXJuO3RyeXtsb2NhbFN0b3JhZ2Uuc2V0SXRlbSgndHMtYXBwLW1vZGUnLG1vZGUpO31jYXRjaHt9DQogICAgICBjb25zdCBzdWJzY3JpcHRpb249ZGV0YWlsS2V5KHN0YXRlLmRldGFpbCk9PT0nc3Vic2NyaXB0aW9uJ3x8c3RhdGUudGFiPT09J3BsdXMnOw0KICAgICAgbmF2aWdhdGUoe21vZGUsdGFiOnN1YnNjcmlwdGlvbj8ncGx1cyc6VEFCU1ttb2RlXVswXSxkZXRhaWw6c3Vic2NyaXB0aW9uPydzdWJzY3JpcHRpb24nOm51bGx9KTsNCiAgICB9LA0KICAgIHNldFRhYih0YWIpew0KICAgICAgaWYoIVRBQlNbc3RhdGUubW9kZV0uaW5jbHVkZXModGFiKSlyZXR1cm47DQogICAgICBpZih0YWI9PT0ncGx1cycpe2lmKGRldGFpbEtleShzdGF0ZS5kZXRhaWwpPT09J3N1YnNjcmlwdGlvbicpcmV0dXJuO25hdmlnYXRlKHsuLi5zdGF0ZSx0YWIsZGV0YWlsOidzdWJzY3JpcHRpb24nfSk7cmV0dXJuO30NCiAgICAgIGlmKHRhYj09PXN0YXRlLnRhYiYmIXN0YXRlLmRldGFpbClyZXR1cm47bmF2aWdhdGUoey4uLnN0YXRlLHRhYixkZXRhaWw6bnVsbH0pOw0KICAgIH0sDQogICAgb3BlbkRldGFpbChkZXRhaWwpew0KICAgICAgaWYodHlwZW9mIGRldGFpbD09PSdvYmplY3QnJiZkZXRhaWwpe2lmKHR5cGVvZiBkZXRhaWwubmFtZSE9PSdzdHJpbmcnfHxkZXRhaWwubmFtZS5sZW5ndGg+NjR8fHR5cGVvZiBkZXRhaWwuaWQhPT0nc3RyaW5nJ3x8ZGV0YWlsLmlkLmxlbmd0aD4yNTYpdGhyb3cgbmV3IFR5cGVFcnJvcignSW52YWxpZCBkZXRhaWwgcm91dGUnKTtkZXRhaWw9T2JqZWN0LmZyZWV6ZSh7bmFtZTpkZXRhaWwubmFtZSxpZDpkZXRhaWwuaWR9KTt9DQogICAgICBlbHNlIGlmKHR5cGVvZiBkZXRhaWwhPT0nc3RyaW5nJ3x8IWRldGFpbHx8ZGV0YWlsLmxlbmd0aD4yNTYpdGhyb3cgbmV3IFR5cGVFcnJvcignSW52YWxpZCBkZXRhaWwgcm91dGUnKTsNCiAgICAgIGlmKGRldGFpbEtleShkZXRhaWwpPT09ZGV0YWlsS2V5KHN0YXRlLmRldGFpbCkpcmV0dXJuO25hdmlnYXRlKHsuLi5zdGF0ZSxkZXRhaWx9KTsNCiAgICB9LA0KICAgIGJhY2soKXtpZighc3RhY2subGVuZ3RoKXJldHVybiBmYWxzZTtuYXZpZ2F0ZShzdGFjay5wb3AoKSxmYWxzZSk7cmV0dXJuIHRydWU7fSwNCiAgICB0YWJzKG1vZGU9c3RhdGUubW9kZSl7cmV0dXJuIFRBQlNbbW9kZV07fSwNCiAgICByZWZyZXNoKCl7DQogICAgICBjb25zdCBhY3RpdmU9ZG9jdW1lbnQuYWN0aXZlRWxlbWVudDsNCiAgICAgIC8vIENvbnNlY3V0aXZlIHJlbmRlcnMgY2FuIGRldGFjaCB0aGUgZm9jdXNlZCBub2RlIGJlZm9yZSB0aGUgZmlyc3QgUkFGLg0KICAgICAgY29uc3QgcGVuZGluZz1wZW5kaW5nUmVzdG9yZSYmKGFjdGl2ZT09PWRvY3VtZW50LmJvZHl8fGFjdGl2ZT09PWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjb250ZW50JykpP3BlbmRpbmdSZXN0b3JlOm51bGw7DQogICAgICBjb25zdCBwb3NpdGlvbj1wZW5kaW5nP3BlbmRpbmcucG9zaXRpb246Y2FwdHVyZSgpO29uQ2hhbmdlKHN0YXRlLHN0YWNrLmxlbmd0aD4wKTtyZXN0b3JlKHBvc2l0aW9uLHtuYXZpZ2F0aW9uOnBlbmRpbmc/Lm5hdmlnYXRpb258fGZhbHNlfSk7DQogICAgfSwNCiAgICBkaXNwb3NlKCl7ZG9jdW1lbnQucmVtb3ZlRXZlbnRMaXN0ZW5lcigncG9pbnRlcmRvd24nLG9uUG9pbnRlcix0cnVlKTtwZW5kaW5nUmVzdG9yZT1udWxsOysrZ2VuZXJhdGlvbjt9LA0KICB9Ow0KfQ0K:54:157)\n    at eval (eval at evaluate (:311:30), <anonymous>:1:68)\n    at async <anonymous>:337:30\n    at C:\\Users\\yusha\\.codex\\worktrees\\mini-app-owner-corrections\\TG-BOT.(TwtichSignal)\\scripts\\mini_app_owner_corrections_qa.cjs:130:57"
+}

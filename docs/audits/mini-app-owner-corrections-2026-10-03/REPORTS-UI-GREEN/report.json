@@ -1,0 +1,259 @@
+{
+  "engine": "chromium",
+  "kind": "isolated-components-no-auth-no-api",
+  "checks": [
+    {
+      "name": "channel-name-is-heading",
+      "pass": true
+    },
+    {
+      "name": "rights-slow-valid-server-budget",
+      "pass": true
+    },
+    {
+      "name": "rights-check-visible-pending",
+      "pass": true
+    },
+    {
+      "name": "rights-check-unchanged-success",
+      "pass": true
+    },
+    {
+      "name": "rights-check-does-not-toggle-publishing",
+      "pass": true
+    },
+    {
+      "name": "rights-check-error-near-control",
+      "pass": true
+    },
+    {
+      "name": "rights-error-no-success",
+      "pass": true
+    },
+    {
+      "name": "rights-missing-specific-result",
+      "pass": true
+    },
+    {
+      "name": "rights-late-response-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "favorites-first-across-live-offline",
+      "pass": true
+    },
+    {
+      "name": "favorite-controls-present",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-present",
+      "pass": true
+    },
+    {
+      "name": "filter-only-favorite",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-survives-refresh",
+      "pass": true
+    },
+    {
+      "name": "favorite-independent-notifications",
+      "pass": true
+    },
+    {
+      "name": "notifications-independent-favorite",
+      "pass": true
+    },
+    {
+      "name": "notify-completion-survives-concurrent-state",
+      "pass": true
+    },
+    {
+      "name": "favorite-failure-retains-star",
+      "pass": true
+    },
+    {
+      "name": "swipe-shell-present",
+      "pass": true
+    },
+    {
+      "name": "vertical-scroll-does-not-reveal-delete",
+      "pass": true
+    },
+    {
+      "name": "swipe-reveals-without-deleting",
+      "pass": true
+    },
+    {
+      "name": "delete-failure-keeps-row",
+      "pass": true
+    },
+    {
+      "name": "delete-refreshes-released-plan-slot",
+      "pass": true
+    },
+    {
+      "name": "delete-click-removes-only-target",
+      "pass": true
+    },
+    {
+      "name": "undo-visible-after-delete",
+      "pass": true
+    },
+    {
+      "name": "undo-server-restores-favorite-and-notify",
+      "pass": true
+    },
+    {
+      "name": "long-name-and-controls-fit-320",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-price",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-price",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "profile-light-compact-account",
+      "pass": true
+    },
+    {
+      "name": "profile-light-inline-theme",
+      "pass": true
+    },
+    {
+      "name": "profile-light-reports-meaning",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "screenshots": [
+    "channel-pending.png",
+    "channel-ready.png",
+    "channel-error.png",
+    "channel-no-rights.png",
+    "streamers-swipe.png",
+    "streamers-320.png",
+    "viewer-light-details.png",
+    "viewer-light-390.png",
+    "viewer-light-text200.png",
+    "streamer-light-details.png",
+    "streamer-light-390.png",
+    "streamer-light-text200.png",
+    "profile-light.png"
+  ],
+  "sources": {
+    "api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
+    "app.css": "25a4ef5b7634d26601446eb42aa7d65d3f9a8126f92bd6cb6ccf429dd75184c4",
+    "app.js": "20305d0d6d026abd9830562d03c910b4688efdedc6c895b7ee09c1e77dcea8da",
+    "components.js": "005997dc0bf142eb199a19ecfe26709b70cfe14fd6444ac20b0318997fe45f60",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "4ab0118a8ea9f70f8513b246d161b657337a7627760df8548f911fabb7b40352",
+    "purchase.js": "a8a0fb612c82c7fb9ff40a4b592e92d4ecd6415c8ee2182f5d6d9684d6b13fc3",
+    "reports.js": "d0aebc59a44eb9fd32393aef203dff12bb4da8227940336b68d47161b805d794",
+    "router.js": "7d4abd2a59b2927e1cb3bb298c4599a9849a7b6db7356742bc446745a4e85fb3",
+    "streamer.js": "c45e06f24a83dedce66a4b6870b74830110ec87f722305d9651ddf62029852b9",
+    "streamer_posts.js": "a39303d331255f334556d398da1b03f5b30bd6dd8c5d1a93da33595fdb71183a",
+    "subscription.js": "e1b38aa5a389c7c0eda32338f171f48540822c8e081550bb21a8c1816be08306",
+    "support.js": "6ac16bc6196ffa7ba0ab2e0e3a9f80b028ba8e60c3389bb284f6560df2b54d16",
+    "telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
+    "theme.js": "c0bdfa3e147ff354b0ffd276746d3da82a3da17f6258b445da3f03195f7a8d45",
+    "viewer.js": "877fc5e195365cc17dc6653f6140c9dda7d813f671881c6d2f25089cd4e6e7d4"
+  },
+  "status": "ERROR",
+  "failure": "locator.selectOption: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Формат отчёта', { exact: true })\u001b[22m\n\n    at C:\\Users\\yusha\\.codex\\worktrees\\mini-app-owner-corrections\\TG-BOT.(TwtichSignal)\\scripts\\mini_app_owner_corrections_qa.cjs:118:319"
+}

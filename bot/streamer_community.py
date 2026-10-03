@@ -20,6 +20,7 @@ class CommunityPermissionResult:
     status: str
     community: VerifiedCommunity | None = None
     public_url: str | None = None
+    photo_file_id: str | None = None
 
 
 async def check_community_permission(bot, chat_id: int, telegram_user_id: int) -> CommunityPermissionResult:
@@ -55,7 +56,9 @@ async def check_community_permission(bot, chat_id: int, telegram_user_id: int) -
             and getattr(chat, "id", None) == chat_id and isinstance(username, str)
             and re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{4,31}", username) else None
         )
-        return CommunityPermissionResult("ready", community, public_url)
+        photo_file_id=getattr(getattr(chat, 'photo', None), 'small_file_id', None)
+        return CommunityPermissionResult("ready", community, public_url,
+                                         photo_file_id if isinstance(photo_file_id, str) else None)
     except TelegramForbiddenError:
         return CommunityPermissionResult("bot_absent")
     except Exception:

@@ -469,6 +469,17 @@ class TwitchClient:
                 result[item["login"].lower()] = item.get("display_name", item["login"])
         return result
 
+    async def get_public_profiles(self, logins: list[str]) -> dict[str, dict[str, str]]:
+        result = {}
+        for index in range(0, len(logins), MAX_LOGINS_PER_REQUEST):
+            data = await self._request(USERS_URL, [("login", login) for login in logins[index:index+MAX_LOGINS_PER_REQUEST]])
+            for item in data.get("data", []):
+                result[item["login"].lower()] = {
+                    "display_name": item.get("display_name", item["login"]),
+                    "profile_image_url": item.get("profile_image_url", ""),
+                }
+        return result
+
     async def get_top_clips(
         self, broadcaster_id: str, started_at: str, ended_at: str, count: int = TOP_CLIPS_COUNT
     ) -> list[ClipInfo]:

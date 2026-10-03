@@ -135,7 +135,7 @@ export function createStreamerPostsFeature(api,getRouter,getProfile) {
         list.append(navigationRow(label,detail,glyph,()=>{cancelPreview();getRouter().openDetail(`${routeName}:${selected}`);}));target.append(list);return;
     }
     if(!state.template.can_edit&&name!=='post-variants'){
-      target.append(panel('Обычный пост доступен бесплатно','Текст, дополнительные кнопки и видео доступны с Streamer Plus. Сохранённые настройки останутся на месте.'),action('Тариф для стримера',()=>getRouter().openDetail('subscription'),true));return;}
+      target.append(panel('Обычный пост доступен бесплатно','Текст, дополнительные кнопки и видео доступны с Стример Plus. Сохранённые настройки останутся на месте.'),action('Тариф для стримера',()=>getRouter().openDetail('subscription'),true));return;}
     if(name==='post-editor'){
       const id=selected,key=previewKey(id),cached=draftExamples.get(id);
       fields(target,id);preview(target,cached?.key===key?cached.value:state.example,true);

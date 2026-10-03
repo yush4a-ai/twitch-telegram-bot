@@ -12,6 +12,7 @@ from aiogram.types import KeyboardButton, KeyboardButtonRequestChat
 from .database import Database
 from .mini_app_auth import verified_payload
 from .mini_app_streamer_plus import install_mini_app_streamer_plus_routes
+from .mini_app_avatars import TelegramAvatarCache
 from .streamer_community import check_community_permission, CommunityPermissionResult
 
 
@@ -53,6 +54,7 @@ def install_mini_app_streamer_routes(
     app: web.Application, db: Database, bot_token: str, bot=None,
     *, bot_username: str = "", oauth_server=None,
 ) -> None:
+    avatars = TelegramAvatarCache(bot)
     async def read(request: web.Request):
         user_id, values, status = await verified_payload(request, bot_token)
         if status != 200:
@@ -77,7 +79,8 @@ def install_mini_app_streamer_routes(
                 permission = (await check_community_permission(bot, row[0], user_id)
                               if bot else CommunityPermissionResult("network_error"))
                 post_state = await db.get_live_post_state(row[0], identity[1])
-                return permission, post_state
+                avatar = await avatars.get(permission.photo_file_id) if permission.community is not None else None
+                return permission, post_state, avatar
 
         checked = await asyncio.gather(*(check(row) for row in stored))
         return web.json_response({
@@ -87,6 +90,7 @@ def install_mini_app_streamer_routes(
                 {"chat_id": row[0], "title": row[1], "chat_type": row[2],
                  "permission_ok": result[0].community is not None,
                  "permission_status": result[0].status, "public_url": result[0].public_url,
+                 "avatar_url": result[2],
                  "publishing": result[1] is not None and result[1].notify_enabled}
                 for row, result in zip(stored, checked)
             ],

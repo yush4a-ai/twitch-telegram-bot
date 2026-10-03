@@ -17,11 +17,13 @@ from .mini_app_viewer import install_mini_app_viewer_routes
 from .mini_app_streamer import install_mini_app_streamer_routes
 from .mini_app_billing import install_mini_app_billing_routes
 from .legal_web import install_legal_routes
+from .mini_app_reports import install_report_routes
 
 
 _UI_DIR = Path(__file__).with_name("mini_app_ui")
 _ASSETS = {
     "app.css": "text/css",
+    "reports.js": "text/javascript",
     "app.js": "application/javascript",
     "telegram.js": "application/javascript",
     "theme.js": "application/javascript",
@@ -35,6 +37,8 @@ _ASSETS = {
     "purchase.js": "application/javascript",
     "profile.js": "application/javascript",
     "support.js": "application/javascript",
+    "plus-mascot.png": "image/png",
+    "mascot-cutout.png": "image/png",
 }
 
 
@@ -78,6 +82,7 @@ def install_mini_app_routes(
         response.headers["Content-Security-Policy"] = (
             SECURITY_HEADERS["Content-Security-Policy"]
             .replace("script-src 'self'", "script-src 'self' https://telegram.org")
+            .replace("img-src 'self'", "img-src 'self' data: https://static-cdn.jtvnw.net https://t.me")
             + "; frame-ancestors https://web.telegram.org"
         )
         return response
@@ -85,8 +90,9 @@ def install_mini_app_routes(
     async def asset(request: web.Request) -> web.Response:
         name = request.match_info["name"]
         return web.Response(
-            text=(_UI_DIR / name).read_text(encoding="utf-8"),
+            body=(_UI_DIR / name).read_bytes(),
             content_type=_ASSETS[name],
+            charset=None if _ASSETS[name].startswith("image/") else "utf-8",
         )
 
     async def bootstrap(request: web.Request) -> web.Response:
@@ -101,6 +107,7 @@ def install_mini_app_routes(
     app.router.add_get(f"/app/{{name:{asset_pattern}}}", asset)
     app.router.add_post("/app/api/bootstrap", bootstrap)
     install_legal_routes(app, bot_token, owner_config=owner_config, store=legal_store)
+    install_report_routes(app, db, bot_token, bot)
     install_mini_app_viewer_routes(
         app, db, bot_token, capabilities, twitch,
         preview_status_provider=preview_status_provider,

@@ -33,6 +33,8 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "mini_007_viewer_history",
                             "mini_008_streamer_presets",
                             "mini_009_viewer_trial",
+                            "mini_010_viewer_favorites",
+                            "mini_011_viewer_undo",
                             "r10_001_billing_subjects",
                             "r11_001_plus_payment_orders",
                             "r11_002_plus_payment_events",

@@ -26,6 +26,20 @@ _SEARCH_WINDOW_LIMIT = 6
 _NAMES_TIMEOUT = 5.0
 
 
+def _avatar_url(value):
+    if not isinstance(value, str) or len(value)>2048:
+        return None
+    try:
+        url=urlsplit(value)
+        if (url.scheme=='https' and url.hostname=='static-cdn.jtvnw.net'
+                and url.port is None and url.username is None and url.password is None
+                and url.path.startswith('/jtv_user_pictures/') and not url.query and not url.fragment):
+            return value
+    except ValueError:
+        pass
+    return None
+
+
 class _PublicNames:
     """Small public metadata cache; never a source of user rights or live state."""
 
@@ -44,14 +58,17 @@ class _PublicNames:
                 async with self.lock:
                     now = self.clock()
                     missing = [login for login in requested if login not in self.entries or now - self.entries[login][0] >= 300]
-                    method = getattr(self.twitch, "get_display_names", None)
+                    profiles = getattr(self.twitch, "get_public_profiles", None)
+                    method = profiles if callable(profiles) else getattr(self.twitch, "get_display_names", None)
                     found = await method(missing) if missing and callable(method) else {}
                     if not isinstance(found, dict):
                         found = {}
                     for login in missing:
-                        name = found.get(login)
+                        entry = found.get(login)
+                        name = entry.get('display_name') if isinstance(entry, dict) else entry
+                        avatar = _avatar_url(entry.get('profile_image_url')) if isinstance(entry, dict) else None
                         name = name.strip() if isinstance(name, str) and 0 < len(name) <= 256 else login
-                        self.entries[login] = (self.clock(), name or login)
+                        self.entries[login] = (self.clock(), name or login, avatar)
         except Exception:
             logger.warning("Mini App public names temporarily unavailable")
         now = self.clock()
@@ -59,12 +76,16 @@ class _PublicNames:
         for login in requested:
             entry = self.entries.get(login)
             if entry is None or now - entry[0] >= 300:
-                entry = self.entries[login] = (now, login)
+                entry = self.entries[login] = (now, login, None)
             self.entries.move_to_end(login)
             result[login] = entry[1]
         while len(self.entries) > 2000:
             self.entries.popitem(last=False)
         return result
+
+    def avatar(self, login):
+        entry=self.entries.get(login)
+        return entry[2] if entry and self.clock()-entry[0]<300 else None
 
 
 def normalize_twitch_login(value: object) -> str | None:
@@ -164,6 +185,7 @@ def install_mini_app_viewer_routes(
             for row in rows
         }
         video = await db.get_video_selection(user_id, now=now)
+        favorites = await db.list_viewer_favorites(user_id)
         own_reminders = await reminders.for_user(user_id)
         own_folders = await folders.list_folders(user_id)
         folder_memberships = await folders.memberships(user_id)
@@ -177,7 +199,9 @@ def install_mini_app_viewer_routes(
             {
                 "login": login,
                 "display_name": display_names[login],
+                "avatar_url": public_names.avatar(login),
                 "notify_enabled": notify_enabled,
+                "is_favorite": login in favorites,
                 "paused_by_plan": paused_by_plan,
                 "video_selected": login in video.selected_logins,
                 "video_effective": login in video.selected_logins and video.selected_ids[video.selected_logins.index(login)] in video.effective_ids,
@@ -458,17 +482,34 @@ def install_mini_app_viewer_routes(
         login = normalize_twitch_login(values.get("login"))
         if login is None:
             return web.json_response({"error": "invalid_login"}, status=400)
-        if not await db.remove_channel(user_id, login):
+        undo = await db.remove_channel_with_undo(user_id, login)
+        if undo is None:
             return web.json_response({"error": "not_subscribed"}, status=404)
         video = await db.get_video_selection(user_id)
         return web.json_response({
-            "removed": True, "login": login,
+            "removed": True, "login": login, **undo,
             "video_selection": {
                 "version": video.version, "selected_ids": list(video.selected_ids),
                 "selected_logins": list(video.selected_logins),
                 "effective_ids": list(video.effective_ids), "limit": video.limit,
             },
         })
+
+    async def undo_unfollow(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        token = values.get('undo_token')
+        if set(values) != {'init_data', 'undo_token'} or not isinstance(token, str) or len(token) != 43:
+            return web.json_response({'error': 'invalid_undo'}, status=400)
+        try:
+            result, login = await db.undo_channel_removal(user_id, token)
+        except Exception:
+            logger.exception('Mini App undo write failed')
+            return web.json_response({'error': 'save_unavailable'}, status=503)
+        if result != 'restored':
+            return web.json_response({'error': result}, status=409)
+        return web.json_response({'restored': True, 'login': login})
 
     async def notify(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -486,6 +527,25 @@ def install_mini_app_viewer_routes(
         if not updated:
             return web.json_response({"error": "not_subscribed"}, status=404)
         return web.json_response({"notify_enabled": enabled})
+
+    async def favorite(request: web.Request) -> web.Response:
+        user_id, values, error = await read(request)
+        if error is not None:
+            return error
+        if set(values) != {"init_data", "login", "is_favorite"}:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        login = normalize_twitch_login(values["login"])
+        is_favorite = values["is_favorite"]
+        if login is None or type(is_favorite) is not bool:
+            return web.json_response({"error": "invalid_settings"}, status=400)
+        try:
+            updated = await db.set_viewer_favorite(user_id, login, is_favorite)
+        except Exception:
+            logger.exception("Mini App favorite write failed")
+            return web.json_response({"error": "save_unavailable"}, status=503)
+        if not updated:
+            return web.json_response({"error": "not_subscribed"}, status=404)
+        return web.json_response({"is_favorite": is_favorite})
 
     async def video_selection(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)
@@ -740,7 +800,9 @@ def install_mini_app_viewer_routes(
     app.router.add_post("/app/api/viewer/search", search)
     app.router.add_post("/app/api/viewer/follow", follow)
     app.router.add_post("/app/api/viewer/unfollow", unfollow)
+    app.router.add_post("/app/api/viewer/unfollow/undo", undo_unfollow)
     app.router.add_post("/app/api/viewer/notify", notify)
+    app.router.add_post("/app/api/viewer/favorite", favorite)
     app.router.add_post("/app/api/viewer/filter", save_filter)
     app.router.add_post("/app/api/viewer/filter/reset", reset_filter)
     app.router.add_post("/app/api/viewer/category-search", category_search)

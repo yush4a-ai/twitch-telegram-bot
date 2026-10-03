@@ -121,7 +121,7 @@ def catalog_payload(policy: BillingRuntimePolicy | None = None) -> dict:
     for product in _PRODUCTS:
         item = asdict(product)
         item.update({
-            "title": "Viewer Plus" if product.product_id == "viewer_plus" else "Streamer Plus",
+            "title": "Зритель Plus" if product.product_id == "viewer_plus" else "Стример Plus",
             "price_label": f"{product.rub.amount_minor // 100} ₽",
             "period_label": "1 месяц",
             "value": "Больше стримеров, видеопревью и более точные уведомления." if product.product_id == "viewer_plus" else "Больше возможностей для автоматических публикаций о стримах.",

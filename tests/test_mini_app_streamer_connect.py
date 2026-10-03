@@ -75,6 +75,21 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_streamer_communities(101), [])
         self.assertFalse(hasattr(self.bot, "send_message"))
 
+    async def test_cached_channel_photo_is_hidden_after_owner_rights_revoked(self):
+        await self.db.add_streamer_community(101,-1001,'Free channel','channel')
+        self.bot.get_chat.return_value.photo=SimpleNamespace(small_file_id='photo-id')
+        self.bot.get_file=AsyncMock(return_value=SimpleNamespace(file_path='photos/0.jpg'))
+        async def download(_path,*,destination,timeout):destination.write(b'\xff\xd8\xffimage')
+        self.bot.download_file=AsyncMock(side_effect=download)
+        async with self.request('/app/api/streamer/profile') as response:
+            self.assertTrue((await response.json())['communities'][0]['avatar_url'].startswith('data:image/jpeg;base64,'))
+        self.user_admin=False
+        async with self.request('/app/api/streamer/profile') as response:
+            community=(await response.json())['communities'][0]
+            self.assertFalse(community['permission_ok'])
+            self.assertIsNone(community['avatar_url'])
+        self.bot.get_file.assert_awaited_once()
+
     async def test_callback_is_not_permission_and_intent_is_single_use(self):
         from bot.mini_app_streamer import complete_community_intent
         async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:

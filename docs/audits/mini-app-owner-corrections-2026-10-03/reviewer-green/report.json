@@ -1,0 +1,98 @@
+{
+  "engine": "chromium",
+  "kind": "isolated-components-no-auth-no-api",
+  "checks": [
+    {
+      "name": "channel-name-is-heading",
+      "pass": true
+    },
+    {
+      "name": "rights-slow-valid-server-budget",
+      "pass": true
+    },
+    {
+      "name": "rights-check-visible-pending",
+      "pass": true
+    },
+    {
+      "name": "rights-check-unchanged-success",
+      "pass": true
+    },
+    {
+      "name": "rights-check-does-not-toggle-publishing",
+      "pass": true
+    },
+    {
+      "name": "rights-check-error-near-control",
+      "pass": true
+    },
+    {
+      "name": "rights-error-no-success",
+      "pass": true
+    },
+    {
+      "name": "rights-missing-specific-result",
+      "pass": true
+    },
+    {
+      "name": "rights-late-response-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "favorites-first-across-live-offline",
+      "pass": true
+    },
+    {
+      "name": "favorite-controls-present",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-present",
+      "pass": true
+    },
+    {
+      "name": "filter-only-favorite",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-survives-refresh",
+      "pass": true
+    },
+    {
+      "name": "favorite-independent-notifications",
+      "pass": true
+    },
+    {
+      "name": "notifications-independent-favorite",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "screenshots": [
+    "channel-pending.png",
+    "channel-ready.png",
+    "channel-error.png",
+    "channel-no-rights.png"
+  ],
+  "sources": {
+    "api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
+    "app.css": "55cc4189653d67b84bd1842beee4453803e1b78db4dd02e6dc16c76bb2fb4f88",
+    "app.js": "87e9866fa36f206e0cbecfa92fd169677fa06fb92b95d800a9b893da8ccc841f",
+    "components.js": "005997dc0bf142eb199a19ecfe26709b70cfe14fd6444ac20b0318997fe45f60",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "4ab0118a8ea9f70f8513b246d161b657337a7627760df8548f911fabb7b40352",
+    "purchase.js": "a8a0fb612c82c7fb9ff40a4b592e92d4ecd6415c8ee2182f5d6d9684d6b13fc3",
+    "reports.js": "b856c198717e2900acd6c4fd7c7532358384377624e1bf3336e5d35be31c8a2f",
+    "router.js": "7d4abd2a59b2927e1cb3bb298c4599a9849a7b6db7356742bc446745a4e85fb3",
+    "streamer.js": "f695b9f3eb5c82e047fe7080363ba673f52f0954af701914c624c62fbd06f9bd",
+    "streamer_posts.js": "a39303d331255f334556d398da1b03f5b30bd6dd8c5d1a93da33595fdb71183a",
+    "subscription.js": "9b1cb655ed97eea54b2632f8ad8c0e221c018f5b843c842e80e31d8d254eca11",
+    "support.js": "6ac16bc6196ffa7ba0ab2e0e3a9f80b028ba8e60c3389bb284f6560df2b54d16",
+    "telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
+    "theme.js": "c0bdfa3e147ff354b0ffd276746d3da82a3da17f6258b445da3f03195f7a8d45",
+    "viewer.js": "a92c36b66b750c4d7b3016cd3c20d3c0aaa489f6d164ada68364db0bb66fca9d"
+  },
+  "status": "ERROR",
+  "failure": "locator.check: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('checkbox', { name: 'Уведомления Alpha', exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <input type=\"checkbox\" data-focus-key=\"notify:alpha\" aria-label=\"Уведомления Alpha\"/>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - performing click action\u001b[22m\n\u001b[2m    - click action done\u001b[22m\n\u001b[2m    - waiting for scheduled navigations to finish\u001b[22m\n\u001b[2m    - navigations have finished\u001b[22m\n\u001b[2m    - locator resolved to <input type=\"checkbox\" aria-disabled=\"true\" data-focus-key=\"notify:alpha\" aria-label=\"Уведомления Alpha\"/>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    59 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at C:\\Users\\yusha\\.codex\\worktrees\\mini-app-owner-corrections\\TG-BOT.(TwtichSignal)\\scripts\\mini_app_owner_corrections_qa.cjs:75:132"
+}

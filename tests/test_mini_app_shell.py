@@ -17,6 +17,17 @@ from tests.test_admin_telegram_auth import BOT_TOKEN, signed_webapp
 
 
 class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
+    async def test_plus_mascot_is_public_image_with_strict_asset_allowlist(self):
+        response = await self.session.get(self.base + '/app/plus-mascot.png')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.content_type, 'image/png')
+        self.assertTrue((await response.read()).startswith(b'\x89PNG\r\n\x1a\n'))
+        async with self.session.get(self.base + '/app/mascot-cutout.png') as cutout:
+            self.assertEqual(cutout.status,200)
+            self.assertEqual(cutout.content_type,'image/png')
+            self.assertTrue((await cutout.read()).startswith(b'\x89PNG\r\n\x1a\n'))
+        self.assertEqual((await self.session.get(self.base + '/app/private.png')).status, 404)
+
     def test_runtime_flag_is_off_outside_pinned_staging(self):
         base = {
             "TELEGRAM_BOT_TOKEN": "123456:test", "TWITCH_CLIENT_ID": "client",
@@ -89,7 +100,7 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.post(self.base + "/app/api/bootstrap", json={}) as response:
             self.assertEqual(response.status, 401)
             self.assertEqual(response.headers["X-Frame-Options"], "DENY")
-        for asset in ("app.css", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
+        for asset in ("app.css", "reports.js", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
             with self.subTest(asset=asset):
                 async with self.session.get(self.base + "/app/" + asset) as response:
                     self.assertEqual(response.status, 200)

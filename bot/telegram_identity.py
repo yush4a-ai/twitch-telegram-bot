@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -23,6 +24,7 @@ class VerifiedTelegramIdentity:
     id: int
     display_name: str | None = None
     username: str | None = None
+    avatar_url: str | None = None
 
 
 def _unique_user(pairs):
@@ -62,7 +64,9 @@ def verify_webapp_identity(init_data: str, bot_token: str) -> VerifiedTelegramId
         display = " ".join(part for part in (first, last) if part) or None
         if display is not None and len(display) > 256:
             display = None
-        return VerifiedTelegramIdentity(user_id, display, _optional_label(user.get("username")))
+        photo = user.get('photo_url')
+        avatar = photo if isinstance(photo,str) and len(photo)<=2048 and re.fullmatch(r'https://t\.me/i/userpic/[A-Za-z0-9_./=-]+',photo) else None
+        return VerifiedTelegramIdentity(user_id, display, _optional_label(user.get("username")), avatar)
     except (ValueError, KeyError, TypeError, UnicodeError, json.JSONDecodeError):
         return None
 

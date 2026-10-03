@@ -9,6 +9,7 @@ import { createPurchaseFeature } from './purchase.js';
 import { createThemeController } from './theme.js';
 import { createProfileFeature } from './profile.js';
 import { createSupportFeature } from './support.js';
+import { createReportsFeature } from './reports.js';
 
 const content = document.getElementById('content');
 const modeSwitch = document.getElementById('mode-switch');
@@ -27,6 +28,7 @@ let subscriptionFeature;
 let purchaseFeature;
 let profileFeature;
 let supportFeature;
+let reportsFeature;
 let subscriptionOpen = false;
 let purchaseOrderOpen=null;
 let historyOpen=false;
@@ -41,12 +43,13 @@ document.addEventListener('app-dialog-change',onDialogChange);
 window.addEventListener('pagehide', (event) => {
   if(event.persisted)return;
   disposed = true; bootstrapController?.abort();
-  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();resizeNavigation.disconnect();
+  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();reportsFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();resizeNavigation.disconnect();
 });
 const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
 resizeNavigation.observe(tabBar);
 document.getElementById('app-menu').addEventListener('click',event=>{
   dialog('Меню приложения',(box,close)=>{
+    const roles=element('p','role-explanation','Зритель — уведомления для себя. Стример — публикации в свой Telegram-канал.');box.append(roles);
     for(const [label,glyph,callback] of [['Профиль','profile',()=>router.setTab('profile')],['Тариф','plus',()=>router.openDetail('subscription')],['Поддержка','help',()=>router.openDetail('support')]]){
       box.append(navigationRow(label,'',glyph,()=>{close();callback();}));
     }
@@ -64,6 +67,7 @@ function render(state, canBack) {
     button.type = 'button';
     button.dataset.focusKey = `mode:${mode}`;
     button.setAttribute('aria-pressed', String(mode === state.mode));
+    button.setAttribute('aria-description',mode==='viewer'?'Уведомления о стримерах в личном чате':'Публикации в вашем Telegram-канале');
     button.addEventListener('click', () => router.setMode(mode));
     modeSwitch.append(button);
   }
@@ -72,6 +76,7 @@ function render(state, canBack) {
     ? [['home', 'Главная', 'home'], ['streamers', 'Стримеры', 'people'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']]
     : [['channel', 'Мой канал', 'channel'], ['posts', 'Посты', 'posts'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']];
   const detailName=typeof state.detail==='object'?state.detail?.name:state.detail;
+  if(detailName!=='reports')reportsFeature?.deactivate();
   if(detailName==='history'&&!historyOpen)viewerFeature?.resetHistory();
   historyOpen=detailName==='history';
   const plusActive=['subscription','purchase','purchase-order'].includes(detailName);
@@ -110,6 +115,7 @@ function render(state, canBack) {
     purchaseFeature.render(content,state);return;
   }
   if(detailName==='support'||detailName==='legal'){supportFeature.render(content,state);return;}
+  if(detailName==='reports'){reportsFeature.render(content,state);return;}
   if(detailName==='viewer-settings'){viewerFeature.render(content,{...state,tab:'profile',detail:null});return;}
   if(detailName==='history'){viewerFeature.render(content,{...state,detail:'history'});return;}
   if(!state.detail&&state.tab==='profile'){profileFeature.render(content,state);return;}
@@ -136,6 +142,7 @@ async function bootstrap() {
     streamerFeature=createStreamerFeature(api,()=>router,telegram);
     profileFeature=createProfileFeature(api,()=>router,theme);
     supportFeature=createSupportFeature(api,()=>router,telegram);
+    reportsFeature=createReportsFeature(api,()=>router);
     subscriptionFeature=createSubscriptionFeature(api,()=>router,()=>{void viewerFeature.refresh();void streamerFeature.refresh();void profileFeature.refresh();});
     purchaseFeature=createPurchaseFeature(api,()=>router,telegram);
     if(new URLSearchParams(location.search).get('screen')==='subscription')router.openDetail('subscription');

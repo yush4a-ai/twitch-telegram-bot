@@ -1,47 +1,39 @@
-import {element,action,dialog,navigationRow} from './components.js';
+import {element,action,navigationRow,avatar} from './components.js';
 
-const themes=[['light','Светлая'],['dark','Тёмная'],['telegram','Как в Telegram']];
+const themes=[['telegram','Telegram'],['light','Светлая'],['dark','Тёмная']];
 const date=value=>value?new Date(value*1000).toLocaleDateString('ru-RU',{dateStyle:'medium'}):'';
 
 export function createProfileFeature(api,getRouter,theme) {
   let state=null,loading=false,error='',disposed=false;
   async function refresh(){
     if(loading||disposed)return;loading=true;
-    try{state=await api.post('/app/api/subscription/state');error='';}
-    catch{error='Не удалось обновить подписку. Попробуйте ещё раз.';}
+    try{const result=await api.post('/app/api/subscription/state');if(!disposed){state=result;error='';}}
+    catch{if(!disposed)error='Не удалось обновить подписку. Попробуйте ещё раз.';}
     finally{loading=false;if(!disposed)getRouter().refresh();}
-  }
-  function themePicker(event){
-    dialog('Тема приложения',content=>{
-      const controls=[];
-      for(const [id,label] of themes){
-        const button=action(label,()=>{theme.setChoice(id);for(const [key,node] of controls)node.setAttribute('aria-pressed',String(key===id));},true);
-        button.className='theme-choice';button.setAttribute('aria-pressed',String(theme.getChoice()===id));controls.push([id,button]);content.append(button);
-      }
-    },{origin:event.currentTarget});
   }
   return {
     refresh,
     render(target){
       target.replaceChildren();target.dataset.profileState=state?'ready':error?'error':'loading';if(!state&&!loading&&!error)void refresh();target.append(element('h1','','Профиль'));
-      const identity=api.user,account=element('section','account-row');
-      const avatar=element('span','avatar',(identity?.display_name||String(identity?.id||'')).slice(0,1).toUpperCase());avatar.setAttribute('aria-hidden','true');
-      const copy=element('div','row-copy');copy.append(element('strong','row-title',identity?.display_name||`Telegram ID ${identity?.id}`));
-      copy.append(element('small','muted',identity?.username?`@${identity.username}`:`Telegram ID ${identity?.id}`));account.append(avatar,copy);target.append(account);
+      const identity=api.user,account=element('section','profile-account');
+      const copy=element('div','row-copy');copy.append(element('strong','profile-name',identity?.display_name||`Telegram ID ${identity?.id}`));
+      copy.append(element('small','muted',identity?.username?`@${identity.username}`:`Telegram ID ${identity?.id}`));
+      const active=state?.viewer.active||state?.streamer.active,product=state?.streamer.active?'Стример Plus':state?.viewer.active?'Зритель Plus':state?'Free':'Проверяем подписку…';
+      copy.append(element('span','profile-plan',product));
+      if(active){const until=date(state?.streamer.active?state.streamer.expires_at:state.viewer.expires_at);if(until)copy.append(element('small','muted',`До ${until}`));}
+      const offer=action(active?'Моя подписка':'О тарифе',()=>getRouter().openDetail('subscription'),true);offer.classList.add('profile-offer');copy.append(offer);
+      const mascot=element('img','profile-mascot');mascot.src='/app/mascot-cutout.png';mascot.alt='';mascot.width=112;mascot.height=112;
+      account.append(avatar(identity?.display_name||identity?.id,identity?.avatar_url),copy,mascot);target.append(account);
       if(error)target.append(element('p','notice error',error),action('Обновить подписку',refresh,true));
-      const active=state?.viewer.active||state?.streamer.active,product=state?.streamer.active?'Streamer Plus':state?.viewer.active?'Viewer Plus':'Free';
-      const group=element('section','navigation-group');
-      group.append(navigationRow(active?'Моя подписка':'О тарифе',active?`${product} · до ${date(state?.streamer.active?state.streamer.expires_at:state.viewer.expires_at)}`:'Больше стримеров, видео и точные уведомления','plus',()=>getRouter().openDetail('subscription'),'subscription'));
-      group.append(navigationRow('Уведомления','Тихие часы и настройки зрителя','notification',()=>getRouter().openDetail('viewer-settings'),'viewer-settings'));
-      group.append(navigationRow('Тема приложения',themes.find(([id])=>id===theme.getChoice())?.[1],'theme',themePicker,'theme'));target.append(group);
-      const support=element('section','navigation-group');support.append(navigationRow('Поддержка','Контакт и документы','help',()=>getRouter().openDetail('support'),'support'));
-      support.append(navigationRow('История уведомлений','Результаты ваших оповещений · Viewer Plus','history',()=>getRouter().openDetail('history'),'history'));
-      support.append(navigationRow('Отчёты в боте','Команда /report и HTML-экспорт','posts',async event=>{
-        const origin=event.currentTarget;
-        let text='Отправьте /report в личном чате бота.';
-        try{await navigator.clipboard.writeText('/report');text='Команда /report скопирована. Отправьте её в чате бота.';}catch{}
-        dialog('Отчёты в боте',content=>content.append(element('p','',text)),{origin});
-      },'report'));target.append(support);
+      target.append(element('h2','profile-section-title','Настройки'));
+      const settings=element('section','navigation-group profile-settings'),themeBox=element('div','profile-theme-box');themeBox.append(element('h3','','Тема приложения'));
+      const choices=element('div','profile-theme');choices.setAttribute('role','group');choices.setAttribute('aria-label','Тема приложения');
+      for(const [id,label] of themes){const button=action(label,()=>{theme.setChoice(id);getRouter().refresh();},true);button.setAttribute('aria-pressed',String(theme.getChoice()===id));button.dataset.focusKey=`profile-theme:${id}`;choices.append(button);}
+      themeBox.append(choices);settings.append(themeBox,navigationRow('Уведомления','Тихие часы и сводка','notification',()=>getRouter().openDetail('viewer-settings'),'viewer-settings'));target.append(settings);
+      const support=element('section','navigation-group profile-support');
+      support.append(navigationRow('Поддержка','Помощь и документы','help',()=>getRouter().openDetail('support'),'support'));
+      support.append(navigationRow('История уведомлений','Результаты оповещений · Зритель Plus','history',()=>getRouter().openDetail('history'),'history'));
+      support.append(navigationRow('Отчёты об эфирах','Автоотчёт и формат после трансляции','chart',()=>getRouter().openDetail('reports'),'reports'));target.append(support);
     },
     dispose(){disposed=true;},
   };

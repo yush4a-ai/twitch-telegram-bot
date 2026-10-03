@@ -563,3 +563,11 @@ Checkpoint 03.10.2026: разрешённый guarded staging выполнен �
 - Чистая ветка сохраняется без merge/push main/master. Штатный guard выполняет полный suite финального commit перед staging; нельзя считать старый full gate доказательством нового кода. Native visual acceptance отдельно.
 
 - Итог polish: release3189fa8 прошёл guard full1462/3274 и фактическую pinned staging проверку185files/Testbot8859004067; deployment36e6e769 activeSUCCESS. Нативная приёмка и внешние коммерческие блокеры явно остаются NOT TESTED/NOT READY. Ветка сохраняется, только evidence/docs checkpoint после release.
+
+
+## Правки владельца Mini App — финальный локальный checkpoint 03.10.2026
+
+Принятый голосом объём интегрирован в codex/mini-app-owner-corrections (база9aac74e). Меню на staging пользователь подтвердил «Да, работает»; остальные изменения ещё не развёрнуты. Избранное/свайп/серверный Undo, права/аватары, компактные тарифы и Подробнее, Главная/Профиль/темы, настройки отчётов сохранены в рабочем дереве. Итоговая component matrix: Chromium115 и WebKit115 PASS, по37PNG, без входа/SDK/API. Reviewer подтвердил закрытие трёхP2, detector[]. Подробности/ограничения: docs/audits/mini-app-owner-corrections-2026-10-03/REVIEW.md. Впереди backup, migration-copy, полный gate точного commit и pinned staging.
+
+
+Последняя правка владельца к персонажу учтена: прозрачный полный силуэт, крупная композиция Главной; рабочие снимки показаны в чате. RELEASE matrix: Chromium 137 / WebKit 137 PASS, по 41 PNG; cutover 19 PASS / 2 subtests, shell/copy 9 PASS / 3024 subtests. Backup 60 таблиц PASS. Точные итоговые сведения: docs/audits/mini-app-owner-corrections-2026-10-03/REVIEW.md. Ожидаются migration-copy и полный guard перед staging.

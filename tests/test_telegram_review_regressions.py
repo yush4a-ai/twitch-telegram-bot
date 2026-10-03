@@ -132,7 +132,7 @@ class ReviewRegressionTests(unittest.IsolatedAsyncioTestCase):
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
         await cb_plus(self.cb('menu:plus'),self.state,self.db)
         text=self.msg.edit_text.await_args.args[0]
-        self.assertIn('В Streamer Plus включены все возможности Viewer Plus.',text)
+        self.assertIn('В Стример Plus включены все возможности Зритель Plus.',text)
         self.assertNotIn('уже включён для твоего',text)
         self.assertFalse(await self.db.has_viewer_plus(101))
 

@@ -1,0 +1,217 @@
+{
+  "engine": "chromium",
+  "kind": "isolated-components-no-auth-no-api",
+  "checks": [
+    {
+      "name": "channel-name-is-heading",
+      "pass": true
+    },
+    {
+      "name": "rights-check-visible-pending",
+      "pass": true
+    },
+    {
+      "name": "rights-check-unchanged-success",
+      "pass": true
+    },
+    {
+      "name": "rights-check-does-not-toggle-publishing",
+      "pass": true
+    },
+    {
+      "name": "rights-check-error-near-control",
+      "pass": true
+    },
+    {
+      "name": "rights-error-no-success",
+      "pass": true
+    },
+    {
+      "name": "rights-missing-specific-result",
+      "pass": true
+    },
+    {
+      "name": "rights-late-response-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "favorites-first-across-live-offline",
+      "pass": true
+    },
+    {
+      "name": "favorite-controls-present",
+      "pass": true
+    },
+    {
+      "name": "favorite-independent-notifications",
+      "pass": true
+    },
+    {
+      "name": "notifications-independent-favorite",
+      "pass": true
+    },
+    {
+      "name": "favorite-failure-retains-star",
+      "pass": true
+    },
+    {
+      "name": "swipe-shell-present",
+      "pass": true
+    },
+    {
+      "name": "vertical-scroll-does-not-reveal-delete",
+      "pass": true
+    },
+    {
+      "name": "swipe-reveals-without-deleting",
+      "pass": true
+    },
+    {
+      "name": "delete-failure-keeps-row",
+      "pass": true
+    },
+    {
+      "name": "delete-click-removes-only-target",
+      "pass": true
+    },
+    {
+      "name": "long-name-and-controls-fit-320",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-price",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-entry",
+      "pass": false
+    },
+    {
+      "name": "viewer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-features-preserved",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-price",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-entry",
+      "pass": false
+    },
+    {
+      "name": "streamer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-features-preserved",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "inherited-viewer-explained",
+      "pass": true
+    },
+    {
+      "name": "unlinked-streamer-retains-subscription",
+      "pass": true
+    },
+    {
+      "name": "no-js-errors",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "no-api-or-auth-requests",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "source-snapshot-unchanged",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "screenshots": [
+    "channel-pending.png",
+    "channel-ready.png",
+    "channel-error.png",
+    "channel-no-rights.png",
+    "streamers-swipe.png",
+    "streamers-320.png",
+    "viewer-light-390.png",
+    "viewer-light-text200.png",
+    "streamer-light-390.png",
+    "streamer-light-text200.png",
+    "viewer-inherited.png"
+  ],
+  "sources": {
+    "api.js": "1cb3052a8c4de6c5b4bebae9eb12ede122b54ce42423fac6c0b8d495da2a8144",
+    "app.css": "238bfbe8cead02b078a80a9247ef873bf76bddba8d1e56add8f5d2b66a4fee5f",
+    "app.js": "ea6ce96fb619f8b37a0ae998d9bcbd6381946a6eed534b8701e07351b9f62638",
+    "components.js": "f52cc67a84d12fcaed256897f67f92cc932aa67b62968b31abb0c9431022b6ab",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "405edd827b14708feacd2a7f874b8e22e149fc70cb242d315838c7d40493566f",
+    "purchase.js": "fcf9eedcd24149e25c61f652899a35090f3b7f58545881ecd60604d4c34b48a5",
+    "router.js": "7d4abd2a59b2927e1cb3bb298c4599a9849a7b6db7356742bc446745a4e85fb3",
+    "streamer.js": "c951f65e0ab173ee224c3b1535afbdb28b179c50af46139e647babb7762e741b",
+    "streamer_posts.js": "e9ae01b7a42034d83dc52491bee04f925ab7833984134d5cac7dad548ac5b677",
+    "subscription.js": "75c3c574779cd5f6a676130d77439aecad2d35ad0db95f77047403ba29777cc1",
+    "support.js": "6ac16bc6196ffa7ba0ab2e0e3a9f80b028ba8e60c3389bb284f6560df2b54d16",
+    "telegram.js": "4886f67baff98092009b1c743609367b9c033b62a50248511601d0237800542f",
+    "theme.js": "51b1a022fb0aeae4108b7e4c2cd47d2c2cacab47f3b1199a6a65ee105ccf90df",
+    "viewer.js": "c5e50676578517f4996ad5e0212cac3b13bb7874fe56404e0959f4727b52ab5d"
+  },
+  "status": "FAIL"
+}

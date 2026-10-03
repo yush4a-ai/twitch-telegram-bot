@@ -70,7 +70,7 @@ class MiniAppCopyTests(unittest.TestCase):
             self.assertIsNone(row['xtr'])
         self.assertEqual(PAYMENT_UNAVAILABLE_MESSAGE,'Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.')
         for path in (ROOT/'bot/mini_app_ui').glob('*'):
-            if path.is_file():
+            if path.is_file() and path.suffix in {'.js','.css','.html'}:
                 self.assertNotRegex(path.read_text(encoding='utf-8'),r'200\s*₽')
 
     def test_free_reports_and_old_bot_paths_remain_available(self):
@@ -80,8 +80,11 @@ class MiniAppCopyTests(unittest.TestCase):
         self.assertNotIn('admin',commands)
         self.assertIn('admin',{command.command for command in _private_bot_commands([],owner=True)})
         profile=(ROOT/'bot/mini_app_ui/profile.js').read_text(encoding='utf-8')
-        self.assertIn('Отчёты в боте',profile)
-        self.assertIn("writeText('/report')",profile)
+        self.assertIn('Отчёты об эфирах',profile)
+        self.assertIn("openDetail('reports')",profile)
+        reports=(ROOT/'bot/mini_app_ui/reports.js').read_text(encoding='utf-8')
+        self.assertIn('Автоотчёт после эфира',reports)
+        self.assertIn('Текст + HTML',reports)
         self.assertNotIn('send_message',profile)
         from bot.report import build_report_html
         self.assertTrue(callable(build_report_html))

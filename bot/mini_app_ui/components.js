@@ -11,6 +11,13 @@ export function panel(title, description) {
   return node;
 }
 
+export function avatar(name, url) {
+  const node=element('span','avatar',String(name||'?').slice(0,1).toUpperCase());node.setAttribute('aria-hidden','true');
+  const valid=typeof url==='string'&&(/^https:\/\/static-cdn\.jtvnw\.net\/jtv_user_pictures\/[^?#]+$/.test(url)||/^https:\/\/t\.me\/i\/userpic\/[A-Za-z0-9_./=-]+$/.test(url)||/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(url));
+  if(valid){const image=element('img','avatar-image');image.alt='';image.width=44;image.height=44;image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';image.addEventListener('error',()=>image.remove(),{once:true});image.src=url;node.append(image);}
+  return node;
+}
+
 export function action(label, callback, secondary = false) {
   const button = element('button', `button${secondary ? ' secondary' : ''}`, label);
   button.type = 'button';
@@ -32,6 +39,7 @@ export function action(label, callback, secondary = false) {
 }
 
 const paths = {
+  star:['m12 3 2.8 5.7 6.3.9-4.5 4.4 1 6.2-5.6-2.9-5.6 2.9 1-6.2-4.5-4.4 6.3-.9z'],
   home:['M3 11 12 3l9 8','M5 10v11h5v-7h4v7h5V10'],
   people:['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2','M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8','M17 4a4 4 0 0 1 0 7','M22 21v-2a4 4 0 0 0-3-3.9'],
   profile:['M20 21v-2a8 8 0 0 0-16 0v2','M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8'],

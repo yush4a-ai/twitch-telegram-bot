@@ -1,6 +1,6 @@
 import { createStreamerPostsFeature } from './streamer_posts.js';
 import { ApiError } from './api.js';
-import { element, panel, action, navigationRow, icon } from './components.js';
+import { element, panel, action, navigationRow, icon, avatar } from './components.js';
 
 export function createStreamerFeature(api, getRouter, telegram) {
   let data = null;
@@ -8,8 +8,9 @@ export function createStreamerFeature(api, getRouter, telegram) {
   let requested = false;
   let error = '';
   let feedback = '';
+  let permissionCheck = null;
   let feedbackRevision = 0;
-  function clearFeedback() { feedback = ''; ++feedbackRevision; }
+  function clearFeedback() { feedback = ''; permissionCheck = null; ++feedbackRevision; }
   function connectionFeedbackWriter() {
     const revision = feedbackRevision;
     return message => {
@@ -60,6 +61,10 @@ export function createStreamerFeature(api, getRouter, telegram) {
     if (profilePromise && !fresh) return profilePromise;
     profileController?.abort(); profileController = new AbortController();
     const controller = profileController, generation = ++profileGeneration;
+    let timedOut = false;
+    // The server checks three channels at a time (5s rights + optional 1s photo).
+    const budget = Math.max(30000, Math.ceil((data?.communities.length || 1) / 3) * 6000 + 5000);
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, budget);
     requested = true; loading = true;
     refresh();
     const promise = (async () => {
@@ -68,18 +73,40 @@ export function createStreamerFeature(api, getRouter, telegram) {
         if (disposed || generation !== profileGeneration) return;
         data = result; error = '';
         if (data.connected && !connectIntent) connectUrl = '';
+        return result;
       } catch (cause) {
-        if (disposed || controller.signal.aborted || generation !== profileGeneration) return;
+        if (disposed || (controller.signal.aborted && !timedOut) || generation !== profileGeneration) return;
         error = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
           ? 'Время входа истекло. Откройте приложение из чата бота.'
           : 'Нет связи. Показываем последние загруженные данные.';
       } finally {
+        clearTimeout(timeout);
         if (!disposed && generation === profileGeneration) { loading = false; refresh(); }
       }
     })();
     profilePromise = promise;
-    try { await promise; } finally { if (profilePromise === promise) profilePromise = null; }
+    let result;
+    try { result = await promise; } finally { if (profilePromise === promise) profilePromise = null; }
     if (!disposed && (connectIntent || communityIntent)) scheduleStatus();
+    return result;
+  }
+  async function checkPermissions(community) {
+    if (loading || disposed) return;
+    clearFeedback();
+    const revision = feedbackRevision, chatId = community.chat_id;
+    permissionCheck = {chatId, pending:true, message:'Проверяем права…'};
+    const result = await load({fresh:true});
+    const route = getRouter().state;
+    if (disposed || revision !== feedbackRevision || route.mode !== 'streamer' || route.detail !== `channel:${chatId}`) return;
+    const checked = result?.communities.find(item => item.chat_id === chatId);
+    const status = checked?.permission_status || (checked?.permission_ok ? 'ready' : 'network_error');
+    const message = !result
+      ? error.startsWith('Время входа') ? error : 'Не удалось проверить права. Повторите попытку.'
+      : !checked ? 'Канал больше недоступен. Вернитесь к списку подключений.'
+      : status === 'ready' && checked.permission_ok ? 'Права проверены. Бот может публиковать.'
+      : `${permissionText[status] || 'Права не подтверждены'}. ${permissionHelp[status] || ''}`.trim();
+    permissionCheck = {chatId, pending:false, message};
+    refresh();
   }
   function scheduleStatus() {
     clearTimeout(statusTimer);
@@ -242,9 +269,10 @@ export function createStreamerFeature(api, getRouter, telegram) {
       for (const community of data.communities) {
         const status = community.permission_status || (community.permission_ok ? 'ready' : 'network_error');
         const detail = community.chat_type === 'channel' ? 'Telegram-канал' : 'Подключённая группа';
-        list.append(navigationRow(community.title,
+        const row=navigationRow(community.title,
           `${detail} · ${status === 'ready' ? community.publishing ? 'Публикации включены' : 'Публикации выключены' : permissionText[status] || 'Права не подтверждены'}`,
-          'channel', () => getRouter().openDetail(`channel:${community.chat_id}`), `channel:${community.chat_id}`));
+          'channel', () => getRouter().openDetail(`channel:${community.chat_id}`), `channel:${community.chat_id}`);
+        row.firstChild.replaceWith(avatar(community.title,community.avatar_url));list.append(row);
       }
       if (list.childElementCount) target.append(list);
       const instructions = element('details', 'connection-instructions');
@@ -266,20 +294,30 @@ export function createStreamerFeature(api, getRouter, telegram) {
   function renderCommunity(target, id) {
     const community = data.communities.find(item => item.chat_id === Number(id));
     if (!community) { heading(target, 'Канал недоступен', 'Вернитесь к списку подключений.'); return; }
-    heading(target, community.chat_type === 'channel' ? 'Telegram-канал' : 'Telegram-группа', community.title);
+    heading(target, community.title, community.chat_type === 'channel' ? 'Telegram-канал' : 'Telegram-группа');
+    const portrait=avatar(community.title,community.avatar_url);portrait.classList.add('channel-avatar');target.prepend(portrait);
     const status = community.permission_status || (community.permission_ok ? 'ready' : 'network_error');
-    const state = element('section', 'connection-state'); state.dataset.permissionStatus = status;
-    state.append(element('strong', '', permissionText[status] || 'Права не подтверждены'));
-    if (permissionHelp[status]) state.append(element('p', 'muted', permissionHelp[status]));
+    const state = element('section', 'connection-state channel-publishing'); state.dataset.permissionStatus = status;
+    state.append(element('strong', '', community.publishing ? 'Публикации включены' : 'Публикации приостановлены'));
+    state.append(element('p', 'muted', community.publishing
+      ? status === 'ready' ? 'Бот опубликует пост при следующем эфире.' : 'Для отправки постов нужно восстановить права.'
+      : 'Новые посты об эфирах не отправляются.'));
     target.append(state);
     const pending = publishingPending.has(community.chat_id);
     if (community.publishing || community.permission_ok) {
       const toggle = action(community.publishing ? 'Приостановить публикации' : 'Включить публикации',
         () => togglePublishing(community, !community.publishing), community.publishing);
-      toggle.disabled = pending; toggle.classList.add('connection-action'); target.append(toggle);
+      toggle.disabled = pending; toggle.classList.add('connection-action'); state.append(toggle);
     }
-    target.append(element('p', 'notice', community.publishing ? 'Публикации включены' : 'Публикации выключены'));
-    const retry = action('Проверить права', () => { clearFeedback(); return load({fresh:true}); }, true); retry.disabled = loading; retry.classList.add('connection-action'); target.append(retry);
+    const rights = element('section', 'permission-check');
+    rights.append(element('h2', '', 'Права бота'));
+    const result = permissionCheck?.chatId === community.chat_id ? permissionCheck : null;
+    const note = element('p', 'notice permission-result', result?.message || (status === 'ready' ? 'Бот может публиковать сообщения.' : `${permissionText[status] || 'Права не подтверждены'}. ${permissionHelp[status] || ''}`.trim()));
+    note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite'); note.setAttribute('aria-atomic', 'true');
+    const retry = action(result?.pending ? 'Проверяем…' : 'Проверить права', () => checkPermissions(community), true);
+    retry.disabled = loading; retry.classList.add('permission-button');
+    rights.append(retry, note); target.append(rights);
+    target.append(navigationRow('Отчёты об эфирах','Автоотчёт и формат после трансляции','chart',()=>getRouter().openDetail({name:'reports',id:`${community.chat_id}:${data.twitch_login}`}),'reports'));
     if (typeof community.public_url === 'string' && /^https:\/\/t\.me\/[A-Za-z][A-Za-z0-9_]{4,31}$/.test(community.public_url)) {
       target.append(connectionAction('Открыть канал', () => telegram.openTelegramLink(community.public_url), true));
     }
@@ -288,7 +326,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
   function renderProfile(target) {
     heading(target, 'Профиль', 'Подключение и доступ стримера.');
     target.append(panel('Twitch', data.connected ? data.twitch_login : 'Не подключён'));
-    target.append(panel('Streamer Plus', data.plus_active ? 'Активен' : 'Обычный пост и подключение сообщества доступны бесплатно.'));
+    target.append(panel('Стример Plus', data.plus_active ? 'Активен' : 'Обычный пост и подключение сообщества доступны бесплатно.'));
     const access = element('div', 'actions');
     access.append(action('Доступ и история', () => getRouter().openDetail('subscription'), true));
     target.append(access);

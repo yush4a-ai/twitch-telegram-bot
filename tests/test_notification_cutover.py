@@ -42,6 +42,57 @@ class NotificationCutoverTests(unittest.IsolatedAsyncioTestCase):
         self.poller._notify.assert_not_awaited()
         self.assertEqual((await NotificationQueue(self.db).depth_snapshot(1060.0))["pending_jobs"], 1)
 
+    async def test_undo_keeps_live_message_and_does_not_repeat_done_start(self):
+        for message_id in (None,321):
+            with self.subTest(message_id=message_id):
+                await self.db.conn.execute('DELETE FROM notification_jobs')
+                await self.db.conn.commit()
+                await self.db.set_live_state(1,'alpha',True,'s1',message_id=message_id,title='Live',last_seen_live_at=1000.0,queued_go_live=message_id is None)
+                undo=await self.db.remove_channel_with_undo(1,'alpha')
+                await self.db.conn.execute("UPDATE notification_jobs SET status='done'")
+                await self.db.conn.commit()
+                self.assertEqual((await self.db.undo_channel_removal(1,undo['undo_token']))[0],'restored')
+                self.assertEqual((await self.db.get_live_post_state(1,'alpha')).message_id,message_id)
+                for now in (1060.0,1120.0):
+                    with patch('bot.poller.time.time',return_value=now):await self.poller._check_streams()
+                self.poller._notify.assert_not_awaited()
+
+    async def test_explicit_reenable_after_undo_can_resume_current_stream(self):
+        await self.db.set_live_state(1,'alpha',True,'s1',title='Live',last_seen_live_at=1000.0)
+        await self.db.set_notify_enabled(1,'alpha',False)
+        undo=await self.db.remove_channel_with_undo(1,'alpha')
+        await self.db.undo_channel_removal(1,undo['undo_token'])
+        await self.db.set_personal_notify_if_subscribed(1,'alpha',True)
+        with patch('bot.poller.time.time',return_value=1060.0):await self.poller._check_streams()
+        self.poller._notify.assert_awaited_once()
+
+    async def test_pending_start_after_undo_completes_once_and_new_stream_is_allowed(self):
+        with patch('bot.poller.time.time',return_value=1000.0):await self.poller._check_streams()
+        removed=await self.db.remove_channel_with_undo(1,'alpha')
+        await self.db.undo_channel_removal(1,removed['undo_token'])
+        worker=NotificationWorker(NotificationQueue(self.db),self.poller.send_queued_job,max_concurrency=1,per_chat_interval=0,clock=lambda:1060.0)
+        self.assertEqual(await worker.run_once(),1)
+        self.assertEqual(await worker.run_once(),0)
+        with patch('bot.poller.time.time',return_value=1060.0):await self.poller._check_streams()
+        self.poller._notify.assert_awaited_once()
+        # Finish the old logical session through the existing finalization path.
+        await self.db.set_live_state(1,'alpha',False,'s1',321,offline_since=0)
+        self.assertTrue(await self.db.mark_live_post_ended_if_current(1,'alpha','s1',321))
+        await self.db.mark_stats_sent(1,'alpha')
+        await self.db.clear_finished_session(1,'alpha')
+        old=await self.db.get_live_post_state(1,'alpha')
+        self.assertIsNone(old.logical_stream_id)
+        self.assertIsNone(old.message_id)
+        self.stream.stream_id='s2'
+        with patch('bot.poller.time.time',return_value=1060.0):await self.poller._check_streams()
+        self.assertEqual(await worker.run_once(),1)
+        self.poller._notify.assert_awaited_once()  # Stale old live_update has no send.
+        self.assertEqual(await worker.run_once(),1)
+        self.assertEqual(self.poller._notify.await_count,2)
+        cursor=await self.db.conn.execute("SELECT logical_stream_id,status,attempt_count FROM notification_jobs WHERE chat_id=1 AND twitch_login='alpha' AND kind='go_live' ORDER BY logical_stream_id")
+        self.assertEqual(await cursor.fetchall(),[('s1','done',1),('s2','done',1)])
+        self.assertEqual((await self.db.get_live_post_state(1,'alpha')).logical_stream_id,'s2')
+
     async def test_poll_persists_verified_broadcaster_and_clears_it_for_unknown_new_stream(self):
         self.stream.broadcaster_id = "11"
         with patch("bot.poller.time.time", return_value=1000.0):

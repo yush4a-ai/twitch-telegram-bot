@@ -682,6 +682,9 @@ class Database:
         await self._migrate_billing_subject_schema()
         await self._migrate_viewer_schema()
         await self._migrate_viewer_preferences_schema()
+        await self._migrate_viewer_favorites_schema()
+        from .viewer_undo import migrate as migrate_viewer_undo
+        await migrate_viewer_undo(self.conn)
         await self._migrate_viewer_reminder_schema()
         await self._migrate_viewer_folder_schema()
         await self._migrate_viewer_history_schema()
@@ -759,6 +762,19 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('mini_001_viewer_preferences',?)", (time.time(),)
+        )
+
+    async def _migrate_viewer_favorites_schema(self) -> None:
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS viewer_favorites ("
+            "telegram_user_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "PRIMARY KEY(telegram_user_id,twitch_login), "
+            "FOREIGN KEY(telegram_user_id,twitch_login) "
+            "REFERENCES tracked_channels(chat_id,twitch_login) ON DELETE CASCADE) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('mini_010_viewer_favorites',?)", (time.time(),)
         )
 
     async def _migrate_viewer_reminder_schema(self) -> None:
@@ -2695,6 +2711,37 @@ class Database:
 
     @_serialized
     async def remove_channel(self, chat_id: int, twitch_login: str) -> bool:
+        removed = await self._remove_channel_rows(chat_id, twitch_login)
+        await self.conn.commit()
+        return removed
+
+    @_serialized
+    async def remove_channel_with_undo(self, user_id: int, login: str):
+        from .viewer_undo import snapshot, issue
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError('personal subscription required')
+        await self.conn.execute('BEGIN IMMEDIATE')
+        saved = await snapshot(self.conn, user_id, login)
+        if saved is None:
+            await self.conn.commit()
+            return None
+        await self._remove_channel_rows(user_id, login)
+        result = await issue(self.conn, user_id, login, saved)
+        await self.conn.commit()
+        return result
+
+    @_serialized
+    async def undo_channel_removal(self, user_id: int, token: str):
+        from .viewer_undo import restore
+        if type(user_id) is not int or user_id <= 0 or not isinstance(token, str) or len(token) != 43:
+            raise ValueError('invalid undo')
+        await self.conn.execute('BEGIN IMMEDIATE')
+        limit = VIEWER_PLUS_CHANNEL_LIMIT if await self.has_viewer_plus(user_id) else FREE_VIEWER_CHANNEL_LIMIT
+        result = await restore(self.conn, user_id, token, limit)
+        await self.conn.commit()
+        return result
+
+    async def _remove_channel_rows(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
             "DELETE FROM tracked_channels WHERE chat_id = ? AND twitch_login = ?",
             (chat_id, twitch_login),
@@ -2725,7 +2772,6 @@ class Database:
                     "UPDATE viewer_video_selection_state SET version=version+1 "
                     "WHERE telegram_user_id=?", (chat_id,),
                 )
-        await self.conn.commit()
         return cursor.rowcount > 0
 
     @_serialized
@@ -2740,6 +2786,7 @@ class Database:
             "DELETE FROM tracked_channels WHERE chat_id = ?", (chat_id,)
         )
         removed = cursor.rowcount
+        await self.conn.execute('DELETE FROM viewer_unfollow_undo WHERE telegram_user_id=?', (chat_id,))
         if chat_id > 0:
             await self.conn.execute(
                 "DELETE FROM viewer_alert_filters WHERE telegram_user_id=?", (chat_id,)
@@ -2963,6 +3010,34 @@ class Database:
         await self.conn.commit()
         return cursor.rowcount == 1
 
+    async def list_viewer_favorites(self, telegram_user_id: int) -> set[str]:
+        cursor = await self.conn.execute(
+            "SELECT twitch_login FROM viewer_favorites WHERE telegram_user_id=?", (telegram_user_id,)
+        )
+        return {row[0] for row in await cursor.fetchall()}
+
+    @_serialized
+    async def set_viewer_favorite(self, telegram_user_id: int, twitch_login: str, is_favorite: bool) -> bool:
+        if type(is_favorite) is not bool or type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid favorite")
+        if is_favorite:
+            await self.conn.execute(
+                "INSERT OR IGNORE INTO viewer_favorites(telegram_user_id,twitch_login) "
+                "SELECT chat_id,twitch_login FROM tracked_channels WHERE chat_id=? AND twitch_login=?",
+                (telegram_user_id, twitch_login),
+            )
+        else:
+            await self.conn.execute(
+                "DELETE FROM viewer_favorites WHERE telegram_user_id=? AND twitch_login=?",
+                (telegram_user_id, twitch_login),
+            )
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM tracked_channels WHERE chat_id=? AND twitch_login=?", (telegram_user_id, twitch_login)
+        )
+        exists = await cursor.fetchone() is not None
+        await self.conn.commit()
+        return exists
+
     async def get_preview_enabled(self, chat_id: int, twitch_login: str) -> bool:
         cursor = await self.conn.execute(
             "SELECT preview_enabled FROM tracked_channels "
@@ -3026,6 +3101,16 @@ class Database:
             (report_format, chat_id, twitch_login),
         )
         await self.conn.commit()
+
+    @_serialized
+    async def save_report_preferences(self, chat_id: int, login: str, enabled: bool, format_: str, *, channel: bool) -> bool:
+        if type(enabled) is not bool or type(channel) is not bool or format_ not in ('brief','full'):
+            raise ValueError('invalid report preferences')
+        field='channel_report_enabled' if channel else 'auto_report_enabled'
+        cursor=await self.conn.execute(f'UPDATE tracked_channels SET {field}=?,report_format=? WHERE chat_id=? AND twitch_login=?',
+                                       (int(enabled),format_,chat_id,login))
+        await self.conn.commit()
+        return cursor.rowcount==1
 
     async def get_report_format(self, chat_id: int, twitch_login: str) -> str:
         """'full' (текст + HTML-отчёт) или 'brief' (только текст). По умолчанию 'brief'."""
@@ -3907,6 +3992,13 @@ class Database:
             "AND status IN ('pending', 'leased', 'failed')"
         )
         return set(await cursor.fetchall())
+
+    async def is_restored_viewer_session(self, user_id: int, login: str, stream_id: str) -> bool:
+        cursor = await self.conn.execute(
+            'SELECT 1 FROM viewer_restored_sessions WHERE telegram_user_id=? AND twitch_login=? AND stream_id=?',
+            (user_id, login, stream_id),
+        )
+        return await cursor.fetchone() is not None
 
     @_serialized
     async def set_live_message_if_current(

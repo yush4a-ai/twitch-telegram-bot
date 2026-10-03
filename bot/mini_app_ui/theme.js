@@ -1,13 +1,13 @@
 // Semantic tokens from the accepted A palette; Telegram is an explicit choice.
 const LIGHT = Object.freeze({
   canvas:'#f5f6f8', surface:'#ffffff', text:'#20242b', secondary:'#626a78', line:'#dce0e6',
-  accent:'#1762db', soft:'#edf3ff', danger:'#a82b36', link:'#1762db', header:'#f5f6f8',
-  bottom:'#ffffff', 'button-bg':'#1762db', 'button-fg':'#ffffff', 'control-track':'#eceef2', warning:'#835600',
+  accent:'#7135cc', soft:'#f1eafa', danger:'#a82b36', link:'#7135cc', header:'#f5f6f8',
+  bottom:'#ffffff', 'button-bg':'#7135cc', 'button-fg':'#ffffff', 'control-track':'#eceaf0', warning:'#835600',
 });
 const DARK = Object.freeze({
   canvas:'#171717', surface:'#242424', text:'#f1f1f1', secondary:'#bababa', line:'#3d3d3d',
-  accent:'#91baff', soft:'#333333', danger:'#ffa4af', link:'#91baff', header:'#171717',
-  bottom:'#242424', 'button-bg':'#91baff', 'button-fg':'#141414', 'control-track':'#3d3d3d', warning:'#eac774',
+  accent:'#c6a4ff', soft:'#30233f', danger:'#ffa4af', link:'#c6a4ff', header:'#171717',
+  bottom:'#242424', 'button-bg':'#c6a4ff', 'button-fg':'#1c1230', 'control-track':'#343038', warning:'#eac774',
 });
 const CHOICES = new Set(['light','dark','telegram']);
 const KEY = 'ts-app-theme';

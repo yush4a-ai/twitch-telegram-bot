@@ -25,6 +25,13 @@ def signed_identity(user, *, at=None):
 
 
 class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
+    async def test_optional_profile_avatar_uses_signed_public_telegram_url_only(self):
+        from bot.telegram_identity import verify_webapp_identity
+        for url,expected in [('https://t.me/i/userpic/320/abc.jpg','https://t.me/i/userpic/320/abc.jpg'),
+                             ('https://evil.example/avatar.png',None),('https://t.me@evil.example/i/userpic/x',None),
+                             ('https://api.telegram.org/file/bot123:secret/avatar.jpg',None)]:
+            with self.subTest(url=url):
+                self.assertEqual(verify_webapp_identity(signed_identity({'id':101,'photo_url':url}),BOT_TOKEN).avatar_url,expected)
     async def test_profile_metadata_is_signed_and_id_wrapper_keeps_auth_contract(self):
         from bot.telegram_identity import verify_webapp_identity, verify_webapp_user
         user={"id":101,"first_name":"Очень длинное настоящее имя", "last_name":"Фамилия", "username":"verified_owner"}
@@ -49,7 +56,7 @@ class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(verify_webapp_identity(signed_identity({"id":101},at=timestamp),BOT_TOKEN) is not None,allowed)
         response=await self.session.post(self.base+"/app/api/bootstrap",json={"init_data":signed,"username":"client_override"})
         payload=await response.json()
-        self.assertEqual(payload["user"],{"id":101,"display_name":identity.display_name,"username":"verified_owner"})
+        self.assertEqual(payload["user"],{"id":101,"display_name":identity.display_name,"username":"verified_owner","avatar_url":None})
     async def asyncSetUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.db = Database(os.path.join(self.directory.name, "bot.db"))

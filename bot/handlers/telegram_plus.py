@@ -64,7 +64,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         label=await access_label(db,actor,product['product_id'],active,now)
         end=datetime.fromtimestamp(active['expires_at'],timezone.utc).astimezone(timezone(timedelta(hours=3)))
         text=f"Моя подписка\n\n{product['title']}\nСтатус: {label}\nДо {end:%d.%m.%Y %H:%M} (МСК)\n\n"
-        if key=='streamer': text+='Viewer Plus включён.\n\n'
+        if key=='streamer': text+='Зритель Plus включён.\n\n'
         text+=benefits(product)
         if key=='streamer': text+='\n\n'+benefits(product_view('viewer_plus'))
         text+='\n\nАвтопродление выключено.'
@@ -81,7 +81,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         except StopIteration:
             await callback.answer('Тариф недоступен. Открой тариф заново.',show_alert=True);return
         text=f"Тариф\n\n{product['title']}\n{product['price_label']} / {product['period_label'].removeprefix('1 ')}\n\n"
-        if product['includes']: text+='В Streamer Plus включены все возможности Viewer Plus.\n\n'
+        if product['includes']: text+='В Стример Plus включены все возможности Зритель Plus.\n\n'
         text+=benefits(product)
         if product['includes']: text+='\n\n'+benefits(product_view('viewer_plus'))
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product))

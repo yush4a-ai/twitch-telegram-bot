@@ -51,7 +51,7 @@ export function createPurchaseFeature(api,getRouter,telegram) {
     if(order.monetary)target.append(element('p','muted',catalog.methods.find(m=>m.id===order.method)?.title||'Способ оплаты'));
     target.append(element('p','muted',`Создана ${dateText(order.created_at)}`));
     if(order.access_expires_at)target.append(element('p','muted',`Срок доступа по операции: до ${dateText(order.access_expires_at)}`));
-    target.append(element('p','',order.effective_access.viewer?'Возможности Viewer Plus сейчас активны.':'Возможности Viewer Plus сейчас не активны.'));
+    target.append(element('p','',order.effective_access.viewer?'Возможности Зритель Plus сейчас активны.':'Возможности Зритель Plus сейчас не активны.'));
     const update=action('Обновить статус',()=>loadOrder(id),true);update.disabled=current.loading;target.append(update,navigationRow('Документы и поддержка','','help',()=>getRouter().openDetail('support')));
   }
   const visibility=()=>{const route=getRouter().state;if(!document.hidden&&route.detail?.name==='purchase-order')void loadOrder(route.detail.id,{fresh:true});};
