@@ -1,0 +1,17 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ GuidedFlowTests.test_timezone_quick_choice_keeps_free_local_clock_and_rejects_old_choice _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_timezone_quick_choice_keeps_free_local_clock_and_rejects_old_choice>
+
+    async def test_timezone_quick_choice_keeps_free_local_clock_and_rejects_old_choice(self):
+        await streams.cb_menu_quiet_hours(self.cb('menu:quiet_hours'),self.state,self.db)
+        call=self.msg.edit_text.await_args
+        actions={b.callback_data for row in call.kwargs['reply_markup'].inline_keyboard for b in row}
+>       self.assertIn('qh:offset:180',actions)
+E       AssertionError: 'qh:offset:180' not found in {'menu:home'}
+
+tests\test_telegram_guided_flows.py:77: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_timezone_quick_choice_keeps_free_local_clock_and_rejects_old_choice
+1 failed, 6 deselected in 3.72s

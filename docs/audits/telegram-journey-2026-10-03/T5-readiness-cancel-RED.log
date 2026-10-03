@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ GuidedFlowTests.test_readiness_transition_cancels_unfinished_channel_selection _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_readiness_transition_cancels_unfinished_channel_selection>
+
+    async def test_readiness_transition_cancels_unfinished_channel_selection(self):
+        from bot.handlers import telegram_streamer as handlers
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        await handlers.cb_streamer_channel(self.cb('streamer:channel'),self.state,self.db)
+        intent=(await self.state.get_data())['telegram_community_intent']
+        kwargs={'state':self.state} if 'state' in inspect.signature(handlers.cb_streamer_readiness).parameters else {}
+        await handlers.cb_streamer_readiness(self.cb('streamer:readiness'),self.db,**kwargs)
+>       self.assertEqual((await self.db.get_community_intent(intent))[6],'cancelled')
+E       AssertionError: 'pending' != 'cancelled'
+E       - pending
+E       + cancelled
+
+tests\test_telegram_guided_flows.py:125: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_readiness_transition_cancels_unfinished_channel_selection
+1 failed, 8 deselected in 3.83s

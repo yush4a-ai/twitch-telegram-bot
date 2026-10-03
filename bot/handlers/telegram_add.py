@@ -11,6 +11,7 @@ from .streams import _extract_login_text, _is_valid_login, _tracking_limit
 
 def result_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Добавить ещё",callback_data="menu:add")],
         [InlineKeyboardButton(text="Мои стримеры",callback_data="menu:list")],
         [InlineKeyboardButton(text="На главную",callback_data="menu:home")]])
 
@@ -28,7 +29,7 @@ async def show_found(message, state, login, display_name, token, *, edit=False):
     await send(f"Найден стример: <b>{html.escape(display_name)}</b>\nTwitch: {html.escape(login)}\n\nДобавить его?",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Добавить",callback_data='addconfirm:'+confirmation)],
-            [InlineKeyboardButton(text="← На главную",callback_data='menu:home')]]))
+            [InlineKeyboardButton(text="Отменить",callback_data='menu:home')]]))
 
 
 async def process_confirmed_input(message, state, db, twitch):

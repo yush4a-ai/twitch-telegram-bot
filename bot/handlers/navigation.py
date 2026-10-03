@@ -63,6 +63,10 @@ def build_navigation_router():
     router.callback_query.register(cb_streamer_connect,F.data == 'streamer:connect')
     router.callback_query.register(cb_streamer_check,F.data == 'streamer:check')
     router.callback_query.register(cb_streamer_channel,F.data == 'streamer:channel')
+    from .telegram_streamer import cb_channel_help,cb_channel_resume,cb_streamer_readiness
+    router.callback_query.register(cb_channel_help,F.data == 'streamer:channelhelp')
+    router.callback_query.register(cb_channel_resume,F.data == 'streamer:channelresume')
+    router.callback_query.register(cb_streamer_readiness,F.data == 'streamer:readiness')
     router.callback_query.register(cb_streamer_posts,F.data == 'streamer:posts')
     router.callback_query.register(cb_streamer_benefits,F.data == 'streamer:benefits')
     from .telegram_plus import cb_plus, cb_buy, cb_payment_method

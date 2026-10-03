@@ -1,0 +1,21 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ GuidedFlowTests.test_streamer_readiness_checks_current_rights_and_publication_switch _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_streamer_readiness_checks_current_rights_and_publication_switch>
+
+    async def test_streamer_readiness_checks_current_rights_and_publication_switch(self):
+        from bot.handlers import telegram_streamer as handlers
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        await self.db.add_streamer_community(101,-1001,'Длинное название моего Telegram-канала','channel')
+        await self.db.add_channel(-1001,'alpha')
+        await self.db.set_notify_enabled(-1001,'alpha',False)
+        await handlers.cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
+        call=self.msg.edit_text.await_args
+>       self.assertIn('Длинное название',call.args[0])
+E       AssertionError: 'Длинное название' not found in 'Twitch подключён: alpha'
+
+tests\test_telegram_guided_flows.py:107: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_streamer_readiness_checks_current_rights_and_publication_switch
+1 failed, 7 deselected in 4.30s

@@ -95,6 +95,7 @@ class AddChannel(StatesGroup):
 class QuietHoursSetup(StatesGroup):
     waiting_for_offset = State()
     waiting_for_custom_time = State()
+    waiting_for_confirmation = State()
 
 
 def _extract_login_text(text: str) -> str | None:
@@ -1131,13 +1132,37 @@ async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Da
         await edit_menu(callback.message,
             "Прежде чем настроить тихие часы, укажи свой часовой пояс относительно UTC "
             "(например, для МСК напиши <code>+3</code>, для Калининграда <code>+2</code>).",
-            reply_markup=_back_keyboard(),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text='Москва · UTC+3',callback_data='qh:offset:180')],
+                [InlineKeyboardButton(text='Калининград · UTC+2',callback_data='qh:offset:120')],
+                [InlineKeyboardButton(text='Екатеринбург · UTC+5',callback_data='qh:offset:300')],
+                [InlineKeyboardButton(text='UTC',callback_data='qh:offset:0')],
+                [InlineKeyboardButton(text='Отменить',callback_data='menu:more')]]),
         )
         await callback.answer()
         return
 
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
     await edit_menu(callback.message,text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith('qh:offset:'))
+async def cb_quiet_hours_offset(callback: CallbackQuery,state: FSMContext,db: Database) -> None:
+    chat_id=_callback_chat_id(callback)
+    if chat_id is None or not await _check_manage_permission(callback,chat_id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True);return
+    if await state.get_state()!=QuietHoursSetup.waiting_for_offset.state:
+        await callback.answer('Выбор часового пояса устарел.',show_alert=True);return
+    try: offset=int((callback.data or '').removeprefix('qh:offset:'))
+    except ValueError:
+        await callback.answer();return
+    if offset not in (0,120,180,300):
+        await callback.answer();return
+    await state.clear()
+    await db.set_utc_offset(chat_id,offset)
+    text,keyboard=await _quiet_hours_screen_text_and_keyboard(chat_id,db)
+    await edit_menu(callback.message,f'Часовой пояс сохранён: UTC{offset/60:+g}.\n\n'+text,reply_markup=keyboard)
     await callback.answer()
 
 
@@ -1171,7 +1196,7 @@ async def process_utc_offset_input(message: Message, state: FSMContext, db: Data
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("qhpreset:"))
-async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
+async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database, state: FSMContext | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
         await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
         return
@@ -1185,7 +1210,7 @@ async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
     except ValueError:
         await callback.answer()
         return
-    if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23):
+    if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23) or start_hour==end_hour:
         await callback.answer()
         return
 
@@ -1195,10 +1220,46 @@ async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
     start_utc = _local_minute_to_utc(start_local_minute, utc_offset)
     end_utc = _local_minute_to_utc(end_local_minute, utc_offset)
 
-    await db.set_quiet_hours(chat_id, start_utc, end_utc, utc_offset)
-    text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await edit_menu(callback.message,text, reply_markup=keyboard)
-    await callback.answer("Тихие часы включены")
+    if state is None:
+        await callback.answer('Открой настройки тихих часов заново.',show_alert=True);return
+    await cancel_ui(state,actor_id=callback.from_user.id,db=db,message=callback.message)
+    await _preview_quiet_hours(callback.message,state,callback.from_user.id,start_local_minute,end_local_minute,utc_offset,edit=True)
+    await callback.answer()
+
+
+async def _preview_quiet_hours(message,state,actor,start_local,end_local,offset,*,edit=False):
+    token=secrets.token_hex(8)
+    await state.set_state(QuietHoursSetup.waiting_for_confirmation)
+    await state.update_data(quiet_draft={'token':token,'actor':actor,'chat':message.chat.id,
+        'start':start_local,'end':end_local,'offset':offset,'expires':time.time()+600})
+    text=(f'Тихие часы: {_format_minute(start_local)} – {_format_minute(end_local)}\n'
+          f'Твой часовой пояс: UTC{offset/60:+g}.\n\n'
+          'Личные оповещения о старте, категории и напоминания приостановятся, кроме стримеров с исключением. '
+          'Отчёты соберутся в сводку после этого интервала. Рейды не входят в тихие часы.\n\nСохранить интервал?')
+    keyboard=InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Сохранить',callback_data='qh:confirm:'+token)],
+        [InlineKeyboardButton(text='Отменить',callback_data='menu:quiet_hours')]])
+    if edit: await edit_menu(message,text,reply_markup=keyboard)
+    else: await message.answer(text,reply_markup=keyboard)
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith('qh:confirm:'))
+async def cb_quiet_hours_confirm(callback: CallbackQuery,state: FSMContext,db: Database) -> None:
+    chat_id=_callback_chat_id(callback)
+    if chat_id is None or not await _check_manage_permission(callback,chat_id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True);return
+    draft=(await state.get_data()).get('quiet_draft')
+    if (not draft or draft.get('token')!=(callback.data or '').removeprefix('qh:confirm:')
+        or draft.get('actor')!=callback.from_user.id or draft.get('chat')!=chat_id or draft.get('expires',0)<=time.time()):
+        await callback.answer('Подтверждение устарело. Выбери интервал заново.',show_alert=True);return
+    await state.clear()
+    if await db.get_utc_offset(chat_id)!=draft['offset']:
+        await callback.answer('Часовой пояс изменился. Выбери интервал заново.',show_alert=True);return
+    await db.set_quiet_hours(chat_id,_local_minute_to_utc(draft['start'],draft['offset']),
+                             _local_minute_to_utc(draft['end'],draft['offset']),draft['offset'])
+    text,keyboard=await _quiet_hours_screen_text_and_keyboard(chat_id,db)
+    await edit_menu(callback.message,'Интервал сохранён.\n\n'+text,reply_markup=keyboard)
+    await callback.answer('Тихие часы включены')
 
 
 @router.callback_query(lambda c: c.data == "qh:custom")
@@ -1251,13 +1312,7 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
         )
         return
 
-    start_utc = _local_minute_to_utc(start_local, utc_offset)
-    end_utc = _local_minute_to_utc(end_local, utc_offset)
-    await db.set_quiet_hours(chat_id, start_utc, end_utc, utc_offset)
-    await state.clear()
-
-    text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await message.answer("Готово.\n\n" + text, reply_markup=keyboard)
+    await _preview_quiet_hours(message,state,message.from_user.id,start_local,end_local,utc_offset)
 
 
 @router.callback_query(lambda c: c.data == "qh:disable")
@@ -2091,11 +2146,12 @@ async def _run_import_follows(
     db: Database,
     config: Config,
     oauth_server: OAuthCallbackServer,
+    *, actor_id: int | None = None,
 ) -> None:
     """Через одноразовую авторизацию Twitch забирает подписки пользователя и предлагает
     добавить их пачкой. Авторизацию запрашиваем заново, а не берём сохранённый токен:
     у токенов, выданных до появления scope user:read:follows, нужного доступа нет."""
-    if message.chat.type != ChatType.PRIVATE:
+    if not own_private(message,actor_id):
         await message.answer(
             "Импорт подписок работает только в личном чате с ботом — "
             "там я вижу, от чьего имени добавлять каналы."
@@ -2115,6 +2171,9 @@ async def _run_import_follows(
         await message.answer(
             "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ — "
             f"после этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
+            ,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text='Подключить Twitch',url=url)],
+                [InlineKeyboardButton(text='Отменить',callback_data='menu:home')]])
         )
 
     async with aiohttp.ClientSession(timeout=TOKEN_HTTP_TIMEOUT) as session:
@@ -2209,6 +2268,7 @@ async def _run_import_follows(
         preview += f"\n… и ещё {len(to_add) - IMPORT_PREVIEW_LIMIT}"
 
     text = f"Нашёл {len(new_logins)} новых подписок у «{html.escape(result.login)}»:\n\n{preview}"
+    text += f'\n\nУже в списке: {len(follows)-len(new_logins)}. Лимит: {limit}; свободно: {free_slots}.'
     if len(to_add) < len(new_logins):
         text += (
             f"\n\n⚠️ Свободных мест осталось {free_slots}, поэтому добавлю только "
@@ -2245,7 +2305,9 @@ async def cb_menu_import_follows(
     await callback.answer()
     if callback.message is None:
         return
-    await _run_import_follows(callback.message, state, db, config, oauth_server)
+    if not own_private(callback.message,callback.from_user.id):
+        await callback.answer('Открой свой личный чат с ботом.',show_alert=True);return
+    await _run_import_follows(callback.message, state, db, config, oauth_server,actor_id=callback.from_user.id)
 
 
 @router.callback_query(lambda c: c.data == "importfollows:add")
@@ -2256,6 +2318,8 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
         await callback.answer()
         return
 
+    if not own_private(callback.message,callback.from_user.id):
+        await callback.answer('Импорт доступен владельцу личного чата.',show_alert=True);return
     data = await state.get_data()
     logins = data.get("import_logins") or []
     await cancel_ui(state, actor_id=callback.from_user.id, db=db,

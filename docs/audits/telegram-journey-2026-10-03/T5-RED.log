@@ -1,0 +1,96 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_ GuidedFlowTests.test_add_success_offers_add_again_and_explicit_cancel_before_save _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_add_success_offers_add_again_and_explicit_cancel_before_save>
+
+    async def test_add_success_offers_add_again_and_explicit_cancel_before_save(self):
+        from bot.handlers.telegram_add import cb_confirm_add,process_confirmed_input
+        await streams.cb_menu_add(self.cb('menu:add'),self.state,self.db)
+        self.msg.text='alpha'
+        twitch=SimpleNamespace(channel_exists=AsyncMock(return_value=True))
+        await process_confirmed_input(self.msg,self.state,self.db,twitch)
+        call=self.msg.answer.await_args
+        buttons=[b for row in call.kwargs['reply_markup'].inline_keyboard for b in row]
+>       self.assertTrue(any(b.text=='Отменить' for b in buttons))
+E       AssertionError: False is not true
+
+tests\test_telegram_guided_flows.py:102: AssertionError
+_ GuidedFlowTests.test_channel_guide_preserves_owned_selector_and_cancels_cleanly _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_channel_guide_preserves_owned_selector_and_cancels_cleanly>
+
+    async def test_channel_guide_preserves_owned_selector_and_cancels_cleanly(self):
+        from bot.handlers import telegram_streamer as handlers
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        await handlers.cb_streamer_channel(self.cb('streamer:channel'),self.state,self.db)
+>       self.assertTrue(self.msg.answer_photo.called,'Channel entry needs approved guide card')
+E       AssertionError: False is not true : Channel entry needs approved guide card
+
+tests\test_telegram_guided_flows.py:77: AssertionError
+_ GuidedFlowTests.test_custom_quiet_interval_previews_local_time_before_writing _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_custom_quiet_interval_previews_local_time_before_writing>
+
+    async def test_custom_quiet_interval_previews_local_time_before_writing(self):
+        await self.db.set_utc_offset(101,180)
+        await self.state.set_state(streams.QuietHoursSetup.waiting_for_custom_time)
+        self.msg.text='22:30-07:15'
+        await streams.process_custom_quiet_hours(self.msg,self.state,self.db)
+>       self.assertIsNone(await self.db.get_quiet_hours(101))
+E       AssertionError: (1170, 255, 180, True) is not None
+
+tests\test_telegram_guided_flows.py:66: AssertionError
+_ GuidedFlowTests.test_foreign_import_confirmation_preserves_owner_draft_and_list _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_foreign_import_confirmation_preserves_owner_draft_and_list>
+
+    async def test_foreign_import_confirmation_preserves_owner_draft_and_list(self):
+        await self.state.update_data(import_logins=['alpha'])
+        await streams.cb_import_follows_add(self.cb('importfollows:add',202),self.state,self.db)
+>       self.assertEqual(await self.db.list_channels(101),[])
+E       AssertionError: Lists differ: ['alpha'] != []
+E       
+E       First list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - ['alpha']
+E       + []
+
+tests\test_telegram_guided_flows.py:91: AssertionError
+__ GuidedFlowTests.test_quiet_cancel_expiry_and_timezone_change_never_apply ___
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_quiet_cancel_expiry_and_timezone_change_never_apply>
+
+    async def test_quiet_cancel_expiry_and_timezone_change_never_apply(self):
+        from bot.handlers.navigation import cb_more
+>       data=await self.preset()
+             ^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_guided_flows.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_guided_flows.py:30: in preset
+    self.assertIsNone(await self.db.get_quiet_hours(101),'Preview must not apply quiet hours')
+E   AssertionError: (1200, 300, 180, True) is not None : Preview must not apply quiet hours
+_ GuidedFlowTests.test_quiet_preset_requires_owned_confirmation_and_is_one_use _
+
+self = <test_telegram_guided_flows.GuidedFlowTests testMethod=test_quiet_preset_requires_owned_confirmation_and_is_one_use>
+
+    async def test_quiet_preset_requires_owned_confirmation_and_is_one_use(self):
+>       data=await self.preset()
+             ^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_guided_flows.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_guided_flows.py:30: in preset
+    self.assertIsNone(await self.db.get_quiet_hours(101),'Preview must not apply quiet hours')
+E   AssertionError: (1200, 300, 180, True) is not None : Preview must not apply quiet hours
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_add_success_offers_add_again_and_explicit_cancel_before_save
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_channel_guide_preserves_owned_selector_and_cancels_cleanly
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_custom_quiet_interval_previews_local_time_before_writing
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_foreign_import_confirmation_preserves_owner_draft_and_list
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_quiet_cancel_expiry_and_timezone_change_never_apply
+FAILED tests/test_telegram_guided_flows.py::GuidedFlowTests::test_quiet_preset_requires_owned_confirmation_and_is_one_use
+6 failed in 7.59s

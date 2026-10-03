@@ -184,6 +184,17 @@ async def ensure_menu_keyboard(message):
         if store: store.keyboard_initialized(message.chat.id)
 
 
+async def send_brand_card(message, asset, path, text, *, reply_markup=None):
+    """Reuse approved, static illustration file IDs only within this bot."""
+    store=store_for(message)
+    file_id=store.asset_file_ids.get(asset) if store else None
+    result=await message.answer_photo(file_id or FSInputFile(path),caption=text,reply_markup=reply_markup)
+    if store and isinstance(result,Message) and result.photo:
+        store.asset_file_ids[asset]=result.photo[-1].file_id
+        store.remember(result)
+    return result
+
+
 async def show_home(message, view, *, app_url=None, callback=False):
     store = store_for(message)
     keyboard = home_keyboard(message.chat.type,app_url=app_url)

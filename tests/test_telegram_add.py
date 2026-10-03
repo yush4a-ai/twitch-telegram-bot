@@ -46,7 +46,7 @@ class TelegramAddTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_channels(101),['alpha'])
         call=self.msg.edit_text.await_args
         self.assertEqual(call.args[0],'Готово. Я сообщу, когда стример начнёт эфир.')
-        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Мои стримеры','На главную'])
+        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Добавить ещё','Мои стримеры','На главную'])
         self.assertIsNone(await self.state.get_state())
         await cb_confirm_add(self.callback(confirm),self.state,self.db)
         self.assertEqual(await self.db.count_channels(101),1)

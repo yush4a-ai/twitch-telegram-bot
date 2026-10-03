@@ -36,8 +36,8 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
         await cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
         call=self.msg.edit_text.await_args
-        self.assertEqual(call.args[0],'Twitch подключён: alpha')
-        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Telegram-канал','Настройки публикаций','Тариф для стримера','Назад'])
+        self.assertEqual(call.args[0],'Twitch подключён: alpha\n\nСледующий шаг: выбери Telegram-канал, затем настрой публикации.')
+        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Telegram-канал','Настройки публикаций','Проверить готовность','Тариф для стримера','Назад'])
         self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[1][0].callback_data,'streamer:posts')
 
     async def test_connect_intent_cancelled_by_menu_and_late_creation_is_cancelled(self):

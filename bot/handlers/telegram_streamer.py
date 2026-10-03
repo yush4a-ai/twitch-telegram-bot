@@ -1,5 +1,7 @@
 """Telegram adapters for the existing verified OAuth and channel intent services."""
-from ..telegram_home import edit_menu
+from ..telegram_home import edit_menu,send_brand_card,CHANNEL_GUIDE_PATH
+import asyncio
+import html
 import secrets
 import time
 
@@ -22,7 +24,14 @@ async def cb_streamer(callback,db,config=None,state=None,oauth_server=None):
     identity=await db.get_streamer_identity(callback.from_user.id)
     if identity:
         text=f"Twitch подключён: {identity[1]}"
+        communities=await db.list_streamer_communities(callback.from_user.id)
+        if communities:
+            text+='\n\nСохранённые подключения:\n'+'\n'.join(html.escape(str(title)[:100]) for _,title,_ in communities)
+            text+='\n\nПроверь текущие права и включены ли публикации.'
+        else:
+            text+='\n\nСледующий шаг: выбери Telegram-канал, затем настрой публикации.'
         items=[('Telegram-канал','streamer:channel'),('Настройки публикаций','streamer:posts'),
+               ('Проверить готовность','streamer:readiness'),
                ('Тариф для стримера','plus:show:streamer_plus:streamer'),('Назад','menu:home')]
     else:
         text="Подключи Twitch, чтобы бот мог создавать публикации о твоих эфирах."
@@ -92,6 +101,11 @@ async def show_channel_selector(message,state,row,db,oauth_server=None):
     await cancel_ui(state, actor_id=row[1], db=db, oauth_server=oauth_server,
                     message=message, preserve_community_intent=row[0])
     await state.update_data(telegram_community_intent=row[0])
+    await send_brand_card(message,'channel-guide',CHANNEL_GUIDE_PATH,
+        'Публикации в твоём Telegram-канале\n\nДобавь бота в администраторы с правом «Публикация сообщений». Затем выбери канал. Подключение бесплатно.',
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Как подключить?',callback_data='streamer:channelhelp')],
+            [InlineKeyboardButton(text='Отменить',callback_data='menu:streamer')]]))
     button=KeyboardButton(text="Выбрать Telegram-канал",request_chat=KeyboardButtonRequestChat(
         request_id=row[2],chat_is_channel=True,bot_is_member=True,request_title=True))
     await message.answer("Добавь бота в администраторы своего Telegram-канала с правом публикации сообщений. Затем выбери канал.",
@@ -119,6 +133,58 @@ async def cb_streamer_channel(callback,state,db,oauth_server=None):
     await callback.answer()
 
 
+async def cb_channel_help(callback,state,db):
+    if not await private_callback(callback): return
+    row=await db.get_community_intent((await state.get_data()).get('telegram_community_intent',''))
+    pending=bool(row and row[1]==callback.from_user.id and row[6]=='pending' and row[4]>time.time())
+    await edit_menu(callback.message,
+        'Как подключить Telegram-канал\n\n'
+        '1. Открой управление своим каналом → «Администраторы» → «Добавить администратора». Найди этого бота по имени.\n'
+        '2. Разреши «Публикация сообщений». Ты тоже должен быть владельцем или администратором канала.\n'
+        '3. Вернись сюда и нажми «Выбрать Telegram-канал» под строкой ввода. Выбери свой канал в окне Telegram.\n'
+        '4. Бот проверит права и подтвердит сохранение. Если канал не виден, проверь, добавлен ли именно этот бот.\n\n'
+        'Новое подключение поддерживает каналы. Ранее подключённые группы сохраняются. «Меню» отменяет незавершённый выбор.',
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='← Назад к выбору' if pending else '← Назад',callback_data='streamer:channelresume' if pending else 'menu:streamer')],
+            [InlineKeyboardButton(text='Отменить',callback_data='menu:streamer')]]))
+    await callback.answer()
+
+
+async def cb_channel_resume(callback,state,db,oauth_server=None):
+    if not await private_callback(callback): return
+    row=await db.get_community_intent((await state.get_data()).get('telegram_community_intent',''))
+    if not row or row[1]!=callback.from_user.id or row[6]!='pending' or row[4]<=time.time():
+        await callback.answer('Выбор завершён или устарел. Начни подключение заново.',show_alert=True);return
+    await show_channel_selector(callback.message,state,row,db,oauth_server)
+    await callback.answer()
+
+
+async def cb_streamer_readiness(callback,db,state=None,oauth_server=None):
+    if not await private_callback(callback): return
+    if state is not None:
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
+    identity=await db.get_streamer_identity(callback.from_user.id)
+    if not identity:
+        await callback.answer('Сначала подключи Twitch.',show_alert=True);return
+    rows=await db.list_streamer_communities(callback.from_user.id)
+    from ..streamer_community import check_community_permission
+    await callback.answer('Проверяю права…')
+    checks=await asyncio.gather(*(check_community_permission(callback.bot,chat,callback.from_user.id) for chat,_,_ in rows))
+    labels={'user_denied':'Нужны твои права администратора','bot_absent':'Добавь бота в канал',
+        'bot_member':'Назначь бота администратором','missing_post_right':'Нет права публикации сообщений',
+        'network_error':'Проверка прав пока недоступна','wrong_chat_type':'Неподдерживаемое подключение'}
+    lines=['Публикации в Telegram','']
+    for (chat,title,_),check in zip(rows,checks):
+        settings=await db.list_channels_with_routing(chat)
+        enabled=next((row[1] for row in settings if row[0]==identity[1]),None)
+        status=(labels.get(check.status,'Проверка прав пока недоступна') if check.status!='ready' else
+                'Публикации выключены' if enabled is False else 'Стример не добавлен в публикации' if enabled is None else
+                'Права проверены. Публикации включены в настройках')
+        lines.append(html.escape(str(title)[:100])+': '+status)
+    if not rows: lines.append('Telegram-канал пока не выбран.')
+    await edit_menu(callback.message,'\n'.join(lines),reply_markup=back_keyboard('menu:streamer'))
+
+
 async def cb_streamer_posts(callback,db,config=None,state=None,oauth_server=None):
     if not await private_callback(callback): return
     if await db.get_streamer_identity(callback.from_user.id) is None:
@@ -129,7 +195,7 @@ async def cb_streamer_posts(callback,db,config=None,state=None,oauth_server=None
     url=_viewer_url(callback.message,config,actor_id=callback.from_user.id)
     rows=[]
     if url and url.endswith('/app'):
-        rows.append([InlineKeyboardButton(text="Открыть настройки",web_app=WebAppInfo(url=url))])
+        rows.append([InlineKeyboardButton(text="Настроить оформление в приложении",web_app=WebAppInfo(url=url))])
     rows.append([InlineKeyboardButton(text="← Назад",callback_data='menu:streamer')])
     await edit_menu(callback.message,"В приложении выбери «Стример» → «Посты». Там можно настроить текст, кнопки и оформление публикаций.",
                                     reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
