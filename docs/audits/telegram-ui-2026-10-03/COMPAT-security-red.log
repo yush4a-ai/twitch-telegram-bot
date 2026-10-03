@@ -1,0 +1,32 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_ TelegramCompatibilityTests.test_group_member_cannot_forge_free_quiet_setting_callbacks _
+tests\test_telegram_compatibility.py:100: in test_group_member_cannot_forge_free_quiet_setting_callbacks
+    await streams.cb_quiet_hours_preset(cb,state,self.db)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: cb_quiet_hours_preset() takes 2 positional arguments but 3 were given
+___ TelegramCompatibilityTests.test_more_back_clears_unfinished_quiet_input ___
+tests\test_telegram_compatibility.py:111: in test_more_back_clears_unfinished_quiet_input
+    await cb_more(self.cb('menu:more'),CONFIG,state,self.db)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: cb_more() takes from 1 to 2 positional arguments but 4 were given
+_ TelegramStreamerTests.test_channel_cancel_via_inline_home_restores_single_menu_keyboard _
+tests\test_telegram_streamer.py:91: in test_channel_cancel_via_inline_home_restores_single_menu_keyboard
+    self.assertEqual([[b.text for b in row] for row in self.msg.answer.await_args.kwargs['reply_markup'].keyboard],[['Меню']])
+E   AssertionError: Lists differ: [['Выбрать Telegram-канал'], ['Меню']] != [['Меню']]
+E   
+E   First differing element 0:
+E   ['Выбрать Telegram-канал']
+E   ['Меню']
+E   
+E   First list contains 1 additional elements.
+E   First extra element 1:
+E   ['Меню']
+E   
+E   - [['Выбрать Telegram-канал'], ['Меню']]
+E   + [['Меню']]
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_group_member_cannot_forge_free_quiet_setting_callbacks
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_more_back_clears_unfinished_quiet_input
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_channel_cancel_via_inline_home_restores_single_menu_keyboard
+3 failed, 17 deselected in 4.82s

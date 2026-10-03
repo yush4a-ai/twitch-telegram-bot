@@ -66,6 +66,9 @@ class ThrottleMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        if isinstance(event,Message) and event.text == 'Меню':
+            # Returning home must cancel a draft even immediately after a tap.
+            return await handler(event,data)
         if isinstance(event, Message) and (event.successful_payment is not None or event.refunded_payment is not None):
             # Financial updates must reach the durable, idempotent ledger.
             return await handler(event, data)
@@ -113,7 +116,7 @@ class CallbackGuardMiddleware(BaseMiddleware):
             if message is None or isinstance(message, InaccessibleMessage):
                 try:
                     await event.answer(
-                        "Это сообщение слишком старое. Открой меню заново: /start",
+                        "Сообщение недоступно. Нажми «Меню» в личном чате с ботом.",
                         show_alert=True,
                     )
                 except Exception:

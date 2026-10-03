@@ -19,7 +19,7 @@ STAGE = SimpleNamespace(
 def message(chat_id=101, user_id=101, chat_type=ChatType.PRIVATE):
     return SimpleNamespace(
         chat=SimpleNamespace(id=chat_id, type=chat_type),
-        from_user=SimpleNamespace(id=user_id), answer=AsyncMock(),
+        from_user=SimpleNamespace(id=user_id), answer=AsyncMock(),answer_photo=AsyncMock(),
     )
 
 
@@ -53,9 +53,9 @@ class GrowthHandlersTests(unittest.IsolatedAsyncioTestCase):
         await streams.cmd_start_link(
             own, SimpleNamespace(args="src_site"), self.state, self.db, self.twitch, STAGE,
         )
-        self.assertEqual(own.answer.await_args.args[0],streams.MENU_TEXT)
-        self.assertEqual(len(own.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
-        self.assertNotIn("Админ-панель", str(own.answer.await_args.kwargs["reply_markup"]))
+        self.assertEqual(own.answer_photo.await_args.kwargs['caption'],streams.MENU_TEXT)
+        self.assertEqual(len(own.answer_photo.await_args.kwargs["reply_markup"].inline_keyboard),4)
+        self.assertNotIn("Админ-панель", str(own.answer_photo.await_args.kwargs["reply_markup"]))
         for denied in (
             message(-1001, 101, ChatType.GROUP), message(202, 101),
         ):

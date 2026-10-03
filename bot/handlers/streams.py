@@ -31,7 +31,8 @@ import aiohttp
 from ..config import Config
 from ..database import Database
 from ..plan_catalog import viewer_channel_limit
-from ..telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard, cancel_ui, own_private, begin_legacy_oauth, legacy_oauth_current
+from ..telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard, cancel_ui, own_private, back_keyboard, begin_legacy_oauth, legacy_oauth_current
+from ..telegram_home import HomeState, build_home, load_home_state, show_home, edit_menu
 from ..deep_links import (
     TRACK_START_PREFIX,
     TWITCH_LOGIN_RE,
@@ -229,7 +230,7 @@ def _channels_keyboard(
         )
     if allow_add:
         rows.append(
-            [InlineKeyboardButton(text="➕ Добавить канал", callback_data=f"menu:add:{target_chat_id}")]
+            [InlineKeyboardButton(text="➕ Добавить стримера", callback_data=f"menu:add:{target_chat_id}")]
         )
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -287,7 +288,7 @@ def _channel_card_keyboard(
             ]
         )
         rows.append(
-            [InlineKeyboardButton(text="❌ Удалить канал", callback_data=f"untrack:{target_chat_id}:{login}")]
+            [InlineKeyboardButton(text="❌ Удалить стримера", callback_data=f"untrack:{target_chat_id}:{login}")]
         )
         rows.append([InlineKeyboardButton(text="⬅️ Назад к списку", callback_data=back_callback)])
         return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -344,7 +345,7 @@ def _channel_card_keyboard(
             ]
         )
     rows.append(
-        [InlineKeyboardButton(text="❌ Удалить канал", callback_data=f"untrack:{target_chat_id}:{login}")]
+        [InlineKeyboardButton(text="❌ Удалить стримера", callback_data=f"untrack:{target_chat_id}:{login}")]
     )
     rows.append([InlineKeyboardButton(text="⬅️ Назад к списку", callback_data=back_callback)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -356,20 +357,23 @@ def _back_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def _report_channels_keyboard(logins: list[str]) -> InlineKeyboardMarkup:
+def _report_channels_keyboard(logins: list[str], *, link_stats: bool = False) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text=f"📊 {login}", callback_data=f"report:{login}")]
         for login in logins
     ]
-    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
+    if link_stats:
+        rows.append([InlineKeyboardButton(text='Привязать отчёты к личке',callback_data='menu:link_stats')])
+    rows.append([InlineKeyboardButton(text='← Назад',callback_data='menu:more')])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-async def _start_link_keyboard(bot: Bot, chat_id: int) -> InlineKeyboardMarkup:
+async def _start_link_keyboard(bot: Bot, chat_id: int, *, back_callback: str = "menu:home") -> InlineKeyboardMarkup:
     bot_user = await bot.get_me()
     link = f"https://t.me/{bot_user.username}?start=link_{chat_id}"
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="✉️ Получать посты в личку", url=link)]]
+        inline_keyboard=[[InlineKeyboardButton(text="✉️ Получать отчёты в личку", url=link)],
+                         [InlineKeyboardButton(text="← Назад",callback_data=back_callback)]]
     )
 
 
@@ -433,24 +437,9 @@ async def _ensure_stats_recipient(message: Message, db: Database) -> str | None:
 MENU_TEXT = HOME_TEXT
 
 ABOUT_TEXT = (
-    "👋 <b>Я слежу за Twitch, пока ты занят</b>\n\n"
-    "🔴 <b>Эфир начался</b>\n"
-    "Пришлю живую карточку со счётчиком зрителей. В группе она обновится сама "
-    "и исчезнет после стрима.\n\n"
-    "📊 <b>Стрим закончился</b>\n"
-    "Соберу длительность, пик, среднее, новых фолловеров и топ чата. "
-    "В развёрнутом отчёте будут график, клипы и VOD с таймкодами.\n\n"
-    "⚡ <b>Всё важное замечу</b>\n"
-    "Покажу рейды и коллабы, отфильтрую подозрительные скачки зрителей. "
-    "Сообщу, если канал сменил имя или пропал с Twitch.\n\n"
-    "🌙 <b>Работаю по твоим правилам</b>\n"
-    "В обычной группе итоги приходят только в привязанную личку. В Telegram-канале "
-    "публичный итог включается отдельно для каждого Twitch-канала и по умолчанию "
-    "выключен. Тихие часы соберут ночные стримы в одну утреннюю сводку.\n\n"
-    "<b>Быстрые команды</b>\n"
-    "📺 /live  кто сейчас в эфире\n"
-    "📥 /import_follows  импорт подписок\n"
-    "🔐 /auth_twitch  подключить Twitch"
+    "Уведомляю о начале Twitch-стримов.\n\n"
+    "Помогаю стримерам публиковать сообщения о своих эфирах.\n\n"
+    "Расширенные настройки доступны в приложении."
 )
 
 
@@ -595,13 +584,17 @@ async def cmd_start_link(
 @router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext, db: Database, config: Config | None = None,
                     oauth_server: OAuthCallbackServer | None = None) -> None:
+    if message.chat.type == ChatType.PRIVATE and not own_private(message):
+        return
     await cancel_ui(state, actor_id=message.from_user.id if message.from_user else message.chat.id,
-                    db=db, oauth_server=oauth_server)
+                    db=db, oauth_server=oauth_server,message=message)
     if own_private(message):
         await db.mark_known_private_user(message.chat.id)
-        await message.answer('Возвращайся сюда кнопкой «Меню».', reply_markup=menu_keyboard())
-    await message.answer(MENU_TEXT, reply_markup=_main_menu_keyboard(
-        message.chat.type, viewer_url=_viewer_url(message, config)))
+    home_state = await load_home_state(db,message.chat.id) if own_private(message) else HomeState()
+    view = build_home(home_state)
+    if message.chat.type != ChatType.PRIVATE:
+        view = type(view)(view.text,False)
+    await show_home(message,view,app_url=_viewer_url(message,config))
 
 
 @router.message(Command("admin"))
@@ -610,7 +603,7 @@ async def cmd_admin(message: Message, config: Config) -> None:
     if url is None:
         return
     await message.answer(
-        "🛡️ Админ-панель тестового контура",
+        "🛡 Админ-панель",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Открыть админ-панель", web_app=WebAppInfo(url=url))]
         ]),
@@ -863,8 +856,10 @@ def _build_health_text(
 
 
 @router.message(Command("help"))
-async def cmd_help(message: Message) -> None:
-    await message.answer(ABOUT_TEXT)
+async def cmd_help(message: Message, config: Config | None = None) -> None:
+    from .telegram_help import help_screen
+    text,keyboard=help_screen(config)
+    await message.answer(text,reply_markup=keyboard)
 
 
 @router.my_chat_member()
@@ -911,15 +906,31 @@ async def on_bot_membership_changed(
 @router.callback_query(lambda c: c.data == "menu:home")
 async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Config | None = None,
                        db: Database | None = None, oauth_server: OAuthCallbackServer | None = None) -> None:
-    await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server)
-    await callback.message.edit_text(MENU_TEXT, reply_markup=_main_menu_keyboard(
-        callback.message.chat.type, viewer_url=_viewer_url(callback.message, config, actor_id=callback.from_user.id)))
+    if callback.message is None or (callback.message.chat.type == ChatType.PRIVATE
+        and not own_private(callback.message,callback.from_user.id)):
+        await callback.answer('Открой свой личный чат с ботом.',show_alert=True)
+        return
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server,message=callback.message)
+    home_state = (await load_home_state(db,callback.from_user.id)
+                  if db is not None and own_private(callback.message,callback.from_user.id) else HomeState())
+    view = build_home(home_state)
+    if callback.message.chat.type != ChatType.PRIVATE:
+        view = type(view)(view.text,False)
+    await show_home(callback.message,view,callback=True,
+                    app_url=_viewer_url(callback.message,config,actor_id=callback.from_user.id))
     await callback.answer()
 
 
 @router.callback_query(lambda c: c.data == "menu:about")
-async def cb_menu_about(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(ABOUT_TEXT, reply_markup=_back_keyboard())
+async def cb_menu_about(callback: CallbackQuery, config: Config | None = None) -> None:
+    rows=[]
+    url=_viewer_url(callback.message,config,actor_id=callback.from_user.id)
+    if url and url.endswith('/app'):
+        rows.append([InlineKeyboardButton(text='Открыть приложение',web_app=WebAppInfo(url=url))])
+    else:
+        rows.append([InlineKeyboardButton(text='Открыть приложение',callback_data='menu:open_app')])
+    rows.append([InlineKeyboardButton(text='← Назад',callback_data='menu:more')])
+    await edit_menu(callback.message,ABOUT_TEXT,reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
 
 
@@ -936,11 +947,11 @@ async def cb_menu_link_stats(callback: CallbackQuery, db: Database) -> None:
             "\n\nСейчас отчёты приходят другому участнику. Переключить их на себя "
             "может только администратор чата."
         )
-    await callback.message.edit_text(
+    await edit_menu(callback.message,
         "Чтобы получать итоговые отчёты о завершённых стримах себе в личку "
         "(живые посты о начале стрима всегда остаются в этом чате), нажми кнопку ниже "
         f"и в открывшемся диалоге с ботом нажми «Start».{status}",
-        reply_markup=await _start_link_keyboard(callback.bot, chat_id),
+        reply_markup=await _start_link_keyboard(callback.bot, chat_id,back_callback="menu:report"),
     )
     await callback.answer()
 
@@ -1012,14 +1023,14 @@ async def cb_menu_manage_group(callback: CallbackQuery, db: Database) -> None:
     rows = [[InlineKeyboardButton(text=title,callback_data=f'managegroup:{gid}')] for gid,title in chats]
     rows.append([InlineKeyboardButton(text='Подключить Telegram-канал',callback_data='streamer:channel')])
     rows.append([InlineKeyboardButton(text='← Назад',callback_data='menu:more')])
-    await callback.message.edit_text('Мои подключения\n\nВыбери канал или существующую группу.' if chats
+    await edit_menu(callback.message,'Мои подключения\n\nВыбери канал или существующую группу.' if chats
                                     else 'Подключений пока нет. Добавь свой Telegram-канал через «Я стример».',
                                     reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @router.callback_query(lambda c: c.data == "menu:add_channel_hint")
 async def cb_add_channel_hint(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(
+    await edit_menu(callback.message,
         ADD_TO_CHANNEL_HINT,
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:manage_group")]]
@@ -1076,38 +1087,27 @@ async def _quiet_hours_screen_text_and_keyboard(
             _utc_minute_to_local(now_utc.hour * 60 + now_utc.minute, utc_offset)
         )
         active = _is_within_quiet_hours(start_minute, end_minute, now_utc)
-        text = (
-            "🌙 <b>Тихие часы</b>\n\n"
-            f"Сейчас включены: {local_start} – {local_end} (твоё локальное время)\n"
-            f"Сейчас у тебя <b>{now_local}</b> — тихие часы "
-            f"{'идут 🌙' if active else 'не действуют ☀️'}\n"
-            f"<i>Если это время расходится с твоими часами, смещение UTC задано неверно — "
-            f"выключи и настрой тихие часы заново.</i>\n\n"
-            "В это время итоговые отчёты не приходят сразу — они копятся и присылаются "
-            "одной сводкой, как только тихие часы закончатся. Живые посты о начале "
-            "стрима это не затрагивает — они всегда идут в группу.\n\n"
-            "«Сводка после» — присылать ли вопрос «кто стримил, пока тебя не было» "
-            "по окончании тихих часов."
-        )
+        text = ("🌙 <b>Тихие часы</b>\n\n"
+                f"Включены: {local_start} – {local_end}. Сейчас у тебя {now_local}.\n"
+                f"{'Тихие часы идут.' if active else 'Сейчас тихие часы не действуют.'}\n\n"
+                "Отчёты за эти часы соберутся в сводку. «Сводка после» включает вопрос о пропущенных эфирах.")
     else:
-        text = (
-            "🌙 <b>Тихие часы</b>\n\n"
-            "Сейчас выключены. В выбранный период итоговые отчёты не будут приходить "
-            "сразу — они соберутся в одну сводку и придут, как только период закончится. "
-            "Живые посты о начале стрима это не затрагивает.\n\n"
-            "Выбери интервал (в твоём локальном времени):"
-        )
-    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
+        text = ("🌙 <b>Тихие часы</b>\n\nСейчас выключены. Выбери интервал по своему местному времени.\n"
+                "Отчёты за эти часы соберутся в сводку.")
+    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:more")])
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 @router.callback_query(lambda c: c.data == "menu:quiet_hours")
 async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+    if not await _check_manage_permission(callback,callback.message.chat.id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        return
     await state.clear()
     chat_id = callback.message.chat.id
     if await db.get_utc_offset(chat_id) is None:
         await state.set_state(QuietHoursSetup.waiting_for_offset)
-        await callback.message.edit_text(
+        await edit_menu(callback.message,
             "Прежде чем настроить тихие часы, укажи свой часовой пояс относительно UTC "
             "(например, для МСК напиши <code>+3</code>, для Калининграда <code>+2</code>).",
             reply_markup=_back_keyboard(),
@@ -1116,12 +1116,16 @@ async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Da
         return
 
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
 @router.message(StateFilter(QuietHoursSetup.waiting_for_offset))
 async def process_utc_offset_input(message: Message, state: FSMContext, db: Database) -> None:
+    if not await _message_can_manage_chat(message):
+        await state.clear()
+        await message.answer('Настройки этого чата тебе недоступны.')
+        return
     raw = (message.text or "").strip().replace(" ", "")
     try:
         offset_hours = int(raw)
@@ -1147,6 +1151,9 @@ async def process_utc_offset_input(message: Message, state: FSMContext, db: Data
 
 @router.callback_query(lambda c: c.data and c.data.startswith("qhpreset:"))
 async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
+    if not await _check_manage_permission(callback,callback.message.chat.id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        return
     parts = callback.data.split(":", 2)
     chat_id = _callback_chat_id(callback)
     if len(parts) != 3 or chat_id is None:
@@ -1169,14 +1176,17 @@ async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
 
     await db.set_quiet_hours(chat_id, start_utc, end_utc, utc_offset)
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer("Тихие часы включены")
 
 
 @router.callback_query(lambda c: c.data == "qh:custom")
 async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext) -> None:
+    if not await _check_manage_permission(callback,callback.message.chat.id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        return
     await state.set_state(QuietHoursSetup.waiting_for_custom_time)
-    await callback.message.edit_text(
+    await edit_menu(callback.message,
         "Напиши интервал в своём локальном времени в формате <code>23:00-08:00</code>.",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:quiet_hours")]]
@@ -1187,6 +1197,10 @@ async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext) -> N
 
 @router.message(StateFilter(QuietHoursSetup.waiting_for_custom_time))
 async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Database) -> None:
+    if not await _message_can_manage_chat(message):
+        await state.clear()
+        await message.answer('Настройки этого чата тебе недоступны.')
+        return
     match = _TIME_RANGE_RE.match((message.text or "").strip())
     back_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:quiet_hours")]]
@@ -1224,16 +1238,22 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
 
 @router.callback_query(lambda c: c.data == "qh:disable")
 async def cb_quiet_hours_disable(callback: CallbackQuery, db: Database) -> None:
+    if not await _check_manage_permission(callback,callback.message.chat.id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        return
     chat_id = callback.message.chat.id
     await db.clear_quiet_hours(chat_id)
     await db.clear_quiet_hours_digest_sent(chat_id)
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer("Тихие часы выключены")
 
 
 @router.callback_query(lambda c: c.data == "qh:togglenotifyafter")
 async def cb_quiet_hours_toggle_notify_after(callback: CallbackQuery, db: Database) -> None:
+    if not await _check_manage_permission(callback,callback.message.chat.id):
+        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        return
     chat_id = callback.message.chat.id
     quiet_hours = await db.get_quiet_hours(chat_id)
     if quiet_hours is None:
@@ -1242,7 +1262,7 @@ async def cb_quiet_hours_toggle_notify_after(callback: CallbackQuery, db: Databa
     _start, _end, _offset, notify_after = quiet_hours
     await db.set_quiet_hours_notify_after(chat_id, not notify_after)
     text, keyboard = await _quiet_hours_screen_text_and_keyboard(chat_id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer(
         "Сводка после тихих часов выключена" if notify_after else "Сводка после тихих часов включена"
     )
@@ -1312,7 +1332,7 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
             )
         if not await db.has_deferred_reports(chat_id):
             await db.clear_quiet_hours_digest_sent(chat_id)
-        await callback.message.edit_text("Хорошо, пропускаю подробности.")
+        await edit_menu(callback.message,"Хорошо, пропускаю подробности.")
         await callback.answer()
         return
 
@@ -1350,7 +1370,10 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
 
 @router.callback_query(lambda c: c.data and c.data.startswith("managegroup:"))
 async def cb_manage_group(callback: CallbackQuery, db: Database) -> None:
-    target_chat_id = int(callback.data.split(":", 1)[1])
+    try: target_chat_id = int(callback.data.split(":", 1)[1])
+    except (ValueError,IndexError):
+        await callback.answer('Действие устарело. Нажми «Меню».',show_alert=True)
+        return
 
     if not await _check_manage_permission(callback, target_chat_id):
         await callback.answer("Ты больше не админ этой группы/канала.", show_alert=True)
@@ -1361,20 +1384,20 @@ async def cb_manage_group(callback: CallbackQuery, db: Database) -> None:
         back_callback="menu:manage_group", allow_add=True,
         title_prefix="Управление удалённо:\n",
     )
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
 _CHANNELS_HINT = (
-    "📡 <b>Отслеживаемые каналы</b>\n"
-    "Нажми на канал, чтобы открыть его настройки."
+    "📡 <b>Мои стримеры</b>\n"
+    "Нажми на стримера, чтобы открыть настройки."
 )
 
 _CHANNELS_HINT_PRIVATE = _CHANNELS_HINT
 
 _CHANNELS_HINT_TG_CHANNEL = (
-    "📡 <b>Отслеживаемые каналы</b>\n"
-    "Нажми на канал, чтобы открыть его настройки.\n\n"
+    "📡 <b>Мои стримеры</b>\n"
+    "Нажми на стримера, чтобы открыть настройки.\n\n"
     "Live-уведомление и итоговый отчёт в канал настраиваются отдельно для каждого "
     "Twitch-канала. Итоговый отчёт по умолчанию выключен."
 )
@@ -1397,7 +1420,7 @@ async def _render_channels_list(
         hint = _CHANNELS_HINT_TG_CHANNEL
     else:
         hint = _CHANNELS_HINT_PRIVATE if is_private else _CHANNELS_HINT
-    text = title_prefix + (hint if channels else "Список пуст. Добавь канал кнопкой ниже.")
+    text = title_prefix + (hint if channels else "Стримеров пока нет. Добавь первого кнопкой ниже.")
     chat_default_recipient = await db.get_stats_recipient(target_chat_id)
     keyboard = _channels_keyboard(
         target_chat_id, channels, chat_default_recipient,
@@ -1492,8 +1515,8 @@ async def _check_read_permission(callback: CallbackQuery, target_chat_id: int) -
 
 @router.callback_query(lambda c: c.data == "menu:list")
 async def cb_menu_list(callback: CallbackQuery, db: Database) -> None:
-    text, keyboard = await _render_channels_list(callback.message.chat.id, db)
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    text, keyboard = await _render_channels_list(callback.message.chat.id, db,back_callback="menu:more")
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -1593,7 +1616,7 @@ async def cb_channel_card(callback: CallbackQuery, db: Database) -> None:
         await callback.answer("Канал больше не отслеживается.", show_alert=True)
         return
     text, keyboard = result
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -1620,7 +1643,7 @@ async def cb_channel_list_back(callback: CallbackQuery, db: Database) -> None:
         target_chat_id, db, back_callback=list_back_callback,
         allow_add=current_chat_id == target_chat_id,
     )
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -1635,7 +1658,7 @@ async def _refresh_channel_card(
     if result is None:
         return
     text, keyboard = result
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("togglenotify:"))
@@ -1898,7 +1921,7 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
         )
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
 
-    await callback.message.edit_text(
+    await edit_menu(callback.message,
         "Пришли ник или ссылку Twitch.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
@@ -1924,7 +1947,7 @@ async def cb_untrack(callback: CallbackQuery, db: Database) -> None:
         target_chat_id, db, back_callback=back_callback, allow_add=current_chat_id == target_chat_id
     )
     text = "Канал удалён.\n\n" + text
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -2215,7 +2238,7 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
             added += 1
 
     _, keyboard = await _render_channels_list(current_chat_id, db)
-    await callback.message.edit_text(
+    await edit_menu(callback.message,
         f"Готово, добавил каналов: {added}.\n\n"
         "Как только кто-то из них выйдет в эфир — пришлю уведомление.",
         reply_markup=keyboard,
@@ -2262,7 +2285,7 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
         target_chat_id, db, back_callback=back_callback,
         allow_add=callback.message.chat.id == target_chat_id,
     )
-    await callback.message.edit_text(text, reply_markup=keyboard)
+    await edit_menu(callback.message,text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -2421,7 +2444,7 @@ async def cmd_list(message: Message, db: Database) -> None:
         await message.answer("Список пуст. Добавь канал через /track [twitch_логин].")
         return
 
-    text = "Отслеживаемые каналы:\n" + "\n".join(
+    text = "Мои стримеры:\n" + "\n".join(
         f"• {'🔴' if is_live else ('🔔' if enabled else '🔕')} {login}"
         for login, enabled, is_live in channels
     )
@@ -2433,7 +2456,7 @@ async def _build_live_list(
 ) -> tuple[str, InlineKeyboardMarkup]:
     live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
-        return "Сейчас никто из отслеживаемых каналов не в эфире.", _back_keyboard()
+        return "Сейчас никто из твоих стримеров не в эфире.", _back_keyboard()
 
     # Самые крупные эфиры показываем первыми; каналы без первого замера — внизу.
     live_channels.sort(
@@ -2521,13 +2544,13 @@ async def cb_menu_live(callback: CallbackQuery, db: Database) -> None:
         callback.message.chat.id, db, custom_emoji=True
     )
     try:
-        await callback.message.edit_text(
+        await edit_menu(callback.message,
             text, reply_markup=keyboard, disable_web_page_preview=True
         )
     except TelegramBadRequest:
         logger.info("Расширенное меню live отклонено, повторяю с обычными emoji")
         text, keyboard = await _build_live_list(callback.message.chat.id, db)
-        await callback.message.edit_text(
+        await edit_menu(callback.message,
             text, reply_markup=keyboard, disable_web_page_preview=True
         )
     await callback.answer()
@@ -2769,16 +2792,9 @@ async def cmd_report(message: Message, command: CommandObject, db: Database) -> 
 @router.callback_query(lambda c: c.data == "menu:report")
 async def cb_menu_report(callback: CallbackQuery, db: Database) -> None:
     logins = await db.list_channels(callback.message.chat.id)
-    if not logins:
-        await callback.message.edit_text(
-            "Список каналов пуст. Сначала добавь канал.", reply_markup=_back_keyboard()
-        )
-        await callback.answer()
-        return
-
-    await callback.message.edit_text(
-        "По какому каналу нужен отчёт?", reply_markup=_report_channels_keyboard(logins)
-    )
+    keyboard=_report_channels_keyboard(logins,link_stats=callback.message.chat.type!=ChatType.PRIVATE)
+    await edit_menu(callback.message,'Выбери стримера для отчёта. HTML-формат можно выбрать в его настройках.' if logins
+                                    else 'Стримеров пока нет. Добавь одного, чтобы получать отчёты.',reply_markup=keyboard)
     await callback.answer()
 
 

@@ -7625,7 +7625,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
             chat=SimpleNamespace(id=chat_id, type=chat_type),
             from_user=SimpleNamespace(id=sender_id),
             sender_chat=None,
-            answer=AsyncMock(),
+            answer=AsyncMock(), answer_photo=AsyncMock(),
             bot=SimpleNamespace(),
         )
 
@@ -7837,7 +7837,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_channels(101), [])
         twitch.channel_exists.assert_not_awaited()
         state.clear.assert_awaited_once()
-        self.assertEqual(message.answer.await_args.args[0], "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.")
+        self.assertEqual(message.answer_photo.await_args.kwargs['caption'], "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.")
 
     async def test_deep_link_marks_user_as_known_private_user(self) -> None:
         self.assertFalse(await self.db.is_known_private_user(555))
@@ -7870,7 +7870,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
             message=message,
             from_user=SimpleNamespace(id=101),
             bot=SimpleNamespace(),
-            answer=AsyncMock(),
+            answer=AsyncMock(), answer_photo=AsyncMock(),
         )
         state = SimpleNamespace(clear=AsyncMock())
 
@@ -7887,7 +7887,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         message.edit_text = AsyncMock()
         callback = SimpleNamespace(
             message=message,
-            answer=AsyncMock(),
+            answer=AsyncMock(), answer_photo=AsyncMock(),
         )
         state = SimpleNamespace(
             get_data=AsyncMock(return_value={"import_logins": ["raceone", "racetwo"]}),

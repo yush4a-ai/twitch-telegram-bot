@@ -1,4 +1,5 @@
 """Telegram adapters for the existing verified OAuth and channel intent services."""
+from ..telegram_home import edit_menu
 import secrets
 import time
 
@@ -17,23 +18,23 @@ async def private_callback(callback):
 async def cb_streamer(callback,db,config=None,state=None,oauth_server=None):
     if not await private_callback(callback): return
     if state is not None:
-        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server)
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
     identity=await db.get_streamer_identity(callback.from_user.id)
     if identity:
         text=f"Twitch подключён: {identity[1]}"
         items=[('Telegram-канал','streamer:channel'),('Настройки публикаций','streamer:posts'),
-               ('Streamer Plus','plus:show:streamer_plus'),('Назад','menu:home')]
+               ('Тариф для стримера','plus:show:streamer_plus'),('Назад','menu:home')]
     else:
         text="Подключи Twitch, чтобы бот мог создавать публикации о твоих эфирах."
         items=[('Подключить Twitch','streamer:connect'),('Что получит стример?','streamer:benefits'),('Назад','menu:home')]
-    await callback.message.edit_text(text,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+    await edit_menu(callback.message,text,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t,callback_data=c)] for t,c in items]))
     await callback.answer()
 
 
 async def cb_streamer_benefits(callback):
     if not await private_callback(callback): return
-    await callback.message.edit_text("Подключи Twitch и Telegram-канал — бот сможет публиковать сообщения о начале твоих эфиров.\n\n"
+    await edit_menu(callback.message,"Подключи Twitch и Telegram-канал — бот сможет публиковать сообщения о начале твоих эфиров.\n\n"
         "Бесплатное подключение доступно без Plus. Streamer Plus добавляет видео, свой текст, кнопки, варианты оформления и статистику.",
         reply_markup=back_keyboard('menu:streamer'))
     await callback.answer()
@@ -44,9 +45,9 @@ async def cb_streamer_connect(callback,state,db,oauth_server=None):
     actor=callback.from_user.id
     if await db.get_streamer_identity(actor):
         await cb_streamer(callback,db); return
-    await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server)
+    await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server,message=callback.message)
     if oauth_server is None:
-        await callback.message.edit_text("Подключение Twitch пока недоступно. Попробуй позже.",reply_markup=back_keyboard('menu:streamer'))
+        await edit_menu(callback.message,"Подключение Twitch пока недоступно. Попробуй позже.",reply_markup=back_keyboard('menu:streamer'))
         await callback.answer(); return
     generation=secrets.token_hex(8)
     await state.update_data(connect_generation=generation)
@@ -55,13 +56,13 @@ async def cb_streamer_connect(callback,state,db,oauth_server=None):
     except (OAuthFlowError,ValueError):
         if (await state.get_data()).get('connect_generation')==generation:
             await state.clear()
-            await callback.message.edit_text("Подключение Twitch пока недоступно. Попробуй позже.",reply_markup=back_keyboard('menu:streamer'))
+            await edit_menu(callback.message,"Подключение Twitch пока недоступно. Попробуй позже.",reply_markup=back_keyboard('menu:streamer'))
         await callback.answer(); return
     if (await state.get_data()).get('connect_generation')!=generation:
         await oauth_server.cancel_streamer_connect_intent(actor,intent)
         await callback.answer(); return
     await state.update_data(telegram_oauth_intent=intent)
-    await callback.message.edit_text("Открой Twitch и разреши подключение. Затем нажми «Проверить подключение». Ссылка действует 10 минут.",
+    await edit_menu(callback.message,"Открой Twitch и разреши подключение. Затем нажми «Проверить подключение». Ссылка действует 10 минут.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Подключить Twitch",url=url)],
             [InlineKeyboardButton(text="Проверить подключение",callback_data='streamer:check')],
@@ -81,7 +82,7 @@ async def cb_streamer_check(callback,state,db,config=None):
     if row[4] in {'pending','verifying'} and row[3]>time.time():
         await callback.answer("Жду разрешение Twitch. Открой ссылку и заверши подключение.",show_alert=True); return
     await state.clear()
-    await callback.message.edit_text("Подключение не завершено. Попробуй ещё раз.",reply_markup=back_keyboard('menu:streamer'))
+    await edit_menu(callback.message,"Подключение не завершено. Попробуй ещё раз.",reply_markup=back_keyboard('menu:streamer'))
     await callback.answer()
 
 
@@ -100,7 +101,7 @@ async def cb_streamer_channel(callback,state,db,oauth_server=None):
     actor=callback.from_user.id
     if await db.get_streamer_identity(actor) is None:
         await callback.answer("Сначала подключи Twitch.",show_alert=True); return
-    await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server)
+    await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server,message=callback.message)
     generation=secrets.token_hex(8)
     await state.update_data(channel_generation=generation)
     intent=secrets.token_hex(16);request_id=secrets.randbelow(2**31-1)+1
@@ -122,6 +123,6 @@ async def cb_streamer_posts(callback,db,config=None):
     if url and url.endswith('/app'):
         rows.append([InlineKeyboardButton(text="Открыть настройки",web_app=WebAppInfo(url=url))])
     rows.append([InlineKeyboardButton(text="← Назад",callback_data='menu:streamer')])
-    await callback.message.edit_text("В приложении выбери «Стример» → «Посты». Там можно настроить текст, кнопки и оформление публикаций.",
+    await edit_menu(callback.message,"В приложении выбери «Стример» → «Посты». Там можно настроить текст, кнопки и оформление публикаций.",
                                     reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()

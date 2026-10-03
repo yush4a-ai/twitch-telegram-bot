@@ -14,7 +14,7 @@ CONFIG = SimpleNamespace(owner_chat_id=OWNER_ID, oauth_public_base_url="https://
 
 
 def fake_message(user_id: int, chat_id: int, chat_type: str):
-    return SimpleNamespace(chat=SimpleNamespace(id=chat_id, type=chat_type), from_user=SimpleNamespace(id=user_id), answer=AsyncMock())
+    return SimpleNamespace(chat=SimpleNamespace(id=chat_id, type=chat_type), from_user=SimpleNamespace(id=user_id), answer=AsyncMock(), answer_photo=AsyncMock())
 
 
 class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
@@ -59,31 +59,31 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_menu_is_owner_only(self):
         state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
-        db = SimpleNamespace(mark_known_private_user=AsyncMock())
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
         regular = fake_message(OWNER_ID + 1, OWNER_ID + 1, ChatType.PRIVATE)
         group = fake_message(OWNER_ID, -100123, ChatType.SUPERGROUP)
         for message in (owner, regular, group):
             await cmd_start(message, state, db, CONFIG)
-        self.assertNotIn("Админ-панель", str(owner.answer.await_args.kwargs["reply_markup"]))
-        self.assertEqual(len(owner.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
-        self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Админ-панель", str(owner.answer_photo.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(owner.answer_photo.await_args.kwargs["reply_markup"].inline_keyboard),4)
+        self.assertNotIn("Админ-панель", str(regular.answer_photo.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))
 
     async def test_staging_viewer_start_menu_keeps_owner_admin_isolated(self):
         state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
-        db = SimpleNamespace(mark_known_private_user=AsyncMock())
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
         config = SimpleNamespace(**vars(CONFIG), viewer_plus_enabled=True)
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
         regular = fake_message(101, 101, ChatType.PRIVATE)
         group = fake_message(101, -100123, ChatType.SUPERGROUP)
         for message in (owner, regular, group):
             await cmd_start(message, state, db, config)
-        self.assertNotIn("Мои оповещения", str(owner.answer.await_args.kwargs["reply_markup"]))
-        self.assertEqual(len(owner.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
-        self.assertNotIn("Мои оповещения", str(regular.answer.await_args.kwargs["reply_markup"]))
-        self.assertEqual(len(regular.answer.await_args.kwargs["reply_markup"].inline_keyboard),4)
-        self.assertNotIn("Админ-панель", str(regular.answer.await_args.kwargs["reply_markup"]))
+        self.assertNotIn("Мои оповещения", str(owner.answer_photo.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(owner.answer_photo.await_args.kwargs["reply_markup"].inline_keyboard),4)
+        self.assertNotIn("Мои оповещения", str(regular.answer_photo.await_args.kwargs["reply_markup"]))
+        self.assertEqual(len(regular.answer_photo.await_args.kwargs["reply_markup"].inline_keyboard),4)
+        self.assertNotIn("Админ-панель", str(regular.answer_photo.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Мои оповещения", str(group.answer.await_args.kwargs["reply_markup"]))
         self.assertNotIn("Админ-панель", str(group.answer.await_args.kwargs["reply_markup"]))
 

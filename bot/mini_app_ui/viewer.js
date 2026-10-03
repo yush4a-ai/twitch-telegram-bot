@@ -207,7 +207,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       note.setAttribute('data-feedback', '');
       target.append(note);
     }
-    const tools=element('div','viewer-tools');tools.append(action(data.viewer_plus_active?`Видео · ${data.video_selection.selected_logins.length}/${data.video_selection.limit}`:'Видео · Plus',()=>getRouter().openDetail(data.viewer_plus_active?'video-selection':'subscription'),true));tools.append(action(data.viewer_plus_active||data.folders?.length?'Папки':'Папки · Plus',()=>getRouter().openDetail(data.viewer_plus_active||data.folders?.length?'folders':'subscription'),true));target.append(tools);
+    const tools=element('div','viewer-tools');tools.append(action(data.viewer_plus_active?`Видео · ${data.video_selection.selected_logins.length}/${data.video_selection.limit}`:'Видео · Тариф',()=>getRouter().openDetail(data.viewer_plus_active?'video-selection':'subscription'),true));tools.append(action(data.viewer_plus_active||data.folders?.length?'Папки':'Папки · Тариф',()=>getRouter().openDetail(data.viewer_plus_active||data.folders?.length?'folders':'subscription'),true));target.append(tools);
     renderGroups(groups);target.append(groups);
   }
   function renderGroups(target){
@@ -246,7 +246,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   }
   function renderVideoPicker(target){
     target.append(element('h1','','Видеопревью'));
-    if(!data.viewer_plus_active){target.append(panel('Фото остаётся доступно','Выбор видео сохранён. Для его использования нужен Plus.'),action('Возможности Plus',()=>getRouter().openDetail('subscription'),true));return;}
+    if(!data.viewer_plus_active){target.append(panel('Фото остаётся доступно','Выбор видео сохранён. Для его использования нужен Viewer Plus.'),action('Посмотреть тариф',()=>getRouter().openDetail('subscription'),true));return;}
     const status=element('p','video-count',`Выбрано ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`);status.setAttribute('role','status');target.append(status,element('p','lead','Пять мест, включая стримеров вне эфира и на паузе. Статус доставки — под именем.'));
     const query=element('input','input');query.type='search';query.maxLength=200;query.value=videoQuery;query.setAttribute('aria-label','Найти стримера для видео');query.placeholder='Найти стримера';
     const list=element('div','video-list');query.addEventListener('input',()=>{videoQuery=query.value;api.storage.setItem('ts-viewer-video-search',videoQuery);renderChoices(list);});target.append(query);
@@ -358,9 +358,9 @@ export function createViewerFeature(api, getRouter, telegram) {
     const group=element('section','navigation-group');
     const gated=route=>()=>getRouter().openDetail(data.viewer_plus_active?route:'subscription');
     group.append(navigationRow('Видеопревью',videoStatus(row),'video',gated('video-selection'),'video'));
-    group.append(navigationRow('Фильтры уведомлений',data.viewer_plus_active?explainFilter(row.filter||data.folders?.find(value=>value.id===row.folder_id)):'Viewer Plus','filter',gated(`filter:${login}`),'filter'));
-    group.append(navigationRow('Категории',data.viewer_plus_active?(row.category_alert?.enabled?'Сигнал включён':'Сигнал выключен'):'Viewer Plus','notification',gated(`category:${login}`),'category'));
-    group.append(navigationRow('Напоминание',row.reminder?.status==='scheduled'?`Через ${row.reminder.delay_minutes} минут`:data.viewer_plus_active?'15 или 30 минут во время эфира':'Viewer Plus','clock',gated(`reminder:${login}`),'reminder'));
+    group.append(navigationRow('Фильтры уведомлений',data.viewer_plus_active?explainFilter(row.filter||data.folders?.find(value=>value.id===row.folder_id)):'Посмотреть тариф','filter',gated(`filter:${login}`),'filter'));
+    group.append(navigationRow('Категории',data.viewer_plus_active?(row.category_alert?.enabled?'Сигнал включён':'Сигнал выключен'):'Посмотреть тариф','notification',gated(`category:${login}`),'category'));
+    group.append(navigationRow('Напоминание',row.reminder?.status==='scheduled'?`Через ${row.reminder.delay_minutes} минут`:data.viewer_plus_active?'15 или 30 минут во время эфира':'Посмотреть тариф','clock',gated(`reminder:${login}`),'reminder'));
     group.append(navigationRow('Папка',data.folders?.find(value=>value.id===row.folder_id)?.name||'Без папки','folder',gated(`move:${login}`),'folder'));target.append(group);
     const actions = element('div', 'actions');
     const twitchLink = element('a', 'button secondary', 'Открыть Twitch');
@@ -1071,7 +1071,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     target.append(element('h1','','История уведомлений'),element('p','lead','Результаты ваших оповещений.'));
     if (!data.viewer_plus_active) {
       target.append(panel('Viewer Plus неактивен', 'История сохранена до технической очистки, но сейчас недоступна.'));
-      target.append(action('Посмотреть доступ', () => getRouter().openDetail('subscription'), true));
+      target.append(action('Посмотреть тариф', () => getRouter().openDetail('subscription'), true));
       return;
     }
     if (!historyState.loaded && !historyState.loading) queueMicrotask(()=>{if(!historyState.loaded&&!historyState.loading)void loadHistory();});

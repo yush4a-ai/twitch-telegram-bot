@@ -71,7 +71,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
   return {
     render(target, route) {
       target.replaceChildren();if(!requested)void load();
-      target.append(element('h1','',state?.viewer.active||state?.streamer.active?'Моя подписка':'Возможности Plus'));
+      target.append(element('h1','',state?.viewer.active||state?.streamer.active?'Моя подписка':'Тариф'));
       if(!state||!catalog){target.append(panel('Загружаем подписку',error||'Проверяем доступ и возможности.'));if(error)target.append(action('Повторить',()=>load({fresh:true})));return;}
       if(error){const notice=element('p','notice error',error);notice.setAttribute('role','alert');target.append(notice);}
       if(feedback){const notice=element('p','notice',feedback);notice.setAttribute('role','status');target.append(notice);}
@@ -86,13 +86,13 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       for(const block of offer.benefit_blocks){const row=element('div','plus-benefit');row.dataset.benefitBlock=block.feature_ids.join(',');const copy=element('div','row-copy');copy.append(element('strong','',block.title),element('small','muted',block.description));row.append(icon(block.icon),copy);benefits.append(row);}
       box.append(benefits);
       if(id==='streamer_plus')box.append(disclosure('Viewer Plus включён',id+':included',catalog.products.find(p=>p.product_id==='viewer_plus').feature_ids));
-      box.append(action(`${access.active?'Продлить':'Подключить'} ${offer.title} — ${offer.price_label}`,()=>getRouter().openDetail({name:'purchase',id})));
+      box.append(action(`${access.active?'Продлить':'Оформить'} ${offer.title} — ${offer.price_label}`,()=>getRouter().openDetail({name:'purchase',id})));
       box.append(element('p','muted plus-renewal','1 месяц. Без автопродления.'));
       box.append(disclosure('Все возможности',id+':all',offer.feature_ids));
       if(id==='viewer_plus'&&state.viewer.test_trial_available){box.append(element('p','muted','Ознакомление на 7 дней. Один раз, без оплаты и автопродления.'));const trial=action('Попробовать 7 дней',startTrial,true);trial.disabled=busy||loading;box.append(trial);}
       else if(id==='viewer_plus'&&state.viewer.test_trial_used)box.append(element('p','muted',state.viewer.test_trial_active?`Ознакомление действует до ${dateText(state.viewer.test_trial_expires_at)}.`:'Ознакомление уже использовано.'));
       target.append(box);
-      if(route.mode==='streamer'&&!secondary){const viewer=catalog.products.find(p=>p.product_id==='viewer_plus');target.append(navigationRow(`Нужны только функции зрителя? ${viewer.title} — ${viewer.price_label}`,'','people',()=>getRouter().openDetail({name:'subscription',id:'viewer_plus'})));}
+      if(route.mode==='streamer'&&!secondary){const viewer=catalog.products.find(p=>p.product_id==='viewer_plus');target.append(navigationRow(`Тариф для зрителя — ${viewer.price_label}`,'','people',()=>getRouter().openDetail({name:'subscription',id:'viewer_plus'})));}
       const free=element('section','plus-free');free.append(element('h2','','Free'),element('p','muted',`До ${catalog.limits.free_streamers} стримеров, фото в уведомлениях, начало эфира и тихие часы. Подключение Twitch и Telegram-канала, обычный пост и HTML-отчёты доступны бесплатно.`));target.append(free);
       target.append(element('h2','section-head','Мои операции'));
       if(!state.history.length)target.append(element('p','muted','Операций пока нет. Здесь появятся ваши заказы и их статус.'));

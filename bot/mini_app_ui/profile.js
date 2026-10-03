@@ -31,11 +31,11 @@ export function createProfileFeature(api,getRouter,theme) {
       if(error)target.append(element('p','notice error',error),action('Обновить подписку',refresh,true));
       const active=state?.viewer.active||state?.streamer.active,product=state?.streamer.active?'Streamer Plus':state?.viewer.active?'Viewer Plus':'Free';
       const group=element('section','navigation-group');
-      group.append(navigationRow(active?'Моя подписка':'Возможности Plus',active?`${product} · до ${date(state?.streamer.active?state.streamer.expires_at:state.viewer.expires_at)}`:'Больше стримеров, видео и точные уведомления','plus',()=>getRouter().openDetail('subscription'),'subscription'));
+      group.append(navigationRow(active?'Моя подписка':'О тарифе',active?`${product} · до ${date(state?.streamer.active?state.streamer.expires_at:state.viewer.expires_at)}`:'Больше стримеров, видео и точные уведомления','plus',()=>getRouter().openDetail('subscription'),'subscription'));
       group.append(navigationRow('Уведомления','Тихие часы и настройки зрителя','notification',()=>getRouter().openDetail('viewer-settings'),'viewer-settings'));
       group.append(navigationRow('Тема приложения',themes.find(([id])=>id===theme.getChoice())?.[1],'theme',themePicker,'theme'));target.append(group);
       const support=element('section','navigation-group');support.append(navigationRow('Поддержка','Контакт и документы','help',()=>getRouter().openDetail('support'),'support'));
-      support.append(navigationRow('История уведомлений','Результаты ваших оповещений · Plus','history',()=>getRouter().openDetail('history'),'history'));
+      support.append(navigationRow('История уведомлений','Результаты ваших оповещений · Viewer Plus','history',()=>getRouter().openDetail('history'),'history'));
       support.append(navigationRow('Отчёты в боте','Команда /report и HTML-экспорт','posts',async event=>{
         const origin=event.currentTarget;
         let text='Отправьте /report в личном чате бота.';

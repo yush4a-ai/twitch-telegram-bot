@@ -75,7 +75,7 @@ class TelegramAddTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.state.get_state())
         self.assertEqual(await self.state.get_data(),{})
         self.assertEqual(await self.db.list_channels(101),[])
-        self.assertEqual(self.msg.answer.await_args.args[0], 'TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.')
+        self.assertEqual(self.msg.answer_photo.await_args.kwargs['caption'], 'TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.')
 
     async def test_confirm_checks_atomic_current_limit_50_and_200(self):
         from bot.handlers.telegram_add import cb_confirm_add

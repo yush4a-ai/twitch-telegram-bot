@@ -41,7 +41,7 @@ const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.set
 resizeNavigation.observe(tabBar);
 document.getElementById('app-menu').addEventListener('click',event=>{
   dialog('Меню приложения',(box,close)=>{
-    for(const [label,glyph,callback] of [['Профиль','profile',()=>router.setTab('profile')],['Подписка','plus',()=>router.openDetail('subscription')],['Поддержка','help',()=>router.openDetail('support')]]){
+    for(const [label,glyph,callback] of [['Профиль','profile',()=>router.setTab('profile')],['Тариф','plus',()=>router.openDetail('subscription')],['Поддержка','help',()=>router.openDetail('support')]]){
       box.append(navigationRow(label,'',glyph,()=>{close();callback();}));
     }
   },{origin:event.currentTarget});
@@ -60,8 +60,8 @@ function render(state, canBack) {
   }
   tabBar.replaceChildren();
   const tabs = state.mode === 'viewer'
-    ? [['home', 'Главная', 'home'], ['streamers', 'Стримеры', 'people'], ['profile', 'Профиль', 'profile'], ['plus','Plus','plus']]
-    : [['channel', 'Мой канал', 'channel'], ['posts', 'Посты', 'posts'], ['profile', 'Профиль', 'profile'], ['plus','Plus','plus']];
+    ? [['home', 'Главная', 'home'], ['streamers', 'Стримеры', 'people'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']]
+    : [['channel', 'Мой канал', 'channel'], ['posts', 'Посты', 'posts'], ['profile', 'Профиль', 'profile'], ['plus','Тариф','plus']];
   const detailName=typeof state.detail==='object'?state.detail?.name:state.detail;
   if(detailName==='history'&&!historyOpen)viewerFeature.resetHistory();
   historyOpen=detailName==='history';

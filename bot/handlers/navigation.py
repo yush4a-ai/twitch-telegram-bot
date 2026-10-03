@@ -1,9 +1,10 @@
 """Small Telegram entry points before legacy FSM input handlers."""
+from ..telegram_home import edit_menu
 from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
-from ..telegram_ui import own_private, more_keyboard, back_keyboard
+from ..telegram_ui import own_private, more_keyboard, back_keyboard, cancel_ui
 from .streams import cmd_start, _owner_admin_url, _viewer_url
 
 
@@ -13,12 +14,14 @@ async def on_menu(message, state, db, config=None, oauth_server=None):
     await cmd_start(message, state, db, config, oauth_server)
 
 
-async def cb_more(callback, config=None):
+async def cb_more(callback, config=None, state=None, db=None, oauth_server=None):
     if callback.message is None:
         await callback.answer("Сообщение недоступно. Нажми «Меню».",show_alert=True)
         return
+    if state is not None:
+        await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
     url = _viewer_url(callback.message,config,actor_id=callback.from_user.id)
-    await callback.message.edit_text("Ещё",reply_markup=more_keyboard(
+    await edit_menu(callback.message,"Ещё",reply_markup=more_keyboard(
         admin_url=_owner_admin_url(callback.message,config,actor_id=callback.from_user.id),
         legacy_viewer_url=url if url and url.endswith('/viewer') else None))
     await callback.answer()
@@ -31,7 +34,7 @@ async def cb_open_app(callback, config=None):
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Открыть приложение",web_app=WebAppInfo(url=url))],
             [InlineKeyboardButton(text="← На главную",callback_data="menu:home")]])
-        await msg.edit_text("Открывай настройки в приложении.",reply_markup=keyboard)
+        await edit_menu(msg,"Открывай настройки в приложении.",reply_markup=keyboard)
     elif msg is not None:
         await msg.answer("Открой личный чат с ботом. Приложение доступно через кнопку «Приложение».",
                          reply_markup=back_keyboard('menu:home'))
@@ -57,4 +60,7 @@ def build_navigation_router():
     router.callback_query.register(cb_plus,(F.data == 'menu:plus') | F.data.startswith('plus:show:'))
     router.callback_query.register(cb_buy,F.data.startswith('plus:buy:'))
     router.callback_query.register(cb_payment_method,F.data.startswith('plus:pay:'))
+    from .telegram_help import cb_help, cb_commands
+    router.callback_query.register(cb_help,F.data == 'menu:help')
+    router.callback_query.register(cb_commands,F.data == 'help:commands')
     return router

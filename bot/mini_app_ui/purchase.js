@@ -64,7 +64,7 @@ export function createPurchaseFeature(api,getRouter,telegram) {
       if(!catalog){target.append(element('h1','','Как оплатить?'),panel('Способы оплаты',error||'Загружаем тариф и цену.'));if(error)target.append(action('Повторить',load));return;}
       if(route.detail?.name==='purchase-order'){renderOrder(target,route.detail.id);return;}
       const id=route.detail?.id, offer=catalog.products.find(p=>p.product_id===id);
-      if(!offer){target.append(element('h1','','Выберите Plus'),action('Возможности Plus',()=>getRouter().openDetail('subscription')));return;}
+      if(!offer){target.append(element('h1','','Выберите тариф'),action('Посмотреть тариф',()=>getRouter().openDetail('subscription')));return;}
       const current=purchase(id);
       target.append(element('h1','','Как оплатить?'),element('h2','',offer.title),element('p','subscription-price',`${offer.price_label} / месяц`));
       target.append(element('p','muted','1 месяц. Без автопродления.'),element('p','','Telegram Stars — через Telegram.'),element('p','','СБП и банковская карта — через Platega.'));

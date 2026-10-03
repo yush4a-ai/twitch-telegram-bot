@@ -37,7 +37,7 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         await cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
         call=self.msg.edit_text.await_args
         self.assertEqual(call.args[0],'Twitch подключён: alpha')
-        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Telegram-канал','Настройки публикаций','Streamer Plus','Назад'])
+        self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Telegram-канал','Настройки публикаций','Тариф для стримера','Назад'])
         self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[1][0].callback_data,'streamer:posts')
 
     async def test_connect_intent_cancelled_by_menu_and_late_creation_is_cancelled(self):
@@ -84,6 +84,15 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([[b.text for b in r] for r in self.msg.answer.await_args.kwargs['reply_markup'].keyboard],[['Меню']])
         await on_menu(self.msg,self.state,self.db,CONFIG)
         self.assertEqual(len(await self.db.list_streamer_communities(101)),1)
+
+    async def test_channel_cancel_via_inline_home_restores_single_menu_keyboard(self):
+        from bot.handlers.telegram_streamer import cb_streamer_channel
+        from bot.handlers.streams import cb_menu_home
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        await cb_streamer_channel(self.cb('streamer:channel'),self.state,self.db)
+        await cb_menu_home(self.cb('menu:home'),self.state,CONFIG,db=self.db)
+        self.assertEqual([[b.text for b in row] for row in self.msg.answer.await_args.kwargs['reply_markup'].keyboard],[['Меню']])
+        self.assertEqual(await self.db.list_streamer_communities(101),[])
 
     async def test_wrong_actor_or_unverified_channel_cannot_create_intent(self):
         from bot.handlers.telegram_streamer import cb_streamer_channel

@@ -132,9 +132,9 @@ class TelegramStarsProvider:
                 and order_id == order.order_id and order.status == "pending" and order.financial_status == "pending"
                 and order.created_at <= now < order.checkout_expires_at
                 and query.shipping_option_id is None and query.order_info is None)
-            return PrecheckoutDecision(valid, None if valid else "Не удалось подтвердить заказ. Откройте Plus ещё раз.")
+            return PrecheckoutDecision(valid, None if valid else "Не удалось подтвердить заказ. Откройте тариф ещё раз.")
         except (PaymentVerificationError, AttributeError, TypeError):
-            return PrecheckoutDecision(False, "Не удалось подтвердить заказ. Откройте Plus ещё раз.")
+            return PrecheckoutDecision(False, "Не удалось подтвердить заказ. Откройте тариф ещё раз.")
 
     def _message_evidence(self, message, order, *, refund, now, expected_charge=None):
         self._require_ready()

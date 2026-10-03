@@ -24,7 +24,7 @@ async function setTheme(page,choice){
 async function screen(page,mode,tab){
   await page.getByRole('button',{name:mode==='viewer'?'Зритель':'Стример',exact:true}).click();
   await page.locator('#tab-bar').getByRole('button',{name:tab,exact:true}).click();
-  if(tab==='Plus')await page.locator('.plus-benefits').waitFor();
+  if(tab==='Тариф')await page.locator('.plus-benefits').waitFor();
   else if(tab==='Профиль')await page.locator('#content[data-profile-state="ready"]').waitFor();
   else if(mode==='viewer')await page.locator('#content[data-viewer-state="ready"]').waitFor();
   else await page.getByRole('heading',{name:tab,exact:true}).waitFor();
@@ -73,23 +73,23 @@ async function matrixJourney(page,{root,output,engine,scenario,assertLayout}){
   const expectedCount=scenario.includes('empty')?0:scenario.includes('hundred')?200:6;
   for(const width of widths)for(const theme of themes){
     await page.setViewportSize({width,height:844});await setTheme(page,theme);
-    for(const [mode,tab] of [['viewer','Главная'],['viewer','Стримеры'],['viewer','Plus'],['streamer','Мой канал'],['streamer','Посты'],['streamer','Plus'],['viewer','Профиль']]){
+    for(const [mode,tab] of [['viewer','Главная'],['viewer','Стримеры'],['viewer','Тариф'],['streamer','Мой канал'],['streamer','Посты'],['streamer','Тариф'],['viewer','Профиль']]){
       await screen(page,mode,tab);await assertLayout(page);const a=await accessible(page);
-      assert.deepEqual(a.nav,mode==='viewer'?['Главная','Стримеры','Профиль','Plus']:['Мой канал','Посты','Профиль','Plus']);
+      assert.deepEqual(a.nav,mode==='viewer'?['Главная','Стримеры','Профиль','Тариф']:['Мой канал','Посты','Профиль','Тариф']);
       if(tab==='Стримеры'){assert.equal(await page.locator('.streamer-row').count(),expectedCount);if(expectedCount){assert(await page.locator('[data-row-key="beta"]').innerText().then(t=>t.length>80),'Long names and stale status are present');}}
-      if(tab==='Plus'){assert.equal(await page.locator('.plus-benefit').count(),4);assert.equal(await page.locator('.plus-offer').getAttribute('data-product'),mode==='viewer'?'viewer_plus':'streamer_plus');await page.getByText(mode==='viewer'?'150 ₽ / месяц':'300 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByText('200 ₽ / месяц',{exact:true}).count(),0);}
+      if(tab==='Тариф'){assert.equal(await page.locator('.plus-benefit').count(),4);assert.equal(await page.locator('.plus-offer').getAttribute('data-product'),mode==='viewer'?'viewer_plus':'streamer_plus');await page.getByText(mode==='viewer'?'150 ₽ / месяц':'300 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByText('200 ₽ / месяц',{exact:true}).count(),0);}
       checks.push({width,theme,mode,tab,...a});
-      if(width===390&&(tab==='Стримеры'||tab==='Plus'))await picture(`${theme}-${mode}-${tab==='Plus'?'plus':'streamers'}`);
+      if(width===390&&(tab==='Стримеры'||tab==='Тариф'))await picture(`${theme}-${mode}-${tab==='Тариф'?'plus':'streamers'}`);
       if(width===1440&&theme==='light'&&tab==='Стримеры')await picture('desktop-streamers');
     }
   }
   await setTheme(page,'light');
   for(const width of [360,390]){
     await page.setViewportSize({width,height:844});await page.evaluate(()=>document.documentElement.style.fontSize='200%');
-    for(const [mode,tab] of [['viewer','Стримеры'],['viewer','Plus'],['streamer','Plus'],['viewer','Профиль']]){await screen(page,mode,tab);await assertLayout(page);await accessible(page);await picture(`text200-${width}-${mode}-${tab==='Plus'?'plus':tab==='Профиль'?'profile':'streamers'}`);}
+    for(const [mode,tab] of [['viewer','Стримеры'],['viewer','Тариф'],['streamer','Тариф'],['viewer','Профиль']]){await screen(page,mode,tab);await assertLayout(page);await accessible(page);await picture(`text200-${width}-${mode}-${tab==='Тариф'?'plus':tab==='Профиль'?'profile':'streamers'}`);}
     await page.evaluate(()=>document.documentElement.style.fontSize='');
   }
-  await page.setViewportSize({width:390,height:440});for(const [mode,tab] of [['viewer','Стримеры'],['streamer','Plus']]){await screen(page,mode,tab);await assertLayout(page);await picture(`short-${mode}`);}
+  await page.setViewportSize({width:390,height:440});for(const [mode,tab] of [['viewer','Стримеры'],['streamer','Тариф']]){await screen(page,mode,tab);await assertLayout(page);await picture(`short-${mode}`);}
   fs.writeFileSync(path.join(output,`matrix-${engine}-checks.json`),JSON.stringify({scenario,checks,text200Widths:[360,390],shortViewport:'390x440',status:'PASS'},null,2));
   await page.setViewportSize({width:390,height:844});return pictures;
 }
@@ -137,7 +137,7 @@ async function zoomJourney({root,output,engine,scenario,fixtureServer,installSdk
     report.baseline=await measure();report.control=await zoom(2);await page.waitForFunction(w=>innerWidth<=w/1.8,report.baseline.width);await frames(page);report.zoomed=await measure();
     assert.equal(report.control.zoom,2);assert.equal(report.zoomed.dpr,report.baseline.dpr*2);assert(Math.abs(report.baseline.width/report.zoomed.width-2)<.02);assert.equal(report.zoomed.visualScale,1);for(const k of ['rootZoom','bodyZoom'])assert.equal(report.zoomed[k],'1');for(const k of ['rootTransform','bodyTransform'])assert.equal(report.zoomed[k],'none');
     report.version=context.browser().version();
-    for(const [mode,tab,label] of [['viewer','Стримеры','streamers'],['viewer','Plus','viewer-plus'],['streamer','Мой канал','channel'],['streamer','Посты','posts'],['streamer','Plus','streamer-plus'],['viewer','Профиль','profile']]){
+    for(const [mode,tab,label] of [['viewer','Стримеры','streamers'],['viewer','Тариф','viewer-plus'],['streamer','Мой канал','channel'],['streamer','Посты','posts'],['streamer','Тариф','streamer-plus'],['viewer','Профиль','profile']]){
       await screen(page,mode,tab);await assertLayout(page);await accessible(page);let bytes;
       if(engine==='chromium'){const cdp=await context.newCDPSession(page);try{const result=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});bytes=Buffer.from(result.data,'base64');}finally{await cdp.detach();}}
       else{const pi=pw._connection.toImpl(page);const result=await pi.delegate._session.send('Page.snapshotRect',{x:0,y:0,width:report.baseline.width,height:report.baseline.height,coordinateSystem:'Viewport',omitDeviceScaleFactor:false});bytes=Buffer.from(result.dataURL.split(',')[1],'base64');}

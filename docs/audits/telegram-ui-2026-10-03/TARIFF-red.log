@@ -1,0 +1,11 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____ TariffCopyTests.test_entry_labels_and_product_cta_keep_exact_prices _____
+tests\test_telegram_tariff_copy.py:21: in test_entry_labels_and_product_cta_keep_exact_prices
+    self.assertEqual(next(b.text for row in more_keyboard().inline_keyboard for b in row if b.callback_data=='menu:plus'),'�����')
+E   AssertionError: '\u2b50 Plus \u0438 \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430' != '\u0422\u0430\u0440\u0438\u0444'
+E   - \u2b50 Plus \u0438 \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430
+E   + �����
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_tariff_copy.py::TariffCopyTests::test_entry_labels_and_product_cta_keep_exact_prices
+1 failed in 4.78s

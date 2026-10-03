@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from bot.handlers.streams import cmd_start, cb_menu_home, AddChannel, QuietHoursSetup
 
 HOME = "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал."
-LABELS = ["Открыть приложение", "➕ Добавить стримера", "🎥 Я стример", "Ещё"]
+LABELS = ["Открыть приложение", "➕ Добавить оповещения", "🎥 Я стример", "Ещё"]
 CONFIG = SimpleNamespace(mini_app_enabled=True, viewer_plus_enabled=True,
                          oauth_public_base_url="https://staging.example.test",
                          owner_chat_id=101, admin_panel_access_key="test-key")
@@ -21,17 +21,17 @@ CONFIG = SimpleNamespace(mini_app_enabled=True, viewer_plus_enabled=True,
 
 def message(actor=101, chat=None, kind="private"):
     return SimpleNamespace(chat=SimpleNamespace(id=actor if chat is None else chat, type=kind),
-                           from_user=SimpleNamespace(id=actor), answer=AsyncMock(), edit_text=AsyncMock())
+                           from_user=SimpleNamespace(id=actor), answer=AsyncMock(), answer_photo=AsyncMock(), edit_text=AsyncMock(), edit_media=AsyncMock(), photo=None)
 
 
 class NavigationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.storage = MemoryStorage()
         self.state = FSMContext(self.storage, StorageKey(bot_id=999, chat_id=101, user_id=101))
-        self.db = SimpleNamespace(mark_known_private_user=AsyncMock(), cancel_community_intent=AsyncMock())
+        self.db = SimpleNamespace(mark_known_private_user=AsyncMock(), cancel_community_intent=AsyncMock(), list_channels=AsyncMock(return_value=[]), list_live_channels=AsyncMock(return_value=[]), get_streamer_identity=AsyncMock(return_value=None))
 
     def assert_home(self, call):
-        self.assertEqual(call.args[0], HOME)
+        self.assertEqual(call.kwargs.get('caption',call.args[0] if call.args else None), HOME)
         rows = call.kwargs["reply_markup"].inline_keyboard
         self.assertEqual([len(r) for r in rows], [1]*4)
         self.assertEqual([r[0].text for r in rows], LABELS)
@@ -42,11 +42,12 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
         for actor in (101, 202):
             msg = message(actor)
             await cmd_start(msg, self.state, self.db, CONFIG)
-            rows = self.assert_home(msg.answer.await_args)
+            rows = self.assert_home(msg.answer_photo.await_args)
             self.assertEqual(rows[0][0].web_app.url, CONFIG.oauth_public_base_url+'/app')
             callback = SimpleNamespace(message=msg, from_user=msg.from_user, answer=AsyncMock())
             await cb_menu_home(callback, self.state, CONFIG)
-            self.assertEqual(self.assert_home(msg.edit_text.await_args), rows)
+            self.assertEqual(msg.edit_media.await_args.kwargs['media'].caption,HOME)
+            self.assertEqual(msg.edit_media.await_args.kwargs['reply_markup'].inline_keyboard, rows)
 
     async def test_reply_keyboard_only_menu_persistent_and_start_preserves_saved_data(self):
         await self.state.set_state(AddChannel.waiting_for_login)
@@ -96,7 +97,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
             await state.set_data({'draft':'unconfirmed'})
             msg = Message(message_id=1,date=datetime.now(timezone.utc),chat=Chat(id=101,type='private'),
                           from_user=User(id=101,is_bot=False,first_name='Test'),text='Меню')
-            with unittest.mock.patch.object(Message,'answer',new_callable=AsyncMock) as answers:
+            with unittest.mock.patch.object(Message,'answer',new_callable=AsyncMock), unittest.mock.patch.object(Message,'answer_photo',new_callable=AsyncMock) as answers:
                 await dp.feed_update(bot,Update(update_id=1,message=msg),db=self.db,config=CONFIG)
                 self.assert_home(answers.await_args)
             swallowed.assert_not_awaited()

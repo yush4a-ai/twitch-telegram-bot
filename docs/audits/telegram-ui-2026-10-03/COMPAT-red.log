@@ -1,0 +1,45 @@
+F.FFFFFF                                                                 [100%]
+================================== FAILURES ===================================
+__ TelegramCompatibilityTests.test_about_has_three_short_facts_app_and_back ___
+tests\test_telegram_compatibility.py:27: in test_about_has_three_short_facts_app_and_back
+    await streams.cb_menu_about(cb,CONFIG)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: cb_menu_about() takes 1 positional argument but 2 were given
+_ TelegramCompatibilityTests.test_free_quiet_presets_custom_back_no_plus_required _
+tests\test_telegram_compatibility.py:66: in test_free_quiet_presets_custom_back_no_plus_required
+    self.assertTrue({'qhpreset:22:7','qhpreset:23:8','qhpreset:0:9','qh:custom','menu:more'}<=actions)
+E   AssertionError: False is not true
+_ TelegramCompatibilityTests.test_help_is_separate_with_actual_support_and_ready_legal_only _
+tests\test_telegram_compatibility.py:37: in test_help_is_separate_with_actual_support_and_ready_legal_only
+    from bot.handlers.telegram_help import cb_help
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_help'
+_ TelegramCompatibilityTests.test_malformed_old_group_callback_has_recovery_and_no_mutation _
+tests\test_telegram_compatibility.py:80: in test_malformed_old_group_callback_has_recovery_and_no_mutation
+    await streams.cb_manage_group(cb,self.db)
+bot\handlers\streams.py:1353: in cb_manage_group
+    target_chat_id = int(callback.data.split(":", 1)[1])
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ValueError: invalid literal for int() with base 10: 'garbage'
+_ TelegramCompatibilityTests.test_menu_bypasses_input_throttle_to_cancel_immediately _
+tests\test_telegram_compatibility.py:76: in test_menu_bypasses_input_throttle_to_cancel_immediately
+    handler.assert_awaited_once()
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py:2334: in assert_awaited_once
+    raise AssertionError(msg)
+E   AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+_ TelegramCompatibilityTests.test_old_inaccessible_callback_recovery_mentions_menu _
+tests\test_telegram_compatibility.py:90: in test_old_inaccessible_callback_recovery_mentions_menu
+    self.assertIn('Меню',answer.await_args.args[0])
+E   AssertionError: 'Меню' not found in 'Это сообщение слишком старое. Открой меню заново: /start'
+_ TelegramCompatibilityTests.test_reports_keep_html_and_group_linking_inside_reports _
+tests\test_telegram_compatibility.py:57: in test_reports_keep_html_and_group_linking_inside_reports
+    self.assertTrue(any(b.callback_data=='menu:link_stats' for b in buttons))
+E   AssertionError: False is not true
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_about_has_three_short_facts_app_and_back
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_free_quiet_presets_custom_back_no_plus_required
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_help_is_separate_with_actual_support_and_ready_legal_only
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_malformed_old_group_callback_has_recovery_and_no_mutation
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_menu_bypasses_input_throttle_to_cancel_immediately
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_old_inaccessible_callback_recovery_mentions_menu
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_reports_keep_html_and_group_linking_inside_reports
+7 failed, 1 passed in 7.00s

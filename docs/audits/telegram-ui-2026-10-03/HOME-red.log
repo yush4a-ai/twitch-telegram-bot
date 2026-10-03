@@ -1,0 +1,68 @@
+FFFFFFFF                                                                 [100%]
+================================== FAILURES ===================================
+________ SmartHomeTests.test_concurrent_menu_and_per_bot_file_id_reuse ________
+tests\test_telegram_home.py:147: in test_concurrent_menu_and_per_bot_file_id_reuse
+    self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),2)
+E   AssertionError: 16 != 2
+_ SmartHomeTests.test_cross_user_state_and_forged_private_callback_are_denied _
+tests\test_telegram_home.py:116: in test_cross_user_state_and_forged_private_callback_are_denied
+    self.assertNotIn('privateother',(await self.state_for(101)).text)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_telegram_home.py:74: in state_for
+    from bot.telegram_home import load_home_state, build_home
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+___ SmartHomeTests.test_long_legacy_text_from_photo_fallback_not_truncated ____
+tests\test_telegram_home.py:153: in test_long_legacy_text_from_photo_fallback_not_truncated
+    from bot.telegram_home import edit_menu
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+_ SmartHomeTests.test_menu_reuses_message_caption_then_text_and_fallback_once _
+tests\test_telegram_home.py:130: in test_menu_reuses_message_caption_then_text_and_fallback_once
+    self.assertEqual(self.transport.calls[-1].__api_method__,'editMessageCaption')
+E   AssertionError: 'editMessageText' != 'editMessageCaption'
+E   - editMessageText
+E   + editMessageCaption
+_ SmartHomeTests.test_not_modified_no_duplicate_and_unexpected_errors_not_hidden _
+tests\test_telegram_home.py:162: in test_not_modified_no_duplicate_and_unexpected_errors_not_hidden
+    from bot.telegram_home import edit_menu
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+____ SmartHomeTests.test_subscriptions_live_zero_one_many_cap_and_escaping ____
+tests\test_telegram_home.py:92: in test_subscriptions_live_zero_one_many_cap_and_escaping
+    view=await self.state_for()
+         ^^^^^^^^^^^^^^^^^^^^^^
+tests\test_telegram_home.py:74: in state_for
+    from bot.telegram_home import load_home_state, build_home
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+__ SmartHomeTests.test_verified_only_compact_status_never_claims_publishing ___
+tests\test_telegram_home.py:108: in test_verified_only_compact_status_never_claims_publishing
+    self.assertTrue((await self.state_for()).banner)
+                     ^^^^^^^^^^^^^^^^^^^^^^
+tests\test_telegram_home.py:74: in state_for
+    from bot.telegram_home import load_home_state, build_home
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+______ SmartHomeTests.test_zero_subscriptions_banner_and_official_styles ______
+tests\test_telegram_home.py:78: in test_zero_subscriptions_banner_and_official_styles
+    view=await self.state_for()
+         ^^^^^^^^^^^^^^^^^^^^^^
+tests\test_telegram_home.py:74: in state_for
+    from bot.telegram_home import load_home_state, build_home
+E   ModuleNotFoundError: No module named 'bot.telegram_home'
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [Errno 13] Permission denied: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] �������� � �������: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_concurrent_menu_and_per_bot_file_id_reuse
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_cross_user_state_and_forged_private_callback_are_denied
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_long_legacy_text_from_photo_fallback_not_truncated
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_menu_reuses_message_caption_then_text_and_fallback_once
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_not_modified_no_duplicate_and_unexpected_errors_not_hidden
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_subscriptions_live_zero_one_many_cap_and_escaping
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_verified_only_compact_status_never_claims_publishing
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_zero_subscriptions_banner_and_official_styles
+8 failed, 2 warnings in 8.42s

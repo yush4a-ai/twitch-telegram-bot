@@ -152,7 +152,7 @@ class PurchaseMenuTests(unittest.TestCase):
         self.assertEqual(len(buttons),4)
         self.assertEqual(buttons[0].web_app.url,"https://staging.example.test/app")
         self.assertFalse(any(b.text=="Возможности Plus" for b in buttons))
-        plus = next(b for row in more_keyboard().inline_keyboard for b in row if b.text=="⭐ Plus и подписка")
+        plus = next(b for row in more_keyboard().inline_keyboard for b in row if b.text=="Тариф")
         self.assertEqual(plus.callback_data,"menu:plus")
         for kind in ("group","supergroup","channel"):
             menu = _main_menu_keyboard(kind, viewer_url="https://staging.example.test/app")

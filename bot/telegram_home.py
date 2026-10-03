@@ -1,0 +1,184 @@
+"""Read-only Home state and bounded, per-bot Telegram menu presentation."""
+from __future__ import annotations
+
+import asyncio
+import html
+import time
+import weakref
+from collections import OrderedDict
+from dataclasses import dataclass
+from pathlib import Path
+
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import Message, FSInputFile, InputMediaPhoto
+
+from .telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard
+
+BANNER_PATH = Path(__file__).resolve().parent / 'assets' / 'telegram-welcome.png'
+_menus = OrderedDict()
+
+
+@dataclass(frozen=True)
+class HomeState:
+    tracked: int = 0
+    live: tuple[tuple[str, str | None], ...] = ()
+    verified: bool = False
+
+
+@dataclass(frozen=True)
+class HomeView:
+    text: str
+    banner: bool
+
+
+async def load_home_state(db, user_id: int) -> HomeState:
+    """Existing own-chat queries; no Twitch/Telegram request or new database."""
+    if type(user_id) is not int or user_id <= 0:
+        raise ValueError('invalid home user')
+    channels = await db.list_channels(user_id)
+    live = await db.list_live_channels(user_id)
+    identity = await db.get_streamer_identity(user_id)
+    return HomeState(len(channels), tuple((row[0], row[3]) for row in live), identity is not None)
+
+
+def build_home(state: HomeState) -> HomeView:
+    if state.tracked:
+        lines = ['TwitchSignalBot', '', f'Отслеживаешь: {state.tracked}']
+        if state.live:
+            lines += [f'Сейчас в эфире: {len(state.live)}', '']
+            for login, category in state.live[:3]:
+                lines.append(html.escape(login[:60]) + (' · ' + html.escape(category[:100]) if category else ''))
+            if len(state.live) > 3: lines.append(f'И ещё {len(state.live)-3} в эфире')
+        else:
+            lines += ['Сейчас никто не в эфире.', '', 'Я сообщу, когда кто-нибудь начнёт стрим.']
+        text = '\n'.join(lines)
+    else:
+        text = HOME_TEXT
+    if state.verified:
+        # Identity is verified. Publishing permissions require a fresh Telegram check,
+        # so Home never asserts that publishing is enabled from a stored toggle.
+        text += '\n\nТвой Twitch подключён'
+    return HomeView(text, not state.tracked and not state.verified)
+
+
+class MenuStore:
+    def __init__(self):
+        self.messages = OrderedDict()
+        self.locks = weakref.WeakValueDictionary()
+        self.banner_file_id = None
+
+    def lock(self, chat_id):
+        lock = self.locks.get(chat_id)
+        if lock is None:
+            lock = asyncio.Lock(); self.locks[chat_id] = lock
+        return lock
+
+    def get(self, chat_id):
+        entry = self.messages.get(chat_id)
+        if entry and time.monotonic()-entry[0] < 24*3600:
+            self.messages.move_to_end(chat_id)
+            return entry[1],entry[2]
+        self.messages.pop(chat_id,None)
+        return None,False
+
+    def remember(self, message, *, keyboard_ready=None):
+        old = self.messages.get(message.chat.id)
+        ready = keyboard_ready if keyboard_ready is not None else bool(old and old[2])
+        self.messages[message.chat.id] = (time.monotonic(),message,ready)
+        self.messages.move_to_end(message.chat.id)
+        while len(self.messages)>1024: self.messages.popitem(last=False)
+
+
+def store_for(message):
+    if not isinstance(message,Message): return None
+    bot = message.bot
+    store = _menus.get(bot.id)
+    if store is None:
+        store = MenuStore(); _menus[bot.id] = store
+    _menus.move_to_end(bot.id)
+    while len(_menus)>16: _menus.popitem(last=False)
+    return store
+
+
+def _has_media(message):
+    return any(getattr(message,key,None) for key in ('photo','animation','video','document','audio'))
+
+
+def _edit_unavailable(error):
+    description = error.message.lower()
+    return any(reason in description for reason in (
+        'message to edit not found', "message can't be edited", 'message_id_invalid',
+        'there is no text in the message to edit', 'there is no caption in the message'))
+
+
+async def _detach(message):
+    try:
+        await message.edit_reply_markup(reply_markup=None)
+    except TelegramBadRequest as error:
+        if 'message is not modified' not in error.message.lower() and not _edit_unavailable(error): raise
+
+
+async def edit_menu(message, text, *, reply_markup=None, force_text=False, **kwargs):
+    """Caption-aware legacy-compatible edit. Never truncate a report to fit media."""
+    result = None
+    needs_new = _has_media(message) and (force_text or len(text)>1024)
+    if not needs_new:
+        try:
+            if _has_media(message):
+                caption_options={k:v for k,v in kwargs.items() if k not in {'disable_web_page_preview','link_preview_options'}}
+                result = await message.edit_caption(caption=text,reply_markup=reply_markup,**caption_options)
+            else:
+                result = await message.edit_text(text,reply_markup=reply_markup,**kwargs)
+        except TelegramBadRequest as error:
+            if 'message is not modified' in error.message.lower():
+                result = message
+            elif _edit_unavailable(error): needs_new=True
+            else: raise
+    if needs_new:
+        result = await message.answer(text,reply_markup=reply_markup,**kwargs)
+        await _detach(message)
+    if isinstance(result,Message) and result.chat.type=='private':
+        store_for(result).remember(result)
+    return result
+
+
+async def show_home(message, view, *, app_url=None, callback=False):
+    store = store_for(message)
+    keyboard = home_keyboard(message.chat.type,app_url=app_url)
+
+    async def present():
+        previous,ready = store.get(message.chat.id) if store else (None,False)
+        if callback:
+            previous = message
+        elif message.chat.type=='private' and not ready:
+            await message.answer('Возвращайся сюда кнопкой «Меню».',reply_markup=menu_keyboard())
+            ready = True
+        if view.banner:
+            photo = store.banner_file_id if store and store.banner_file_id else FSInputFile(BANNER_PATH)
+            if previous is not None:
+                try:
+                    if (getattr(previous,'photo',None) and store
+                        and previous.photo[-1].file_id == store.banner_file_id):
+                        result = await previous.edit_caption(caption=view.text,reply_markup=keyboard)
+                    else:
+                        result = await previous.edit_media(media=InputMediaPhoto(media=photo,caption=view.text),reply_markup=keyboard)
+                except TelegramBadRequest as error:
+                    if 'message is not modified' in error.message.lower(): result=previous
+                    elif _edit_unavailable(error):
+                        result=await message.answer_photo(photo,caption=view.text,reply_markup=keyboard)
+                        await _detach(previous)
+                    else: raise
+            else:
+                result=await message.answer_photo(photo,caption=view.text,reply_markup=keyboard)
+        elif previous is not None:
+            result=await edit_menu(previous,view.text,reply_markup=keyboard,force_text=True)
+        else:
+            result=await message.answer(view.text,reply_markup=keyboard)
+        if store and isinstance(result,Message):
+            if view.banner and result.photo: store.banner_file_id=result.photo[-1].file_id
+            store.remember(result,keyboard_ready=ready)
+        return result
+
+    if store:
+        async with store.lock(message.chat.id): return await present()
+    return await present()

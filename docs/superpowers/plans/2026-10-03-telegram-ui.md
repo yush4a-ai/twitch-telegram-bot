@@ -53,6 +53,19 @@ Cross-user/private/group callbacks, old messages, missing/inaccessible message, 
 - Implement minimal copy/path changes, all old handlers/commands/HTML/export retained. Stop-slop pass across changed human copy.
 - PASS focused compatibility/copy/report/group/quiet tests; persist OLD FUNCTION → NEW PATH → TEST table and fake-sender UI evidence. Commit.
 
+## Task 5b: дополнение владельца — Smart Home
+
+- Точный запрос: `SMART-HOME-OWNER-REQUEST.md`; он заменяет прежний статичный Home и название Add на «➕ Добавить оповещения».
+- RED серверные состояния: новый пользователь с баннером, подписки/live0/1/>3, максимум3 и остаток; только собственные данные; verified статус без выдуманного publishing. Primary/success/default официального API.
+- Единый Home builder, локальный статичный баннер с per-bot file_id reuse; обновление при входах, без фонового цикла. Редактирование текущего меню по типу, безопасный fallback при stale/edit failure; bounded cache и no-op unchanged edit не создают цепочку сообщений.
+- PASS fake sender/temp DB, старые callbacks/команды, caption/text переходы; scoped review, commit перед финальным gate.
+
+## Task 5c: название входа в тариф (последнее owner уточнение)
+
+- Входы Mini App/Telegram/profile/paywall/help/legal links: «Тариф», «О тарифе», «Посмотреть тариф» или «Тариф для стримера»; active: «Моя подписка».
+- Названия продуктов Viewer Plus/Streamer Plus и catalog150/300 не меняются. Внутри покупки конкретный продукт и CTA «Оформить … — … ₽»; доступ и payment OFF сохранены.
+- Адресные замены в живом UI и актуальных проверках; historical docs/audits без переписывания. RED Telegram labels и browser route → implementation → PASS screenshots в Chromium/WebKit, widths/themes и scoped copy review.
+
 ## Task 6: финальное ревью и pinned staging
 
 - Один fresh read-only reviewer всей task range against spec/audit/plan. RED→PASS fixes if real findings.

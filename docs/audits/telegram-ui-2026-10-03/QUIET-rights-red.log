@@ -1,0 +1,9 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ TelegramCompatibilityTests.test_group_member_cannot_forge_free_quiet_setting_callbacks _
+tests\test_telegram_compatibility.py:101: in test_group_member_cannot_forge_free_quiet_setting_callbacks
+    self.assertEqual(self.db.conn.total_changes,before)
+E   AssertionError: 27 != 26
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_compatibility.py::TelegramCompatibilityTests::test_group_member_cannot_forge_free_quiet_setting_callbacks
+1 failed, 9 deselected in 4.09s

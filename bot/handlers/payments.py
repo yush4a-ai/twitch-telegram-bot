@@ -45,13 +45,13 @@ async def on_precheckout(query, billing_service, bot, *, now=None):
         provider, order, attempt = await _context(billing_service, query.invoice_payload)
         decision = provider.validate_precheckout(query, order, now=at)
         if not decision.ok or attempt.state not in {"creating", "pending", "creation_unknown"}:
-            return False, decision.error_message or "Заказ уже закрыт. Откройте Plus ещё раз."
+            return False, decision.error_message or "Заказ уже закрыт. Откройте тариф ещё раз."
         if await billing_service._db.has_viewer_plus(order.telegram_user_id, now=at):
-            return False, "Подписка уже действует. Откройте раздел Plus."
+            return False, "Подписка уже действует. Откройте раздел «Тариф»."
         if order.plan == "streamer_plus":
             identity = await billing_service._db.get_streamer_identity(order.telegram_user_id)
             if identity is None or identity[0] != order.broadcaster_id:
-                return False, "Подключение Twitch изменилось. Откройте Plus ещё раз."
+                return False, "Подключение Twitch изменилось. Откройте тариф ещё раз."
         return True, None
     try:
         ok, error = await asyncio.wait_for(check(), timeout=3)

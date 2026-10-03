@@ -85,6 +85,7 @@ async function assertLayout(page) {
 }
 
 async function runJourney(page, scenario) {
+  if (scenario === 'tariff-copy') return tariffCopyJourney(page);
   if (scenario === 'video-windows') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).videoWindowsJourney(page,{root,output,engine:argument('engine','chromium'),installSdk,assertLayout});
   if (scenario === 'matrix') return require(path.join(root,'scripts/mini_app_redesign_matrix_qa.cjs')).matrixJourney(page, {root,output,engine:argument('engine','chromium'),scenario:argument('scenario','free-six'),assertLayout});
   if (scenario === 'theme') return themeJourney(page);
@@ -108,7 +109,7 @@ async function runJourney(page, scenario) {
 async function shellJourney(page) {
   await page.getByRole('heading', { name:'Главная',exact:true }).waitFor();
   const labels=()=>page.locator('#tab-bar button').allTextContents();
-  assert.deepEqual((await labels()).map(x=>x.trim()),['Главная','Стримеры','Профиль','Plus']);
+  assert.deepEqual((await labels()).map(x=>x.trim()),['Главная','Стримеры','Профиль','Тариф']);
   for(const width of [360,390,430,768,1440]) {
     await page.setViewportSize({width,height:844});await assertLayout(page);
     assert((await page.locator('.app-shell').boundingBox()).width<=600,'Accepted A max600');
@@ -119,20 +120,20 @@ async function shellJourney(page) {
   await page.locator('#content[data-profile-state="ready"]').waitFor();
   await page.getByText('Очень длинное настоящее имя в локальном сценарии',{exact:true}).waitFor();
   assert.equal(await page.getByText('Чужое имя из initDataUnsafe',{exact:true}).count(),0);
-  const accessName=await page.getByRole('button',{name:'Моя подписка',exact:true}).count()?'Моя подписка':'Возможности Plus';
-  await page.getByRole('button',{name:accessName,exact:true}).click();
+  const accessName=await page.getByRole('button',{name:'Моя подписка',exact:true}).count()?'Моя подписка':'Тариф';
+  await page.getByRole('button',{name:accessName==='Моя подписка'?'Моя подписка':'О тарифе',exact:true}).click();
   await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
-  assert.equal(await page.locator('#tab-bar [aria-current="page"]').getAttribute('aria-label'),'Plus');
+  assert.equal(await page.locator('#tab-bar [aria-current="page"]').getAttribute('aria-label'),'Тариф');
   await page.evaluate(()=>window.__qaSdk.back());
   await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  await page.getByRole('button',{name:'Тариф',exact:true}).click();
   await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
-  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  await page.getByRole('button',{name:'Тариф',exact:true}).click();
   await page.evaluate(()=>window.__qaSdk.back());
   await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
   await page.getByRole('button',{name:'Меню приложения',exact:true}).click();
   const menu=page.getByRole('dialog',{name:'Меню приложения',exact:true});
-  await menu.getByRole('button',{name:'Подписка',exact:true}).click();
+  await menu.getByRole('button',{name:'Тариф',exact:true}).click();
   await page.getByRole('heading',{name:accessName,exact:true}).waitFor();
   assert.equal(await menu.count(),0,'Menu closes before opening the shared subscription');
   await page.evaluate(()=>window.__qaSdk.back());
@@ -155,7 +156,7 @@ async function shellJourney(page) {
   await page.evaluate(()=>window.__qaSdk.back());
   await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();
   await page.getByRole('button',{name:'Стример',exact:true}).click();
-  assert.deepEqual((await labels()).map(x=>x.trim()),['Мой канал','Посты','Профиль','Plus']);
+  assert.deepEqual((await labels()).map(x=>x.trim()),['Мой канал','Посты','Профиль','Тариф']);
   await page.getByRole('button',{name:'Профиль',exact:true}).click();
   await page.setViewportSize({width:360,height:440});
   await page.evaluate(()=>document.documentElement.style.fontSize='200%');await assertLayout(page);
@@ -380,7 +381,7 @@ async function videoJourney(page){
   const call=(path,values={})=>page.evaluate(async({path,values})=>{const {createApi}=await import('/app/api.js');try{return {status:200,body:await createApi(Telegram.WebApp.initData).post(`/app/api/viewer/${path}`,values)};}catch(error){return {status:error.status,code:error.code};}},{path,values});
   const initial=(await call('state')).body;
   if(!initial.viewer_plus_active){
-    await page.getByRole('button',{name:'Видео · Plus',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Видео · Тариф',exact:true}).click();await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();
     assert.equal((await call('video-selection',{selected_logins:['alpha'],expected_version:initial.video_selection.version})).status,403);
     assert.deepEqual((await call('state')).body.video_selection.selected_logins,[]);
     await capture('free-plus');return pictures;
@@ -496,7 +497,7 @@ async function filterFolderJourney(page){
   const original=await call('state');
   if(!original.viewer_plus_active){
     for(const [endpoint,values] of [['folder/create',{name:'Недоступная папка'}],['filter',{login:'alpha',expected_version:0,games:['Art'],title_keywords:[],exclude_keywords:[]}]])assert.deepEqual(await viewerCall(page,endpoint,values),{ok:false,status:403,code:'plus_required'});
-    await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки · Plus',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки · Тариф',exact:true}).click();await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();
     const saved=await call('state');assert.deepEqual(saved.folders,original.folders);assert.deepEqual(saved.subscriptions.map(r=>[r.login,r.folder_id,r.filter]),original.subscriptions.map(r=>[r.login,r.folder_id,r.filter]));return [await settingsPicture(page,'free-folder-gate')];
   }
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Папки',exact:true}).click();await page.getByRole('heading',{name:'Папки',exact:true}).waitFor();
@@ -534,7 +535,7 @@ async function categoryJourney(page){
   const original=(await viewerCall(page,'state')).data;
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Категории',exact:true}).click();
   if(!original.viewer_plus_active){
-    await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).count(),0);
+    await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Сохранить сигнал',exact:true}).count(),0);
     assert.deepEqual(await viewerCall(page,'category-alert',{login:'alpha',enabled:true,category_ids:['300'],expected_version:0}),{ok:false,status:403,code:'plus_required'});
     assert.deepEqual((await viewerCall(page,'state')).data.subscriptions.map(r=>[r.login,r.category_alert]),original.subscriptions.map(r=>[r.login,r.category_alert]));return [await settingsPicture(page,'free-category-gate')];
   }
@@ -568,7 +569,7 @@ async function reminderJourney(page){
   const original=(await viewerCall(page,'state')).data;
   await page.getByRole('button',{name:'Стримеры',exact:true}).click();await page.getByRole('button',{name:'Открыть Alpha',exact:true}).click();await page.getByRole('button',{name:'Напоминание',exact:true}).click();
   if(!original.viewer_plus_active){
-    await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Через 15 минут',exact:true}).count(),0);
+    await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Через 15 минут',exact:true}).count(),0);
     for(const minutes of [15,30])assert.deepEqual(await viewerCall(page,'reminder',{login:'alpha',delay_minutes:minutes}),{ok:false,status:403,code:'plus_required'});
     assert.deepEqual((await viewerCall(page,'state')).data.subscriptions.map(r=>[r.login,r.reminder]),original.subscriptions.map(r=>[r.login,r.reminder]));return [await settingsPicture(page,'free-reminder-gate')];
   }
@@ -601,7 +602,7 @@ async function historyJourney(page){
   await page.getByRole('heading',{name:'История уведомлений',exact:true}).waitFor();
   if(argument('scenario','')==='free-six'){
     await page.getByText('Viewer Plus неактивен',{exact:true}).waitFor();assert.equal(await page.locator('[data-history-event]').count(),0);
-    await page.getByRole('button',{name:'Посмотреть доступ',exact:true}).click();await page.getByRole('heading',{name:'Возможности Plus',exact:true}).waitFor();await page.evaluate(()=>window.__qaSdk.back());await page.evaluate(()=>window.__qaSdk.back());
+    await page.getByRole('button',{name:'Посмотреть тариф',exact:true}).click();await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();await page.evaluate(()=>window.__qaSdk.back());await page.evaluate(()=>window.__qaSdk.back());
     await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();await page.getByRole('button',{name:'Уведомления',exact:true}).click();await page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).waitFor();return [await settingsPicture(page,'free-notifications')];
   }
   await page.locator('[data-history-event]').first().waitFor();assert.equal(await page.locator('#content h1').count(),1);
@@ -889,14 +890,44 @@ async function streamerPostsJourney(page) {
   return pictures;
 }
 
+async function tariffCopyJourney(page) {
+  const pictures=[];
+  const response=await page.evaluate(async()=>{const r=await fetch('/app/api/subscription/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init_data:Telegram.WebApp.initData})});return r.json();});
+  const active=response.viewer.active||response.streamer.active;
+  for(const mode of ['viewer','streamer']){
+    await page.getByRole('button',{name:mode==='viewer'?'Зритель':'Стример',exact:true}).click();
+    await page.getByRole('button',{name:'Профиль',exact:true}).click();
+    await page.locator('#content[data-profile-state="ready"]').waitFor();
+    await page.getByRole('button',{name:active?'Моя подписка':'О тарифе',exact:true}).click();
+    await page.getByRole('heading',{name:mode==='viewer'?'Viewer Plus':'Streamer Plus',exact:true}).waitFor();
+    await page.getByRole('heading',{name:active?'Моя подписка':'Тариф',exact:true}).waitFor();
+    await page.getByText(mode==='viewer'?'150 ₽ / месяц':'300 ₽ / месяц',{exact:true}).waitFor();
+    const labels=(await page.locator('#tab-bar button').allTextContents()).map(x=>x.trim());
+    assert.deepEqual(labels,mode==='viewer'?['Главная','Стримеры','Профиль','Тариф']:['Мой канал','Посты','Профиль','Тариф']);
+    const entryButtons=await page.locator('#content button').allTextContents();
+    assert(entryButtons.filter(t=>!t.startsWith('Оформить ')&&!t.startsWith('Продлить ')).every(t=>!t.includes('Plus')),'Product names belong in the product/checkout, not subscription entry buttons');
+    for(const theme of ['light','dark','telegram-light','telegram-dark']){
+      await page.evaluate(async choice=>{
+        const {theme}=await import('/app/app.js');
+        if(choice.startsWith('telegram-')){const dark=choice.endsWith('dark');Telegram.WebApp.colorScheme=dark?'dark':'light';Telegram.WebApp.themeParams=dark?{bg_color:'#211d18',text_color:'#f6ecdc',button_color:'#e4c9a0',button_text_color:'#211d18',link_color:'#e4c9a0'}:{bg_color:'#fff5e5',text_color:'#302517',button_color:'#804000',button_text_color:'#ffffff',link_color:'#805500'};for(const fn of window.__qaSdk.events.get('themeChanged'))fn();theme.setChoice('telegram');}else theme.setChoice(choice);
+      },theme);
+      for(const width of [360,390,430,768,1440]){
+        await page.setViewportSize({width,height:844});await assertLayout(page);
+        const file=`tariff-${mode}-${theme}-${width}.png`;await page.screenshot({path:path.join(output,file),animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file)),viewport:`${width}x844`});
+      }
+    }
+  }
+  return pictures;
+}
+
 async function purchaseJourney(page) {
   const pictures=[];
   async function picture(label){const file=`purchase-flow-${argument('engine','chromium')}-${label}-390.png`;await assertLayout(page);await page.screenshot({path:path.join(output,file),animations:'disabled'});pictures.push({file,sha256:digest(path.join(output,file)),viewport:'390x844'});}
   async function call(path,values={}){return page.evaluate(async({path,values})=>{const response=await fetch(`/app/api/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init_data:window.Telegram.WebApp.initData,...values})});return {status:response.status,data:await response.json()};},{path,values});}
   await page.getByRole('heading',{name:'Главная',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Plus',exact:true}).click();
+  await page.getByRole('button',{name:'Тариф',exact:true}).click();
   const own=(await call('subscription/state')).data;
-  const title=own.viewer.active||own.streamer.active?'Моя подписка':'Возможности Plus';
+  const title=own.viewer.active||own.streamer.active?'Моя подписка':'Тариф';
   await page.getByRole('heading',{name:title,exact:true}).waitFor();
   await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
   assert.equal(await page.locator('[data-benefit-block]').count(),4);
@@ -912,12 +943,12 @@ async function purchaseJourney(page) {
   assert.equal(await page.locator('[data-benefit-block]').count(),4);
   await page.getByText('Viewer Plus включён',{exact:true}).click();
   await page.locator('details[open]').getByText('Напоминания',{exact:true}).waitFor();await picture('streamer');
-  await page.getByRole('button',{name:'Нужны только функции зрителя? Viewer Plus — 150 ₽',exact:true}).click();
+  await page.getByRole('button',{name:'Тариф для зрителя — 150 ₽',exact:true}).click();
   await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
   await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();await picture('secondary-viewer');
   await page.evaluate(()=>window.__qaSdk.back());
   await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
-  await page.getByRole('button',{name:/^(Подключить|Продлить) Streamer Plus — 300 ₽$/}).click();
+  await page.getByRole('button',{name:/^(Оформить|Продлить) Streamer Plus — 300 ₽$/}).click();
   await page.getByRole('heading',{name:'Как оплатить?',exact:true}).waitFor();
   await page.getByText('СБП и банковская карта — через Platega.',{exact:true}).waitFor();await picture('methods');
   for(const [method,label] of [['stars','Telegram Stars'],['sbp','СБП'],['bank_card','Банковская карта']]){
@@ -933,7 +964,7 @@ async function purchaseJourney(page) {
   let release,seen;const held=new Promise(r=>release=r),started=new Promise(r=>seen=r);
   await page.route('**/app/api/purchase/prepare',async route=>{seen();await held;return route.continue();});
   try{
-    await page.getByRole('button',{name:/^(Подключить|Продлить) Streamer Plus — 300 ₽$/}).click();
+    await page.getByRole('button',{name:/^(Оформить|Продлить) Streamer Plus — 300 ₽$/}).click();
     await page.getByRole('button',{name:'СБП',exact:true}).click();await started;
     assert.equal(await page.getByRole('button',{name:'Telegram Stars',exact:true}).isDisabled(),true);
     await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Зритель',exact:true}).click();
@@ -944,12 +975,12 @@ async function purchaseJourney(page) {
   await page.goto(new URL('/app?screen=subscription&paid=1&price=1&product=streamer_plus',page.url()).href);
   await page.getByRole('heading',{name:title,exact:true}).waitFor();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
   assert.deepEqual((await call('subscription/state')).data.history,own.history);
-  await page.getByRole('button',{name:/^(Подключить|Продлить) Viewer Plus — 150 ₽$/}).click();
+  await page.getByRole('button',{name:/^(Оформить|Продлить) Viewer Plus — 150 ₽$/}).click();
   await page.route('**/app/api/purchase/prepare',route=>route.abort());
   await page.getByRole('button',{name:'СБП',exact:true}).click();await page.getByText('Нет связи. Попробуйте ещё раз.',{exact:true}).waitFor();await picture('offline');
   await page.unroute('**/app/api/purchase/prepare');await page.getByRole('button',{name:'Повторить',exact:true}).click();
   await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:title,exact:true}).click();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:own.viewer.active||own.streamer.active?'Моя подписка':'О тарифе',exact:true}).click();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
   if(argument('scenario','free-six')==='purchase-history'){
     assert.equal(own.history.length,5);
     for(const order of own.history){
@@ -1009,7 +1040,7 @@ async function legalJourney(page) {
     await page.evaluate(()=>document.documentElement.style.fontSize='200%');await picture(`agreement-${width}-text200`);await page.keyboard.press('Tab');assert(await page.evaluate(()=>document.activeElement!==document.body));
     await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();await page.evaluate(()=>document.documentElement.style.fontSize='');
   }
-  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Plus',exact:true}).click();await page.getByRole('button',{name:'Подключить Viewer Plus — 150 ₽',exact:true}).click();await page.getByRole('button',{name:'Документы и поддержка',exact:true}).click();await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Тариф',exact:true}).click();await page.getByRole('button',{name:'Оформить Viewer Plus — 150 ₽',exact:true}).click();await page.getByRole('button',{name:'Документы и поддержка',exact:true}).click();await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).waitFor();
   if(ready){
     await page.route('**/app/api/support/state',async route=>{const response=await route.fetch();const state=await response.json();await route.fulfill({response,json:{...state,email:'support?tag#section%part@example.com'}});});
     await page.getByRole('button',{name:'Обновить',exact:true}).click();const mail=page.getByRole('link',{name:'support?tag#section%part@example.com',exact:true});await mail.waitFor();assert.equal(await mail.getAttribute('href'),'mailto:support%3Ftag%23section%25part%40example.com');await page.unroute('**/app/api/support/state');

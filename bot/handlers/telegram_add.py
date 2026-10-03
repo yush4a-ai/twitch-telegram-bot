@@ -1,4 +1,5 @@
 """Confirmed personal tracking over the existing atomic tracking service."""
+from ..telegram_home import edit_menu
 import html
 import secrets
 import time
@@ -23,7 +24,7 @@ async def show_found(message, state, login, display_name, token, *, edit=False):
     if not current(data,token): return
     confirmation = secrets.token_hex(8)
     await state.update_data(add_confirm_token=confirmation,add_login=login)
-    send = message.edit_text if edit else message.answer
+    send = (lambda *args, **kwargs: edit_menu(message,*args,**kwargs)) if edit else message.answer
     await send(f"Найден стример: <b>{html.escape(display_name)}</b>\nTwitch: {html.escape(login)}\n\nДобавить его?",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Добавить",callback_data='addconfirm:'+confirmation)],
@@ -95,5 +96,5 @@ async def cb_confirm_add(callback,state,db):
     text = ("Готово. Я сообщу, когда стример начнёт эфир." if result=='created'
             else f"В списке уже {limit} стримеров. Удали одного, чтобы добавить нового." if result=='limit'
             else f"Стример «{html.escape(login)}» уже в твоём списке.")
-    await callback.message.edit_text(text,reply_markup=result_keyboard())
+    await edit_menu(callback.message,text,reply_markup=result_keyboard())
     await callback.answer()

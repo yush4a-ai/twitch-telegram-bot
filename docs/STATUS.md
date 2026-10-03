@@ -1,6 +1,10 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 03.10.2026: обычный Telegram UI, Task1 PASS
+## Текущий checkpoint — 03.10.2026: Telegram UI и последние уточнения владельца
+
+Tasks1–5 и5b/5c реализованы локально. Base608acff; catalog150/300, payment OFF, HTML/export/31legacy callbacks/16commands сохранены. Smart Home по своим данным, статичный banner, official styles и Menu recovery, название входов «Тариф». Последний focused49 PASS; copy12/28subtests PASS; Chromium/WebKit purchase и width/theme matrix со screenshots. Один финальный reviewer/full suite/backup/guarded staging ещё впереди. Staging пока прежний, production не трогали, native/OAuth/outbound/real payments NOT TESTED. План и текущие записи: mini-app/TELEGRAM-UI-PROGRESS.md.
+
+## Предыдущий checkpoint — 03.10.2026: обычный Telegram UI, Task1 PASS
 
 Новый owner request §§0–36; base608acff. Аудит58button constructions/31callbacks/16commands сохранён в docs/audits/telegram-ui-2026-10-03/UI-MAP.md. Новый exacthome4, owner admin только More, persistent Menu с одним builder и перехватом до FSM. RED5→PASS21tests/34subtests; ledger mini-app/TELEGRAM-UI-PROGRESS.md. Старые callbacks/commands/HTML/Mini App сохранены. Далее Add confirmation, Streamer, shared Plus, compatibility/review/fullsuite/guardedstaging. Deployment пока прежний; payment OFF/production не менялись/native NOT TESTED.
 

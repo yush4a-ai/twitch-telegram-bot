@@ -137,3 +137,7 @@
 - Новый streamer flow переиспользует OAuth/community intents; Menu отменяет только собственный незавершённый intent, а не сохранённые данные.
 - Telegram Plus и Mini App читают один catalog/subscription/first-release BillingService contract. OFF независимо от credentials; без provider POST/invoice/orders/grants.
 - Support/legal только реальные Config/canonical ready; непроверенные legal не публикуются.
+
+## Уточнение исходного доступа после regression audit
+
+Исходные qh callbacks не проверяли group manager; map выше фиксирует требуемую границу, а не наличие проверки в608acff. RED QUIET-rights-red.log воспроизводит group member mutation. Task5 добавил manager guards и повторный guard ввода; own private Free настройки доступны.

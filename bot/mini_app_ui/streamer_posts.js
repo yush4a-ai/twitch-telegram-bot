@@ -131,11 +131,11 @@ export function createStreamerPostsFeature(api,getRouter,getProfile) {
     if(title==='Посты'){
       preview(target,state.example);target.append(element('p','notice','Предпросмотр. Сообщение в Telegram не отправляется.'));
       const list=element('div','list');
-      for(const [label,glyph,routeName,detail] of [['Оформление','text','post-editor',state.template.can_edit?'Текст и две кнопки':'Streamer Plus'],['Видеопревью','video','post-video',state.example.animation_enabled?'Включено':'Фото'],['Сохранённые варианты','folder','post-variants',String(state.presets.length)],['Статистика публикаций','chart','post-stats',state.stats?`${state.stats.published_posts} за 30 дней`:'Streamer Plus']])
+      for(const [label,glyph,routeName,detail] of [['Оформление','text','post-editor',state.template.can_edit?'Текст и две кнопки':'О тарифе'],['Видеопревью','video','post-video',state.example.animation_enabled?'Включено':'Фото'],['Сохранённые варианты','folder','post-variants',String(state.presets.length)],['Статистика публикаций','chart','post-stats',state.stats?`${state.stats.published_posts} за 30 дней`:'О тарифе']])
         list.append(navigationRow(label,detail,glyph,()=>{cancelPreview();getRouter().openDetail(`${routeName}:${selected}`);}));target.append(list);return;
     }
     if(!state.template.can_edit&&name!=='post-variants'){
-      target.append(panel('Обычный пост доступен бесплатно','Текст, дополнительные кнопки и видео доступны с Streamer Plus. Сохранённые настройки останутся на месте.'),action('Возможности Streamer Plus',()=>getRouter().openDetail('subscription'),true));return;}
+      target.append(panel('Обычный пост доступен бесплатно','Текст, дополнительные кнопки и видео доступны с Streamer Plus. Сохранённые настройки останутся на месте.'),action('Тариф для стримера',()=>getRouter().openDetail('subscription'),true));return;}
     if(name==='post-editor'){
       const id=selected,key=previewKey(id),cached=draftExamples.get(id);
       fields(target,id);preview(target,cached?.key===key?cached.value:state.example,true);
