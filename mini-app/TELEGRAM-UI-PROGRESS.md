@@ -8,8 +8,8 @@ Ruling: persistent ReplyKeyboard и inline home требуют двух Telegram
 Ruling: Bash bookkeeping helpers заменены видимым этим ledger и test logs/audit на Windows; owner запрещает отсутствующие community helpers/скрытые исполнители. Стоимость: ручная запись evidence, source/test/commit остаются проверяемыми.
 
 Task 1: complete — RED5 new navigation failures, implementation → PASS21tests/34subtests (NAV-pass.log); real Dispatcher Menu precedes FSM for5pending states; exacthome4/adminMore/sharedbuilder/replyflags/deeplink attribution. Scoped diff reviewed. Local edit encoding issue traced cp1251 default → explicitUTF8 repaired; assertions preserved, no runtime workaround. New buttons implemented sequentially before any deployment. BASE608acff.
-Task 2: in_progress — следующий RED Add confirmation/atomic limits/legacy.
-Task 3: pending.
+Task 2: complete — RED6 → PASS11new/navigation +28legacy/11subtests (ADD-*.log). Confirmation before mutation, own/stale/cancel, late lookup, atomic50/200, duplicate-before-Twitch, strict URL hosts. Old direct track/addfound/deep links retained; changed old home expectations to owner exact text. BASEa53eebd. Scoped review: price/rights not client controlled; no sender/DB migration.
+Task 3: in_progress — RED6 → first6PASS new streamer services; legacy cancellation/import/shared selector compatibility next.
 Task 4: pending.
 Task 5: pending.
 Task 6: pending.

@@ -43,4 +43,7 @@ def build_navigation_router():
     router.message.register(on_menu,F.text == "Меню")
     router.callback_query.register(cb_more,F.data == "menu:more")
     router.callback_query.register(cb_open_app,F.data == "menu:open_app")
+    from .telegram_add import cb_confirm_add, cb_pick_add
+    router.callback_query.register(cb_confirm_add,F.data.startswith("addconfirm:"))
+    router.callback_query.register(cb_pick_add,F.data.startswith("addpick:"))
     return router

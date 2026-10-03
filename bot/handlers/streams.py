@@ -7,6 +7,7 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 from aiogram import Bot, Router
 from aiogram.enums import ChatType
@@ -96,10 +97,16 @@ class QuietHoursSetup(StatesGroup):
 
 def _extract_login_text(text: str) -> str | None:
     login = text.strip().lower()
-    login = login.removeprefix("https://twitch.tv/").removeprefix("twitch.tv/").strip("/ ")
-    if not LOGIN_RE.fullmatch(login):
-        return None
-    return login
+    if '/' in login or '://' in login:
+        value = login if '://' in login else 'https://' + login
+        try:
+            url = urlsplit(value)
+            if (url.scheme not in {'https','http'} or url.netloc not in {'twitch.tv','www.twitch.tv','m.twitch.tv'}
+                or url.username or url.password or url.port is not None): return None
+            login = url.path.strip('/')
+        except ValueError: return None
+    return login if LOGIN_RE.fullmatch(login) else None
+
 
 
 def _extract_login(command: CommandObject) -> str | None:
@@ -1904,8 +1911,9 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer("Только админы этой группы/канала могут добавлять каналы.", show_alert=True)
         return
 
+    await state.clear()
     await state.set_state(AddChannel.waiting_for_login)
-    await state.update_data(target_chat_id=target_chat_id)
+    await state.update_data(target_chat_id=target_chat_id, confirm_add=(own_private(callback.message,callback.from_user.id) and target_chat_id==current_chat_id))
     back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
 
     rows = []
@@ -1920,8 +1928,7 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
 
     await callback.message.edit_text(
-        "Напиши логин Twitch-канала (например: dobriy_yura) или просто имя канала — "
-        "я поищу и предложу варианты.",
+        "Пришли ник или ссылку Twitch.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
     await callback.answer()
@@ -2287,6 +2294,10 @@ async def process_login_input(
     message: Message, state: FSMContext, db: Database, twitch: TwitchClient
 ) -> None:
     data = await state.get_data()
+    if data.get('confirm_add'):
+        from .telegram_add import process_confirmed_input
+        await process_confirmed_input(message,state,db,twitch)
+        return
     target_chat_id = data.get("target_chat_id", message.chat.id)
     back_keyboard = _back_keyboard() if target_chat_id == message.chat.id else InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(

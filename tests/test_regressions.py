@@ -7805,7 +7805,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await self.db.is_known_private_user(90))
         twitch.channel_exists.assert_not_awaited()
         state.clear.assert_awaited_once()
-        self.assertIn("Выбери действие", message.answer.await_args.args[0])
+        self.assertEqual(message.answer.await_args.args[0], "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.")
 
     async def test_private_payload_cannot_target_a_different_user_chat(self) -> None:
         twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
@@ -7834,7 +7834,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_channels(101), [])
         twitch.channel_exists.assert_not_awaited()
         state.clear.assert_awaited_once()
-        self.assertIn("Выбери действие", message.answer.await_args.args[0])
+        self.assertEqual(message.answer.await_args.args[0], "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.")
 
     async def test_deep_link_marks_user_as_known_private_user(self) -> None:
         self.assertFalse(await self.db.is_known_private_user(555))
