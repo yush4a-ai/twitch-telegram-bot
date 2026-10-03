@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "qa_reference": "RELEASE-chromium/report.json",
+  "code_commit": "38f5f21ce197bda5de65ed710ffb6f1884a2539d",
+  "comparison": "text UTF-8 universal-newline normalized; PNG exact binary",
+  "canonical_sha256": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "bcf8e6ff735e22502ce1fd4468b34522edd076f4348b57ebcb47b3dfbd578fab",
+    "app.js": "a23047e7df6601cd36d4952e808c2f10094723d8f3e892767b9de7a4f761880e",
+    "components.js": "dd5f572a026a7d43880329e2ef93033db6cd5602a374c41fca34acc75f5dde93",
+    "mascot-cutout.png": "c8ac42d0c6178e9abd1478acc52d189fa1add5752087a3fd654d61718a6e1a38",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "109a96cba9df71745d04e9b53bd367ed6fcee50a4484fa84adb1d9e260ed8905",
+    "purchase.js": "e7e7c0a6cdd36958509d5783860a52c7f1eb6e1fd45fb1fc8a2bd1e13efd1175",
+    "reports.js": "5b2e8eb02e31fa2c7997b1500e5c7625ffbf3a1e6612771ebaa6ec69b4b88f16",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "09732bb83660e10ce4ad074d7823665a8c0cf346b2f308768c4a2bdf344edf3c",
+    "streamer_posts.js": "e3d705e05fed26e27a2d8910f53892e3a7b2bc208e68ff8617fc3b52c0bf44b0",
+    "subscription.js": "5b2d2e93704339a8b991794229765dcf9ae74bbfeb1074a155ef8069fc1053a1",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "theme.js": "e4725e26313baa3a3695519c46726c8c755955f3421e41d67f302a4f6fd9e089",
+    "viewer.js": "548b88dd0247ac86b1146447e9521eabce7b026f21e5422bb7f02a8692a48988"
+  }
+}

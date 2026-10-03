@@ -50,3 +50,6 @@
 
 
 Последняя правка владельца к персонажу учтена: прозрачный полный силуэт, крупная композиция Главной; рабочие снимки показаны в чате. RELEASE matrix: Chromium 137 / WebKit 137 PASS, по 41 PNG; cutover 19 PASS / 2 subtests, shell/copy 9 PASS / 3024 subtests. Backup 60 таблиц PASS. Точные итоговые сведения: docs/audits/mini-app-owner-corrections-2026-10-03/REVIEW.md. Ожидаются migration-copy и полный guard перед staging.
+
+
+Миграция committed кода 38f5f21 на свежей копии staging завершилась PASS: 60→63 таблицы, 27 schema versions; все прежние строки/ID сохранены, reopen и rollback после искусственной ошибки подтверждены, два Fernet-поля читаются текущим ключом без его экспорта. Активная БД не заменялась, исходящих сообщений нет. Selftest release smoke: 7 PASS. Следующий шаг — штатный полный guard/deploy на чистой ветке autonomous/twitchsignal-roadmap.
