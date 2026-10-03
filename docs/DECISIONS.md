@@ -4,6 +4,8 @@
 
 ## 03.10.2026 — M1: фото, когда видео недоступно
 
+Промежуточный выпуск выполнен: Testbot160703a/deploymentac62b912, full1517PASS/2existingWindowsSkips/3638subtests, actual smoke PASS. Readonly staging подтвердил photo для существующих эфирных сообщений28/29; ручных отправок не было. Native AFTER остаётся NOT TESTED из-за активного ввода владельца/перекрытого окна. T4–T8 сохраняются отдельными незавершёнными задачами; срочная правка M1 их не подменяет. Полные доказательства: `docs/audits/telegram-journey-2026-10-03/M1-RELEASE.md`.
+
 Владелец подтвердил: при отсутствии доступного видео эфирный пост должен показывать фото. Registered Telegram-каналы получают лёгкую Twitch-thumbnail через текущий sender/updater, с публичной подписью и действующим template; legacy группы сохраняют прежнее поведение. Animation→photo после потери effective entitlement/выключения или capacity fallback; raw preview_enabled не выдаёт права. Переносим verified production fixes4ce3887/dc9239e только в тестовую ветку. Диагностика production/Telegram history только чтением; чужие identity/community/grants не добавляются для получения видео. M1 — безопасный промежуточный выпуск текущего плана T0–T8 после штатного полного guard; затем продолжаются T4–T8. ОплатаOFF/production/HTML/export сохраняются. Native screenshot/внешние тестовые отправки без отдельного разрешения не объявляются проверенными.
 
 ## 03.10.2026 — главная и жесты: выпуск560f3cc

@@ -1,0 +1,47 @@
+{
+  "deployment": "ac62b912-b6bb-4633-899b-6afa1ffecfd4",
+  "rows": [
+    {
+      "twitch_login": "c0sm1cs",
+      "is_live": 0,
+      "last_message_kind": "text",
+      "last_message_id": null,
+      "preview_enabled": 0,
+      "notify_enabled": 1
+    },
+    {
+      "twitch_login": "dobriy_yura",
+      "is_live": 0,
+      "last_message_kind": "text",
+      "last_message_id": null,
+      "preview_enabled": 0,
+      "notify_enabled": 1
+    },
+    {
+      "twitch_login": "gofns",
+      "is_live": 1,
+      "last_message_kind": "photo",
+      "last_message_id": 29,
+      "preview_enabled": 1,
+      "notify_enabled": 1
+    },
+    {
+      "twitch_login": "paverpapa",
+      "is_live": 0,
+      "last_message_kind": "text",
+      "last_message_id": null,
+      "preview_enabled": 1,
+      "notify_enabled": 1
+    },
+    {
+      "twitch_login": "samoylov___",
+      "is_live": 1,
+      "last_message_kind": "photo",
+      "last_message_id": 28,
+      "preview_enabled": 1,
+      "notify_enabled": 1
+    }
+  ],
+  "data_writes": 0,
+  "outbound_messages": 0
+}

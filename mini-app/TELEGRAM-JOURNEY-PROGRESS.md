@@ -3,6 +3,10 @@
 План: `docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md`.
 BASE b29482589be27adefaad4d30e7be635c0695cf73; clean, autonomous/twitchsignal-roadmap.
 
+## M1: staging complete — release160703a
+
+Штатный full guard1517PASS/2existingWindowsSkips/3638subtests/1117.61s и guarded SUCCESS deploymentac62b912-b6bb-4633-899b-6afa1ffecfd4. Exact runtime/HTTP bytes, bot8859004067, постоянный menu«Приложение», auth401, integrity/FK/paymentOFF/production unchanged подтверждены actual smoke. Обычный poller перевёл существующие сообщения28/29 (`samoylov___`/`gofns`) в photo; проверка readonly DB, без отдельной тестовой отправки. Native BEFORE сохранён; AFTER NOT TESTED из-за перекрытого окна и активного ввода владельца. Backup/restore свежий PASS; migration-copy evidence переиспользован после проверки неизменности schema/cipher. Отчёт M1-RELEASE.md и все RED/intermediate/PASS logs сохранены. T2 частично, T4–T8 остаются открыты.
+
 ## T0: complete (BASE b294825)
 
 Большинство входов уже соответствует правилу владельца. Оставшийся `Подробнее о Plus` в подробностях Mini App заменён на «О тарифе», маршрут product:details сохранён. Старые документы/аудиты/имена продуктов не переписываются.

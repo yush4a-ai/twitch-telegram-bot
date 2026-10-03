@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: M1 опубликован, фото восстановлено
+
+Testbot release `160703a1a669dd31bc9dd15d339a1346bc927ef8`, SUCCESS deployment `ac62b912-b6bb-4633-899b-6afa1ffecfd4`. Полный штатный guard: 1517PASS/2existingWindowsSkips/3638subtests/1117.61s; actual smoke exact runtime/HTTP hashes, bot8859004067, menu«Приложение», auth401, integrity/FK, paymentOFF, production unchanged PASS. После обычного poller сообщения28 (`samoylov___`) и29 (`gofns`) в зарегистрированном канале имеют `last_message_kind=photo`; ручных тестовых отправок/правок данных не было. Перенесены прежние production fixes4ce3887/dc9239e, права на видео сохранены.
+
+Свежий backup/restore PASS; migration-copy использует проверенное прежнее evidence с доказанной идентичностью schema/cipher, не объявляется свежим повторным прогоном. Native AFTER NOT TESTED: окно перекрывалось другими приложениями и фиксировался ввод владельца; Desktop не перехватывался. BEFORE JPEG сохранён. Отчёт: `docs/audits/telegram-journey-2026-10-03/M1-RELEASE.md`. M1 закрыт; T2 частично и T4–T8 остаются в сохранённом плане. Production466499d5/dc9239e, HTML/export сохранены.
+
 ## Текущий checkpoint — 03.10.2026: Telegram T0–T3 и missing-media M1, локальный PASS
 
 Native journey BASE b294825, текущий committed HEAD e7510b1; T0 copy232 browser checks/58PNG на движок, T3 paging/search/delete54PASS, T2 source/cancel45PASS. Текущий план docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md и ledger mini-app/TELEGRAM-JOURNEY-PROGRESS.md. T4–T8 остаются открыты; новая Mini App композиция/hero/swipe/Undo сохраняются.
