@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import secrets
 from aiogram.enums import ChatType
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
@@ -50,8 +51,22 @@ async def cancel_ui(state, *, actor_id, db=None, oauth_server=None):
     data = await state.get_data()
     # Clear first: any late legacy OAuth/import result sees a different generation.
     await state.clear()
+    if data.get('legacy_oauth_state') and oauth_server is not None:
+        oauth_server.discard_state(data['legacy_oauth_state'])
     if data.get('telegram_oauth_intent') and oauth_server is not None:
         await oauth_server.cancel_streamer_connect_intent(actor_id, data['telegram_oauth_intent'])
     if data.get('telegram_community_intent') and db is not None:
         await db.cancel_community_intent(data['telegram_community_intent'], actor_id)
     return data
+
+
+async def begin_legacy_oauth(state):
+    if state is None: return None
+    await state.clear()
+    generation=secrets.token_hex(16)
+    await state.update_data(legacy_oauth_generation=generation)
+    return generation
+
+
+async def legacy_oauth_current(state,generation):
+    return state is None or (await state.get_data()).get('legacy_oauth_generation')==generation

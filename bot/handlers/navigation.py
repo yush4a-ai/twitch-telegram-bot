@@ -46,4 +46,11 @@ def build_navigation_router():
     from .telegram_add import cb_confirm_add, cb_pick_add
     router.callback_query.register(cb_confirm_add,F.data.startswith("addconfirm:"))
     router.callback_query.register(cb_pick_add,F.data.startswith("addpick:"))
+    from .telegram_streamer import cb_streamer, cb_streamer_connect, cb_streamer_check, cb_streamer_channel, cb_streamer_posts, cb_streamer_benefits
+    router.callback_query.register(cb_streamer,F.data == 'menu:streamer')
+    router.callback_query.register(cb_streamer_connect,F.data == 'streamer:connect')
+    router.callback_query.register(cb_streamer_check,F.data == 'streamer:check')
+    router.callback_query.register(cb_streamer_channel,F.data == 'streamer:channel')
+    router.callback_query.register(cb_streamer_posts,F.data == 'streamer:posts')
+    router.callback_query.register(cb_streamer_benefits,F.data == 'streamer:benefits')
     return router

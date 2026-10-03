@@ -1,0 +1,35 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_ TelegramStreamerTests.test_channel_selector_shared_permission_and_menu_cancel_no_late_attach _
+tests\test_telegram_streamer.py:61: in test_channel_selector_shared_permission_and_menu_cancel_no_late_attach
+    from bot.handlers.telegram_streamer import cb_streamer_channel
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_streamer'
+_ TelegramStreamerTests.test_completed_channel_restores_menu_and_preserves_saved_connection _
+tests\test_telegram_streamer.py:77: in test_completed_channel_restores_menu_and_preserves_saved_connection
+    from bot.handlers.telegram_streamer import cb_streamer_channel
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_streamer'
+_ TelegramStreamerTests.test_connect_intent_cancelled_by_menu_and_late_creation_is_cancelled _
+tests\test_telegram_streamer.py:44: in test_connect_intent_cancelled_by_menu_and_late_creation_is_cancelled
+    from bot.handlers.telegram_streamer import cb_streamer_connect
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_streamer'
+_ TelegramStreamerTests.test_menu_during_legacy_oauth_prevents_late_identity_and_token _
+tests\test_telegram_streamer.py:99: in test_menu_during_legacy_oauth_prevents_late_identity_and_token
+    task=asyncio.create_task(cmd_streamer_connect(self.msg,self.db,config,object(),state=self.state))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: cmd_streamer_connect() got an unexpected keyword argument 'state'
+_ TelegramStreamerTests.test_unverified_and_verified_journey_uses_server_identity _
+tests\test_telegram_streamer.py:28: in test_unverified_and_verified_journey_uses_server_identity
+    from bot.handlers.telegram_streamer import cb_streamer
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_streamer'
+_ TelegramStreamerTests.test_wrong_actor_or_unverified_channel_cannot_create_intent _
+tests\test_telegram_streamer.py:89: in test_wrong_actor_or_unverified_channel_cannot_create_intent
+    from bot.handlers.telegram_streamer import cb_streamer_channel
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_streamer'
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_channel_selector_shared_permission_and_menu_cancel_no_late_attach
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_completed_channel_restores_menu_and_preserves_saved_connection
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_connect_intent_cancelled_by_menu_and_late_creation_is_cancelled
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_menu_during_legacy_oauth_prevents_late_identity_and_token
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_unverified_and_verified_journey_uses_server_identity
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_wrong_actor_or_unverified_channel_cannot_create_intent
+6 failed in 6.06s

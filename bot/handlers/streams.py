@@ -7,7 +7,8 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
+import secrets
 
 from aiogram import Bot, Router
 from aiogram.enums import ChatType
@@ -30,7 +31,7 @@ import aiohttp
 from ..config import Config
 from ..database import Database
 from ..plan_catalog import viewer_channel_limit
-from ..telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard, cancel_ui, own_private
+from ..telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard, cancel_ui, own_private, begin_legacy_oauth, legacy_oauth_current
 from ..deep_links import (
     TRACK_START_PREFIX,
     TWITCH_LOGIN_RE,
@@ -479,19 +480,8 @@ async def cmd_start_link(
         ):
             await message.answer("Выбор сообщества устарел. Откройте приложение и начните заново.")
             return
-        button = KeyboardButton(
-            text="Выбрать Telegram-канал",
-            request_chat=KeyboardButtonRequestChat(
-                request_id=row[2], chat_is_channel=True,
-                bot_is_member=True, request_title=True,
-            ),
-        )
-        await message.answer(
-            "Выберите Telegram-канал, где вы администратор. У бота должно быть право публикации сообщений. После выбора вернитесь в приложение.",
-            reply_markup=ReplyKeyboardMarkup(
-                keyboard=[[button]], resize_keyboard=True, one_time_keyboard=True,
-            ),
-        )
+        from .telegram_streamer import show_channel_selector
+        await show_channel_selector(message,state,row)
         return
     if payload.startswith(TRACK_START_PREFIX):
         if (
@@ -1014,36 +1004,17 @@ ADD_TO_CHANNEL_HINT = (
 
 @router.callback_query(lambda c: c.data == "menu:manage_group")
 async def cb_menu_manage_group(callback: CallbackQuery, db: Database) -> None:
-    await callback.answer("Проверяю группы и каналы…")
-    chats = await _admin_groups_for_user(callback, db)
-    add_group_button = await _add_to_group_button(callback.bot)
-    add_channel_button = InlineKeyboardButton(text="➕ Добавить в канал", callback_data="menu:add_channel_hint")
-
-    if not chats:
-        await callback.message.edit_text(
-            "Не нашёл групп или каналов, где ты админ и где бот уже подключён.\n\n"
-            "Управлять можно группами (где уже добавлен хотя бы один Twitch-канал) "
-            "и каналами (где бот назначен администратором) — если ты в них админ или владелец.",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [add_group_button],
-                    [add_channel_button],
-                    [InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")],
-                ]
-            ),
-        )
+    if not own_private(callback.message,callback.from_user.id):
+        await callback.answer('Открой свой личный чат с ботом.',show_alert=True)
         return
-
-    rows = [
-        [InlineKeyboardButton(text=title, callback_data=f"managegroup:{gid}")]
-        for gid, title in chats
-    ]
-    rows.append([add_group_button])
-    rows.append([add_channel_button])
-    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:home")])
-    await callback.message.edit_text(
-        "Выбери группу или канал для управления:", reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
-    )
+    await callback.answer('Проверяю подключения…')
+    chats = await _admin_groups_for_user(callback, db)
+    rows = [[InlineKeyboardButton(text=title,callback_data=f'managegroup:{gid}')] for gid,title in chats]
+    rows.append([InlineKeyboardButton(text='Подключить Telegram-канал',callback_data='streamer:channel')])
+    rows.append([InlineKeyboardButton(text='← Назад',callback_data='menu:more')])
+    await callback.message.edit_text('Мои подключения\n\nВыбери канал или существующую группу.' if chats
+                                    else 'Подключений пока нет. Добавь свой Telegram-канал через «Я стример».',
+                                    reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
 
 @router.callback_query(lambda c: c.data == "menu:add_channel_hint")
@@ -2076,9 +2047,12 @@ async def _run_import_follows(
     # импорт мог быть запущен с экрана «Добавить оповещение», где бот ждёт ввода
     # логина — снимаем это ожидание, иначе всё, что пользователь напишет за время
     # авторизации, уйдёт в поиск канала
-    await state.clear()
+    generation=await begin_legacy_oauth(state)
 
     async def send_url(url: str) -> None:
+        if not await legacy_oauth_current(state,generation): raise asyncio.CancelledError
+        oauth_state=parse_qs(urlsplit(url).query).get('state',[None])[0]
+        await state.update_data(legacy_oauth_state=oauth_state)
         await message.answer(
             "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ — "
             f"после этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
@@ -2101,6 +2075,7 @@ async def _run_import_follows(
             await message.answer("Что-то пошло не так при авторизации. Попробуй ещё раз.")
             return
 
+        if not await legacy_oauth_current(state,generation): return
         await db.save_user_token(
             result.login, result.broadcaster_id, result.access_token,
             result.refresh_token, result.expires_at,
@@ -2139,6 +2114,7 @@ async def _run_import_follows(
             )
             return
 
+    if not await legacy_oauth_current(state,generation): return
     tracked = set(await db.list_channels(message.chat.id))
     new_logins = [login for login in follows if login not in tracked]
 
@@ -2166,6 +2142,7 @@ async def _run_import_follows(
         return
 
     to_add = new_logins[:free_slots]
+    if not await legacy_oauth_current(state,generation): return
     await state.update_data(import_logins=to_add)
 
     preview = "\n".join(f"• {html.escape(login)}" for login in to_add[:IMPORT_PREVIEW_LIMIT])

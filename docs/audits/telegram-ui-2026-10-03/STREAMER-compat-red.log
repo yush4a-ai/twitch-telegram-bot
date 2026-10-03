@@ -1,0 +1,29 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_ TelegramStreamerTests.test_connections_keep_legacy_groups_without_new_group_suggestion _
+tests\test_telegram_streamer.py:119: in test_connections_keep_legacy_groups_without_new_group_suggestion
+    await cb_menu_manage_group(self.cb('menu:manage_group'),self.db)
+bot\handlers\streams.py:1019: in cb_menu_manage_group
+    add_group_button = await _add_to_group_button(callback.bot)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bot\handlers\streams.py:998: in _add_to_group_button
+    bot_user = await bot.get_me()
+                     ^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'get_me'
+_ TelegramStreamerTests.test_menu_during_legacy_import_prevents_late_token_and_import_draft _
+tests\test_telegram_streamer.py:112: in test_menu_during_legacy_import_prevents_late_token_and_import_draft
+    self.assertIsNone(await self.db.get_user_token('alpha'))
+E   AssertionError: ('11', 'access', 'refresh', 1790987807.8762867) is not None
+------------------------------ Captured log call ------------------------------
+WARNING  bot.handlers.streams:streams.py:2121 Twitch import требует повторной авторизации для alpha
+_ TelegramStreamerTests.test_old_community_deep_link_binds_cancellable_intent_and_keeps_menu _
+tests\test_telegram_streamer.py:132: in test_old_community_deep_link_binds_cancellable_intent_and_keeps_menu
+    self.assertEqual(keyboard.keyboard[-1][0].text,'Меню')
+E   AssertionError: 'Выбрать Telegram-канал' != 'Меню'
+E   - Выбрать Telegram-канал
+E   + Меню
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_connections_keep_legacy_groups_without_new_group_suggestion
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_menu_during_legacy_import_prevents_late_token_and_import_draft
+FAILED tests/test_telegram_streamer.py::TelegramStreamerTests::test_old_community_deep_link_binds_cancellable_intent_and_keeps_menu
+3 failed, 6 deselected in 6.50s

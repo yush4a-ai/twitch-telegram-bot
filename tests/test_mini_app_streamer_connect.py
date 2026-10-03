@@ -13,6 +13,9 @@ from urllib.parse import parse_qs, urlparse
 import aiohttp
 from aiogram.enums import ChatType
 
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.base import StorageKey
+from aiogram.fsm.storage.memory import MemoryStorage
 from bot.database import Database
 from bot.oauth import OAuthCallbackServer, UserTokenResult
 from tests.test_admin_telegram_auth import BOT_TOKEN, signed_webapp
@@ -137,7 +140,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         )
         await cmd_start_link(
             message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
-            SimpleNamespace(), self.db, None,
+            FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=101,user_id=101)), self.db, None,
         )
         keyboard = message.answer.await_args.kwargs["reply_markup"]
         self.assertEqual(keyboard.keyboard[0][0].request_chat.request_id, row[2])

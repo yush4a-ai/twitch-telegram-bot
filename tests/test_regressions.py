@@ -5936,7 +5936,10 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
             chat=SimpleNamespace(type="private", id=123),
             answer=AsyncMock(),
         )
-        state = SimpleNamespace(clear=AsyncMock(), update_data=AsyncMock())
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.base import StorageKey
+        from aiogram.fsm.storage.memory import MemoryStorage
+        state = FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=123,user_id=123))
         config = SimpleNamespace(
             twitch_client_id="client",
             twitch_client_secret="secret",
@@ -5967,7 +5970,7 @@ class UserTokenFlowTests(unittest.IsolatedAsyncioTestCase):
                 SimpleNamespace(),
             )
 
-        state.update_data.assert_not_awaited()
+        self.assertNotIn("import_logins", await state.get_data())
         self.assertIn("Ничего не импортировано", message.answer.await_args.args[0])
 
     async def test_user_token_logs_never_contain_secrets(self) -> None:
