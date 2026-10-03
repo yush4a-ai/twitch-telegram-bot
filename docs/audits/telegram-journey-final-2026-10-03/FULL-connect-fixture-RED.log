@@ -1,0 +1,48 @@
+.......F.                                                                [100%]
+================================== FAILURES ===================================
+_ MiniAppStreamerConnectTests.test_older_client_deep_link_and_chat_shared_use_same_intent _
+
+self = <test_mini_app_streamer_connect.MiniAppStreamerConnectTests testMethod=test_older_client_deep_link_and_chat_shared_use_same_intent>
+
+    async def test_older_client_deep_link_and_chat_shared_use_same_intent(self):
+        from bot.handlers.streams import cmd_start_link
+        from bot.handlers.auth import on_streamer_community_shared
+        async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
+            intent_id = (await response.json())["intent_id"]
+        row = await self.db.get_community_intent(intent_id)
+        message = SimpleNamespace(
+            chat=SimpleNamespace(id=101, type=ChatType.PRIVATE),
+            from_user=SimpleNamespace(id=101), bot=self.bot,
+            answer=AsyncMock(),
+        )
+>       await cmd_start_link(
+            message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
+            FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=101,user_id=101)), self.db, None,
+        )
+
+tests\test_mini_app_streamer_connect.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\handlers\streams.py:487: in cmd_start_link
+    await show_channel_selector(message,state,row,db,oauth_server)
+bot\handlers\telegram_streamer.py:104: in show_channel_selector
+    await send_brand_card(message,'channel-guide',CHANNEL_GUIDE_PATH,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+message = namespace(chat=namespace(id=101, type=<ChatType.PRIVATE: 'private'>), from_user=namespace(id=101), bot=namespace(id=99...'2368809570128'>, save_prepared_keyboard_button=<AsyncMock id='2368809574016'>), answer=<AsyncMock id='2368810814832'>)
+asset = 'channel-guide'
+path = WindowsPath('C:/Users/yusha/Desktop/cloude/TG-BOT.(TwtichSignal)/bot/assets/telegram-channel-guide.png')
+text = 'Публикации в твоём Telegram-канале\n\nДобавь бота в администраторы с правом «Публикация сообщений». Затем выбери канал. Подключение бесплатно.'
+reply_markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Как подключить?', icon_custom_emoji_id=None, style=N..._inline_query_current_chat=None, switch_inline_query_chosen_chat=None, copy_text=None, callback_game=None, pay=None)]])
+
+    async def send_brand_card(message, asset, path, text, *, reply_markup=None):
+        """Reuse approved, static illustration file IDs only within this bot."""
+        store=store_for(message)
+        file_id=store.asset_file_ids.get(asset) if store else None
+>       result=await message.answer_photo(file_id or FSInputFile(path),caption=text,reply_markup=reply_markup)
+                     ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'answer_photo'
+
+bot\telegram_home.py:191: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_mini_app_streamer_connect.py::MiniAppStreamerConnectTests::test_older_client_deep_link_and_chat_shared_use_same_intent
+1 failed, 8 passed in 14.50s

@@ -151,7 +151,7 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
         message = SimpleNamespace(
             chat=SimpleNamespace(id=101, type=ChatType.PRIVATE),
             from_user=SimpleNamespace(id=101), bot=self.bot,
-            answer=AsyncMock(),
+            answer=AsyncMock(), answer_photo=AsyncMock(),
         )
         await cmd_start_link(
             message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
