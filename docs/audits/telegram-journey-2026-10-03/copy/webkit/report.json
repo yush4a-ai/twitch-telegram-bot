@@ -1,0 +1,1099 @@
+{
+  "engine": "webkit",
+  "kind": "isolated-components-no-auth-no-api",
+  "checks": [
+    {
+      "name": "home-live-light-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-live-light-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-live-light-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-live-light-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-live-light-favorites-and-count",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-320-text16-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-320-text16-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-390-text32-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-390-text32-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-offline-light-real-router-all-streamers",
+      "pass": true
+    },
+    {
+      "name": "home-stale-light-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-stale-light-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-stale-light-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-stale-light-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-stale-light-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-320-text16-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-320-text16-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-390-text32-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-390-text32-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-empty-light-add-opens",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-light-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-light-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-light-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-light-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-light-favorites-and-count",
+      "pass": true
+    },
+    {
+      "name": "home-live-dark-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-live-dark-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-live-dark-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-live-dark-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-live-dark-favorites-and-count",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-320-text16-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-320-text16-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-390-text32-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-390-text32-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-offline-dark-real-router-all-streamers",
+      "pass": true
+    },
+    {
+      "name": "home-stale-dark-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-stale-dark-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-stale-dark-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-stale-dark-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-stale-dark-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-correct-explanation",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-320-text16-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-320-text16-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-390-text32-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-390-text32-character-clear",
+      "pass": true
+    },
+    {
+      "name": "home-empty-dark-add-opens",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-dark-one-hero",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-dark-one-whole-character",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-dark-honest-content",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-dark-no-search-or-fake-notifications",
+      "pass": true
+    },
+    {
+      "name": "home-live-again-dark-favorites-and-count",
+      "pass": true
+    },
+    {
+      "name": "home-states-no-js-errors",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "home-states-no-api-or-auth-requests",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "home-states-source-snapshot-unchanged",
+      "pass": true
+    },
+    {
+      "name": "swipe-starts-on-right-side-control",
+      "pass": true
+    },
+    {
+      "name": "swipe-does-not-toggle-favorite-or-open-detail",
+      "pass": true
+    },
+    {
+      "name": "swipe-right-closes",
+      "pass": true
+    },
+    {
+      "name": "swipe-starts-on-notify-without-toggling",
+      "pass": true
+    },
+    {
+      "name": "swipe-card-follows-finger",
+      "pass": true
+    },
+    {
+      "name": "swipe-cancel-restores-card",
+      "pass": true
+    },
+    {
+      "name": "swipe-keeps-vertical-scroll",
+      "pass": true
+    },
+    {
+      "name": "swipe-short-diagonal-reveals-without-delete",
+      "pass": true
+    },
+    {
+      "name": "undo-notice-one-copy",
+      "pass": true
+    },
+    {
+      "name": "undo-notice-enough-time",
+      "pass": true
+    },
+    {
+      "name": "undo-notice-hides-after-six-seconds",
+      "pass": true
+    },
+    {
+      "name": "undo-in-flight-remains-visible",
+      "pass": true
+    },
+    {
+      "name": "undo-in-flight-restores-server-row",
+      "pass": true
+    },
+    {
+      "name": "undo-keeps-keyboard-focus",
+      "pass": true
+    },
+    {
+      "name": "undo-pending-keeps-focus",
+      "pass": true,
+      "details": {
+        "active": "<button class=\"button secondary\" type=\"button\" aria-label=\"Отменить удаление\" data-focus-key=\"undo-restore\" aria-disabled=\"true\">Возвращаем…</button>",
+        "buttons": [
+          {
+            "key": "undo-restore",
+            "disabled": false,
+            "inert": false
+          },
+          {
+            "key": "undo-restore",
+            "disabled": false,
+            "inert": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "undo-busy-does-not-repeat-request",
+      "pass": true
+    },
+    {
+      "name": "undo-error-keeps-focus-and-retry",
+      "pass": true,
+      "details": {
+        "active": "<button class=\"button secondary\" type=\"button\" aria-label=\"Отменить удаление\" data-focus-key=\"undo-restore\" aria-disabled=\"false\">Отменить</button>"
+      }
+    },
+    {
+      "name": "undo-hides-after-focus-leaves",
+      "pass": true
+    },
+    {
+      "name": "swipe-trusted-pointer-capture-and-control-start",
+      "pass": true
+    },
+    {
+      "name": "swipe-preserves-normal-favorite-tap",
+      "pass": true
+    },
+    {
+      "name": "swipe-preserves-normal-notify-tap",
+      "pass": true
+    },
+    {
+      "name": "swipe-undo-no-js-errors",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "channel-name-is-heading",
+      "pass": true
+    },
+    {
+      "name": "rights-slow-valid-server-budget",
+      "pass": true
+    },
+    {
+      "name": "rights-check-visible-pending",
+      "pass": true
+    },
+    {
+      "name": "rights-check-unchanged-success",
+      "pass": true
+    },
+    {
+      "name": "rights-check-does-not-toggle-publishing",
+      "pass": true
+    },
+    {
+      "name": "rights-check-error-near-control",
+      "pass": true
+    },
+    {
+      "name": "rights-error-no-success",
+      "pass": true
+    },
+    {
+      "name": "rights-missing-specific-result",
+      "pass": true
+    },
+    {
+      "name": "rights-late-response-stays-in-context",
+      "pass": true
+    },
+    {
+      "name": "favorites-first-across-live-offline",
+      "pass": true
+    },
+    {
+      "name": "favorite-controls-present",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-present",
+      "pass": true
+    },
+    {
+      "name": "filter-only-favorite",
+      "pass": true
+    },
+    {
+      "name": "favorite-filter-survives-refresh",
+      "pass": true
+    },
+    {
+      "name": "favorite-independent-notifications",
+      "pass": true
+    },
+    {
+      "name": "notifications-independent-favorite",
+      "pass": true
+    },
+    {
+      "name": "notify-completion-survives-concurrent-state",
+      "pass": true
+    },
+    {
+      "name": "favorite-failure-retains-star",
+      "pass": true
+    },
+    {
+      "name": "swipe-shell-present",
+      "pass": true
+    },
+    {
+      "name": "vertical-scroll-does-not-reveal-delete",
+      "pass": true
+    },
+    {
+      "name": "swipe-reveals-without-deleting",
+      "pass": true
+    },
+    {
+      "name": "delete-failure-keeps-row",
+      "pass": true
+    },
+    {
+      "name": "delete-refreshes-released-plan-slot",
+      "pass": true
+    },
+    {
+      "name": "delete-click-removes-only-target",
+      "pass": true
+    },
+    {
+      "name": "undo-visible-after-delete",
+      "pass": true
+    },
+    {
+      "name": "undo-server-restores-favorite-and-notify",
+      "pass": true
+    },
+    {
+      "name": "favorite-touch-target-44",
+      "pass": true
+    },
+    {
+      "name": "long-name-and-controls-fit-320",
+      "pass": true
+    },
+    {
+      "name": "delete-during-other-favorite-reloads-after-settle",
+      "pass": true
+    },
+    {
+      "name": "undo-during-other-notify-restores-visible-row",
+      "pass": true
+    },
+    {
+      "name": "detail-notify-back-and-refresh-keeps-result",
+      "pass": true
+    },
+    {
+      "name": "detail-delete-has-undo",
+      "pass": true
+    },
+    {
+      "name": "detail-delete-refreshes-active-limit",
+      "pass": true
+    },
+    {
+      "name": "home-light-only-live",
+      "pass": true
+    },
+    {
+      "name": "home-light-no-extra-search",
+      "pass": true
+    },
+    {
+      "name": "empty-light-one-shared-mascot",
+      "pass": true
+    },
+    {
+      "name": "home-dark-only-live",
+      "pass": true
+    },
+    {
+      "name": "home-dark-no-extra-search",
+      "pass": true
+    },
+    {
+      "name": "empty-dark-one-shared-mascot",
+      "pass": true
+    },
+    {
+      "name": "router-list-scroll-restored",
+      "pass": true
+    },
+    {
+      "name": "router-search-filter-restored",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-price",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-320-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-768-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-price",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-details-entry",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-details-return",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-320-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-768-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-mascot",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-price",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-entry",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-details-return",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-320-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-768-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "streamer-light-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-four-benefits",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-mascot",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-price",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-payment-off-upfront",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-details-entry",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-all-paid-features-explained",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-details-return",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-320-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-390-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-768-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-cta-first-screen",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-text200-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-all-features-route-kept",
+      "pass": true
+    },
+    {
+      "name": "streamer-dark-purchase-keeps-role",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-transparent-unmasked-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-320-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-390-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-768-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-light-revised-text200",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-transparent-unmasked-mascot",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-320-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-390-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-768-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "viewer-dark-revised-text200",
+      "pass": true
+    },
+    {
+      "name": "profile-light-transparent-unmasked-mascot",
+      "pass": true
+    },
+    {
+      "name": "profile-light-320-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-light-390-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-light-768-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-light-revised-text200",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-transparent-unmasked-mascot",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-320-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-390-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-768-revised-no-overflow",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-revised-text200",
+      "pass": true
+    },
+    {
+      "name": "profile-light-compact-account",
+      "pass": true
+    },
+    {
+      "name": "profile-light-inline-theme",
+      "pass": true
+    },
+    {
+      "name": "profile-light-reports-meaning",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-compact-account",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-inline-theme",
+      "pass": true
+    },
+    {
+      "name": "profile-dark-reports-meaning",
+      "pass": true
+    },
+    {
+      "name": "viewer-reports-save",
+      "pass": true
+    },
+    {
+      "name": "viewer-reports-independent-notify",
+      "pass": true
+    },
+    {
+      "name": "streamer-reports-save",
+      "pass": true
+    },
+    {
+      "name": "streamer-reports-independent-notify",
+      "pass": true
+    },
+    {
+      "name": "reports-reentry-refreshes-empty-list",
+      "pass": true
+    },
+    {
+      "name": "reports-same-owner-distinct-streamer",
+      "pass": true
+    },
+    {
+      "name": "light-semantic-contrast",
+      "pass": true,
+      "details": [
+        {
+          "pair": "text/canvas",
+          "ratio": 14.399787735653728
+        },
+        {
+          "pair": "text/surface",
+          "ratio": 15.571134057319037
+        },
+        {
+          "pair": "secondary/canvas",
+          "ratio": 5.041394953687174
+        },
+        {
+          "pair": "secondary/surface",
+          "ratio": 5.451485681652716
+        },
+        {
+          "pair": "accent/soft",
+          "ratio": 5.802111212317499
+        },
+        {
+          "pair": "button-fg/button-bg",
+          "ratio": 6.810862404822775
+        },
+        {
+          "pair": "danger/surface",
+          "ratio": 6.854266155065303
+        }
+      ]
+    },
+    {
+      "name": "dark-semantic-contrast",
+      "pass": true,
+      "details": [
+        {
+          "pair": "text/canvas",
+          "ratio": 15.872496978134924
+        },
+        {
+          "pair": "text/surface",
+          "ratio": 13.74328113253251
+        },
+        {
+          "pair": "secondary/canvas",
+          "ratio": 9.237462256789742
+        },
+        {
+          "pair": "secondary/surface",
+          "ratio": 7.998303034557394
+        },
+        {
+          "pair": "accent/soft",
+          "ratio": 7.062790747078806
+        },
+        {
+          "pair": "button-fg/button-bg",
+          "ratio": 8.616602767606558
+        },
+        {
+          "pair": "danger/surface",
+          "ratio": 8.26499836025053
+        }
+      ]
+    },
+    {
+      "name": "reduced-motion-example-state-without-animation",
+      "pass": true
+    },
+    {
+      "name": "inherited-viewer-explained",
+      "pass": true
+    },
+    {
+      "name": "unlinked-streamer-retains-subscription",
+      "pass": true
+    },
+    {
+      "name": "no-js-errors",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "no-api-or-auth-requests",
+      "pass": true,
+      "details": []
+    },
+    {
+      "name": "source-snapshot-unchanged",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "screenshots": [
+    "home-live-light.png",
+    "home-offline-light.png",
+    "home-offline-light-320-text16.png",
+    "home-offline-light-390-text32.png",
+    "home-stale-light.png",
+    "home-empty-light.png",
+    "home-empty-light-320-text16.png",
+    "home-empty-light-390-text32.png",
+    "home-live-dark.png",
+    "home-offline-dark.png",
+    "home-offline-dark-320-text16.png",
+    "home-offline-dark-390-text32.png",
+    "home-stale-dark.png",
+    "home-empty-dark.png",
+    "home-empty-dark-320-text16.png",
+    "home-empty-dark-390-text32.png",
+    "swipe-short-right-edge.png",
+    "channel-pending.png",
+    "channel-ready.png",
+    "channel-error.png",
+    "channel-no-rights.png",
+    "streamers-swipe.png",
+    "streamers-320.png",
+    "streamers-light.png",
+    "home-light.png",
+    "home-empty-light.png",
+    "streamers-dark.png",
+    "home-dark.png",
+    "home-empty-dark.png",
+    "viewer-light-details.png",
+    "viewer-light-320.png",
+    "viewer-light-390.png",
+    "viewer-light-768.png",
+    "viewer-light-text200.png",
+    "viewer-dark-details.png",
+    "viewer-dark-320.png",
+    "viewer-dark-390.png",
+    "viewer-dark-768.png",
+    "viewer-dark-text200.png",
+    "streamer-light-details.png",
+    "streamer-light-320.png",
+    "streamer-light-390.png",
+    "streamer-light-768.png",
+    "streamer-light-text200.png",
+    "streamer-dark-details.png",
+    "streamer-dark-320.png",
+    "streamer-dark-390.png",
+    "streamer-dark-768.png",
+    "streamer-dark-text200.png",
+    "viewer-light-revised-text200.png",
+    "viewer-dark-revised-text200.png",
+    "profile-light-revised-text200.png",
+    "profile-dark-revised-text200.png",
+    "profile-light.png",
+    "profile-dark.png",
+    "reports-viewer.png",
+    "reports-streamer.png",
+    "viewer-inherited.png"
+  ],
+  "sources": {
+    "api.js": "f500aece623702d39234d6b581692f2a5c948832fe4a3fb54d6ed69bc8698c62",
+    "app.css": "25e64c7319f5cba9fa90c63cd00b1b557c3cc259eef2e64c53c97a530c9dd011",
+    "app.js": "87e9866fa36f206e0cbecfa92fd169677fa06fb92b95d800a9b893da8ccc841f",
+    "components.js": "4e16f8f8b97c75b58ea4d450210832b919658aab5570c342bfc7a5d4159cbf90",
+    "mascot-cutout.png": "c8ac42d0c6178e9abd1478acc52d189fa1add5752087a3fd654d61718a6e1a38",
+    "plus-mascot.png": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+    "profile.js": "33360c45dbc79dbeefac237ba8cab118b3d517a55f4f458ec4f0dca2562bcabd",
+    "purchase.js": "a8a0fb612c82c7fb9ff40a4b592e92d4ecd6415c8ee2182f5d6d9684d6b13fc3",
+    "reports.js": "b856c198717e2900acd6c4fd7c7532358384377624e1bf3336e5d35be31c8a2f",
+    "router.js": "1d767a62faee12ddf39a5e960bf3167d42faee7f23377c62287d5f5b47af3b1d",
+    "streamer.js": "1bc5770a6446bc4d4bf3d41cd36aae8a8fd8efca246c3f389833872037fe7c79",
+    "streamer_posts.js": "a39303d331255f334556d398da1b03f5b30bd6dd8c5d1a93da33595fdb71183a",
+    "subscription.js": "8c84e032629e3423d0281b3cbf4d815db0095d62129e05e553efb869695dae16",
+    "support.js": "f5d87984ec73d3c2096ecc4329d06c5d7089466130c5acc7dfec97b8c2bc80b9",
+    "telegram.js": "5880cd28df75c3e9b0c380418096804dfb8381ed58f0435be3ec2fa5b8915c65",
+    "theme.js": "1bf15afba76046a8103ec021ef2993ca5305f02ddb2ca086a43f3eae8ea3da7f",
+    "viewer.js": "8849cbe78643163360b6aaa43d14dbed8267f6f185c843ca5699f055d1cd4aed"
+  },
+  "status": "PASS"
+}

@@ -153,7 +153,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       purchase.append(buy);
       if(unavailable)purchase.append(element('p','plus-payment-note','Оформление пока недоступно'));
       box.append(purchase);
-      const more=action('Подробнее о Plus',()=>getRouter().openDetail({name:'subscription',id:id+':details'}),true);more.classList.add('plus-more');box.append(more);
+      const more=action('О тарифе',()=>getRouter().openDetail({name:'subscription',id:id+':details'}),true);more.classList.add('plus-more');box.append(more);
       if(id==='streamer_plus')box.append(disclosure('Зритель Plus включён',id+':included',catalog.products.find(p=>p.product_id==='viewer_plus').feature_ids));
       if(id==='viewer_plus'&&state.viewer.test_trial_available){box.append(element('p','muted','Ознакомление на 7 дней. Один раз, без оплаты и автопродления.'));const trial=action('Попробовать 7 дней',startTrial,true);trial.disabled=busy||loading;box.append(trial);}
       else if(id==='viewer_plus'&&state.viewer.test_trial_used)box.append(element('p','muted',state.viewer.test_trial_active?`Ознакомление действует до ${dateText(state.viewer.test_trial_expires_at)}.`:'Ознакомление уже использовано.'));
