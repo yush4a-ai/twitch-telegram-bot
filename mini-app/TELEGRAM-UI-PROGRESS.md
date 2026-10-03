@@ -25,3 +25,9 @@ Final reviewer: 3 Important +1Minor воспроизведены и исправ
 Full gate probe остановлен на старом пустом FSM double; scoped triage исправил test doubles и одну runtime double-cancel при fallback без ослабления assertions.50PASS/21subtests38.27s. Full gate запускается заново целиком; browser snapshot a008 сохраняется как предыдущий и перепроверяется после streams change.
 
 Task6 local gate PASS: full1462/2existingWindowsSkips/3255subtests942.07s; final14browserreports/226PNG/183source hashes checked, migration dependencies unchanged. ed164ef runtime freeze. Final review findings fixed; stop-slop/copy and compatibility/media-scope complete. Далее clean docs/evidence commit → guard repeats full suite → pinned staging smoke. Native/OAuth/send/payments NOT TESTED, bank NOT READY.
+
+## Финальный итог Tasks1–6 — 03.10.2026
+
+Tasks1–5b/5c/6 complete в согласованном инженерном scope. Guard full1462PASS/2existingWindowsSkips/3255subtests962.25s; clean pinned release bd2534dcb927cc2890df1dc69bd42a64657cb769, deployment f48e90a5-31ec-4981-afe3-1b0e198cc262 SUCCESS. Actual smoke PASS183artifactSHA/15HTTPSHA/25migrations/integrity/FK/5auth401/Bot8859004067/system Приложение/paymentOFF/secret0/boundedlogs0/production compare. Static banner/183runtime sources/226PNG checked; workers and max1job/2sessions unchanged. Backup/restore/migration-copy PASS.
+
+Owner visual/native acceptance, signed live API, owner OAuth, recipient sends и реальные payments NOT TESTED. Legal503/support fields/bank NOT READY остаются прежними blockers, без fake документов/контактов. FINAL-REPORT.md и MANUAL-CHECK.md; subsequent evidence-only commit не заменяет deployed SHA. Задача завершена, далее остановка и замечания владельца.

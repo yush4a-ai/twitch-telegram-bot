@@ -1,6 +1,12 @@
 # Статус TwitchSignalBot
 
-## Текущий checkpoint — 03.10.2026: Telegram UI и последние уточнения владельца
+## Текущий checkpoint — 03.10.2026: Telegram UI + название входа в тариф, инженерный staging PASS
+
+Release `bd2534dcb927cc2890df1dc69bd42a64657cb769`, deployment `f48e90a5-31ec-4981-afe3-1b0e198cc262` active SUCCESS. Local full1462PASS/2existingWindowsSkips/3255subtests942.07s; штатный guard повторил1462/2/3255 за962.25s.14freshbrowserreports/226PNG/183runtime sources, один reviewer +RED/PASS findings fixes, backup/restore/migration-copy60tables/25versions/actualFernet2 PASS. Actual Testbot8859004067,183artifactSHA/15HTTPSHA/5auth401/integrity/FK/system Приложение/paymentOFF/secret0/last100logs0/production metadata equality PASS. Smart Home/Menu/entryТариф, catalog150/300, HTML/export/legacy callbacks/commands/группы сохранены. Новых media jobs/DB migrations нет; limits1job/2sessions.
+
+Пакет: docs/audits/telegram-ui-2026-10-03/FINAL-REPORT.md. Owner acceptance/native/signed live API/OAuth/outbound/payment NOT TESTED, legal503/support input/bank NOT READY. Последующий evidence/docs commit не меняет deployed code SHA. Задача завершена, остановка до замечаний владельца.
+
+## Предыдущий checkpoint — 03.10.2026: Telegram UI и последние уточнения владельца
 
 Tasks1–5 и5b/5c реализованы локально. Base608acff; catalog150/300, payment OFF, HTML/export/31legacy callbacks/16commands сохранены. Smart Home по своим данным, статичный banner, official styles и Menu recovery, название входов «Тариф». Последний focused49 PASS; copy12/28subtests PASS; Chromium/WebKit purchase и width/theme matrix со screenshots. Финальный reviewer нашёл3 Important, RED→исправления→37PASS/7subtests; backup/restore/migration-copy60tables/25versions/actualFernet2 PASS. Full1462PASS/2existingWindowsSkips/3255subtests942.07s и14freshbrowserreports/226PNG/183source hashes PASS на ed164ef. Далее guarded staging повторяет suite и actual identity/SHA smoke. Staging пока прежний, production не трогали, native/OAuth/outbound/real payments NOT TESTED. План и текущие записи: mini-app/TELEGRAM-UI-PROGRESS.md.
 

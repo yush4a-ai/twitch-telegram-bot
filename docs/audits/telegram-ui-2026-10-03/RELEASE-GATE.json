@@ -1,5 +1,5 @@
 {
-  "status": "LOCAL_PASS_STAGING_PENDING",
+  "status": "ENGINEERING_STAGING_PASS_OWNER_NATIVE_PENDING",
   "code_commit": "ed164ef54e17247e3e0dc21b90524cf671049cf3",
   "full_suite": {
     "passed": 1462,
@@ -25,5 +25,26 @@
   "outbound": "NOT TESTED",
   "payments": "OFF",
   "bank_approval": "NOT READY",
-  "staging_deploy": "pending guarded workflow"
+  "staging_deploy": "guarded SUCCESS + actual smoke PASS",
+  "release_sha": "bd2534dcb927cc2890df1dc69bd42a64657cb769",
+  "deployment": "f48e90a5-31ec-4981-afe3-1b0e198cc262",
+  "guard_full_suite": {
+    "passed": 1462,
+    "skipped": 2,
+    "subtests_passed": 3255,
+    "seconds": 962.25,
+    "exit_code": 0
+  },
+  "bot": {
+    "username": "TwitchSignalTestbot",
+    "id": 8859004067,
+    "is_bot": true
+  },
+  "payment_policy": {
+    "mode": "offline",
+    "external_create": false,
+    "invoice": false,
+    "live_callback": 404
+  },
+  "production_metadata_equal": true
 }
