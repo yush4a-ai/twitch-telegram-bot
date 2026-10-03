@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from ..plan_catalog import catalog_payload
 from ..subscription_state import SubscriptionService
-from ..viewer_trial import ViewerTrialService
 from ..telegram_ui import back_keyboard, cancel_ui
 from .telegram_streamer import private_callback
 from .streams import _viewer_url
@@ -31,19 +30,27 @@ def offer_keyboard(product):
         [InlineKeyboardButton(text='← Назад',callback_data='menu:more')]])
 
 
-async def access_label(db,user_id,product_id,source,now):
-    if source=='trial': return 'Ознакомительный доступ'
-    if source=='test':
-        trial=await ViewerTrialService(db).status(user_id,now=now)
-        return 'Ознакомительный доступ' if product_id=='viewer_plus' and trial.active else 'Тестовый доступ'
-    # Legacy mock checkout grants used source=paid. Do not call those monetary.
-    row=await (await db.conn.execute(
-        "SELECT 1 FROM billing_orders o JOIN entitlement_grants g ON g.grant_id=o.grant_id "
-        "WHERE o.telegram_user_id=? AND o.plan=? AND o.provider='mock' "
-        "AND g.revoked_at IS NULL AND g.starts_at<=? AND g.expires_at>? LIMIT 1",
-        (user_id,product_id,now,now),
-    )).fetchone()
-    return 'Тестовый доступ' if row else 'Активна'
+async def access_label(db,user_id,product_id,active,now):
+    if product_id=='viewer_plus':
+        grant_ids=[source['grant_id'] for source in active['sources']]
+    else:
+        row=await SubscriptionService(db).owned_streamer_grant(user_id,now)
+        grant_ids=[row[0]] if row else []
+    if not grant_ids: return 'Активна'
+    # Only the server-selected grants contributing to this access/expiry count.
+    # A separate trial or short mock order must not relabel another paid grant.
+    rows=await (await db.conn.execute(
+        "SELECT g.source,EXISTS (SELECT 1 FROM viewer_test_trials t "
+        "WHERE t.grant_id=g.grant_id AND t.telegram_user_id=?),"
+        "EXISTS (SELECT 1 FROM billing_orders o WHERE o.grant_id=g.grant_id "
+        "AND o.telegram_user_id=? AND o.provider='mock') "
+        "FROM entitlement_grants g WHERE g.grant_id IN ("+','.join('?' for _ in grant_ids)+")",
+        (user_id,user_id,*grant_ids),
+    )).fetchall()
+    kinds=['trial' if trial or source=='trial' else 'test' if mock or source in {'test','mock'} else 'active'
+           for source,trial,mock in rows]
+    if kinds and all(kind=='trial' for kind in kinds): return 'Ознакомительный доступ'
+    return 'Активна' if not kinds or 'active' in kinds else 'Тестовый доступ'
 
 
 async def cb_plus(callback,state,db,config=None,oauth_server=None):
@@ -54,7 +61,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
     if callback.data=='menu:plus' and (status['streamer']['active'] or status['viewer']['active']):
         key='streamer' if status['streamer']['active'] else 'viewer'
         product=product_view(key+'_plus');active=status[key]
-        label=await access_label(db,actor,product['product_id'],active['source'],now)
+        label=await access_label(db,actor,product['product_id'],active,now)
         end=datetime.fromtimestamp(active['expires_at'],timezone.utc).astimezone(timezone(timedelta(hours=3)))
         text=f"Моя подписка\n\n{product['title']}\nСтатус: {label}\nДо {end:%d.%m.%Y %H:%M} (МСК)\n\n"
         if key=='streamer': text+='Viewer Plus включён.\n\n'
@@ -74,7 +81,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         except StopIteration:
             await callback.answer('Тариф недоступен. Открой тариф заново.',show_alert=True);return
         text=f"Тариф\n\n{product['title']}\n{product['price_label']} / {product['period_label'].removeprefix('1 ')}\n\n"
-        if product['includes']: text+='Viewer Plus уже включён для твоего Telegram-аккаунта.\n\n'
+        if product['includes']: text+='В Streamer Plus включены все возможности Viewer Plus.\n\n'
         text+=benefits(product)
         if product['includes']: text+='\n\n'+benefits(product_view('viewer_plus'))
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product))

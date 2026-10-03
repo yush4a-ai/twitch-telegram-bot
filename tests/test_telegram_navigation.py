@@ -3,7 +3,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Dispatcher, Router
+from tests.test_stars_provider import FakeTelegram, FakeSession
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.base import StorageKey
@@ -91,7 +92,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
                 await swallowed(message)
             other.message.register(legacy_input)
             dp.include_router(other)
-            bot = Bot('999:abcdefghijklmnopqrstuvwx')
+            bot = FakeTelegram(FakeSession())
             state = dp.fsm.get_context(bot, chat_id=101, user_id=101)
             await state.set_state(pending)
             await state.set_data({'draft':'unconfirmed'})

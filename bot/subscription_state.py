@@ -13,11 +13,11 @@ class SubscriptionService:
     def allowed(self,user_id):
         return user_id in self.test_user_ids
 
-    async def owned_streamer(self, user_id: int, now: float):
+    async def owned_streamer_grant(self, user_id: int, now: float):
         # Subscription ownership survives unlink. Legacy unbound grants remain
         # visible only through their existing verified broadcaster binding.
         row = await (await self.db.conn.execute(
-            "SELECT g.source,g.expires_at FROM entitlement_grants g "
+            "SELECT g.grant_id,g.source,g.expires_at FROM entitlement_grants g "
             "WHERE g.subject_kind='streamer' AND g.plan='streamer_plus' "
             "AND g.revoked_at IS NULL AND g.starts_at<=? AND g.expires_at>? "
             "AND (g.beneficiary_telegram_user_id=? OR (g.beneficiary_telegram_user_id IS NULL "
@@ -26,6 +26,10 @@ class SubscriptionService:
             (now, now, user_id, user_id),
         )).fetchone()
         return row
+
+    async def owned_streamer(self, user_id: int, now: float):
+        row=await self.owned_streamer_grant(user_id,now)
+        return row[1:] if row else None
 
     async def order_summary(self, order, user_id: int, now: float):
         monetary = order.provider in {"platega", "telegram_stars"}

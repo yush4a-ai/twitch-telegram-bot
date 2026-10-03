@@ -88,6 +88,14 @@ class MenuStore:
         self.messages.move_to_end(message.chat.id)
         while len(self.messages)>1024: self.messages.popitem(last=False)
 
+    def keyboard_initialized(self, chat_id):
+        previous, _ = self.get(chat_id)
+        # Never remember an incoming user's /start or Menu message as the bot's
+        # editable menu. A cold deep entry may initialize the keyboard alone.
+        self.messages[chat_id] = (time.monotonic(),previous,True)
+        self.messages.move_to_end(chat_id)
+        while len(self.messages)>1024: self.messages.popitem(last=False)
+
 
 def store_for(message):
     if not isinstance(message,Message): return None
@@ -142,17 +150,26 @@ async def edit_menu(message, text, *, reply_markup=None, force_text=False, **kwa
     return result
 
 
+async def ensure_menu_keyboard(message):
+    if message.chat.type!='private': return
+    store=store_for(message)
+    _,ready=store.get(message.chat.id) if store else (None,False)
+    if not ready:
+        await message.answer('Возвращайся сюда кнопкой «Меню».',reply_markup=menu_keyboard())
+        if store: store.keyboard_initialized(message.chat.id)
+
+
 async def show_home(message, view, *, app_url=None, callback=False):
     store = store_for(message)
     keyboard = home_keyboard(message.chat.type,app_url=app_url)
 
     async def present():
         previous,ready = store.get(message.chat.id) if store else (None,False)
+        if message.chat.type=='private' and not ready:
+            await ensure_menu_keyboard(message)
+            ready = True
         if callback:
             previous = message
-        elif message.chat.type=='private' and not ready:
-            await message.answer('Возвращайся сюда кнопкой «Меню».',reply_markup=menu_keyboard())
-            ready = True
         if view.banner:
             photo = store.banner_file_id if store and store.banner_file_id else FSInputFile(BANNER_PATH)
             if previous is not None:

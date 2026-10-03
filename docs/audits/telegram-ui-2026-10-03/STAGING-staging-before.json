@@ -1,0 +1,61 @@
+{
+  "status": {
+    "staging": [
+      {
+        "id": "fba34520-f2a7-4d5d-aa86-1e8e3b0072b1",
+        "status": "SUCCESS",
+        "commit": null,
+        "cliMessage": "staging 52e56e9633a77f7e5025a1be7dacbbf8c0769970"
+      }
+    ],
+    "production": [
+      {
+        "id": "466499d5-6979-4a81-8aee-67efcf628976",
+        "status": "SUCCESS",
+        "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+        "cliMessage": null
+      }
+    ]
+  },
+  "runtime": {
+    "guard": true,
+    "cwd": "/app",
+    "database_exists": true,
+    "integrity": "ok",
+    "versions": [
+      "mini_001_viewer_preferences",
+      "mini_002_category_alerts",
+      "mini_003_category_delivery",
+      "mini_004_streamer_intents",
+      "mini_005_viewer_reminders",
+      "mini_006_viewer_folders",
+      "mini_007_viewer_history",
+      "mini_008_streamer_presets",
+      "mini_009_viewer_trial",
+      "r10_001_billing_subjects",
+      "r11_001_plus_payment_orders",
+      "r11_002_plus_payment_events",
+      "r11_003_entitlement_beneficiary",
+      "r11_004_payment_reconciliation",
+      "r11_005_channel_intent_reasons",
+      "r3_001_observations",
+      "r3_002_notification_jobs",
+      "r3_003_live_update_revision",
+      "r4_001_streamer_access",
+      "r4_002_streamer_communities",
+      "r4_003_streamer_templates",
+      "r4_004_streamer_stats",
+      "r5_001_billing_ledger",
+      "r7_001_viewer_filters",
+      "r8_001_growth_attribution"
+    ],
+    "key_present": true,
+    "python": "3.12.10",
+    "packages": {
+      "aiogram": "3.30.0",
+      "aiohttp": "3.14.3",
+      "aiosqlite": "0.22.1",
+      "cryptography": "50.0.0"
+    }
+  }
+}

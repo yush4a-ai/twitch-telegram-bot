@@ -1,0 +1,39 @@
+.FF..F...                                                         [100%]
+================================== FAILURES ===================================
+_ ReviewRegressionTests.test_free_streamer_offer_does_not_claim_access_already_granted _
+tests\test_telegram_review_regressions.py:118: in test_free_streamer_offer_does_not_claim_access_already_granted
+    self.assertIn('В Streamer Plus включены все возможности Viewer Plus.',text)
+E   AssertionError: 'В Streamer Plus включены все возможности Viewer Plus.' not found in 'Тариф\n\nStreamer Plus\n300 ₽ / месяц\n\nViewer Plus уже включён для твоего Telegram-аккаунта.\n\n• Видеопревью в посте\n• Свой текст и оформление\n• Дополнительные кнопки\n• Сохранённые варианты\n• Статистика публикаций\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История'
+________ ReviewRegressionTests.test_help_points_to_actual_home_action _________
+tests\test_telegram_review_regressions.py:150: in test_help_points_to_actual_home_action
+    self.assertIn('«➕ Добавить оповещения»',text)
+E   AssertionError: '«➕ Добавить оповещения»' not found in 'Помощь\n\nКак следить за стримером?\nНажми «Добавить стримера» и пришли ник или ссылку Twitch.\n\nКак подключить свой канал?\nОткрой «Я стример», подключи Twitch и выбери Telegram-канал.\n\nГде настройки и отчёты?\nВ приложении и разделе «Ещё».'
+_ ReviewRegressionTests.test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry _
+tests\test_telegram_review_regressions.py:109: in test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry
+    self.assertIn('Статус: Тестовый доступ',text)
+E   AssertionError: 'Статус: Тестовый доступ' not found in 'Моя подписка\n\nViewer Plus\nСтатус: Ознакомительный доступ\nДо 23.10.2026 04:46 (МСК)\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История\n\nАвтопродление выключено.'
+_ ReviewRegressionTests.test_short_mock_does_not_mislabel_long_paid_grant (product='viewer_plus') _
+tests\test_telegram_review_regressions.py:144: in test_short_mock_does_not_mislabel_long_paid_grant
+    self.assertIn('Статус: Активна',text)
+E   AssertionError: 'Статус: Активна' not found in 'Моя подписка\n\nViewer Plus\nСтатус: Тестовый доступ\nДо 23.10.2026 04:46 (МСК)\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История\n\nАвтопродление выключено.'
+_ ReviewRegressionTests.test_short_mock_does_not_mislabel_long_paid_grant (product='streamer_plus') _
+tests\test_telegram_review_regressions.py:144: in test_short_mock_does_not_mislabel_long_paid_grant
+    self.assertIn('Статус: Активна',text)
+E   AssertionError: 'Статус: Активна' not found in 'Моя подписка\n\nStreamer Plus\nСтатус: Тестовый доступ\nДо 23.10.2026 04:46 (МСК)\n\nViewer Plus включён.\n\n• Видеопревью в посте\n• Свой текст и оформление\n• Дополнительные кнопки\n• Сохранённые варианты\n• Статистика публикаций\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История\n\nАвтопродление выключено.'
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [Errno 13] Permission denied: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_free_streamer_offer_does_not_claim_access_already_granted
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_help_points_to_actual_home_action
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry
+SUBFAILED(product='viewer_plus') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_short_mock_does_not_mislabel_long_paid_grant
+SUBFAILED(product='streamer_plus') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_short_mock_does_not_mislabel_long_paid_grant
+5 failed, 6 passed, 2 warnings, 5 subtests passed in 10.51s

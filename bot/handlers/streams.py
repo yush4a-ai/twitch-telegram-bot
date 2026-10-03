@@ -451,15 +451,26 @@ async def cmd_start_link(
     db: Database,
     twitch: TwitchClient,
     config: Config | None = None,
+    oauth_server: OAuthCallbackServer | None = None,
 ) -> None:
-    if message.chat.type == ChatType.PRIVATE:
+    if message.chat.type == ChatType.PRIVATE and not own_private(message):
+        return
+    if own_private(message):
         await db.mark_known_private_user(message.chat.id)
+        from ..telegram_home import ensure_menu_keyboard
+        await ensure_menu_keyboard(message)
 
     payload = command.args or ""
     if payload.startswith("tscommunity_"):
         from aiogram.types import KeyboardButton, KeyboardButtonRequestChat, ReplyKeyboardMarkup
         intent_id = payload.removeprefix("tscommunity_")
+        generation=secrets.token_hex(8)
+        await state.update_data(channel_reopen_generation=generation)
         row = await db.get_community_intent(intent_id)
+        if (await state.get_data()).get('channel_reopen_generation')!=generation:
+            if row and row[1]==message.chat.id:
+                await db.cancel_community_intent(intent_id,message.chat.id)
+            return
         if (
             message.chat.type != ChatType.PRIVATE
             or message.from_user is None
@@ -467,11 +478,15 @@ async def cmd_start_link(
             or row is None or row[1] != message.from_user.id
             or row[6] != "pending" or row[4] <= time.time() or row[5] != "channel"
         ):
+            await cancel_ui(state, actor_id=message.from_user.id if message.from_user else message.chat.id,
+                            db=db, oauth_server=oauth_server, message=message)
             await message.answer("Выбор сообщества устарел. Откройте приложение и начните заново.")
             return
         from .telegram_streamer import show_channel_selector
-        await show_channel_selector(message,state,row)
+        await show_channel_selector(message,state,row,db,oauth_server)
         return
+    await cancel_ui(state, actor_id=message.from_user.id if message.from_user else message.chat.id,
+                    db=db, oauth_server=oauth_server, message=message)
     if payload.startswith(TRACK_START_PREFIX):
         if (
             message.chat.type != ChatType.PRIVATE
@@ -480,7 +495,6 @@ async def cmd_start_link(
             await cmd_start(message, state, db, config)
             return
 
-        await state.clear()
         login = parse_track_start_payload(payload)
         if login is None:
             await message.answer(
@@ -1099,11 +1113,13 @@ async def _quiet_hours_screen_text_and_keyboard(
 
 
 @router.callback_query(lambda c: c.data == "menu:quiet_hours")
-async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Database,
+                              oauth_server: OAuthCallbackServer | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
         await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
         return
-    await state.clear()
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db,
+                    oauth_server=oauth_server, message=callback.message)
     chat_id = callback.message.chat.id
     if await db.get_utc_offset(chat_id) is None:
         await state.set_state(QuietHoursSetup.waiting_for_offset)
@@ -1181,10 +1197,13 @@ async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database) -> None:
 
 
 @router.callback_query(lambda c: c.data == "qh:custom")
-async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext, db: Database | None = None,
+                                oauth_server: OAuthCallbackServer | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
         await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
         return
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db,
+                    oauth_server=oauth_server, message=callback.message)
     await state.set_state(QuietHoursSetup.waiting_for_custom_time)
     await edit_menu(callback.message,
         "Напиши интервал в своём локальном времени в формате <code>23:00-08:00</code>.",
@@ -1884,7 +1903,8 @@ async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) ->
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("menu:add"))
-async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
+async def cb_menu_add(callback: CallbackQuery, state: FSMContext, db: Database | None = None,
+                      oauth_server: OAuthCallbackServer | None = None) -> None:
     # "menu:add" — добавление в текущий чат; "menu:add:<target_chat_id>" — удалённое
     # добавление (например, из карточки Telegram-канала, открытой из лички)
     current_chat_id = _callback_chat_id(callback)
@@ -1905,7 +1925,8 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer("Только админы этой группы/канала могут добавлять каналы.", show_alert=True)
         return
 
-    await state.clear()
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db,
+                    oauth_server=oauth_server, message=callback.message)
     await state.set_state(AddChannel.waiting_for_login)
     await state.update_data(target_chat_id=target_chat_id, confirm_add=(own_private(callback.message,callback.from_user.id) and target_chat_id==current_chat_id))
     back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
@@ -2070,7 +2091,8 @@ async def _run_import_follows(
     # импорт мог быть запущен с экрана «Добавить оповещение», где бот ждёт ввода
     # логина — снимаем это ожидание, иначе всё, что пользователь напишет за время
     # авторизации, уйдёт в поиск канала
-    generation=await begin_legacy_oauth(state)
+    generation=await begin_legacy_oauth(state, actor_id=message.chat.id, db=db,
+                                      oauth_server=oauth_server, message=message)
 
     async def send_url(url: str) -> None:
         if not await legacy_oauth_current(state,generation): raise asyncio.CancelledError
@@ -2213,7 +2235,8 @@ async def cb_menu_import_follows(
 
 
 @router.callback_query(lambda c: c.data == "importfollows:add")
-async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: Database,
+                                oauth_server: OAuthCallbackServer | None = None) -> None:
     current_chat_id = _callback_chat_id(callback)
     if current_chat_id is None:
         await callback.answer()
@@ -2221,7 +2244,8 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
 
     data = await state.get_data()
     logins = data.get("import_logins") or []
-    await state.clear()
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db,
+                    oauth_server=oauth_server, message=callback.message)
 
     if not logins:
         await callback.answer("Список подписок устарел — запусти импорт заново.", show_alert=True)
@@ -2247,7 +2271,8 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
 
 
 @router.callback_query(lambda c: c.data and c.data.startswith("addfound:"))
-async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: Database) -> None:
+async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: Database,
+                               oauth_server: OAuthCallbackServer | None = None) -> None:
     parsed = _parse_chat_and_login(callback.data)
     current_chat_id = _callback_chat_id(callback)
     if parsed is None or current_chat_id is None:
@@ -2258,7 +2283,8 @@ async def cb_add_found_channel(callback: CallbackQuery, state: FSMContext, db: D
         await callback.answer("Только админы этой группы могут добавлять каналы.", show_alert=True)
         return
 
-    await state.clear()
+    await cancel_ui(state, actor_id=callback.from_user.id, db=db,
+                    oauth_server=oauth_server, message=callback.message)
     had_channels_before = await db.count_channels(target_chat_id) > 0
     result = await db.add_channel_with_limit(
         target_chat_id, login, await _tracking_limit(db, target_chat_id)

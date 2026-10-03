@@ -56,7 +56,8 @@ async def _run_auth_flow(
     message: Message, db: Database, config: Config, oauth_server: OAuthCallbackServer,
     *, streamer_user_id: int | None = None, state: FSMContext | None = None,
 ) -> None:
-    generation=await begin_legacy_oauth(state)
+    generation=await begin_legacy_oauth(state, actor_id=streamer_user_id or message.chat.id,
+                                      db=db, oauth_server=oauth_server, message=message)
     async def send_url(url: str) -> None:
         if not await legacy_oauth_current(state,generation): raise asyncio.CancelledError
         if state is not None:

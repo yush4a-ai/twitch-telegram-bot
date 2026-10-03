@@ -1,0 +1,835 @@
+{
+  "status": "PASS",
+  "backup_sha256": "325ea85c970b5b567eaf09651f927e3039c99cecc2c9ed98765aed6d6942fd5a",
+  "all_existing_data_preserved": true,
+  "tables_before": 60,
+  "tables_after": 60,
+  "existing_table_digests": {
+    "tracked_channels": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "is_live",
+        "last_stream_id",
+        "last_message_id",
+        "last_message_kind",
+        "media_transition_pending",
+        "last_title",
+        "offline_since",
+        "stream_started_at",
+        "last_seen_live_at",
+        "last_stream_ended_at",
+        "peak_viewers",
+        "viewer_sum",
+        "viewer_samples",
+        "stats_sent",
+        "followers_at_start",
+        "notify_enabled",
+        "preview_enabled",
+        "channel_report_enabled",
+        "post_recipient_chat_id",
+        "raid_detection_enabled",
+        "quiet_hours_exempt",
+        "auto_report_enabled",
+        "media_transition_target_kind",
+        "live_post_ended",
+        "report_format",
+        "last_broadcaster_id",
+        "added_at"
+      ],
+      "count": 55,
+      "sha256": "b672ac5e9dc8619d1d5d5f81e06b5647da7b1f8d7ab7c7d3ce0484cbdd73d7ca"
+    },
+    "twitch_user_tokens": {
+      "columns": [
+        "twitch_login",
+        "broadcaster_id",
+        "access_token",
+        "refresh_token",
+        "expires_at"
+      ],
+      "count": 1,
+      "sha256": "290028331686995fd7d3bec3fbe10f250b2cd41fbb3a3336282328668191d2e6"
+    },
+    "follow_event_counts": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "event_count",
+        "reliable",
+        "created_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "follow_event_ids": {
+      "columns": [
+        "message_id",
+        "received_at"
+      ],
+      "count": 1,
+      "sha256": "4f1b40a5dbeb1f43395c32314d1b9f1578d4ce0c744a51ce916204bc10a75ebf"
+    },
+    "stream_samples": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "sampled_at",
+        "viewer_count",
+        "title",
+        "game_name"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stream_history": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "ended_at",
+        "duration_seconds",
+        "peak_viewers",
+        "avg_viewers",
+        "new_followers",
+        "started_at",
+        "title",
+        "new_followers_text",
+        "unique_chatters",
+        "join_reliable",
+        "top_chatters_json",
+        "raid_events_json",
+        "collab_json"
+      ],
+      "count": 39,
+      "sha256": "0fc48034cc7da286094a57a81dbd570558df1f1ab2c4c79f16adb011b90f23c3"
+    },
+    "report_deliveries": {
+      "columns": [
+        "source_chat_id",
+        "twitch_login",
+        "stream_id",
+        "recipient_chat_id",
+        "report_format",
+        "text_payload",
+        "html_payload",
+        "text_sent",
+        "html_sent",
+        "terminal_failed",
+        "terminal_reason",
+        "created_at",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "chat_activity_samples": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "minute_ts",
+        "message_count"
+      ],
+      "count": 4337,
+      "sha256": "37b6edc9ea6b5f49c2293bad2196cc241117d1491e2c2116d5a0bc575b3003be"
+    },
+    "chat_unique_nicks": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "nick",
+        "joined_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stream_chatters": {
+      "columns": [
+        "twitch_login",
+        "stream_id",
+        "nick",
+        "first_seen_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stream_chat_meta": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "join_reliable",
+        "top_chatters_json",
+        "raid_events_json",
+        "created_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stats_recipients": {
+      "columns": [
+        "chat_id",
+        "stats_chat_id"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "known_private_users": {
+      "columns": [
+        "user_id"
+      ],
+      "count": 1,
+      "sha256": "2b14d14ec9149cab8b56378a98d1150e294f8521c9f3d24e431e9606b8704515"
+    },
+    "channel_existence_status": {
+      "columns": [
+        "twitch_login",
+        "exists_on_twitch"
+      ],
+      "count": 50,
+      "sha256": "fe1e76babe05c2ebc05c09d27a4a85f89a9767a339fde9a5b40d4db9a6f43a23"
+    },
+    "channel_display_names": {
+      "columns": [
+        "twitch_login",
+        "display_name"
+      ],
+      "count": 53,
+      "sha256": "9e718da5ab3a049af073bc8d4de61a843a9fffe0c102220b082694c5ee8e31d6"
+    },
+    "vod_archive": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "vod_url",
+        "vod_title",
+        "chapters_json",
+        "created_at"
+      ],
+      "count": 24,
+      "sha256": "bd7652c203f522f5fdf5533c8d811359628482b809caf3b43d91ee7eed1ae6be"
+    },
+    "telegram_channels": {
+      "columns": [
+        "chat_id",
+        "title"
+      ],
+      "count": 1,
+      "sha256": "2406d13582a980649d5150a7c81563e2ec147004afa3c7c2d3fbde5aee22c21a"
+    },
+    "quiet_hours": {
+      "columns": [
+        "chat_id",
+        "start_minute",
+        "end_minute",
+        "utc_offset_minutes",
+        "notify_after_enabled"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "deferred_reports": {
+      "columns": [
+        "chat_id",
+        "source_chat_id",
+        "twitch_login",
+        "stream_id",
+        "ended_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "quiet_hours_digest_sent": {
+      "columns": [
+        "chat_id"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "user_timezones": {
+      "columns": [
+        "chat_id",
+        "utc_offset_minutes"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "schema_migrations": {
+      "columns": [
+        "version",
+        "applied_at"
+      ],
+      "count": 25,
+      "sha256": "b72b0de9c5d8ee3880a2bc2d5cfdffc1eb5e9fe24367d520d286a4978b770f67"
+    },
+    "stream_observations": {
+      "columns": [
+        "twitch_login",
+        "stream_id",
+        "sampled_at",
+        "viewer_count",
+        "title",
+        "game_name"
+      ],
+      "count": 5547,
+      "sha256": "522b969816f9de911ae682742ec98cf43af0244d30d27586ee4046878fec267c"
+    },
+    "stream_observation_memberships": {
+      "columns": [
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "sampled_at"
+      ],
+      "count": 6012,
+      "sha256": "ef9cd80ddf21ca728e10c169e8174b4091164f489b71b22e51eef91554726cc9"
+    },
+    "notification_jobs": {
+      "columns": [
+        "id",
+        "kind",
+        "chat_id",
+        "twitch_login",
+        "logical_stream_id",
+        "payload_version",
+        "due_at",
+        "status",
+        "attempt_count",
+        "lease_until",
+        "created_at",
+        "updated_at",
+        "last_error_class",
+        "revision",
+        "media_url",
+        "category_transition_id"
+      ],
+      "count": 53,
+      "sha256": "cbce5339e0ba38598b9c2e4a33da216be41281bd2b3ed553a5b5e4951716e0d9"
+    },
+    "streamer_identities": {
+      "columns": [
+        "broadcaster_id",
+        "telegram_user_id",
+        "twitch_login",
+        "verified_at"
+      ],
+      "count": 1,
+      "sha256": "81af0c943f02298f25e88c747917405a0218e2a04bf6b6e054998f664cce4e2d"
+    },
+    "entitlement_grants": {
+      "columns": [
+        "grant_id",
+        "request_key",
+        "subject_kind",
+        "subject_id",
+        "plan",
+        "source",
+        "starts_at",
+        "expires_at",
+        "revoked_at",
+        "issued_by",
+        "created_at",
+        "beneficiary_telegram_user_id"
+      ],
+      "count": 7,
+      "sha256": "eb36c7cbebe64f9cec9ef57832e2acb2fdf8a1b89585f08113220ef1e8cc60f9"
+    },
+    "entitlement_events": {
+      "columns": [
+        "id",
+        "grant_id",
+        "action",
+        "actor_telegram_id",
+        "happened_at"
+      ],
+      "count": 8,
+      "sha256": "90afa1f8c22954d0a153052f562143de6bbede6089b6eea0bd4e096409881999"
+    },
+    "streamer_communities": {
+      "columns": [
+        "broadcaster_id",
+        "chat_id",
+        "title",
+        "chat_type",
+        "verified_at"
+      ],
+      "count": 1,
+      "sha256": "4d2652e3b6feca8c90cb96537f70692d727a9ff955542c4fb54fffb4a34ca9f1"
+    },
+    "streamer_post_templates": {
+      "columns": [
+        "broadcaster_id",
+        "chat_id",
+        "version",
+        "headline",
+        "body",
+        "buttons_json",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "streamer_post_events": {
+      "columns": [
+        "broadcaster_id",
+        "chat_id",
+        "twitch_login",
+        "stream_id",
+        "message_id",
+        "published_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_payments": {
+      "columns": [
+        "provider",
+        "payment_id",
+        "order_id",
+        "status",
+        "units",
+        "currency",
+        "captured_at",
+        "refunded_at"
+      ],
+      "count": 5,
+      "sha256": "48097d3890eaa03f3f089dc723f4f73548e09a969be819d3a6409152c3830784"
+    },
+    "billing_webhook_events": {
+      "columns": [
+        "provider",
+        "event_id",
+        "body_sha256",
+        "order_id",
+        "event_type",
+        "processed_at",
+        "result_status"
+      ],
+      "count": 5,
+      "sha256": "869c78f620451ead6827b5a881df0009e86f60f7768526725d6b530affa1429b"
+    },
+    "billing_audit": {
+      "columns": [
+        "id",
+        "order_id",
+        "action",
+        "happened_at"
+      ],
+      "count": 10,
+      "sha256": "5b6fed62e7cadb0d7e8caf8c66271becc9356925969e987c51e98a10df580b5c"
+    },
+    "billing_refund_requests": {
+      "columns": [
+        "request_key",
+        "order_id",
+        "reference",
+        "requested_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_alert_filters": {
+      "columns": [
+        "telegram_user_id",
+        "twitch_login",
+        "games_json",
+        "title_keywords_json",
+        "exclude_keywords_json",
+        "version",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "growth_referral_codes": {
+      "columns": [
+        "code",
+        "owner_user_id",
+        "created_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "growth_attributions": {
+      "columns": [
+        "telegram_user_id",
+        "source_kind",
+        "source_code",
+        "referrer_user_id",
+        "first_seen_at",
+        "activated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "streamer_template_presets": {
+      "columns": [
+        "id",
+        "broadcaster_id",
+        "name",
+        "name_key",
+        "headline",
+        "body",
+        "buttons_json",
+        "created_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_video_selection_state": {
+      "columns": [
+        "telegram_user_id",
+        "version"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_plan_priority": {
+      "columns": [
+        "telegram_user_id",
+        "twitch_login",
+        "priority"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_video_selections": {
+      "columns": [
+        "telegram_user_id",
+        "broadcaster_id",
+        "twitch_login",
+        "position"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_reminders": {
+      "columns": [
+        "telegram_user_id",
+        "twitch_login",
+        "broadcaster_id",
+        "logical_stream_id",
+        "delay_minutes",
+        "due_at",
+        "version",
+        "queued_version",
+        "status",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_folders": {
+      "columns": [
+        "id",
+        "telegram_user_id",
+        "name",
+        "name_key",
+        "version",
+        "games_json",
+        "title_keywords_json",
+        "exclude_keywords_json",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_folder_memberships": {
+      "columns": [
+        "telegram_user_id",
+        "twitch_login",
+        "folder_id",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "viewer_event_history": {
+      "columns": [
+        "id",
+        "telegram_user_id",
+        "event_key",
+        "kind",
+        "twitch_login",
+        "logical_stream_id",
+        "category_name",
+        "outcome",
+        "happened_at"
+      ],
+      "count": 14,
+      "sha256": "16d15f45ab88e5251ce3b37f94ba20d2cfc8927db6b1c458d0b208f76622a54e"
+    },
+    "viewer_test_trials": {
+      "columns": [
+        "telegram_user_id",
+        "grant_id",
+        "started_at",
+        "expires_at"
+      ],
+      "count": 1,
+      "sha256": "d183c9938ac6d23303fe10daba510bfe41d95be427f543c7ed038be3fb3ab4fe"
+    },
+    "category_alert_state": {
+      "columns": [
+        "broadcaster_id",
+        "logical_stream_id",
+        "baseline_id",
+        "baseline_name",
+        "candidate_id",
+        "candidate_name",
+        "candidate_since",
+        "candidate_count",
+        "last_observed_at",
+        "sequence",
+        "is_live"
+      ],
+      "count": 20,
+      "sha256": "b3cb9ab390cfd2cc547121a1c76ee57818af3c6ee8e1e90b71337d95a261a066"
+    },
+    "category_transitions": {
+      "columns": [
+        "transition_id",
+        "broadcaster_id",
+        "logical_stream_id",
+        "sequence",
+        "from_category_id",
+        "from_category_name",
+        "to_category_id",
+        "to_category_name",
+        "observed_at"
+      ],
+      "count": 14,
+      "sha256": "88080be277f46acaa72a4c98b4c41b9e58035b7cbe13082057083d23e2946022"
+    },
+    "category_alert_preferences": {
+      "columns": [
+        "telegram_user_id",
+        "twitch_login",
+        "enabled",
+        "category_ids_json",
+        "category_names_json",
+        "version",
+        "updated_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "category_alert_delivery_state": {
+      "columns": [
+        "telegram_user_id",
+        "broadcaster_id",
+        "logical_stream_id",
+        "last_transition_id",
+        "last_sent_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "streamer_connect_intents": {
+      "columns": [
+        "intent_id",
+        "telegram_user_id",
+        "state_digest",
+        "created_at",
+        "expires_at",
+        "status",
+        "twitch_login"
+      ],
+      "count": 1,
+      "sha256": "4878b196375dbdcbb7ee165b0d8a5f40646d5750f3524809daec0d73383356b6"
+    },
+    "streamer_community_intents": {
+      "columns": [
+        "intent_id",
+        "telegram_user_id",
+        "request_id",
+        "created_at",
+        "expires_at",
+        "chat_type",
+        "status",
+        "prepared_id",
+        "chat_id",
+        "permission_reason"
+      ],
+      "count": 29,
+      "sha256": "4661e41b8a2353609d4f2566cf8639d2bfa1c32db0b07896069cad8f46cb6e70"
+    },
+    "billing_orders": {
+      "columns": [
+        "order_id",
+        "request_key",
+        "telegram_user_id",
+        "subject_kind",
+        "subject_id",
+        "broadcaster_id",
+        "plan",
+        "provider",
+        "status",
+        "units",
+        "currency",
+        "duration_seconds",
+        "created_at",
+        "checkout_expires_at",
+        "checkout_reference",
+        "paid_at",
+        "closed_at",
+        "grant_id",
+        "beneficiary_telegram_user_id",
+        "catalog_version",
+        "method",
+        "period_code",
+        "period_rule",
+        "period_rule_version",
+        "terms_version",
+        "financial_status",
+        "access_starts_at",
+        "access_expires_at",
+        "product_snapshot_json",
+        "checkout_url"
+      ],
+      "count": 5,
+      "sha256": "ad27e53a28355966a5072984313d4ddf4e5d816cca90fa8947084b6f168a6668"
+    },
+    "billing_payment_attempts": {
+      "columns": [
+        "attempt_id",
+        "order_id",
+        "provider",
+        "method",
+        "state",
+        "provider_reference",
+        "created_at",
+        "next_reconcile_at",
+        "reconcile_count",
+        "lease_until",
+        "payload_digest"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_provider_inbox": {
+      "columns": [
+        "provider",
+        "event_key",
+        "transaction_id",
+        "raw_status",
+        "payload_digest",
+        "received_at",
+        "state",
+        "next_reconcile_at",
+        "reconcile_count",
+        "lease_until"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_provider_facts": {
+      "columns": [
+        "provider",
+        "transaction_id",
+        "order_id",
+        "attempt_id",
+        "status",
+        "raw_status",
+        "amount_minor",
+        "currency",
+        "method",
+        "observed_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_payment_refunds": {
+      "columns": [
+        "request_key",
+        "order_id",
+        "actor_telegram_user_id",
+        "state",
+        "provider_reference",
+        "requested_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_provider_quarantine": {
+      "columns": [
+        "provider",
+        "transaction_id",
+        "payload_digest",
+        "order_hint",
+        "raw_status",
+        "amount_minor",
+        "currency",
+        "method",
+        "observed_at"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "billing_worker_lease": {
+      "columns": [
+        "provider",
+        "owner",
+        "lease_until"
+      ],
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "schema_versions": [
+    "mini_001_viewer_preferences",
+    "mini_002_category_alerts",
+    "mini_003_category_delivery",
+    "mini_004_streamer_intents",
+    "mini_005_viewer_reminders",
+    "mini_006_viewer_folders",
+    "mini_007_viewer_history",
+    "mini_008_streamer_presets",
+    "mini_009_viewer_trial",
+    "r10_001_billing_subjects",
+    "r11_001_plus_payment_orders",
+    "r11_002_plus_payment_events",
+    "r11_003_entitlement_beneficiary",
+    "r11_004_payment_reconciliation",
+    "r11_005_channel_intent_reasons",
+    "r3_001_observations",
+    "r3_002_notification_jobs",
+    "r3_003_live_update_revision",
+    "r4_001_streamer_access",
+    "r4_002_streamer_communities",
+    "r4_003_streamer_templates",
+    "r4_004_streamer_stats",
+    "r5_001_billing_ledger",
+    "r7_001_viewer_filters",
+    "r8_001_growth_attribution"
+  ],
+  "added_versions": [],
+  "foreign_key_check": [],
+  "integrity": "ok",
+  "repeat_reopen": true,
+  "injected_failure_rollback": true,
+  "fernet_fields_checked": 2,
+  "key_exported": false,
+  "active_db_replaced": false,
+  "network_sends": 0,
+  "temp_copy_removed": true,
+  "source_commit": "84c3528099220134d57236025d787b873ef93f3c",
+  "source_hashes": {
+    "bot/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bot/database.py": "0d7a21f607a419b2de04389e7dd7eb9da29bfcf539d94448a5c4b71af4e004c1",
+    "bot/billing_models.py": "eab1cd7eb1900c894ce24da1479c1f094fd42166ed3809c9fd857626f0440965",
+    "bot/billing_migrations.py": "597a35b161f3032b978ceaf7d633cc9293fed8aaa074b5ce8a54b5f96ba2b0b2",
+    "bot/billing_provider.py": "9ac8321433c3e0ab691e7b82e8fb45372a340699a58b2e1cc86150f55e78d9b7",
+    "bot/deep_links.py": "1562e0944346e3fa5b26b48ec3ff9d15d821b8d810466d72c4c1d95c96de56f1",
+    "bot/streamer_template.py": "e8665ebbe23c8883984b02871a9f421e77689eb12529ed8ab1d8dcf6dd26aace",
+    "bot/viewer_filter.py": "941498c22ae5bbb61c9df7ec0684b4019aa9b0ef972b0a097979125cf0d5d021",
+    "bot/viewer_preferences.py": "cc75d651a8fecd1bb72b856b2db9683f549ff76f415468e39a375392fa95515b",
+    "bot/plan_catalog.py": "7e7a842bc6500f95b5215d2c8d76032c4895a7c0a726233e0e73288e7bd16e35",
+    "bot/entitlements.py": "e682927a4e3fa16740895e9b2df0978b1806f16ad226dff964dc1f4b830868e8"
+  }
+}

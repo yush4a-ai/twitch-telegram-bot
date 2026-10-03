@@ -86,8 +86,11 @@ async def cb_streamer_check(callback,state,db,config=None):
     await callback.answer()
 
 
-async def show_channel_selector(message,state,row):
-    await state.clear()
+async def show_channel_selector(message,state,row,db,oauth_server=None):
+    # The row is an owned, pending channel intent read by the server. Reopening
+    # this same selector keeps it; all other UI drafts must be cancelled first.
+    await cancel_ui(state, actor_id=row[1], db=db, oauth_server=oauth_server,
+                    message=message, preserve_community_intent=row[0])
     await state.update_data(telegram_community_intent=row[0])
     button=KeyboardButton(text="Выбрать Telegram-канал",request_chat=KeyboardButtonRequestChat(
         request_id=row[2],chat_is_channel=True,bot_is_member=True,request_title=True))
@@ -110,7 +113,9 @@ async def cb_streamer_channel(callback,state,db,oauth_server=None):
     if (await state.get_data()).get('channel_generation')!=generation:
         await db.cancel_community_intent(intent,actor);await callback.answer();return
     row=await db.get_community_intent(intent)
-    await show_channel_selector(callback.message,state,row)
+    if (await state.get_data()).get('channel_generation')!=generation:
+        await db.cancel_community_intent(intent,actor);await callback.answer();return
+    await show_channel_selector(callback.message,state,row,db,oauth_server)
     await callback.answer()
 
 

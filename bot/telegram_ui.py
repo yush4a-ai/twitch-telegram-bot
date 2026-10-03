@@ -47,7 +47,8 @@ def back_keyboard(target="menu:more", text="← Назад"):
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=text,callback_data=target)]])
 
 
-async def cancel_ui(state, *, actor_id, db=None, oauth_server=None, message=None):
+async def cancel_ui(state, *, actor_id, db=None, oauth_server=None, message=None,
+                    preserve_community_intent=None):
     data = await state.get_data()
     # Clear first: any late legacy OAuth/import result sees a different generation.
     await state.clear()
@@ -55,16 +56,17 @@ async def cancel_ui(state, *, actor_id, db=None, oauth_server=None, message=None
         oauth_server.discard_state(data['legacy_oauth_state'])
     if data.get('telegram_oauth_intent') and oauth_server is not None:
         await oauth_server.cancel_streamer_connect_intent(actor_id, data['telegram_oauth_intent'])
-    if data.get('telegram_community_intent') and db is not None:
+    if (data.get('telegram_community_intent') and db is not None
+        and data['telegram_community_intent'] != preserve_community_intent):
         await db.cancel_community_intent(data['telegram_community_intent'], actor_id)
         if message is not None and own_private(message,actor_id):
             await message.answer('Выбор канала отменён.',reply_markup=menu_keyboard())
     return data
 
 
-async def begin_legacy_oauth(state):
+async def begin_legacy_oauth(state, *, actor_id, db=None, oauth_server=None, message=None):
     if state is None: return None
-    await state.clear()
+    await cancel_ui(state, actor_id=actor_id, db=db, oauth_server=oauth_server, message=message)
     generation=secrets.token_hex(16)
     await state.update_data(legacy_oauth_generation=generation)
     return generation

@@ -1,0 +1,105 @@
+...........FFFFF.F                                                  [100%]
+================================== FAILURES ===================================
+_ ReviewRegressionTests.test_deep_track_link_and_cold_callback_initialize_persistent_menu _
+tests\test_telegram_review_regressions.py:93: in test_deep_track_link_and_cold_callback_initialize_persistent_menu
+    self.assertTrue(any(isinstance(m.reply_markup,ReplyKeyboardMarkup) and m.reply_markup.is_persistent
+E   AssertionError: False is not true
+_ ReviewRegressionTests.test_free_streamer_offer_does_not_claim_access_already_granted _
+tests\test_telegram_review_regressions.py:118: in test_free_streamer_offer_does_not_claim_access_already_granted
+    self.assertIn('В Streamer Plus включены все возможности Viewer Plus.',text)
+E   AssertionError: 'В Streamer Plus включены все возможности Viewer Plus.' not found in 'Тариф\n\nStreamer Plus\n300 ₽ / месяц\n\nViewer Plus уже включён для твоего Telegram-аккаунта.\n\n• Видеопревью в посте\n• Свой текст и оформление\n• Дополнительные кнопки\n• Сохранённые варианты\n• Статистика публикаций\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История'
+_ ReviewRegressionTests.test_legacy_auth_switch_cancels_pending_channel_before_waiting _
+tests\test_telegram_review_regressions.py:67: in test_legacy_auth_switch_cancels_pending_channel_before_waiting
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_menu_during_channel_row_read_cannot_resurrect_selector _
+tests\test_telegram_review_regressions.py:78: in test_menu_during_channel_row_read_cannot_resurrect_selector
+    self.assertEqual(await self.state.get_data(),{})
+E   AssertionError: {'telegram_community_intent': '72ee98fc847978c10995cafa27cdc3aa'} != {}
+E   - {'telegram_community_intent': '72ee98fc847978c10995cafa27cdc3aa'}
+E   + {}
+_ ReviewRegressionTests.test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry _
+tests\test_telegram_review_regressions.py:109: in test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry
+    self.assertIn('Статус: Тестовый доступ',text)
+E   AssertionError: 'Статус: Тестовый доступ' not found in 'Моя подписка\n\nViewer Plus\nСтатус: Ознакомительный доступ\nДо 23.10.2026 04:39 (МСК)\n\n• До 200 стримеров\n• 5 видеопревью\n• Фильтры уведомлений\n• Категории\n• Напоминания\n• Папки\n• История\n\nАвтопродление выключено.'
+_ ReviewRegressionTests.test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared (route='menu:add') _
+tests\test_telegram_review_regressions.py:46: in test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared (route='menu:quiet_hours') _
+tests\test_telegram_review_regressions.py:46: in test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared (route='qh:custom') _
+tests\test_telegram_review_regressions.py:46: in test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared (route='addfound:101:beta') _
+tests\test_telegram_review_regressions.py:46: in test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared (route='importfollows:add') _
+tests\test_telegram_review_regressions.py:46: in test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+    self.assertEqual(await self.db.list_streamer_communities(101),[])
+E   AssertionError: Lists differ: [(-1001, 'Verified channel', 'channel')] != []
+E   
+E   First list contains 1 additional elements.
+E   First extra element 0:
+E   (-1001, 'Verified channel', 'channel')
+E   
+E   - [(-1001, 'Verified channel', 'channel')]
+E   + []
+_ ReviewRegressionTests.test_switch_new_oauth_to_add_discards_both_owned_oauth_generations _
+tests\test_telegram_review_regressions.py:53: in test_switch_new_oauth_to_add_discards_both_owned_oauth_generations
+    self.oauth.cancel_streamer_connect_intent.assert_awaited_once_with(101,'own-connect')
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py:2362: in assert_awaited_once_with
+    raise AssertionError(msg)
+E   AssertionError: Expected mock to have been awaited once. Awaited 0 times.
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_deep_track_link_and_cold_callback_initialize_persistent_menu
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_free_streamer_offer_does_not_claim_access_already_granted
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_legacy_auth_switch_cancels_pending_channel_before_waiting
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_menu_during_channel_row_read_cannot_resurrect_selector
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_overlapping_trial_and_manual_test_keep_actual_label_and_expiry
+SUBFAILED(route='menu:add') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+SUBFAILED(route='menu:quiet_hours') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+SUBFAILED(route='qh:custom') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+SUBFAILED(route='addfound:101:beta') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+SUBFAILED(route='importfollows:add') tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_channel_to_add_or_quiet_then_menu_rejects_late_shared
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_switch_new_oauth_to_add_discards_both_owned_oauth_generations
+11 failed, 12 passed in 17.94s

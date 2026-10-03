@@ -1,0 +1,21 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ ReviewRegressionTests.test_menu_while_reopening_channel_deep_link_keeps_it_cancelled _
+tests\test_telegram_review_regressions.py:115: in test_menu_while_reopening_channel_deep_link_keeps_it_cancelled
+    self.assertEqual(await self.state.get_data(),{})
+E   AssertionError: {'telegram_community_intent': '475e389235bf95c54b6c002b5e5677d8'} != {}
+E   - {'telegram_community_intent': '475e389235bf95c54b6c002b5e5677d8'}
+E   + {}
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_review_regressions.py::ReviewRegressionTests::test_menu_while_reopening_channel_deep_link_keeps_it_cancelled
+1 failed, 2 warnings in 3.72s

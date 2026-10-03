@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
-from aiogram import Bot
 from aiogram.client.session.base import BaseSession
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
@@ -59,13 +58,22 @@ class MenuTransport(BaseSession):
         return result
 
 
+class MenuClient:
+    """Only the binding/call protocol, with no token or HTTP client."""
+    def __init__(self,bot_id,session):
+        self.id=bot_id;self.session=session
+
+    async def __call__(self,method,request_timeout=None):
+        return await self.session.make_request(self,method,request_timeout)
+
+
 class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         from bot import telegram_home
         telegram_home._menus.clear()
         temp=tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
         self.db=Database(str(Path(temp.name)/'home.db'));await self.db.connect();self.addAsyncCleanup(self.db.close)
-        self.transport=MenuTransport();self.bot=Bot('777:'+('a'*30),session=self.transport);self.addAsyncCleanup(self.bot.session.close)
+        self.transport=MenuTransport();self.bot=MenuClient(777,self.transport);self.addAsyncCleanup(self.bot.session.close)
         self.state=FSMContext(MemoryStorage(),StorageKey(bot_id=777,chat_id=101,user_id=101))
 
     def incoming(self,actor=101,chat=None):
@@ -151,7 +159,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         second=[m for m in self.transport.calls if m.__api_method__=='sendPhoto'][-1]
         self.assertEqual(second.photo,'banner-777')
         other_transport=MenuTransport()
-        other=Bot('888:'+('b'*30),session=other_transport);self.addAsyncCleanup(other.session.close)
+        other=MenuClient(888,other_transport);self.addAsyncCleanup(other.session.close)
         await cmd_start(self.incoming(303).as_(other),self.state,self.db,CONFIG)
         self.assertNotEqual(other_transport.calls[-1].photo,'banner-777')
 
