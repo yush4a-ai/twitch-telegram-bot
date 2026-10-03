@@ -1,0 +1,71 @@
+....FF.                                                               [100%]
+================================== FAILURES ===================================
+__ AdminEntryTests.test_staging_viewer_start_menu_keeps_owner_admin_isolated __
+
+self = <test_admin_entry.AdminEntryTests testMethod=test_staging_viewer_start_menu_keeps_owner_admin_isolated>
+
+    async def test_staging_viewer_start_menu_keeps_owner_admin_isolated(self):
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
+        config = SimpleNamespace(**vars(CONFIG), viewer_plus_enabled=True)
+        owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
+        regular = fake_message(101, 101, ChatType.PRIVATE)
+        group = fake_message(101, -100123, ChatType.SUPERGROUP)
+        for message in (owner, regular, group):
+>           await cmd_start(message, state, db, config)
+
+tests\test_admin_entry.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\handlers\streams.py:610: in cmd_start
+    home_state = await load_home_state(db,message.chat.id) if own_private(message) else HomeState()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+db = namespace(mark_known_private_user=<AsyncMock id='1295157809072'>, list_channels=<AsyncMock id='1295127245888'>, list_live_channels=<AsyncMock id='1295133144752'>, get_streamer_identity=<AsyncMock id='1295157837120'>)
+user_id = 425785231
+
+    async def load_home_state(db, user_id: int) -> HomeState:
+        """Existing own-chat queries; no Twitch/Telegram request or new database."""
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError('invalid home user')
+>       channels = await db.list_channels_with_routing(user_id)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'list_channels_with_routing'
+
+bot\telegram_home.py:45: AttributeError
+________________ AdminEntryTests.test_start_menu_is_owner_only ________________
+
+self = <test_admin_entry.AdminEntryTests testMethod=test_start_menu_is_owner_only>
+
+    async def test_start_menu_is_owner_only(self):
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
+        owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
+        regular = fake_message(OWNER_ID + 1, OWNER_ID + 1, ChatType.PRIVATE)
+        group = fake_message(OWNER_ID, -100123, ChatType.SUPERGROUP)
+        for message in (owner, regular, group):
+>           await cmd_start(message, state, db, CONFIG)
+
+tests\test_admin_entry.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+bot\handlers\streams.py:610: in cmd_start
+    home_state = await load_home_state(db,message.chat.id) if own_private(message) else HomeState()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+db = namespace(mark_known_private_user=<AsyncMock id='1295159069536'>, list_channels=<AsyncMock id='1295159073472'>, list_live_channels=<AsyncMock id='1295159077552'>, get_streamer_identity=<AsyncMock id='1295159081488'>)
+user_id = 425785231
+
+    async def load_home_state(db, user_id: int) -> HomeState:
+        """Existing own-chat queries; no Twitch/Telegram request or new database."""
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError('invalid home user')
+>       channels = await db.list_channels_with_routing(user_id)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'list_channels_with_routing'
+
+bot\telegram_home.py:45: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_admin_entry.py::AdminEntryTests::test_staging_viewer_start_menu_keeps_owner_admin_isolated
+FAILED tests/test_admin_entry.py::AdminEntryTests::test_start_menu_is_owner_only
+2 failed, 5 passed, 3 subtests passed in 3.38s

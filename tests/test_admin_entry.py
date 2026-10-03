@@ -59,7 +59,7 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_menu_is_owner_only(self):
         state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
-        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_channels_with_routing=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
         regular = fake_message(OWNER_ID + 1, OWNER_ID + 1, ChatType.PRIVATE)
         group = fake_message(OWNER_ID, -100123, ChatType.SUPERGROUP)
@@ -72,7 +72,7 @@ class AdminEntryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_staging_viewer_start_menu_keeps_owner_admin_isolated(self):
         state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
-        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
+        db = SimpleNamespace(mark_known_private_user=AsyncMock(),list_channels=AsyncMock(return_value=[]),list_channels_with_routing=AsyncMock(return_value=[]),list_live_channels=AsyncMock(return_value=[]),get_streamer_identity=AsyncMock(return_value=None))
         config = SimpleNamespace(**vars(CONFIG), viewer_plus_enabled=True)
         owner = fake_message(OWNER_ID, OWNER_ID, ChatType.PRIVATE)
         regular = fake_message(101, 101, ChatType.PRIVATE)
