@@ -1,0 +1,29 @@
+{
+  "status": "LOCAL_PASS_STAGING_PENDING",
+  "code_commit": "ed164ef54e17247e3e0dc21b90524cf671049cf3",
+  "full_suite": {
+    "passed": 1462,
+    "skipped": 2,
+    "subtests_passed": 3255,
+    "seconds": 942.07,
+    "exit_code": 0,
+    "existing_skips": "Windows WinError1314 symlink permissions",
+    "warnings": "optional pytest cache Windows write permission",
+    "log": "FINAL-full-suite.log"
+  },
+  "browser": {
+    "reports": 14,
+    "screenshots": 226,
+    "source_files": 183,
+    "manifest": "BROWSER-final-manifest.json"
+  },
+  "review": "FINAL-REVIEW.md",
+  "backup_restore_migration": "PASS;60tables/25schema/2Fernetfields;DB dependency hashes unchanged",
+  "copy": "COPY-CONSISTENCY.md",
+  "native": "NOT TESTED",
+  "oauth_owner": "NOT TESTED",
+  "outbound": "NOT TESTED",
+  "payments": "OFF",
+  "bank_approval": "NOT READY",
+  "staging_deploy": "pending guarded workflow"
+}

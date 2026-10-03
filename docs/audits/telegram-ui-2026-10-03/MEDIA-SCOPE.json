@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "task_base": "608acffa29ff5195d9716ca9651199bde59fee99",
+  "workers": [
+    {
+      "file": "bot/preview_runtime.py",
+      "sha256": "90d2da008867960e77182a0ab53432a09ad7699dc3502ebdd49b40567afc9437",
+      "unchanged_from_task_base": true
+    },
+    {
+      "file": "bot/poller.py",
+      "sha256": "dee05b7fdf3472fd7ce481f4d31e93ffa2ac4dc8cc01e02e9e0c7c8f6d94ac72",
+      "unchanged_from_task_base": true
+    },
+    {
+      "file": "bot/live_preview_provider.py",
+      "sha256": "6285c84c2c0603920cb7a1a009ec1a11cdec1ea6c081e5f479d5b66d44c0ab55",
+      "unchanged_from_task_base": true
+    }
+  ],
+  "banner": {
+    "file": "bot/assets/telegram-welcome.png",
+    "bytes": 1086171,
+    "pixels": [
+      1774,
+      887
+    ],
+    "sha256": "72ea5cb1659e4485b40de27377be9c9620d839b8a13163b83bb17baee8fe7c0b",
+    "static": true,
+    "runtime_generation": false
+  },
+  "new_capture_jobs": 0,
+  "scale_sla": "NOT PROVEN",
+  "native_animation": "NOT TESTED",
+  "prior_load_evidence": "docs/audits/mini-app-redesign-plus-2026-10-02/P18-QA.md"
+}

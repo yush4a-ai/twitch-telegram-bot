@@ -2,7 +2,7 @@
 
 ## Текущий checkpoint — 03.10.2026: Telegram UI и последние уточнения владельца
 
-Tasks1–5 и5b/5c реализованы локально. Base608acff; catalog150/300, payment OFF, HTML/export/31legacy callbacks/16commands сохранены. Smart Home по своим данным, статичный banner, official styles и Menu recovery, название входов «Тариф». Последний focused49 PASS; copy12/28subtests PASS; Chromium/WebKit purchase и width/theme matrix со screenshots. Финальный reviewer нашёл3 Important, RED→исправления→37PASS/7subtests; backup/restore/migration-copy60tables/25versions/actualFernet2 PASS. Full suite/fresh browser/guarded staging выполняются далее. Staging пока прежний, production не трогали, native/OAuth/outbound/real payments NOT TESTED. План и текущие записи: mini-app/TELEGRAM-UI-PROGRESS.md.
+Tasks1–5 и5b/5c реализованы локально. Base608acff; catalog150/300, payment OFF, HTML/export/31legacy callbacks/16commands сохранены. Smart Home по своим данным, статичный banner, official styles и Menu recovery, название входов «Тариф». Последний focused49 PASS; copy12/28subtests PASS; Chromium/WebKit purchase и width/theme matrix со screenshots. Финальный reviewer нашёл3 Important, RED→исправления→37PASS/7subtests; backup/restore/migration-copy60tables/25versions/actualFernet2 PASS. Full1462PASS/2existingWindowsSkips/3255subtests942.07s и14freshbrowserreports/226PNG/183source hashes PASS на ed164ef. Далее guarded staging повторяет suite и actual identity/SHA smoke. Staging пока прежний, production не трогали, native/OAuth/outbound/real payments NOT TESTED. План и текущие записи: mini-app/TELEGRAM-UI-PROGRESS.md.
 
 ## Предыдущий checkpoint — 03.10.2026: обычный Telegram UI, Task1 PASS
 
