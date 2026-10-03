@@ -105,7 +105,8 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
             before=len(self.transport.calls)
             await cmd_start(incoming,self.state,self.db,CONFIG)
             calls=self.transport.calls[before:]
-            self.assertEqual([m.__api_method__ for m in calls],['sendPhoto'])
+            self.assertEqual([m.__api_method__ for m in calls],['editMessageReplyMarkup','sendPhoto'])
+            self.assertIsNone(calls[0].reply_markup)
             latest=list(self.transport.messages.values())[-1]
             self.assertGreater(latest.message_id,incoming.message_id)
 
@@ -113,12 +114,12 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         for i in range(6): await self.db.add_channel(101,f'live{i}')
         view=await self.state_for()
         self.assertFalse(view.banner)
-        self.assertEqual(view.text,'TwitchSignalBot\n\nОтслеживаешь: 6\nСейчас никто не в эфире.\n\nЯ сообщу, когда кто-нибудь начнёт стрим.')
+        self.assertEqual(view.text,'TwitchSignalBot\n\nОтслеживаешь: 6\nОповещения о старте: 6 из 6\nПо последней проверке эфиров нет.\n\nДобавить стримера можно по нику или ссылке Twitch.')
         await self.db.conn.execute("UPDATE tracked_channels SET is_live=1 WHERE chat_id=101 AND twitch_login='live0'")
         await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('Сейчас в эфире: 1',view.text);self.assertEqual(view.text.count('live0'),1)
+        view=await self.state_for();self.assertIn('В эфире по последней проверке: 1',view.text);self.assertEqual(view.text.count('live0'),1)
         await self.db.conn.execute('UPDATE tracked_channels SET is_live=1 WHERE chat_id=101');await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('Сейчас в эфире: 6',view.text);self.assertIn('И ещё 3 в эфире',view.text)
+        view=await self.state_for();self.assertIn('В эфире по последней проверке: 6',view.text);self.assertIn('И ещё 3 в эфире',view.text)
         for i in range(3): self.assertIn(f'live{i}',view.text)
         for i in range(3,6): self.assertNotIn(f'live{i}',view.text)
         from bot.telegram_home import HomeState,build_home
@@ -155,17 +156,17 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),8)
         await self.db.add_channel(101,'alpha')
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),2)
+        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),8)
         for _ in range(5): await cmd_start(self.incoming(),self.state,self.db,CONFIG)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),7)
+        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),13)
         current=list(self.transport.messages.values())[-1]
         callback.message=current
         self.transport.fail_edit=True
         await cb_menu_home(callback,self.state,CONFIG,self.db)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),8)
+        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),14)
         callback.message=list(self.transport.messages.values())[-1]
         await cb_menu_home(callback,self.state,CONFIG,self.db)
-        self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),8)
+        self.assertEqual(sum(m.__api_method__=='sendPhoto' for m in self.transport.calls),14)
 
     async def test_concurrent_menu_and_per_bot_file_id_reuse(self):
         await asyncio.gather(*(cmd_start(self.incoming(),self.state,self.db,CONFIG) for _ in range(8)))
@@ -227,3 +228,56 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         msg.edit_text.side_effect=TelegramBadRequest(method=method,message='Bad Request: BUTTON_DATA_INVALID')
         with self.assertRaises(TelegramBadRequest): await edit_menu(msg,'text')
         msg.answer.assert_not_awaited()
+
+    async def test_home_counts_enabled_alerts_separately_from_tracking(self):
+        for i in range(42):
+            await self.db.add_channel(101,f'user{i}')
+            await self.db.set_notify_enabled(101,f'user{i}',i<2)
+        view=await self.state_for()
+        self.assertIn('Отслеживаешь: 42',view.text)
+        self.assertIn('Оповещения о старте: 2 из 42',view.text)
+        for i in range(2): await self.db.set_notify_enabled(101,f'user{i}',False)
+        view=await self.state_for()
+        self.assertIn('Оповещения о старте выключены',view.text)
+        self.assertNotIn('Я сообщу, когда',view.text)
+
+    async def test_home_unavailable_status_is_not_reported_as_offline(self):
+        from unittest.mock import patch,AsyncMock
+        await self.db.add_channel(101,'alpha')
+        with patch.object(self.db,'list_live_channels',AsyncMock(side_effect=RuntimeError('unavailable'))):
+            view=await self.state_for()
+        self.assertIn('Статус эфиров пока недоступен',view.text)
+        self.assertNotIn('никто не в эфире',view.text)
+        self.assertNotIn('эфиров нет',view.text)
+        self.assertIn('Отслеживаешь: 1',view.text)
+
+    async def test_verified_home_identifies_incomplete_channel_step(self):
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        view=await self.state_for()
+        self.assertIn('Telegram-канал пока не выбран',view.text)
+        self.assertNotIn('публикации включены',view.text)
+
+    async def test_returning_home_uses_compact_asset_without_reusing_welcome_id(self):
+        from aiogram.types import FSInputFile
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        await self.db.add_channel(101,'alpha')
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        sent=self.transport.calls[-1]
+        self.assertEqual(sent.__api_method__,'sendPhoto')
+        self.assertIsInstance(sent.photo,FSInputFile)
+        self.assertEqual(Path(sent.photo.path).name,'telegram-home.png')
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        self.assertEqual(self.transport.calls[-1].photo,'banner-777')
+
+    async def test_menu_reuses_only_nearby_card_and_detaches_far_old_buttons(self):
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        previous=list(self.transport.messages.values())[-1]
+        incoming=self.incoming().model_copy(update={'message_id':previous.message_id+1}).as_(self.bot)
+        count=len(self.transport.calls)
+        await cmd_start(incoming,self.state,self.db,CONFIG)
+        self.assertEqual([m.__api_method__ for m in self.transport.calls[count:]],['editMessageCaption'])
+        incoming=self.incoming().model_copy(update={'message_id':previous.message_id+15}).as_(self.bot)
+        await cmd_start(incoming,self.state,self.db,CONFIG)
+        self.assertIsNone(self.transport.messages[(101,previous.message_id)].reply_markup)
+        latest=list(self.transport.messages.values())[-1]
+        self.assertIsNotNone(latest.reply_markup)

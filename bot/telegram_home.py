@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import logging
 import time
 import weakref
 from collections import OrderedDict
@@ -15,6 +16,9 @@ from aiogram.types import Message, FSInputFile, InputMediaPhoto
 from .telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard
 
 BANNER_PATH = Path(__file__).resolve().parent / 'assets' / 'telegram-welcome.png'
+HOME_CARD_PATH = BANNER_PATH.with_name('telegram-home.png')
+CHANNEL_GUIDE_PATH = BANNER_PATH.with_name('telegram-channel-guide.png')
+logger = logging.getLogger(__name__)
 _menus = OrderedDict()
 
 
@@ -23,6 +27,9 @@ class HomeState:
     tracked: int = 0
     live: tuple[tuple[str, str | None], ...] = ()
     verified: bool = False
+    notifications: int | None = None
+    live_known: bool = True
+    communities: int | None = None
 
 
 @dataclass(frozen=True)
@@ -35,22 +42,36 @@ async def load_home_state(db, user_id: int) -> HomeState:
     """Existing own-chat queries; no Twitch/Telegram request or new database."""
     if type(user_id) is not int or user_id <= 0:
         raise ValueError('invalid home user')
-    channels = await db.list_channels(user_id)
-    live = await db.list_live_channels(user_id)
+    channels = await db.list_channels_with_routing(user_id)
+    try:
+        live = await db.list_live_channels(user_id)
+        live_known = True
+    except Exception as error:
+        logger.warning('Home live state unavailable (%s)',type(error).__name__)
+        live = []
+        live_known = False
     identity = await db.get_streamer_identity(user_id)
-    return HomeState(len(channels), tuple((row[0], row[3]) for row in live), identity is not None)
+    communities = len(await db.list_streamer_communities(user_id)) if identity else None
+    return HomeState(len(channels), tuple((row[0], row[3]) for row in live), identity is not None,
+                     sum(bool(row[1]) for row in channels),live_known,communities)
 
 
 def build_home(state: HomeState) -> HomeView:
     if state.tracked:
         lines = ['TwitchSignalBot', '', f'Отслеживаешь: {state.tracked}']
-        if state.live:
-            lines += [f'Сейчас в эфире: {len(state.live)}', '']
+        if state.notifications is not None:
+            lines.append(f'Оповещения о старте: {state.notifications} из {state.tracked}')
+            if not state.notifications: lines.append('Оповещения о старте выключены.')
+        if not state.live_known:
+            lines += ['', 'Статус эфиров пока недоступен. Попробуй позже.']
+        elif state.live:
+            lines += [f'В эфире по последней проверке: {len(state.live)}', '']
             for login, category in state.live[:3]:
                 lines.append(html.escape(login[:60]) + (' · ' + html.escape(category[:100]) if category else ''))
             if len(state.live) > 3: lines.append(f'И ещё {len(state.live)-3} в эфире')
         else:
-            lines += ['Сейчас никто не в эфире.', '', 'Я сообщу, когда кто-нибудь начнёт стрим.']
+            lines += ['По последней проверке эфиров нет.']
+        lines += ['', 'Добавить стримера можно по нику или ссылке Twitch.']
         text = '\n'.join(lines)
     else:
         text = HOME_TEXT
@@ -58,6 +79,10 @@ def build_home(state: HomeState) -> HomeView:
         # Identity is verified. Publishing permissions require a fresh Telegram check,
         # so Home never asserts that publishing is enabled from a stored toggle.
         text += '\n\nТвой Twitch подключён'
+        if state.communities == 0:
+            text += '\nTelegram-канал пока не выбран. Продолжи в «Я стример».'
+        elif state.communities:
+            text += f'\nСохранённых подключений: {state.communities}. Проверить права и публикации: «Я стример».'
     return HomeView(text, not state.tracked and not state.verified)
 
 
@@ -65,7 +90,7 @@ class MenuStore:
     def __init__(self):
         self.messages = OrderedDict()
         self.locks = weakref.WeakValueDictionary()
-        self.banner_file_id = None
+        self.asset_file_ids = {}
 
     def lock(self, chat_id):
         lock = self.locks.get(chat_id)
@@ -170,16 +195,23 @@ async def show_home(message, view, *, app_url=None, callback=False):
             ready = True
         if callback:
             previous = message
-        else:
-            # An explicit command must answer at the bottom of the chat. The
-            # cached Home may be far above newer channel-selection messages.
-            previous = None
-        if view.banner:
-            photo = store.banner_file_id if store and store.banner_file_id else FSInputFile(BANNER_PATH)
+        elif previous is not None:
+            gap = message.message_id-previous.message_id
+            elapsed = (message.date-previous.date).total_seconds()
+            # Reuse only the immediately nearby card. An old card must not
+            # silently change above newer dialogue or channel-selection steps.
+            if not (0 < gap <= 2 and 0 <= elapsed <= 45):
+                await _detach(previous)
+                previous = None
+        if message.chat.type=='private' or view.banner:
+            asset = 'welcome' if view.banner else 'home'
+            path = BANNER_PATH if view.banner else HOME_CARD_PATH
+            file_id = store.asset_file_ids.get(asset) if store else None
+            photo = file_id or FSInputFile(path)
             if previous is not None:
                 try:
                     if (getattr(previous,'photo',None) and store
-                        and previous.photo[-1].file_id == store.banner_file_id):
+                        and previous.photo[-1].file_id == file_id):
                         result = await previous.edit_caption(caption=view.text,reply_markup=keyboard)
                     else:
                         result = await previous.edit_media(media=InputMediaPhoto(media=photo,caption=view.text),reply_markup=keyboard)
@@ -196,7 +228,7 @@ async def show_home(message, view, *, app_url=None, callback=False):
         else:
             result=await message.answer(view.text,reply_markup=keyboard)
         if store and isinstance(result,Message):
-            if view.banner and result.photo: store.banner_file_id=result.photo[-1].file_id
+            if result.photo: store.asset_file_ids[asset]=result.photo[-1].file_id
             store.remember(result,keyboard_ready=ready)
         return result
 

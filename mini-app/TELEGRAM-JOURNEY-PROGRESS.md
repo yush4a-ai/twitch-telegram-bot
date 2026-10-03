@@ -3,6 +3,12 @@
 План: `docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md`.
 BASE b29482589be27adefaad4d30e7be635c0695cf73; clean, autonomous/twitchsignal-roadmap.
 
+## Продолжение T4–T8 (BASE e0580fc)
+
+Владелец подтвердил продолжение всего сохранённого плана после M1. T4 in progress: три одобренных PNG переносятся без перерисовки; главная разделяет tracking/notify, неизвестный live status не подменяет offline. T2 nearby Menu завершается здесь; T5 add/import/channel/quiet и T6 help/report/tariff затем последовательно. T7 один свежий reviewer и полный suite финального snapshot, T8 guarded Testbot. Ruling: отдельный M1 checkpoint не завершает задачу — уже выданное разрешение на весь план сохраняется. Старые evidence/HTML/экспорт не удаляются; прежняя инструкция skills о очистке scratch не применяется по прямому решению владельца.
+
+T4 complete (BASE e0580fc): RED4 сценария + channel-step RED1; GREEN51PASS/4subtests/50.17s. Три одобренных PNG в bot/assets, welcome/home file_id раздельно per-bot, compact home для возвращающегося пользователя. Notify2/42 и all-muted не обещают все42; live помечен последней проверкой, ошибка query даёт unknown. Twitch identity без выбранного канала показывает незавершённый шаг; сохранённые подключения не выдаются за свежие publishing permissions. Nearby reuse≤2messages/45s; дальний Home отвечает внизу и снимает предыдущие inline buttons. Старые tests обновлены для одобренной photo-подачи/счётчиков, проверки fresh bottom/cap/escaping/concurrency/permissions сохранены. Scoped self-review: auth, bounded cache, caption fallback и legacy group text без изменений. T5 next; полный финальный guard только T7/T8.
+
 ## M1: staging complete — release160703a
 
 Штатный full guard1517PASS/2existingWindowsSkips/3638subtests/1117.61s и guarded SUCCESS deploymentac62b912-b6bb-4633-899b-6afa1ffecfd4. Exact runtime/HTTP bytes, bot8859004067, постоянный menu«Приложение», auth401, integrity/FK/paymentOFF/production unchanged подтверждены actual smoke. Обычный poller перевёл существующие сообщения28/29 (`samoylov___`/`gofns`) в photo; проверка readonly DB, без отдельной тестовой отправки. Native BEFORE сохранён; AFTER NOT TESTED из-за перекрытого окна и активного ввода владельца. Backup/restore свежий PASS; migration-copy evidence переиспользован после проверки неизменности schema/cipher. Отчёт M1-RELEASE.md и все RED/intermediate/PASS logs сохранены. T2 частично, T4–T8 остаются открыты.

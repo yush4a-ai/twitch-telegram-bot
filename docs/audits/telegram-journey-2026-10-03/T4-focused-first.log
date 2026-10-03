@@ -1,0 +1,75 @@
+..FF.........F....................................                   [100%]
+================================== FAILURES ===================================
+_ SmartHomeTests.test_explicit_menu_replies_and_inline_navigation_edits_with_fallback _
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_explicit_menu_replies_and_inline_navigation_edits_with_fallback>
+
+    async def test_explicit_menu_replies_and_inline_navigation_edits_with_fallback(self):
+        from bot.handlers.navigation import cb_more
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        photo=list(self.transport.messages.values())[-1]
+        callback=SimpleNamespace(message=photo,from_user=SimpleNamespace(id=101),answer=unittest.mock.AsyncMock())
+        await cb_more(callback,CONFIG)
+        self.assertEqual(self.transport.calls[-1].__api_method__,'editMessageCaption')
+        await cb_menu_home(callback,self.state,CONFIG,self.db)
+        for _ in range(6): await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        self.assertEqual(sum(m.__api_method__.startswith('send') for m in self.transport.calls),8)
+        await self.db.add_channel(101,'alpha')
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+>       self.assertEqual(sum(m.__api_method__=='sendMessage' for m in self.transport.calls),2)
+E       AssertionError: 1 != 2
+
+tests\test_telegram_home.py:158: AssertionError
+__ SmartHomeTests.test_explicit_start_and_menu_answer_below_the_latest_input __
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_explicit_start_and_menu_answer_below_the_latest_input>
+
+    async def test_explicit_start_and_menu_answer_below_the_latest_input(self):
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        for text in ('����', '/start'):
+            self.transport.next_id += 10
+            incoming=self.incoming().model_copy(update={'text':text,'message_id':self.transport.next_id}).as_(self.bot)
+            before=len(self.transport.calls)
+            await cmd_start(incoming,self.state,self.db,CONFIG)
+            calls=self.transport.calls[before:]
+>           self.assertEqual([m.__api_method__ for m in calls],['sendPhoto'])
+E           AssertionError: Lists differ: ['editMessageReplyMarkup', 'sendPhoto'] != ['sendPhoto']
+E           
+E           First differing element 0:
+E           'editMessageReplyMarkup'
+E           'sendPhoto'
+E           
+E           First list contains 1 additional elements.
+E           First extra element 1:
+E           'sendPhoto'
+E           
+E           - ['editMessageReplyMarkup', 'sendPhoto']
+E           + ['sendPhoto']
+
+tests\test_telegram_home.py:108: AssertionError
+____ SmartHomeTests.test_subscriptions_live_zero_one_many_cap_and_escaping ____
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_subscriptions_live_zero_one_many_cap_and_escaping>
+
+    async def test_subscriptions_live_zero_one_many_cap_and_escaping(self):
+        for i in range(6): await self.db.add_channel(101,f'live{i}')
+        view=await self.state_for()
+        self.assertFalse(view.banner)
+>       self.assertEqual(view.text,'TwitchSignalBot\n\n������������: 6\n������ ����� �� � �����.\n\n� ������, ����� ���-������ ������ �����.')
+E       AssertionError: 'Twit[27 chars]: 6\n���������� � ������: 6 �� 6\n�� ���������[71 chars]tch.' != 'Twit[27 chars]: 6\n������ ����� �� � �����.\n\n� ������, ���[23 chars]���.'
+E         TwitchSignalBot
+E         
+E         ������������: 6
+E       + ������ ����� �� � �����.
+E       - ���������� � ������: 6 �� 6
+E       - �� ��������� �������� ������ ���.
+E         
+E       - �������� �������� ����� �� ���� ��� ������ Twitch.
+E       + � ������, ����� ���-������ ������ �����.
+
+tests\test_telegram_home.py:116: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_explicit_menu_replies_and_inline_navigation_edits_with_fallback
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_explicit_start_and_menu_answer_below_the_latest_input
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_subscriptions_live_zero_one_many_cap_and_escaping
+3 failed, 47 passed, 4 subtests passed in 50.83s

@@ -1,0 +1,16 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ SmartHomeTests.test_verified_home_identifies_incomplete_channel_step _____
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_verified_home_identifies_incomplete_channel_step>
+
+    async def test_verified_home_identifies_incomplete_channel_step(self):
+        await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
+        view=await self.state_for()
+>       self.assertIn('Telegram-канал пока не выбран',view.text)
+E       AssertionError: 'Telegram-канал пока не выбран' not found in 'TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.\n\nТвой Twitch подключён'
+
+tests\test_telegram_home.py:257: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_verified_home_identifies_incomplete_channel_step
+1 failed, 16 deselected in 4.01s

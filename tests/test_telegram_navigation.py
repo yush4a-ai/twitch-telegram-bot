@@ -29,7 +29,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.storage = MemoryStorage()
         self.state = FSMContext(self.storage, StorageKey(bot_id=999, chat_id=101, user_id=101))
-        self.db = SimpleNamespace(mark_known_private_user=AsyncMock(), cancel_community_intent=AsyncMock(), list_channels=AsyncMock(return_value=[]), list_live_channels=AsyncMock(return_value=[]), get_streamer_identity=AsyncMock(return_value=None))
+        self.db = SimpleNamespace(mark_known_private_user=AsyncMock(), cancel_community_intent=AsyncMock(), list_channels=AsyncMock(return_value=[]), list_channels_with_routing=AsyncMock(return_value=[]), list_live_channels=AsyncMock(return_value=[]), get_streamer_identity=AsyncMock(return_value=None))
 
     def assert_home(self, call):
         self.assertEqual(call.kwargs.get('caption',call.args[0] if call.args else None), HOME)

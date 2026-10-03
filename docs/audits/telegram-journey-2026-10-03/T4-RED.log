@@ -1,0 +1,98 @@
+FFFF                                                                     [100%]
+================================== FAILURES ===================================
+___ SmartHomeTests.test_home_counts_enabled_alerts_separately_from_tracking ___
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_home_counts_enabled_alerts_separately_from_tracking>
+
+    async def test_home_counts_enabled_alerts_separately_from_tracking(self):
+        for i in range(42):
+            await self.db.add_channel(101,f'user{i}')
+            await self.db.set_notify_enabled(101,f'user{i}',i<2)
+        view=await self.state_for()
+        self.assertIn('������������: 42',view.text)
+>       self.assertIn('���������� � ������: 2 �� 42',view.text)
+E       AssertionError: '���������� � ������: 2 �� 42' not found in 'TwitchSignalBot\n\n������������: 42\n������ ����� �� � �����.\n\n� ������, ����� ���-������ ������ �����.'
+
+tests\test_telegram_home.py:237: AssertionError
+___ SmartHomeTests.test_home_unavailable_status_is_not_reported_as_offline ____
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_home_unavailable_status_is_not_reported_as_offline>
+
+    async def test_home_unavailable_status_is_not_reported_as_offline(self):
+        from unittest.mock import patch,AsyncMock
+        await self.db.add_channel(101,'alpha')
+        with patch.object(self.db,'list_live_channels',AsyncMock(side_effect=RuntimeError('unavailable'))):
+>           view=await self.state_for()
+                 ^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_home.py:247: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_home.py:85: in state_for
+    return build_home(await load_home_state(self.db,actor))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+bot\telegram_home.py:39: in load_home_state
+    live = await db.list_live_channels(user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <AsyncMock id='2987138642528'>, args = (101,), kwargs = {}
+
+    async def _execute_mock_call(self, /, *args, **kwargs):
+        # This is nearly just like super(), except for special handling
+        # of coroutines
+    
+        _call = _Call((args, kwargs), two=True)
+        self.await_count += 1
+        self.await_args = _call
+        self.await_args_list.append(_call)
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+>               raise effect
+E               RuntimeError: unavailable
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py:2291: RuntimeError
+_ SmartHomeTests.test_menu_reuses_only_nearby_card_and_detaches_far_old_buttons _
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_menu_reuses_only_nearby_card_and_detaches_far_old_buttons>
+
+    async def test_menu_reuses_only_nearby_card_and_detaches_far_old_buttons(self):
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        previous=list(self.transport.messages.values())[-1]
+        incoming=self.incoming().model_copy(update={'message_id':previous.message_id+1}).as_(self.bot)
+        count=len(self.transport.calls)
+        await cmd_start(incoming,self.state,self.db,CONFIG)
+>       self.assertEqual([m.__api_method__ for m in self.transport.calls[count:]],['editMessageCaption'])
+E       AssertionError: Lists differ: ['sendPhoto'] != ['editMessageCaption']
+E       
+E       First differing element 0:
+E       'sendPhoto'
+E       'editMessageCaption'
+E       
+E       - ['sendPhoto']
+E       + ['editMessageCaption']
+
+tests\test_telegram_home.py:271: AssertionError
+_ SmartHomeTests.test_returning_home_uses_compact_asset_without_reusing_welcome_id _
+
+self = <test_telegram_home.SmartHomeTests testMethod=test_returning_home_uses_compact_asset_without_reusing_welcome_id>
+
+    async def test_returning_home_uses_compact_asset_without_reusing_welcome_id(self):
+        from aiogram.types import FSInputFile
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        await self.db.add_channel(101,'alpha')
+        await cmd_start(self.incoming(),self.state,self.db,CONFIG)
+        sent=self.transport.calls[-1]
+>       self.assertEqual(sent.__api_method__,'sendPhoto')
+E       AssertionError: 'sendMessage' != 'sendPhoto'
+E       - sendMessage
+E       + sendPhoto
+
+tests\test_telegram_home.py:259: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_home_counts_enabled_alerts_separately_from_tracking
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_home_unavailable_status_is_not_reported_as_offline
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_menu_reuses_only_nearby_card_and_detaches_far_old_buttons
+FAILED tests/test_telegram_home.py::SmartHomeTests::test_returning_home_uses_compact_asset_without_reusing_welcome_id
+4 failed, 12 deselected in 7.83s
