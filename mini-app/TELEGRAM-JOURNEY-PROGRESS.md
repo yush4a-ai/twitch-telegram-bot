@@ -3,6 +3,10 @@
 План: `docs/superpowers/plans/2026-10-03-telegram-journey-refinement.md`.
 BASE b29482589be27adefaad4d30e7be635c0695cf73; clean, autonomous/twitchsignal-roadmap.
 
+## Правка текста главной по screenshot владельца
+
+BASE62572db. Изменён только caption Home: иерархия bold/italic, отдельные блоки, сокращённый Twitch footer. Plan/evidence: docs/audits/telegram-home-copy-2026-10-03/PLAN.md. RED3FAIL/1PASS → focused32PASS; Chromium390/1440 локальный макет, freshbackup/restorePASS. Full gate и Testbot release впереди; native/owner acceptance открыты.
+
 ## Продолжение T4–T8 (BASE e0580fc)
 
 ## T7/T8: технические gates и Testbot release complete — 00c6093

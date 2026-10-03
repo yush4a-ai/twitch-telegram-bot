@@ -58,31 +58,33 @@ async def load_home_state(db, user_id: int) -> HomeState:
 
 def build_home(state: HomeState) -> HomeView:
     if state.tracked:
-        lines = ['TwitchSignalBot', '', f'Отслеживаешь: {state.tracked}']
+        lines = ['<b>Твои стримеры</b>', f'В списке: <b>{state.tracked}</b>']
         if state.notifications is not None:
-            lines.append(f'Оповещения о старте: {state.notifications} из {state.tracked}')
+            lines.append(f'Оповещения о старте: <b>{state.notifications} из {state.tracked}</b>')
             if not state.notifications: lines.append('Оповещения о старте выключены.')
         if not state.live_known:
             lines += ['', 'Статус эфиров пока недоступен. Попробуй позже.']
         elif state.live:
-            lines += [f'В эфире по последней проверке: {len(state.live)}', '']
+            lines += ['', f'<b>В эфире: {len(state.live)}</b>', '<i>По последней проверке</i>']
             for login, category in state.live[:3]:
-                lines.append(html.escape(login[:60]) + (' · ' + html.escape(category[:100]) if category else ''))
-            if len(state.live) > 3: lines.append(f'И ещё {len(state.live)-3} в эфире')
+                lines.append('<b>' + html.escape(login[:60]) + '</b>')
+                if category: lines.append('<i>' + html.escape(category[:100]) + '</i>')
+            if len(state.live) > 3: lines.append(f'<i>И ещё {len(state.live)-3} в эфире</i>')
         else:
-            lines += ['По последней проверке эфиров нет.']
-        lines += ['', 'Добавить стримера можно по нику или ссылке Twitch.']
+            lines += ['', 'По последней проверке эфиров нет.']
         text = '\n'.join(lines)
+    elif state.verified:
+        text = '<b>Твои стримеры</b>\nПока никого не отслеживаешь.'
     else:
         text = HOME_TEXT
     if state.verified:
         # Identity is verified. Publishing permissions require a fresh Telegram check,
         # so Home never asserts that publishing is enabled from a stored toggle.
-        text += '\n\nТвой Twitch подключён'
+        text += '\n\n<b>Твой Twitch подключён</b>'
         if state.communities == 0:
             text += '\nTelegram-канал пока не выбран. Продолжи в «Я стример».'
         elif state.communities:
-            text += f'\nСохранённых подключений: {state.communities}. Проверить права и публикации: «Я стример».'
+            text += f'\nTelegram-подключений: <b>{state.communities}</b>\nПрава и публикации: «Я стример».'
     return HomeView(text, not state.tracked and not state.verified)
 
 

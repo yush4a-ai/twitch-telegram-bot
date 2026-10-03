@@ -114,17 +114,17 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         for i in range(6): await self.db.add_channel(101,f'live{i}')
         view=await self.state_for()
         self.assertFalse(view.banner)
-        self.assertEqual(view.text,'TwitchSignalBot\n\nОтслеживаешь: 6\nОповещения о старте: 6 из 6\nПо последней проверке эфиров нет.\n\nДобавить стримера можно по нику или ссылке Twitch.')
+        self.assertEqual(view.text,'<b>Твои стримеры</b>\nВ списке: <b>6</b>\nОповещения о старте: <b>6 из 6</b>\n\nПо последней проверке эфиров нет.')
         await self.db.conn.execute("UPDATE tracked_channels SET is_live=1 WHERE chat_id=101 AND twitch_login='live0'")
         await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('В эфире по последней проверке: 1',view.text);self.assertEqual(view.text.count('live0'),1)
+        view=await self.state_for();self.assertIn('<b>В эфире: 1</b>\n<i>По последней проверке</i>',view.text);self.assertEqual(view.text.count('live0'),1)
         await self.db.conn.execute('UPDATE tracked_channels SET is_live=1 WHERE chat_id=101');await self.db.conn.commit()
-        view=await self.state_for();self.assertIn('В эфире по последней проверке: 6',view.text);self.assertIn('И ещё 3 в эфире',view.text)
+        view=await self.state_for();self.assertIn('<b>В эфире: 6</b>\n<i>По последней проверке</i>',view.text);self.assertIn('И ещё 3 в эфире',view.text)
         for i in range(3): self.assertIn(f'live{i}',view.text)
         for i in range(3,6): self.assertNotIn(f'live{i}',view.text)
         from bot.telegram_home import HomeState,build_home
         text=build_home(HomeState(tracked=1,live=(('longname','<Category & other>'),),verified=True)).text
-        self.assertIn('longname · &lt;Category &amp; other&gt;',text)
+        self.assertIn('<b>longname</b>\n<i>&lt;Category &amp; other&gt;</i>',text)
 
     async def test_verified_only_compact_status_never_claims_publishing(self):
         await self.db.save_user_token('alpha','11','access','refresh',time.time()+300)
@@ -234,8 +234,8 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
             await self.db.add_channel(101,f'user{i}')
             await self.db.set_notify_enabled(101,f'user{i}',i<2)
         view=await self.state_for()
-        self.assertIn('Отслеживаешь: 42',view.text)
-        self.assertIn('Оповещения о старте: 2 из 42',view.text)
+        self.assertIn('В списке: <b>42</b>',view.text)
+        self.assertIn('Оповещения о старте: <b>2 из 42</b>',view.text)
         for i in range(2): await self.db.set_notify_enabled(101,f'user{i}',False)
         view=await self.state_for()
         self.assertIn('Оповещения о старте выключены',view.text)
@@ -249,7 +249,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Статус эфиров пока недоступен',view.text)
         self.assertNotIn('никто не в эфире',view.text)
         self.assertNotIn('эфиров нет',view.text)
-        self.assertIn('Отслеживаешь: 1',view.text)
+        self.assertIn('В списке: <b>1</b>',view.text)
 
     async def test_verified_home_identifies_incomplete_channel_step(self):
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())

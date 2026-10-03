@@ -1,0 +1,20 @@
+{
+  "backup": "/data/backups/telegram-ui-20261003-5bc73e68c308450e8ffc8d453ea73999.db",
+  "created": {
+    "integrity": "ok",
+    "bytes": 3416064
+  },
+  "restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3416064
+  },
+  "sha256": "0184341e931ce1ef65f43f6ba0ec404c7b3871ecd966847914f12aeaca0ec424",
+  "local_export": "C:\\Users\\yusha\\AppData\\Local\\TwitchSignalBot\\staging-backups\\telegram-ui-20261003-5bc73e68c308450e8ffc8d453ea73999.db",
+  "local_restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3416064
+  },
+  "status": "PASS"
+}
