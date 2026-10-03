@@ -168,6 +168,9 @@ class ChannelIntentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared(self):
         from bot.handlers.streams import cmd_start_link
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.base import StorageKey
+        from aiogram.fsm.storage.memory import MemoryStorage
         now = time.time(); intent_id = "legacy-group-intent-1111"
         await self.db.conn.execute("INSERT INTO streamer_community_intents "
                                    "(intent_id,telegram_user_id,request_id,created_at,expires_at,chat_type,status) "
@@ -175,8 +178,10 @@ class ChannelIntentTests(unittest.IsolatedAsyncioTestCase):
         await self.db.conn.commit()
         message = SimpleNamespace(chat=SimpleNamespace(id=101, type=ChatType.PRIVATE),
                                   from_user=SimpleNamespace(id=101), answer=AsyncMock())
+        state=FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=101,user_id=101))
         await cmd_start_link(message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
-                             SimpleNamespace(), self.db, None)
+                             state, self.db, None)
+        self.assertEqual(await state.get_data(),{})
         self.assertNotIn("reply_markup", message.answer.await_args.kwargs)
         self.bot.get_chat.return_value.type = "supergroup"
         self.assertFalse(await complete_community_intent(self.db, self.bot, 101, 77, -1001, now=now))

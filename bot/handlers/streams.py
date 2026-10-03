@@ -485,16 +485,16 @@ async def cmd_start_link(
         from .telegram_streamer import show_channel_selector
         await show_channel_selector(message,state,row,db,oauth_server)
         return
-    await cancel_ui(state, actor_id=message.from_user.id if message.from_user else message.chat.id,
-                    db=db, oauth_server=oauth_server, message=message)
     if payload.startswith(TRACK_START_PREFIX):
         if (
             message.chat.type != ChatType.PRIVATE
             or not await _message_can_manage_chat(message)
         ):
-            await cmd_start(message, state, db, config)
+            await cmd_start(message, state, db, config, oauth_server)
             return
 
+        await cancel_ui(state, actor_id=message.from_user.id, db=db,
+                        oauth_server=oauth_server, message=message)
         login = parse_track_start_payload(payload)
         if login is None:
             await message.answer(
@@ -547,14 +547,16 @@ async def cmd_start_link(
             and message.from_user.id == message.chat.id
         ):
             await db.record_growth_touch(message.chat.id, payload)
-        await cmd_start(message, state, db, config)
+        await cmd_start(message, state, db, config, oauth_server)
         return
 
     if payload.startswith("link_") and message.chat.type == ChatType.PRIVATE:
+        await cancel_ui(state, actor_id=message.from_user.id, db=db,
+                        oauth_server=oauth_server, message=message)
         try:
             source_chat_id = int(payload.removeprefix("link_"))
         except ValueError:
-            await cmd_start(message, state, db, config)
+            await cmd_start(message, state, db, config, oauth_server)
             return
 
         # ссылку можно собрать вручную, зная chat_id группы (он не секрет — виден
@@ -562,7 +564,7 @@ async def cmd_start_link(
         # действительно состоит в этом чате. Иначе посторонний увёл бы себе все
         # итоговые отчёты чужой группы, и владелец бы этого не заметил
         if message.from_user is None:
-            await cmd_start(message, state, db, config)
+            await cmd_start(message, state, db, config, oauth_server)
             return
         status = await _chat_member_status(message.bot, source_chat_id, message.from_user.id)
         if status not in MEMBER_STATUSES:
@@ -592,7 +594,7 @@ async def cmd_start_link(
             "будут приходить сюда, в личку (живые посты о начале стрима остаются в чате)."
         )
         return
-    await cmd_start(message, state, db, config)
+    await cmd_start(message, state, db, config, oauth_server)
 
 
 @router.message(Command("start"))

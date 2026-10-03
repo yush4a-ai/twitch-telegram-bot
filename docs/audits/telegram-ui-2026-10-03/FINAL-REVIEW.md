@@ -17,3 +17,7 @@ Scoped self-review обнаружил ещё позднее восстановл
 Статический network isolation gate не ослаблялся: реальные Bot constructors в двух новых fixture заменены network-free MenuClient/FakeTelegram; ISOLATION-pass.log 19 PASS.
 
 Неоценённые reviewer gates остаются обязательными: full suite, fresh browser source snapshots, actual staging identity/artifact/SHA/payment OFF/production comparison. Native Desktop/Android/iOS, реальный OAuth/публикации/платежи NOT TESTED. Прежний перенос нижней навигации Chromium360 на две строки связан с неизменённым CSS; новая композиция вне этой задачи, owner acceptance/native остаются открытыми.
+
+## Первый полный gate и compatibility triage
+
+Первый full suite остановлен после воспроизведения ошибки fixture (FULL-red-aborted.log не является полным результатом). Старый pending-group test передавал пустой SimpleNamespace вместо FSM. Scoped triage также выявил два неполных callback/FSM doubles и повторную отмену при fallback /start. Fixture получили настоящую MemoryStorage FSM либо недостающие реальные поля; assertions о запрете новых групп, atomic limit и ровно одной отмене сохранены, добавлена проверка пустого FSM. Runtime отменяет UI один раз в track/link branch, fallback передаёт oauth_server в единый cmd_start. FULL-triage-pass:50PASS/21subtests38.27s. Далее новый полный gate и fresh source-matched browser evidence; предыдущие PNG/reports сохранены.

@@ -7872,7 +7872,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
             bot=SimpleNamespace(),
             answer=AsyncMock(), answer_photo=AsyncMock(),
         )
-        state = SimpleNamespace(clear=AsyncMock())
+        state = SimpleNamespace(clear=AsyncMock(), get_data=AsyncMock(return_value={}))
 
         await cb_add_found_channel(callback, state, self.db)
 
@@ -7887,6 +7887,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         message.edit_text = AsyncMock()
         callback = SimpleNamespace(
             message=message,
+            from_user=SimpleNamespace(id=101),
             answer=AsyncMock(), answer_photo=AsyncMock(),
         )
         state = SimpleNamespace(

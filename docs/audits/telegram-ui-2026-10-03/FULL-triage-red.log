@@ -1,0 +1,22 @@
+............F..                                               [100%]
+================================== FAILURES ===================================
+_ ChannelIntentTests.test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared _
+tests\test_channel_permissions_redesign.py:178: in test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared
+    await cmd_start_link(message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
+bot\handlers\streams.py:468: in cmd_start_link
+    await state.update_data(channel_reopen_generation=generation)
+          ^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'update_data'
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] Отказано в доступе: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_channel_permissions_redesign.py::ChannelIntentTests::test_old_pending_group_cannot_create_a_new_group_via_fallback_or_shared
+1 failed, 14 passed, 2 warnings, 11 subtests passed in 12.96s
