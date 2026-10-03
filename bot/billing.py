@@ -19,11 +19,24 @@ from .billing_models import (
 )
 from .billing_provider import CheckoutSession, PaymentProvider, RefundOutcome
 from .billing_store import BillingStore, PaymentAlreadyActive, PaymentInProgress
-from .plan_catalog import BillingRuntimePolicy, get_product
+from .plan_catalog import BillingRuntimePolicy, get_product, checkout_readiness, PAYMENT_UNAVAILABLE_MESSAGE
 from .database import Database
 
 
 class BillingService:
+    @staticmethod
+    def public_purchase(product_id: str, method: str) -> dict:
+        """Shared first-release contract. Never delegates to a monetary adapter.
+
+        Public interfaces remain OFF even if a QA service is injected with a
+        permissive local provider/policy. Request validation precedes this call.
+        """
+        get_product(product_id)
+        if not isinstance(method,str) or method not in {'stars','sbp','bank_card'}:
+            raise ValueError('invalid purchase method')
+        checkout_readiness(product_id,method,BillingRuntimePolicy())
+        return {'state':'unavailable','message':PAYMENT_UNAVAILABLE_MESSAGE,'payment_request_created':False}
+
     def __init__(self, db: Database, provider: PaymentProvider | None = None, *,
                  runtime_policy: BillingRuntimePolicy | None = None,
                  access_policy: AccessPeriodPolicy | None = None,

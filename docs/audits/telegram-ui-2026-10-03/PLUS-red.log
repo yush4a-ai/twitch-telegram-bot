@@ -1,0 +1,30 @@
+FFFFF                                                                    [100%]
+================================== FAILURES ===================================
+_ TelegramPlusTests.test_active_trial_test_and_frozen_streamer_show_real_expiry_without_paid_claim _
+tests\test_telegram_plus.py:41: in test_active_trial_test_and_frozen_streamer_show_real_expiry_without_paid_claim
+    from bot.handlers.telegram_plus import cb_plus
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_plus'
+_ TelegramPlusTests.test_all_three_methods_are_clickable_same_billing_contract_and_zero_mutation _
+tests\test_telegram_plus.py:63: in test_all_three_methods_are_clickable_same_billing_contract_and_zero_mutation
+    from bot.handlers.telegram_plus import cb_buy, cb_payment_method
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_plus'
+___ TelegramPlusTests.test_public_purchase_validates_catalog_and_stays_off ____
+tests\test_telegram_plus.py:103: in test_public_purchase_validates_catalog_and_stays_off
+    result=BillingService.public_purchase(product['product_id'],method['id'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: type object 'BillingService' has no attribute 'public_purchase'
+_ TelegramPlusTests.test_role_prices_features_and_inclusion_come_from_shared_catalog _
+tests\test_telegram_plus.py:25: in test_role_prices_features_and_inclusion_come_from_shared_catalog
+    from bot.handlers.telegram_plus import cb_plus
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_plus'
+_ TelegramPlusTests.test_wrong_actor_and_cancelled_payment_do_not_reopen_choice_or_call_billing _
+tests\test_telegram_plus.py:90: in test_wrong_actor_and_cancelled_payment_do_not_reopen_choice_or_call_billing
+    from bot.handlers.telegram_plus import cb_buy,cb_payment_method
+E   ModuleNotFoundError: No module named 'bot.handlers.telegram_plus'
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_plus.py::TelegramPlusTests::test_active_trial_test_and_frozen_streamer_show_real_expiry_without_paid_claim
+FAILED tests/test_telegram_plus.py::TelegramPlusTests::test_all_three_methods_are_clickable_same_billing_contract_and_zero_mutation
+FAILED tests/test_telegram_plus.py::TelegramPlusTests::test_public_purchase_validates_catalog_and_stays_off
+FAILED tests/test_telegram_plus.py::TelegramPlusTests::test_role_prices_features_and_inclusion_come_from_shared_catalog
+FAILED tests/test_telegram_plus.py::TelegramPlusTests::test_wrong_actor_and_cancelled_payment_do_not_reopen_choice_or_call_billing
+5 failed in 5.58s
