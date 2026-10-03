@@ -2,6 +2,10 @@
 
 Записываются только подтверждённые решения. Новые продуктовые/коммерческие параметры здесь не предполагаются.
 
+## 03.10.2026 — завершение Telegram T4–T8 на Testbot
+
+Владелец сохранил разрешение на весь план после M1. Release00c6093/deployment603eeb44 опубликован после полного1541PASS/2existingWindowsSkips/3638subtests и actualsmoke195runtimehashes/menu/бот/paymentOFF/productionunchanged. Новых картинок не генерировали: три согласованных PNG сохранили byteidentical, сложные инструкции вынесли в текст и on-demand guide/help. Пять новых regression scenarios закрыли deletion races и paginated import/add results. FreeHTML/export, цены150/300 и канальные права сохранены. Native/owner visual acceptance и адресные внешние проверки не объявляются пройденными. Ветка и отчёты сохраняются; push/merge/production не выполнялись. Evidence RELEASE.md и SCENARIOS.md в docs/audits/telegram-journey-final-2026-10-03.
+
 ## 03.10.2026 — M1: фото, когда видео недоступно
 
 Промежуточный выпуск выполнен: Testbot160703a/deploymentac62b912, full1517PASS/2existingWindowsSkips/3638subtests, actual smoke PASS. Readonly staging подтвердил photo для существующих эфирных сообщений28/29; ручных отправок не было. Native AFTER остаётся NOT TESTED из-за активного ввода владельца/перекрытого окна. T4–T8 сохраняются отдельными незавершёнными задачами; срочная правка M1 их не подменяет. Полные доказательства: `docs/audits/telegram-journey-2026-10-03/M1-RELEASE.md`.

@@ -1,5 +1,11 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 03.10.2026: T4–T8 опубликованы на Testbot, native приёмка открыта
+
+Release00c6093d87d1e2617ddd19a736c42aab0d14e1d6, SUCCESS603eeb44-0bca-4a28-a1e1-4d365b5db377. Полный штатный guard1541PASS/2existingWindowsSkips/3638subtests/1268.11s на чистом snapshot. Actual195runtimeSHA/17HTTPassets+shell, bot8859004067/menu«Приложение», auth401/27migrations/integrityok/FK0/paymentOFF/productionunchanged PASS. Home approvedphotos/honestcounts/unknown, add/import/channel/quiet guides, help/reportUTC/FreeHTML/tariffpaymentOFF и свежие review fixes в Testbot. Один reviewer,5RED→PASS scenarios. Ошибки старых fixtures и незавершённые/красный complete runs сохранены, assertions/skips не ослаблены.
+
+Вход https://t.me/TwitchSignalTestbot → «Меню» или «Приложение»; shell https://worker-staging-2f74.up.railway.app/app. Новых generatedimages0, approvedassets3 byteidentical; инструкции on-demand текстом. Свежийbackup/restorePASS, migration/browser evidence reuse после byte identity13schema/cipher/18webfiles. NativeDesktop/iOS/Android/OAuth/signedlive/адресная тестовая доставка и owner visual acceptance NOT TESTED. Production466499d5/dc9239e, HTML/export и paymentOFF сохранены. Полный итог docs/audits/telegram-journey-final-2026-10-03/RELEASE.md; checklist SCENARIOS.md. Новый docs HEAD не подменяет опубликованныйruntimeSHA00c6093.
+
 ## Текущий checkpoint — 03.10.2026: T4–T6 и финальные исправления локально PASS
 
 T4 approvedwelcome/compactHome/channelguide PNG, tracking/notify/unknownlive; T5 add/import/channel/quiet preview+ownedconfirm; T6 help guides/reportUTC/FreeHTML/tariffpaymentOFF. Commits fe58189/69a8fa7/1d1cca7, текущий fix pass закрывает fresh-review delete cancellation race и legacy import/add42rows→8/page. Evidence T4 51PASS, T5 54PASS, T6 70PASS/10subtests +report51PASS; review79PASS/4subtests, final52PASS/4subtests. Один reviewer, code diffcheckPASS, Stop-Slop тексты проверены. Полный final suite и deployment ещё впереди; staging пока160703a/ac62b912, production466499d5/dc9239e неизменён.

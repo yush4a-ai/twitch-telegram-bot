@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen runpy>", line 287, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "docs/audits/telegram-journey-final-2026-10-03/twitchsignal-ui-smoke.py", line 177, in <module>
+    versions=json.loads((ROOT/'docs/audits/telegram-journey-final-2026-10-03/STAGING-migration-copy.json').read_text(encoding='utf-8'))['schema_versions']
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\docs\\audits\\telegram-journey-final-2026-10-03\\STAGING-migration-copy.json'
