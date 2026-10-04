@@ -13,7 +13,7 @@
 | Mount / DB |/data / /data/bot.db|
 | PUBLIC_URL / PORT |https://worker-production-cee5.up.railway.app /8765|
 | Replica |exactly1; current manifest1/RUNNING1|
-| Prepared artifact |557244dd01c8e98d6d8bc8cdf5927f052b630a93|
+| Prepared artifact |1c49330e773ded22d47a185866dd3921b1e00806|
 | Runtime / tested tooling |3fa8b649e737693eef94c3912c22313834f57586 /869009401fc638405694297b8449e04c1d96abe8|
 | Rollback artifact |dc9239eb0b82fb80d1788fc657205740cebc49e9|
 | Payment |off; invoices/external create false|
@@ -21,7 +21,7 @@
 | Writer |exclusive_lock; old writers must actually STOP before new runtime admission|
 | Client boundary |peer_shared_fail_safe; arbitrary Forwarded/XFF untrusted; actual shared peer acceptance unresolved|
 
-Queue false — безопасный предложенный initial policy, не молчаливое owner approval/включение очереди. Возможность первого production выпуска с этой policy подтверждает владелец; новый queue opt-in требует отдельной явной конфигурации после approval. Artifact выше не опубликован даже на staging: upload blocked. Нельзя заменять его прежним tested staging runtime.
+Queue false — безопасный предложенный initial policy, не молчаливое owner approval/включение очереди. Возможность первого production выпуска с этой policy подтверждает владелец; новый queue opt-in требует отдельной явной конфигурации после approval. Artifact выше уже опубликован только на pinned staging/Testbot: deployment `b3d8be15-0b6a-4b03-a131-b339e7e78917` SUCCESS, full gate 1648 PASS / 2 existing Windows skips / exit0. Production остаётся на старом artifact и не изменён.
 
 OWNER APPROVAL: PENDING
 
