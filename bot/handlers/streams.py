@@ -1237,8 +1237,8 @@ async def _preview_quiet_hours(message,state,actor,start_local,end_local,offset,
         'start':start_local,'end':end_local,'offset':offset,'expires':time.time()+600})
     text=(f'<b>Сохранить тихие часы?</b>\n\n<blockquote>Тихие часы: {_format_minute(start_local)} – {_format_minute(end_local)}\n'
           f'Твой часовой пояс: UTC{offset/60:+g}.</blockquote>\n\n'
-          '<b>Оповещения</b>\nЛичные оповещения о старте, категории и напоминания приостановятся, кроме стримеров с исключением.\n\n'
-          '<b>Отчёты</b>\nОтчёты соберутся в сводку после этого интервала.\nРейды не входят в тихие часы.')
+          '<b>Оповещения</b>\nЛичные оповещения о старте, рейдах, категории и напоминания приостановятся, кроме стримеров с исключением.\n\n'
+          '<b>Отчёты</b>\nОтчёты соберутся в сводку после этого интервала.')
     keyboard=InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Сохранить',callback_data='qh:confirm:'+token)],
         [InlineKeyboardButton(text='Отменить',callback_data='menu:quiet_hours')]])

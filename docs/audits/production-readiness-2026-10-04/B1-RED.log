@@ -1,0 +1,29 @@
+........FF.........                                                      [100%]
+================================== FAILURES ===================================
+________ QuietCopyTests.test_help_tells_the_truth_about_personal_raids ________
+
+self = <test_production_quiet_contract.QuietCopyTests testMethod=test_help_tells_the_truth_about_personal_raids>
+
+    def test_help_tells_the_truth_about_personal_raids(self):
+        text = telegram_help.TOPICS['quiet'][1]
+>       self.assertIn('������', text)
+E       AssertionError: '\u0440\u0435\u0439\u0434\u0430\u0445' not found in '<b>\u041a\u0430\u043a \u043d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c</b>\\n\u041e\u0442\u043a\u0440\u043e\u0439 \xab\u0415\u0449\u0451\xbb \u2192 \xab\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438\xbb, \u0443\u043a\u0430\u0436\u0438 \u0441\u0432\u043e\u0439 UTC \u0438 \u0432\u044b\u0431\u0435\u0440\u0438 \u0438\u043d\u0442\u0435\u0440\u0432\u0430\u043b.\\n\u041f\u0435\u0440\u0435\u0434 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u044c \u043c\u0435\u0441\u0442\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f.\\n\\n<b>\u0427\u0442\u043e \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f</b>\\n<blockquote>\u041b\u0438\u0447\u043d\u044b\u0435 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u044f \u043e \u043d\u0430\u0447\u0430\u043b\u0435 \u044d\u0444\u0438\u0440\u0430, \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u0438 \u043d\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u044f.\\n\u0414\u043b\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0445 \u0441\u0442\u0440\u0438\u043c\u0435\u0440\u043e\u0432 \u043c\u043e\u0436\u043d\u043e \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0438\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435.\\n\u041e\u0442\u0447\u0451\u0442\u044b \u043e \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u044b\u0445 \u044d\u0444\u0438\u0440\u0430\u0445 \u043f\u043e\u043f\u0430\u0434\u0443\u0442 \u0432 \u0441\u0432\u043e\u0434\u043a\u0443 \u043f\u043e\u0441\u043b\u0435 \u0442\u0438\u0445\u0438\u0445 \u0447\u0430\u0441\u043e\u0432.</blockquote>\\n\\n<b>\u0427\u0442\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e</b>\\n\u0420\u0435\u0439\u0434\u044b \u043d\u0435 \u0432\u0445\u043e\u0434\u044f\u0442 \u0432 \u044d\u0442\u043e\u0442 \u0440\u0435\u0436\u0438\u043c.\\n\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0432 Telegram-\u043a\u0430\u043d\u0430\u043b\u0430\u0445 \u0438\u0434\u0443\u0442 \u043f\u043e \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u043c \u043a\u0430\u043d\u0430\u043b\u0430.'
+
+tests\test_production_quiet_contract.py:11: AssertionError
+______ QuietGuideTests.test_quiet_guide_does_not_promise_raid_exemption _______
+
+self = <test_production_quiet_contract.QuietGuideTests testMethod=test_quiet_guide_does_not_promise_raid_exemption>
+
+    async def test_quiet_guide_does_not_promise_raid_exemption(self):
+        message = SimpleNamespace(chat=SimpleNamespace(id=101), answer=AsyncMock())
+        state = SimpleNamespace(set_state=AsyncMock(), update_data=AsyncMock())
+        await streams._preview_quiet_hours(message, state, 101, 0, 60, 0)
+        text = message.answer.await_args.args[0]
+>       self.assertIn('������', text)
+E       AssertionError: '������' not found in '<b>��������� ����� ����?</b>\n\n<blockquote>����� ����: 00:00 � 01:00\n���� ������� ����: UTC+0.</blockquote>\n\n<b>����������</b>\n������ ���������� � ������, ��������� � ����������� ��������������, ����� ��������� � �����������.\n\n<b>������</b>\n������ ��������� � ������ ����� ����� ���������.\n����� �� ������ � ����� ����.'
+
+tests\test_production_quiet_contract.py:23: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_production_quiet_contract.py::QuietCopyTests::test_help_tells_the_truth_about_personal_raids
+FAILED tests/test_production_quiet_contract.py::QuietGuideTests::test_quiet_guide_does_not_promise_raid_exemption
+2 failed, 17 passed in 18.56s
