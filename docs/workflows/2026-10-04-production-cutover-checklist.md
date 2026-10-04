@@ -1,4 +1,28 @@
-# Production cutover — NO; compact staging PASS
+# Production cutover — SUCCESS; runtime live, payments OFF
+
+## Actual production checkpoint — 04.10.2026
+
+- [x] Owner production cutover approval.
+- [x] Exact prepared runtime `1c49330e...` materialized from committed Git blobs.
+- [x] Fresh quiet-state backup outside Railway Volume; hash/integrity/FK verified.
+- [x] ADMIN emergency key configured without exposing value.
+- [x] Admission contract/hash/production opt-ins installed; queue=0, payment=off.
+- [x] Exact production identity `@TwitchSignalBot` / expected numeric ID confirmed at startup.
+- [x] Writer lock active; one production deployment.
+- [x] Production deployment `44fe69d3-2d89-466c-9202-fcbf56e6c05a` SUCCESS.
+- [x] Health200 / Mini App200 / unsigned401.
+- [x] Signed owner bootstrap/viewer/streamer/subscription/catalog200.
+- [x] Purchase prepare503 with no checkout/order/invoice; Platega callback404.
+- [x] Normal owner admin login through Telegram works; emergency key remains fallback only.
+- [x] Database-backed admin snapshot responds, database error=null.
+- [ ] Native Desktop/iOS/Android owner acceptance — not claimed in this cutover.
+- [ ] Twitch reauthorization cleanup for blocked/expired broadcaster identities.
+- [ ] Legal/support owner inputs and money activation — separate future stage; payments remain OFF.
+- [ ] Long-term offsite backup/retention policy — separate operations stage.
+
+Rollback point: fresh pre-cutover SHA256 `55e9c12e6e2dd11e55cf7bda4ebc5524e5820f95707a471928d45ef43060a27b`, old artifact `dc9239eb0b82fb80d1788fc657205740cebc49e9`.
+
+## Historical preparation
 
 ## Compact staging checkpoint — 04.10.2026
 

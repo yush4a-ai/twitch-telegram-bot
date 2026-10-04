@@ -1,3 +1,20 @@
+# Production cutover — SUCCESS, 04.10.2026
+
+## Actual production release
+
+**Production deployment SUCCESS. Payments OFF. Rollback not required.**
+
+- Exact runtime source `1c49330e773ded22d47a185866dd3921b1e00806`; runtime manifest `57a0472d07c31f73c3097e3686ca1395a0f6d017056fe872ab1a89b02cac7bad`.
+- Active Railway deployment `44fe69d3-2d89-466c-9202-fcbf56e6c05a` SUCCESS; health200, Mini App200.
+- Fresh quiet-state pre-cutover DB backup: 13,180,928 bytes, SHA256 `55e9c12e6e2dd11e55cf7bda4ebc5524e5820f95707a471928d45ef43060a27b`, integrity ok, FK0, local sealed copy outside Railway Volume.
+- Production admission approved by owner; emergency admin key configured; queue OFF; payment OFF; writer lock active.
+- First exact-runtime attempt fail-closed before DB open because Railway did not expose `RAILWAY_VOLUME_INSTANCE_ID`; exact independently verified value was pinned as production metadata and retry succeeded.
+- Fresh signed smoke: bootstrap/viewer/streamer/subscription/catalog200; purchase prepare503 without checkout/order/invoice; Telegram owner admin auth200/session; Platega callback404.
+- Admin snapshot: Telegram ok/polling=true/database error=null. Twitch degraded only by auth-blocked Twitch identity; EventSub running5/6. Native Desktop/iOS/Android owner acceptance remains separate and is not claimed.
+- Full release details: `docs/audits/production-cutover-2026-10-04/RELEASE.md`.
+
+## Historical preparation
+
 # Production preparation — compact staging PASS
 
 ## Compact staging checkpoint — 04.10.2026
