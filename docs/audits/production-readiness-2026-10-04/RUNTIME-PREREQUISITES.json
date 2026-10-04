@@ -1,0 +1,25 @@
+{
+  "deployment": "5211c9f8-6a2f-4834-9aa6-88706a4a34a7",
+  "ffmpeg": {
+    "path": "/app/.preview-bin/ffmpeg",
+    "available": true,
+    "version": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "ffprobe": {
+    "path": "/app/.preview-bin/ffprobe",
+    "available": true,
+    "version": "ffprobe version 9.0.1 Copyright (c) 2007-2026 the FFmpeg developers"
+  },
+  "volume_disk": {
+    "total": 4838498304,
+    "used": 41480192,
+    "free": 4780240896,
+    "note": "filesystem view, not Railway plan quota"
+  },
+  "table_count": 63,
+  "notification_job_states": {
+    "done": 49
+  },
+  "external_sends": 0,
+  "capture_or_render_performed": false
+}

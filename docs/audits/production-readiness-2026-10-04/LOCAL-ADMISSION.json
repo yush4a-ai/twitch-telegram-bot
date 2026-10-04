@@ -1,0 +1,21 @@
+{
+  "pinned_staging": false,
+  "mini_app_enabled": false,
+  "streamer_plus_enabled": false,
+  "viewer_plus_enabled": false,
+  "growth_enabled": false,
+  "notification_queue_enabled": false,
+  "admin_panel_enabled": false,
+  "menu_button_type": "commands",
+  "money_policy": {
+    "mode": "offline",
+    "target_verified": false,
+    "allow_external_create": false,
+    "allow_invoice": false,
+    "period_approved": false,
+    "refund_policy_approved": false
+  },
+  "queue_on_startup_error": "NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging",
+  "status": "PASS",
+  "scope": "isolated fake environment; no real credentials, no network, no DB"
+}

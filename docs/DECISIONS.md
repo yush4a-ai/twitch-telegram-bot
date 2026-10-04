@@ -1,5 +1,11 @@
 # Решения TwitchSignalBot
 
+## Аудит готовности — 04.10.2026
+
+По запросу владельца выполнена оценка всего продукта по подсистемам и полный source-проход текущего bot/main runtime:137/137 текстовых файлов;155unique tracked вместе с operator/config. Независимые reviewers последовательно, три уникальных security findings medium1/low2; весь repository security coverage partial. Итог REPORT.md/SCENARIOS.md в docs/audits/production-readiness-2026-10-04/. Это оценка, не разрешение переноса или изменения продуктового scope.
+
+Source3dc9aad/runtime39bc821/Testbot5211c9f8; fresh read-only identity/assets/DB/menu/paymentOFF/production unchanged PASS, suite1570PASS/2existingSkips/3646subtests переиспользован после runtime/tests identity. Перед всем продуктовым переносом остаются дефекты прав/доступности, raid/copy/startup updates, production admission, migration/active rollback, native/media и отдельная реальная платёжная/документальная готовность. Дизайн, Free/HTML/export/старые группы и Stars/СБП/card inside Mini App150/300 сохранены. Product/config/DB/deploy не изменялись; только audit docs/helpers. Production/OAuth/outbound/payment допуски не предполагаются из аудита.
+
 ## Оформление описаний — 04.10.2026
 
 Замечание владельца «сплошной текст» применяется ко всем пользовательским описаниям. Telegram использует короткие заголовки, отдельные нативные блоки фактов/условий и действия в кнопках; это не global replace и не новый Mini App redesign. Тариф формируется из тех же четырёх групп каталога; продуктовые условия, цены150/300, платежиOFF, права, бесплатные отчёты и резервный HTML неизменны. Цвет нативных блоков выбирает клиент Telegram; browser preview не считается native acceptance. Публикация только на pinned Testbot после полного guard точного commit; два старых прерванных full runs не являются PASS.

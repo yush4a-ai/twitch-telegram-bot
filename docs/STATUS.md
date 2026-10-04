@@ -1,4 +1,12 @@
-## Текущий checkpoint — 04.10.2026: «Меню» и «Ещё», локальный gate завершён
+## Текущий checkpoint — 04.10.2026: аудит готовности к основному боту
+
+Source3dc9aad, ветка autonomous/twitchsignal-roadmap; продуктовый runtime остаётся39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0 / SUCCESS5211c9f8-6a2f-4834-9aa6-88706a4a34a7 / @TwitchSignalTestbot8859004067. Свежий read-only smoke:195runtime hashes/17HTTPassets/9unsigned401/27versions/integrity/FK/menu/paymentOFF/production unchanged PASS; FFmpeg/ffprobe9.0.1 найдены, pending/leased/failed jobs нет на момент чтения. Runtime/tests source identical — переиспользован full1570PASS/2existingWindowsSkips/3646subtests/1004.99s, новый полный suite не запускался.
+
+Все137 текущих текстовых bot/main runtime файлов прочитаны, всего155unique tracked вместе с существенными operator/config файлами. Последовательно baseline/architecture/runtime reviewer; security scan завершён: medium1/low2, общий repository coverage partial. Найдены stale-admin add FSM, follow Twitch rate gate gap и global login/session eviction. Функционально: raid quiet-hours расходится со справкой; startup отбрасывает pending updates; streamer first-load error без retry action.
+
+Перенос всего продукта НЕ ГОТОВ: production admission выключает Mini App/Plus/growth/admin и не разрешает queue; live payments не подключены; legal/support/bank, production migration/active rollback, native Desktop AFTER/iOS/Android/OAuth/outbound и real media load ещё открыты. Старые R/P/T этапы не перезапускаются, Free/HTML/export сохраняются. Только документы и audit helpers; product/deploy/production не изменялись. REPORT.md/SCENARIOS.md: docs/audits/production-readiness-2026-10-04/. Старый checkpoint ниже сохранён как история; меню уже опубликовано на39bc821.
+
+## Предыдущий checkpoint — 04.10.2026: «Меню» и «Ещё», локальный gate завершён
 
 База cf57fbd, autonomous/twitchsignal-roadmap. Сохраняем выбранный дизайн, production, Free, HTML/export и system «Приложение». «Ещё»: live вернулся в первый ряд через прежний menu:live; три пары, отдельные reports/admin/Home. Keyboard recovery теперь учитывает успешную отправку отдельно от Home cache, сериализует selector/restore, отменяет stale generation и восстанавливает cold/ошибки без тёплого спама. До долгого OAuth устанавливает Menu; при занятой отправке пропускает отмену в handler.
 
