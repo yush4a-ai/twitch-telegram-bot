@@ -78,7 +78,8 @@ export function createStreamerFeature(api, getRouter, telegram) {
         if (disposed || (controller.signal.aborted && !timedOut) || generation !== profileGeneration) return;
         error = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
           ? 'Время входа истекло. Откройте приложение из чата бота.'
-          : 'Нет связи. Показываем последние загруженные данные.';
+          : data ? 'Нет связи. Показываем последние загруженные данные.'
+            : 'Не удалось загрузить данные. Проверь подключение и повтори попытку.';
       } finally {
         clearTimeout(timeout);
         if (!disposed && generation === profileGeneration) { loading = false; refresh(); }
@@ -335,7 +336,14 @@ export function createStreamerFeature(api, getRouter, telegram) {
     clearFeedback,
     render(target, route) {
       if (!requested) { queueMicrotask(() => { if (!requested) void load(); }); target.append(element('div', 'status-panel', 'Загружаем данные стримера…')); return; }
-      if (!data) { target.append(element('div', 'status-panel', error || 'Загружаем данные стримера…')); return; }
+      if (!data) {
+        target.append(element('div', 'status-panel', error || 'Загружаем данные стримера…'));
+        if (error && !error.startsWith('Время входа')) {
+          const retry = action(loading ? 'Обновляем…' : 'Повторить', () => load({fresh:true}), true);
+          retry.disabled = loading; target.append(retry);
+        }
+        return;
+      }
       if (error) target.append(element('p', 'notice error', error));
       if (typeof route.detail === 'string' && route.detail.startsWith('channel:')) renderCommunity(target, route.detail.slice(8));
       else if (route.tab === 'channel') renderChannel(target);

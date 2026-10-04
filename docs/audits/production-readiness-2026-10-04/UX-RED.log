@@ -1,0 +1,10 @@
+locator.waitFor: Timeout 3000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Повторить', exact: true }) to be visible
+
+    at C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\scripts\production_retry_qa.cjs:38:21 {
+  log: [
+    "  - waiting for getByRole('button', { name: 'Повторить', exact: true }) to be visible"
+  ],
+  name: 'TimeoutError'
+}

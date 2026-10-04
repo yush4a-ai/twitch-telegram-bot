@@ -1,0 +1,4 @@
+PASS chromium 390 light: first error -> retry -> loaded
+PASS chromium 390 dark: first error -> retry -> loaded
+PASS chromium 1440 light: first error -> retry -> loaded
+PASS chromium 1440 dark: first error -> retry -> loaded
