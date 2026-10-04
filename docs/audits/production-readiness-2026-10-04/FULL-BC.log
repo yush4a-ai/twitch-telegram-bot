@@ -1,0 +1,56 @@
+.......................................................... [  3%]
+................................................. [  6%]
+....................................... [  8%]
+.............................................................. [ 12%]
+...................................................................... [ 16%]
+................................................................ [ 20%]
+............................................. [ 23%]
+.................................................................... [ 27%]
+...................................................................................... [ 33%]
+s............................................................................................. [ 38%]
+..........................................................................s...................................................................... [ 47%]
+........................................................................ [ 52%]
+........................................................................... [ 56%]
+.................................................. [ 59%]
+...................................................... [ 62%]
+......................................................................................................................................... [ 71%]
+.................................................................... [ 75%]
+..................................................... [ 78%]
+................................................................................................................................... [ 86%]
+................................................................ [ 90%]
+.................................................................. [ 94%]
+................................................... [ 97%]
+.....................................                      [100%]
+================================== FAILURES ===================================
+_ DeploymentPackagingTests.test_existing_python_manifests_are_byte_for_byte_unchanged (path='.python-version') _
+
+self = <test_deployment_packaging.DeploymentPackagingTests testMethod=test_existing_python_manifests_are_byte_for_byte_unchanged>
+
+    def test_existing_python_manifests_are_byte_for_byte_unchanged(self) -> None:
+        for relative_path, expected_sha256 in UNCHANGED_FILE_SHA256.items():
+            with self.subTest(path=relative_path):
+                payload = (PROJECT_ROOT / relative_path).read_bytes()
+>               self.assertEqual(hashlib.sha256(payload).hexdigest(), expected_sha256)
+E               AssertionError: '16c863195943df357aff24d69eb6f1f022b5e5a0ca2bcd74df2d8494d54b6e23' != '5b703ca38d3fd391f3e889f7ba893f94b921ff9e7b7e5d8d6622d5f7daca7049'
+E               - 16c863195943df357aff24d69eb6f1f022b5e5a0ca2bcd74df2d8494d54b6e23
+E               + 5b703ca38d3fd391f3e889f7ba893f94b921ff9e7b7e5d8d6622d5f7daca7049
+
+tests\test_deployment_packaging.py:201: AssertionError
+_ DeploymentPackagingTests.test_existing_python_manifests_are_byte_for_byte_unchanged (path='Procfile') _
+
+self = <test_deployment_packaging.DeploymentPackagingTests testMethod=test_existing_python_manifests_are_byte_for_byte_unchanged>
+
+    def test_existing_python_manifests_are_byte_for_byte_unchanged(self) -> None:
+        for relative_path, expected_sha256 in UNCHANGED_FILE_SHA256.items():
+            with self.subTest(path=relative_path):
+                payload = (PROJECT_ROOT / relative_path).read_bytes()
+>               self.assertEqual(hashlib.sha256(payload).hexdigest(), expected_sha256)
+E               AssertionError: 'ad130bafcf6a9db95902aebd2a02222532d76ff7752fa065aa975b4c75719e28' != 'c52a15bf646894a3a95343b5c792016ec9713f6c2826cc657b266b694cbd8345'
+E               - ad130bafcf6a9db95902aebd2a02222532d76ff7752fa065aa975b4c75719e28
+E               + c52a15bf646894a3a95343b5c792016ec9713f6c2826cc657b266b694cbd8345
+
+tests\test_deployment_packaging.py:201: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(path='.python-version') tests/test_deployment_packaging.py::DeploymentPackagingTests::test_existing_python_manifests_are_byte_for_byte_unchanged
+SUBFAILED(path='Procfile') tests/test_deployment_packaging.py::DeploymentPackagingTests::test_existing_python_manifests_are_byte_for_byte_unchanged
+2 failed, 1636 passed, 2 skipped, 3739 subtests passed in 1136.57s (0:18:56)

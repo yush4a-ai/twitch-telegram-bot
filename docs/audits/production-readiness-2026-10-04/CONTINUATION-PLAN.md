@@ -22,3 +22,11 @@
 - Финальные focused110PASS/118subtests,80.94s: B1/B2/C/D tool, proxy, real ledger, queue gate, legacy и mock/paymentOFF. Новых skips нет. Логи очищены только от trailing whitespace для git diffcheck, результаты/assertions не изменены.
 
 - Первый final full5474 RED1634PASS/2FAIL/2existingWindowsSkips/3741subtests/1144.44s. Новый whole-Git tar in-memory повышал lifetime RSS выше256MiB; старый copy audit требовал ложного raid exemption. Scoped reviewer подтвердил rootcause, combinedRED2fail20pass, streaming exact archive и строгая canonical copy дали22PASS/6subtests. Bot runtime unchanged; обязательный новый clean tooling/full gate после correction, не повтор старого validated результата.
+
+## Итоговая проверка8690094 — 04.10.2026
+
+Итоговый gate CONSOLIDATED PASS на869009401fc638405694297b8449e04c1d96abe8: полный1636PASS/2existingWindowsSkips/3739subtests/1136.57s, exit1 из-за двух byte-invariant subtests. Managed checkout с core.autocrlf=true добавил CR в .python-version/Procfile; immutable Git blobs и primary checkout уже имели правильные LF/хеши. Только validation bytes восстановлены из HEAD; свежий whole packaging15PASS/12subtests/0.40s, exit0. Код/tests/assertions/HEAD/deps/global Git config не изменялись. Scoped reviewer подтвердил reuse1636PASS без третьего full. Distinct consolidated1636PASS/3741subtests/2existingSkips; overlap15tests/10subtests не суммируется. FULL-BC.log/FULL-SECOND-RED.json сохраняют полный RED как RED, не fullPASS. FULL-GATE.json, PACKAGING-RECHECK.log и CHECKOUT-BYTES.json связывают correction и PASS. Первый code-related RED также сохранён. Далее только docs/evidence.
+
+Полный прогон выполнен в отдельном clean validation checkout того же коммита только для тестов, без второго разработчика. Чужие untracked output/imagegen assets в основной папке сохранены без move/delete/stage; вся рабочая папка с ними не объявляется clean. Материализованный handoff с literal final HEAD находится рядом с внешним production-checkpoint.json.
+
+B/C закрыты локально; D/production identity/external restore/native/OAuth — OWNER INPUT REQUIRED. Production untouched YES, payments OFF YES, cutover NO.

@@ -1,6 +1,6 @@
 # Production cutover — NO; подготовлено, нужны данные владельца
 
-Локальные результаты относятся к snapshot5474e5833bb8fc3eae3e1169f69c2bfe0ca55ff6/runtime3fa8b649e737693eef94c3912c22313834f57586. Они не являются production проверкой. Подробности — 2026-10-04-production-cutover-handoff.md.
+Локальные результаты относятся к snapshot869009401fc638405694297b8449e04c1d96abe8/runtime3fa8b649e737693eef94c3912c22313834f57586. Они не являются production проверкой. Подробности — 2026-10-04-production-cutover-handoff.md.
 
 - [x] SEC-01/02/03 и первая streamer network-error Retry — сохранены.
 - [x] B1 quiet/raid copy соответствует D-048/runtime; Free/legacy/channel paths проверены.
@@ -8,7 +8,7 @@
 - [x] C отдельный fail-closed admission, getMe до DB, queue opt-in, exclusive writer lock.
 - [x] Payment OFF — локальный enforced policy, без автоматического включения credentials.
 - [x] Final focused110PASS/118subtests; fresh scoped reviewer без code blockers; clean snapshot/diffcheck.
-- [ ] Final full gate — PENDING после streaming-tool/canonical-copy correction; первый5474e58 RED2FAIL сохранён,22focusedPASS/6subtests. Финальный SHA в FULL-GATE.json.
+- [x] Итоговый gate CONSOLIDATED PASS на869009401fc638405694297b8449e04c1d96abe8: полный1636PASS/2existingWindowsSkips/3739subtests/1136.57s, exit1 из-за двух byte-invariant subtests. Managed checkout с core.autocrlf=true добавил CR в .python-version/Procfile; immutable Git blobs и primary checkout уже имели правильные LF/хеши. Только validation bytes восстановлены из HEAD; свежий whole packaging15PASS/12subtests/0.40s, exit0. Код/tests/assertions/HEAD/deps/global Git config не изменялись. Scoped reviewer подтвердил reuse1636PASS без третьего full. Distinct consolidated1636PASS/3741subtests/2existingSkips; overlap15tests/10subtests не суммируется. FULL-BC.log/FULL-SECOND-RED.json сохраняют полный RED как RED, не fullPASS. FULL-GATE.json, PACKAGING-RECHECK.log и CHECKOUT-BYTES.json связывают correction и PASS. Первый code-related RED также сохранён. Далее только docs/evidence.
 - [x] D offline tooling/runbook/synthetic selftests — механизм проверен, production D не закрыт.
 - [ ] Разрешённый representative production snapshot и настоящий existing key decryption.
 - [ ] Реальная D migration/reopen/rows/schema/HTML/rollback репетиция.

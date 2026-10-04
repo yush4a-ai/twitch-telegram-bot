@@ -1,0 +1,24 @@
+{
+  "head": "869009401fc638405694297b8449e04c1d96abe8",
+  "files": [
+    {
+      "path": ".python-version",
+      "before_sha256": "16c863195943df357aff24d69eb6f1f022b5e5a0ca2bcd74df2d8494d54b6e23",
+      "after_sha256": "5b703ca38d3fd391f3e889f7ba893f94b921ff9e7b7e5d8d6622d5f7daca7049",
+      "git_blob_equal": true,
+      "only_change": "CRLF checkout to original LF Git bytes"
+    },
+    {
+      "path": "Procfile",
+      "before_sha256": "ad130bafcf6a9db95902aebd2a02222532d76ff7752fa065aa975b4c75719e28",
+      "after_sha256": "c52a15bf646894a3a95343b5c792016ec9713f6c2826cc657b266b694cbd8345",
+      "git_blob_equal": true,
+      "only_change": "CRLF checkout to original LF Git bytes"
+    }
+  ],
+  "code_tests_unchanged": true,
+  "assertions_unchanged": true,
+  "global_git_config_unchanged": true,
+  "index_blobs_unchanged": true,
+  "reviewer": "scoped_review"
+}
