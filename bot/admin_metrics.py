@@ -12,6 +12,58 @@ from collections.abc import Callable
 
 _SAFE_ERROR = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,79}\Z")
 
+# Сколько проблем показываем владельцу на первом экране и с какого возраста
+# очереди считаем задержку заметной.
+ATTENTION_LIMIT = 3
+QUEUE_DELAY_SECONDS = 300
+SNAPSHOT_PAGE = 20
+
+
+def _attention(queues: dict | None, errors: dict, preview_state: str | None) -> list[dict]:
+    """До трёх проблем, отсортированных по влиянию на людей."""
+    items: list[dict] = []
+    if errors.get("database"):
+        items.append({
+            "kind": "database",
+            "severity": "danger",
+            "title": "Часть данных базы недоступна",
+            "detail": "Показатели за этот сбор неполные. Повторите обновление.",
+        })
+    if queues:
+        failed = queues.get("failed_jobs")
+        if failed:
+            items.append({
+                "kind": "queue_failed",
+                "severity": "danger",
+                "title": f"Не отправлено заданий: {failed}",
+                "detail": "Очередь уведомлений содержит неудачные задания.",
+            })
+        due = queues.get("due_jobs")
+        age = queues.get("oldest_due_age_seconds")
+        if due and age is not None and age > QUEUE_DELAY_SECONDS:
+            items.append({
+                "kind": "queue_delay",
+                "severity": "warn",
+                "title": "Уведомления задерживаются",
+                "detail": f"В очереди {due}, старейшее ждёт {int(age // 60)} мин.",
+            })
+    if preview_state == "degraded":
+        items.append({
+            "kind": "preview",
+            "severity": "warn",
+            "title": "Видеопревью работает со сбоями",
+            "detail": "Последняя сборка превью завершилась ошибкой.",
+        })
+    for subsystem, label in (("poller", "Опрос Twitch"), ("eventsub", "EventSub")):
+        if errors.get(subsystem):
+            items.append({
+                "kind": subsystem,
+                "severity": "warn",
+                "title": f"{label}: ошибка",
+                "detail": "Повторится на следующем цикле, если причина не исчезнет.",
+            })
+    return items[:ATTENTION_LIMIT]
+
 
 def _error_class(value: object) -> str | None:
     return value if isinstance(value, str) and _SAFE_ERROR.fullmatch(value) else None
@@ -56,6 +108,7 @@ class AdminSnapshot:
         db_path: str,
         telegram_polling_provider: Callable[[], bool | None],
         environment: str,
+        directory=None,
     ) -> None:
         self._db = db
         self._poller = poller
@@ -65,7 +118,17 @@ class AdminSnapshot:
         self._db_path = db_path
         self._telegram_polling_provider = telegram_polling_provider
         self._environment = environment
+        self._directory = directory
         self._previous_cpu: tuple[float, float] | None = None
+
+    async def _directory_value(self, factory, timeout: float = 2.0):
+        """Изолированный сбор одного блока: ошибка не скрывает остальные."""
+        if self._directory is None:
+            return None, False
+        try:
+            return await asyncio.wait_for(factory(), timeout), False
+        except Exception:
+            return None, True
 
     async def collect(self) -> dict:
         now = time.time()
@@ -145,6 +208,36 @@ class AdminSnapshot:
             resources["db_file_bytes"] = None
             resources["wal_file_bytes"] = None
 
+        access, access_failed = await self._directory_value(
+            lambda: self._directory.access_overview(now)
+        )
+        rows, rows_failed = await self._directory_value(
+            lambda: self._directory.active_grants(now, SNAPSHOT_PAGE, 0)
+        )
+        history, history_failed = await self._directory_value(
+            lambda: self._directory.history(SNAPSHOT_PAGE, 0)
+        )
+        if access is not None:
+            access["active_rows"] = rows
+            access["history"] = history
+        backup, backup_failed = await self._directory_value(
+            lambda: self._directory.backup_status()
+        )
+        deliveries, deliveries_failed = await self._directory_value(
+            lambda: self._directory.deliveries_24h(now)
+        )
+        directory_failed = any((
+            access_failed, rows_failed, history_failed, backup_failed, deliveries_failed,
+        ))
+
+        errors = {
+            "poller": _error_class(poller.get("last_cycle_error")),
+            "eventsub": _error_class(eventsub.get("last_error")),
+            "preview": _error_class(preview.get("last_error")) if preview else None,
+            "database": "unavailable" if database_failed else None,
+            "directory": "unavailable" if directory_failed else None,
+        }
+
         return {
             "generated_at": now,
             "environment": self._environment,
@@ -174,11 +267,10 @@ class AdminSnapshot:
             "live": live,
             "queues": queues,
             "growth": growth,
-            "errors": {
-                "poller": _error_class(poller.get("last_cycle_error")),
-                "eventsub": _error_class(eventsub.get("last_error")),
-                "preview": _error_class(preview.get("last_error")) if preview else None,
-                "database": "unavailable" if database_failed else None,
-            },
+            "access": access,
+            "backup": backup,
+            "deliveries": deliveries,
+            "attention": _attention(queues, errors, preview_state),
+            "errors": errors,
             "resources": resources,
         }

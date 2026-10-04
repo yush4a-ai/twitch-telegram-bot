@@ -62,12 +62,12 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.tokens = Mock(health_snapshot=Mock(return_value={"auth_blocked_logins": 0}))
         self.preview = Mock(health_snapshot=Mock(return_value={"enabled": True, "manager_running": True, "active_sessions": 1, "active_jobs": 0, "last_success_age_seconds": 10.0, "latest_observation_age_seconds": 3.0, "last_error": None, "disabled_reason": None}))
 
-    def build(self, *, polling=True, preview=True):
+    def build(self, *, polling=True, preview=True, directory=None):
         return AdminSnapshot(
             self.db, self.poller, self.eventsub, self.tokens,
             self.preview if preview else None,
             db_path=":memory:", telegram_polling_provider=lambda: polling,
-            environment="staging",
+            environment="staging", directory=directory,
         )
 
     async def test_separate_states_and_unknown_delivery(self):
@@ -151,6 +151,79 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["telegram"]["state"], "ok")
         self.assertEqual(result["errors"]["database"], "unavailable")
         self.assertNotIn("secret", str(result))
+
+
+    # Блоки каталога: изолированный сбор и «требует внимания»
+    def directory(self, **overrides):
+        directory = Mock()
+        directory.access_overview = AsyncMock(return_value={
+            "active_total": 4, "viewer": 3, "streamer": 1,
+            "by_source": {"test": 2, "paid": 2}, "expiring_7d": 1,
+        })
+        directory.active_grants = AsyncMock(return_value=[{"grant_id": "g1"}])
+        directory.history = AsyncMock(return_value=[{"grant_id": "g1", "action": "grant"}])
+        directory.backup_status = AsyncMock(return_value={
+            "last_backup_at": 1.0, "last_backup_name": "auto-x.db",
+            "retention": 5, "restore_verified": False,
+        })
+        directory.deliveries_24h = AsyncMock(
+            return_value={"notifications": 3, "reports": 1, "total": 4}
+        )
+        for key, value in overrides.items():
+            setattr(directory, key, value)
+        return directory
+
+    async def test_missing_directory_leaves_new_blocks_none(self):
+        result = await self.build().collect()
+
+        self.assertIsNone(result["access"])
+        self.assertIsNone(result["backup"])
+        self.assertIsNone(result["deliveries"])
+        self.assertEqual(result["attention"], [])
+
+    async def test_directory_values_land_in_snapshot(self):
+        result = await self.build(directory=self.directory()).collect()
+
+        self.assertEqual(result["access"]["active_total"], 4)
+        self.assertEqual(result["access"]["active_rows"], [{"grant_id": "g1"}])
+        self.assertEqual(result["access"]["history"], [{"grant_id": "g1", "action": "grant"}])
+        self.assertEqual(result["backup"]["last_backup_name"], "auto-x.db")
+        self.assertEqual(result["deliveries"]["total"], 4)
+        self.assertIsNone(result["errors"]["directory"])
+
+    async def test_directory_failure_is_isolated(self):
+        directory = self.directory(
+            access_overview=AsyncMock(side_effect=RuntimeError("secret /data/bot.db"))
+        )
+        result = await self.build(directory=directory).collect()
+
+        self.assertIsNone(result["access"])
+        self.assertEqual(result["errors"]["directory"], "unavailable")
+        self.assertEqual(result["telegram"]["state"], "ok")
+        self.assertEqual(result["backup"]["retention"], 5)
+        self.assertNotIn("secret", str(result))
+
+    async def test_attention_lists_queues_and_errors_by_impact(self):
+        self.db.health_snapshot.return_value = {
+            "pending_deliveries": 9, "oldest_pending_age_seconds": 600.0,
+            "deferred_reports": 0, "oldest_deferred_age_seconds": None,
+            "db_file_bytes": 8192, "wal_file_bytes": 0,
+            "failed_jobs": 3, "due_jobs": 5, "oldest_due_age_seconds": 600.0,
+        }
+        self.eventsub.health_snapshot.return_value["last_error"] = "NetworkError"
+
+        result = await self.build().collect()
+
+        kinds = [item["kind"] for item in result["attention"]]
+        self.assertEqual(kinds[0], "queue_failed")
+        self.assertIn("queue_delay", kinds)
+        self.assertLessEqual(len(kinds), 3)
+        self.assertTrue(all(item["title"] and item["detail"] for item in result["attention"]))
+
+    async def test_attention_empty_when_everything_healthy(self):
+        result = await self.build().collect()
+
+        self.assertEqual(result["attention"], [])
 
 
 if __name__ == "__main__":
