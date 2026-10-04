@@ -30,3 +30,13 @@
 5. После закрытия D/preflight/acceptance — отдельное прямое сообщение «Разрешаю production cutover». Текущая подготовка не разрешает deploy/config/production DB mutations.
 
 Quiet/raid уже подтверждено D-048 и текущими тестами: личные live и raids подчиняются quiet, есть исключение стримера; channel publication отдельно. Новое решение не требуется. Viewer150/Streamer300 и Free50 сохраняются. Денежные и legal решения выше не закрываются этим payment-OFF checkpoint; от имени владельца ничего не принимается.
+
+## Уточнение operator inputs после read-only preflight — 04.10.2026
+
+Railway production IDs/mount/DB/URL/PORT и текущий artifact теперь обнаружены live, а не только исторически: D-INPUTS-PREFLIGHT.json и новый раздел cutover handoff. getMe подтвердил @TwitchSignalBot8707370390 одним источником; окончательный identity gate остаётся PARTIAL. Не запрашивать известные значения заново: оператор сверяет этот конкретный набор и предоставляет второй независимый источник bot identity/подписанный admission contract.
+
+1. Предоставить sealed representative production snapshot + provenance/UTC/hash/size и authorization в private OS TEMP, утверждённые schema versions/additions и exact old/new artifact. Текущий old commit dc9239eb0b82fb80d1788fc657205740cebc49e9 подтверждён Railway и доступен Git; rollback suitability пока не проверена. D BLOCKED — REPRESENTATIVE SOURCE COPY REQUIRED.
+2. Existing encryption key present, decrypt NOT VERIFIED. Разрешить его использование через secret storage на isolated copy; key/токены не присылать в чат. ADMIN_PANEL_ACCESS_KEY absent: оператору нужно подготовить его для будущего admission, без config writes в этой сессии.
+3. Указать уже существующее external storage/access/retention/encryption и оператора download/hash/restore. Storage keys в service не обнаружены; наличие внешнего хранилища вне service cannot verify. Railway Volume не external backup. Подтвердить maintenance owner/окно/STOP writers, фактические mount permissions/free space и edge/TLS/client-boundary preflight.
+4. Указать разрешённые account/recipient/channel и пределы OAuth/send/media для native Desktop/iOS/Android. Checklist и порядок готовы; сейчас NOT TESTED.
+5. Только после D/identity/infra/backup/native gates отдельно «Разрешаю production cutover». Payment OFF сохраняется, реальные платежи этим checkpoint не разрешены.

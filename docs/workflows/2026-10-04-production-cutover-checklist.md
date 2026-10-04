@@ -22,3 +22,19 @@
 - [ ] Actual artifact/deployment/getMe/health/schema/integrity/FK/paymentOFF и разрешённый Telegram smoke.
 
 **D NOT CLOSED. Production untouched YES. Payments OFF YES. Cutover NO.** Staging/production не обновлялись, новых native screenshots нет. Browser/fake/исторические снимки не подменяют acceptance. Недостающие сведения — OWNER-INPUTS-FOR-LAUNCH.md; процедуры — 2026-10-04-production-copy-runbook.md; native сценарии — 2026-10-04-production-native-acceptance.md.
+
+## D inputs checkpoint — 04.10.2026
+
+- [x] Входной HEAD/tag352c7e19 и runtime3fa8b64 сверены; output/ сохранён без чтения/stage.
+- [x] Короткий review D tooling/tests/runbook, без найденного конкретного дефекта и без code changes.
+- [x] Railway production metadata получены read-only; exact IDs/artifact/paths в D-INPUTS-PREFLIGHT.json.
+- [x] Один getMe: @TwitchSignalBot8707370390; реальные sends=0.
+- [x] Packaging15PASS/12subtests/exit0; full не повторялся, код tested snapshot неизменён.
+- [ ] Второй независимый bot identity источник + owner-confirmed admission contract.
+- [ ] ADMIN_PANEL_ACCESS_KEY отсутствует в production variables; подготовить оператору без раскрытия значения.
+- [ ] Representative source/authorization: D BLOCKED — REPRESENTATIVE SOURCE COPY REQUIRED.
+- [ ] Existing key present, actual decrypt NOT VERIFIED; old rollback artifact известен, drill не выполнен.
+- [ ] External destination/download/hash/restore, actual proxy/TLS/permissions/free space/exclusivity.
+- [ ] Разрешённый account/recipient/channel и native Desktop/iOS/Android; всё NOT TESTED.
+
+Точный следующий шаг и final HEAD manifest — в новом разделе cutover handoff. PRODUCTION PREPARED — OWNER INPUT REQUIRED; production untouched YES, payments OFF YES, cutover NO.

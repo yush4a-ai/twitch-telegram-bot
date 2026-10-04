@@ -1,3 +1,7 @@
+## D-049 — 04.10.2026: узкая preparation без production cutover
+
+Read-only metadata/getMe разрешены текущим запросом владельца, production writes/deploy/send/OAuth запрещены. Подтверждение одного getMe не закрывает требование двух источников identity. Present key не доказывает decrypt; отсутствие storage variables не доказывает отсутствие внешнего storage. Representative copy не предоставлена, поэтому D BLOCKED; staging/synthetic не подставлять. Runtime не изменять и full не повторять; packaging exit0 сохранён. Старый tag сохраняется, literal final HEAD материализуется вне Git после docs/evidence commit.
+
 # Решения TwitchSignalBot
 
 ## Аудит готовности — 04.10.2026

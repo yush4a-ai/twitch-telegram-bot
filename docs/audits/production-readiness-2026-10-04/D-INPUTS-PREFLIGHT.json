@@ -1,0 +1,73 @@
+{
+  "checked_utc": "2026-10-04T12:27:38.200929+00:00",
+  "source": "Railway status and explicit production variable list; Telegram getMe read only",
+  "project_id": "14282646-e318-4b80-b35d-4369270de255",
+  "project_name": "radiant-heart",
+  "environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+  "environment_name": "production",
+  "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+  "service_name": "worker",
+  "service_instance_id": "c77259c8-1201-4048-8e48-bc162508b8d4",
+  "volume_id": "9afd2204-881d-41af-bfd8-ad395b9c9ca9",
+  "volume_instance_id": "eded4a6e-c2c1-44ab-a238-b3c860632cee",
+  "mount_path": "/data",
+  "volume_state": "READY",
+  "volume_size_mb": 500,
+  "volume_used_mb": 93.282304,
+  "replicas_manifest": 1,
+  "running_instances": 1,
+  "service_instance_replica_field": null,
+  "deployment_id": "466499d5-6979-4a81-8aee-67efcf628976",
+  "deployment_status": "SUCCESS",
+  "deployment_commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+  "image_digest": "sha256:87924e3c4fa8b00940da8baed931abae3f1fed96be84c937c6de8a92c358ec76",
+  "domains": {
+    "customDomains": [],
+    "serviceDomains": [
+      {
+        "domain": "worker-production-cee5.up.railway.app",
+        "id": "a46e444a-a3e8-4433-af2b-cb660312b5b1",
+        "targetPort": 8765
+      }
+    ]
+  },
+  "config": {
+    "DB_PATH": "/data/bot.db",
+    "PUBLIC_URL": "https://worker-production-cee5.up.railway.app",
+    "PORT": "8765",
+    "RAILWAY_PROJECT_ID": "14282646-e318-4b80-b35d-4369270de255",
+    "RAILWAY_ENVIRONMENT_ID": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+    "RAILWAY_ENVIRONMENT_NAME": "production",
+    "RAILWAY_SERVICE_ID": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+    "RAILWAY_VOLUME_MOUNT_PATH": "/data",
+    "NOTIFICATION_QUEUE_ENABLED": "absent",
+    "PRODUCTION_QUEUE_ENABLED": "absent",
+    "PRODUCTION_PAYMENT_POLICY": "absent",
+    "STAGING_PAYMENT_MODE": "absent",
+    "PLATEGA_TRANSPORT_MODE": "absent",
+    "STARS_TRANSPORT_MODE": "absent"
+  },
+  "secrets_presence_only": {
+    "TELEGRAM_BOT_TOKEN": "present",
+    "TWITCH_CLIENT_ID": "present",
+    "TWITCH_CLIENT_SECRET": "present",
+    "TOKEN_ENCRYPTION_KEY": "present",
+    "ADMIN_PANEL_ACCESS_KEY": "absent"
+  },
+  "bot": {
+    "status": "one live Bot API source verified; second independent source/owner confirmation required",
+    "id": 8707370390,
+    "username": "TwitchSignalBot"
+  },
+  "external_backup_config_key_names": [],
+  "external_backup_status": "OWNER INPUT; no external download/hash/restore evidence",
+  "representative_source_copy": "D BLOCKED - REPRESENTATIVE SOURCE COPY REQUIRED",
+  "key_decryption": "NOT VERIFIED on representative production copy",
+  "rollback_artifact": "current deployment commit available locally; suitability not rehearsed",
+  "production_untouched": true,
+  "config_writes": 0,
+  "deploys": 0,
+  "production_db_connections": 0,
+  "telegram_sends": 0,
+  "getMe_calls": 1
+}

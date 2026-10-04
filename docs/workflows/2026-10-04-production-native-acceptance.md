@@ -14,3 +14,9 @@ Browser/fake/локальные tests не являются Desktop/iOS/Android 
 - Обычный restart сохраняет pending commands/selection, completed update не выполняется повторно; ambiguous ordinary inbox не replay вручную без review.
 
 Сейчас всё перечисленное — **NOT TESTED на новом runtime**. Исторические screenshots/docs остаются доступными и не объявляются свежей native приёмкой. Конкретные account/channel/smoke-recipient ещё OWNER INPUT; сторонним пользователям сообщения не отправлять.
+
+## Минимальный smoke order после разрешения owner — 04.10.2026
+
+Для Desktop, затем iOS, затем Android отдельно: `/start` → «Меню» → live → system «Приложение» → возврат в чат. Записать client version, artifact/deployment/bot ID, UTC, PASS/FAIL/NOT TESTED и screenshot. Пока все три NOT TESTED.
+
+После базового открытия на разрешённых аккаунтах: Viewer add с подтверждением → pause → delete/Undo → quiet live/raid inside/outside/exemption → Streamer network error/Retry → OAuth/cancel/reopen → channel selector → photo → animation/video/fallback → expiry/revoke/notifyOFF. Сохранить HTML/export и старые группы; проверить payment unavailable без invoice/checkout/grant. Не делать реальные действия без конкретного разрешённого recipient/account/channel и лимита. Все расширенные сценарии пока NOT TESTED.
