@@ -1,0 +1,11 @@
+RED before implementation: pytest tests/test_runtime_package.py -k real_deploy
+1 failed, 11 deselected in 11.76s; docs/audits unexpectedly included.
+
+Focused final implementation: pytest -q -p no:cacheprovider tests/test_runtime_package.py tests/test_deployment_packaging.py tests/test_staging_deploy.py
+46 passed, 12 subtests passed in 25.14s; exit 0.
+
+Related staging/payment: pytest -q -p no:cacheprovider tests/test_staging_mock_billing.py tests/test_staging_viewer_plus.py tests/test_staging_streamer_plus.py
+8 passed, 15 subtests passed in 4.39s; exit 0.
+
+Dry-run: 164 files / 9584073 bytes / limit 52428800 bytes.
+Read-only reviewer: PASS; no blockers. Runtime unchanged. Full release gate pending.

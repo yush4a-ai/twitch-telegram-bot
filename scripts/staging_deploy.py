@@ -9,9 +9,13 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import time
+
+if __package__:
+    from .runtime_package_manifest import build_runtime_package
+else:
+    from runtime_package_manifest import build_runtime_package
 
 
 EXPECTED_BRANCH = "autonomous/twitchsignal-roadmap"
@@ -178,20 +182,19 @@ def build_deploy_command(target: dict, commit: str, bundle_path: str) -> list[st
 
 @contextmanager
 def _committed_bundle(commit: str):
-    """Upload only Git's committed snapshot, excluding local secrets and caches."""
+    """Upload exact Git runtime blobs using the canonical bounded allowlist."""
     temp_root = Path(tempfile.gettempdir()).resolve()
     with tempfile.TemporaryDirectory(prefix="twitchsignal-staging-", dir=temp_root, ignore_cleanup_errors=True) as name:
         temporary = Path(name).resolve()
         if temporary.parent != temp_root:
             raise RuntimeError("Временный каталог deploy вне системного TEMP")
-        archive_path = temporary / "source.tar"
         bundle_path = temporary / "repo"
-        bundle_path.mkdir()
-        subprocess.run(["git", "archive", "--format=tar", "--output", str(archive_path), commit], check=True)
-        with tarfile.open(archive_path, "r") as archive:
-            if any(not (member.isfile() or member.isdir()) for member in archive.getmembers()):
-                raise RuntimeError("Git archive содержит неподдерживаемый тип файла")
-            archive.extractall(bundle_path, filter="data")
+        manifest = build_runtime_package(Path.cwd(), commit, bundle_path)
+        # Evidence is outside the upload directory: every uploaded file is a Git blob.
+        (temporary / "runtime-manifest.json").write_text(
+            json.dumps(manifest, sort_keys=True, indent=2), encoding="utf-8")
+        print(f"Runtime package: commit={manifest['commit']}; files={manifest['file_count']}; "
+              f"bytes={manifest['total_bytes']}; manifest={manifest['manifest_sha256']}")
         yield bundle_path
 
 
@@ -335,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
         deployment_id = _wait_for_deployment(target, commit, known_ids=known_ids)
         print(f"Staging deploy подтверждён: {deployment_id}")
         return 0
-    except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError, tarfile.TarError) as error:
+    except (OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError) as error:
         print(f"Staging deploy остановлен: {type(error).__name__}", file=sys.stderr)
         return 2
 

@@ -244,14 +244,19 @@ def test_committed_bundle_excludes_ignored_and_untracked_files(tmp_path, monkeyp
     monkeypatch.chdir(tmp_path)
     subprocess.run(["git", "init", "-q"], check=True)
     (tmp_path / ".gitignore").write_text(".env\n", encoding="utf-8")
-    (tmp_path / "app.py").write_text("committed\n", encoding="utf-8")
-    subprocess.run(["git", "add", ".gitignore", "app.py"], check=True)
+    from scripts.runtime_package_manifest import REQUIRED_FILES
+    for path in REQUIRED_FILES:
+        destination = tmp_path / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text("committed\n", encoding="utf-8")
+    (tmp_path / 'docs/legal/manifest.json').write_text('{"documents": []}', encoding='utf-8')
+    subprocess.run(["git", "add", "."], check=True)
     subprocess.run(["git", "-c", "user.name=Test", "-c", "user.email=test@example.test", "commit", "-qm", "snapshot"], check=True)
     commit = subprocess.run(["git", "rev-parse", "HEAD"], check=True, text=True, capture_output=True).stdout.strip()
     (tmp_path / ".env").write_text("secret", encoding="utf-8")
     (tmp_path / "untracked.txt").write_text("do not upload", encoding="utf-8")
     with deploy._committed_bundle(commit) as bundle:
-        assert (bundle / "app.py").read_text(encoding="utf-8") == "committed\n"
+        assert (bundle / "main.py").read_bytes() == subprocess.check_output(['git', 'show', f'{commit}:main.py'])
         assert not (bundle / ".env").exists()
         assert not (bundle / "untracked.txt").exists()
 
