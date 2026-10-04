@@ -269,6 +269,35 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         with patch.dict("os.environ",{"PLATEGA_SECRET":"fixture", "STARS_ENABLED":"1", "BILLING_MODE":"sandbox"}):
             self.assertEqual(first_release_payment_policy(),BillingRuntimePolicy())
 
+    async def test_ingress_crash_replay_keeps_one_real_ledger_grant_and_refund(self):
+        from bot.telegram_replay import ReplayDispatcher
+        order, payload = await self.create()
+        bot = FakeTelegram(FakeSession())
+        def dispatcher():
+            dp = ReplayDispatcher()
+            dp['db'] = self.db
+            dp['billing_service'] = self.service
+            dp.include_router(build_payment_router())
+            return dp
+        success = Update(update_id=501, message=payment_message(payload))
+        with patch('bot.handlers.payments.time.time', return_value=110):
+            with patch.object(self.db, 'finish_telegram_update', side_effect=RuntimeError('crash after ledger')):
+                with self.assertRaises(RuntimeError):
+                    await dispatcher()._process_update(bot, success)
+            dp = dispatcher()
+            await dp.recover_pending(bot)
+            await dp._process_update(bot, success)
+            self.assertTrue(await self.db.has_viewer_plus(101, now=111))
+            self.assertEqual((await (await self.db.conn.execute('SELECT count(*) FROM entitlement_grants')).fetchone())[0], 1)
+            self.assertEqual((await (await self.db.conn.execute('SELECT count(*) FROM billing_orders')).fetchone())[0], 1)
+        refund = Update(update_id=502, message=payment_message(payload, refund=True))
+        with patch('bot.handlers.payments.time.time', return_value=120):
+            await dp._process_update(bot, refund)
+            await dp._process_update(bot, refund)
+            self.assertFalse(await self.db.has_viewer_plus(101, now=121))
+            self.assertEqual((await (await self.db.conn.execute('SELECT count(*) FROM entitlement_grants')).fetchone())[0], 1)
+        self.assertEqual(len(self.sender.invoices), 1)  # only explicit sandbox fixture preparation
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,20 @@ KEY = "staging-test-key-with-at-least-32-chars-123"
 
 
 class AdminWebTests(unittest.IsolatedAsyncioTestCase):
+    async def test_spoofed_forwarded_ip_cannot_bypass_peer_quota_or_evict_valid_state(self):
+        access = AdminAccess(KEY, enabled=True, secure_cookie=False, bot_token=BOT_TOKEN,
+                             bot_username='TwitchSignalTestbot', owner_id=OWNER_ID)
+        session, base = await self.start_server(access)
+        states = []
+        for i in range(5):
+            session.cookie_jar.clear()
+            async with session.get(base+'/admin', headers={'X-Forwarded-For': f'203.0.113.{i}',
+                    'Forwarded': f'for=203.0.113.{i}'}) as response:
+                self.assertEqual(response.status, 200 if i < 4 else 429)
+                if i < 4:
+                    states.append(response.cookies['ts_admin_state'].value)
+        self.assertTrue(access.consume_login_state(states[0], states[0]))
+
     async def start_server(self, access):
         server = OAuthCallbackServer(
             "https://example.test/twitch/callback", "127.0.0.1", 0,

@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_sealed_wal_snapshot_inspection_and_backup_create_no_source_sidecars _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_sealed_wal_snapshot_inspection_and_backup_create_no_source_sidecars>
+
+    def test_sealed_wal_snapshot_inspection_and_backup_create_no_source_sidecars(self):
+        from scripts.production_copy_rehearsal import prepare_copy, inspect_db
+        with closing(sqlite3.connect(self.source)) as conn:
+            conn.execute('PRAGMA journal_mode=WAL')
+        before = set(self.root.iterdir())
+        sha = hashlib.sha256(self.source.read_bytes()).hexdigest()
+        inspect_db(self.source)
+>       self.assertEqual(set(self.root.iterdir()), before)
+E       AssertionError: Items in the first set but not the second:
+E       WindowsPath('C:/Users/yusha/AppData/Local/Temp/tmpgwus16qf/source.db-shm')
+E       WindowsPath('C:/Users/yusha/AppData/Local/Temp/tmpgwus16qf/source.db-wal')
+
+tests\test_production_copy_rehearsal.py:52: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_sealed_wal_snapshot_inspection_and_backup_create_no_source_sidecars
+1 failed, 7 deselected in 0.21s

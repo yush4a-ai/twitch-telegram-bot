@@ -1,0 +1,18 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_restore_refuses_backup_with_wal_instead_of_ignoring_it _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_restore_refuses_backup_with_wal_instead_of_ignoring_it>
+
+    def test_restore_refuses_backup_with_wal_instead_of_ignoring_it(self):
+        from scripts.production_copy_rehearsal import prepare_copy, restore_sealed
+        result = prepare_copy(self.root, self.source, hashlib.sha256(self.source.read_bytes()).hexdigest())
+        Path(str(self.root/'sealed.db')+'-wal').write_bytes(b'uncheckpointed')
+>       with self.assertRaises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ValueError not raised
+
+tests\test_production_copy_rehearsal.py:97: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_restore_refuses_backup_with_wal_instead_of_ignoring_it
+1 failed, 11 deselected in 0.24s

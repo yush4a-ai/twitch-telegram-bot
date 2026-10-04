@@ -1,0 +1,400 @@
+{
+  "tables": {
+    "billing_audit": [
+      "id",
+      "order_id",
+      "action",
+      "happened_at"
+    ],
+    "billing_orders": [
+      "order_id",
+      "request_key",
+      "telegram_user_id",
+      "subject_kind",
+      "subject_id",
+      "broadcaster_id",
+      "plan",
+      "provider",
+      "status",
+      "units",
+      "currency",
+      "duration_seconds",
+      "created_at",
+      "checkout_expires_at",
+      "checkout_reference",
+      "paid_at",
+      "closed_at",
+      "grant_id",
+      "beneficiary_telegram_user_id",
+      "catalog_version",
+      "method",
+      "period_code",
+      "period_rule",
+      "period_rule_version",
+      "terms_version",
+      "financial_status",
+      "access_starts_at",
+      "access_expires_at",
+      "product_snapshot_json",
+      "checkout_url"
+    ],
+    "billing_payment_attempts": [
+      "attempt_id",
+      "order_id",
+      "provider",
+      "method",
+      "state",
+      "provider_reference",
+      "created_at",
+      "next_reconcile_at",
+      "reconcile_count",
+      "lease_until",
+      "payload_digest"
+    ],
+    "billing_payment_refunds": [
+      "request_key",
+      "order_id",
+      "actor_telegram_user_id",
+      "state",
+      "provider_reference",
+      "requested_at"
+    ],
+    "billing_payments": [
+      "provider",
+      "payment_id",
+      "order_id",
+      "status",
+      "units",
+      "currency",
+      "captured_at",
+      "refunded_at"
+    ],
+    "billing_provider_facts": [
+      "provider",
+      "transaction_id",
+      "order_id",
+      "attempt_id",
+      "status",
+      "raw_status",
+      "amount_minor",
+      "currency",
+      "method",
+      "observed_at"
+    ],
+    "billing_provider_inbox": [
+      "provider",
+      "event_key",
+      "transaction_id",
+      "raw_status",
+      "payload_digest",
+      "received_at",
+      "state",
+      "next_reconcile_at",
+      "reconcile_count",
+      "lease_until"
+    ],
+    "billing_provider_quarantine": [
+      "provider",
+      "transaction_id",
+      "payload_digest",
+      "order_hint",
+      "raw_status",
+      "amount_minor",
+      "currency",
+      "method",
+      "observed_at"
+    ],
+    "billing_refund_requests": [
+      "request_key",
+      "order_id",
+      "reference",
+      "requested_at"
+    ],
+    "billing_webhook_events": [
+      "provider",
+      "event_id",
+      "body_sha256",
+      "order_id",
+      "event_type",
+      "processed_at",
+      "result_status"
+    ],
+    "billing_worker_lease": [
+      "provider",
+      "owner",
+      "lease_until"
+    ],
+    "category_alert_delivery_state": [
+      "telegram_user_id",
+      "broadcaster_id",
+      "logical_stream_id",
+      "last_transition_id",
+      "last_sent_at"
+    ],
+    "category_alert_preferences": [
+      "telegram_user_id",
+      "twitch_login",
+      "enabled",
+      "category_ids_json",
+      "category_names_json",
+      "version",
+      "updated_at"
+    ],
+    "category_alert_state": [
+      "broadcaster_id",
+      "logical_stream_id",
+      "baseline_id",
+      "baseline_name",
+      "candidate_id",
+      "candidate_name",
+      "candidate_since",
+      "candidate_count",
+      "last_observed_at",
+      "sequence",
+      "is_live"
+    ],
+    "category_transitions": [
+      "transition_id",
+      "broadcaster_id",
+      "logical_stream_id",
+      "sequence",
+      "from_category_id",
+      "from_category_name",
+      "to_category_id",
+      "to_category_name",
+      "observed_at"
+    ],
+    "entitlement_events": [
+      "id",
+      "grant_id",
+      "action",
+      "actor_telegram_id",
+      "happened_at"
+    ],
+    "entitlement_grants": [
+      "grant_id",
+      "request_key",
+      "subject_kind",
+      "subject_id",
+      "plan",
+      "source",
+      "starts_at",
+      "expires_at",
+      "revoked_at",
+      "issued_by",
+      "created_at",
+      "beneficiary_telegram_user_id"
+    ],
+    "growth_attributions": [
+      "telegram_user_id",
+      "source_kind",
+      "source_code",
+      "referrer_user_id",
+      "first_seen_at",
+      "activated_at"
+    ],
+    "growth_referral_codes": [
+      "code",
+      "owner_user_id",
+      "created_at"
+    ],
+    "notification_jobs": [
+      "id",
+      "kind",
+      "chat_id",
+      "twitch_login",
+      "logical_stream_id",
+      "payload_version",
+      "due_at",
+      "status",
+      "attempt_count",
+      "lease_until",
+      "created_at",
+      "updated_at",
+      "last_error_class",
+      "revision",
+      "media_url",
+      "category_transition_id"
+    ],
+    "schema_migrations": [
+      "version",
+      "applied_at"
+    ],
+    "stream_observation_memberships": [
+      "chat_id",
+      "twitch_login",
+      "stream_id",
+      "sampled_at"
+    ],
+    "stream_observations": [
+      "twitch_login",
+      "stream_id",
+      "sampled_at",
+      "viewer_count",
+      "title",
+      "game_name"
+    ],
+    "streamer_communities": [
+      "broadcaster_id",
+      "chat_id",
+      "title",
+      "chat_type",
+      "verified_at"
+    ],
+    "streamer_community_intents": [
+      "intent_id",
+      "telegram_user_id",
+      "request_id",
+      "created_at",
+      "expires_at",
+      "chat_type",
+      "status",
+      "prepared_id",
+      "chat_id",
+      "permission_reason"
+    ],
+    "streamer_connect_intents": [
+      "intent_id",
+      "telegram_user_id",
+      "state_digest",
+      "created_at",
+      "expires_at",
+      "status",
+      "twitch_login"
+    ],
+    "streamer_identities": [
+      "broadcaster_id",
+      "telegram_user_id",
+      "twitch_login",
+      "verified_at"
+    ],
+    "streamer_post_events": [
+      "broadcaster_id",
+      "chat_id",
+      "twitch_login",
+      "stream_id",
+      "message_id",
+      "published_at"
+    ],
+    "streamer_post_templates": [
+      "broadcaster_id",
+      "chat_id",
+      "version",
+      "headline",
+      "body",
+      "buttons_json",
+      "updated_at"
+    ],
+    "streamer_template_presets": [
+      "id",
+      "broadcaster_id",
+      "name",
+      "name_key",
+      "headline",
+      "body",
+      "buttons_json",
+      "created_at"
+    ],
+    "telegram_update_inbox": [
+      "bot_id",
+      "update_id",
+      "kind",
+      "status",
+      "payload",
+      "created_at",
+      "updated_at"
+    ],
+    "viewer_alert_filters": [
+      "telegram_user_id",
+      "twitch_login",
+      "games_json",
+      "title_keywords_json",
+      "exclude_keywords_json",
+      "version",
+      "updated_at"
+    ],
+    "viewer_event_history": [
+      "id",
+      "telegram_user_id",
+      "event_key",
+      "kind",
+      "twitch_login",
+      "logical_stream_id",
+      "category_name",
+      "outcome",
+      "happened_at"
+    ],
+    "viewer_favorites": [
+      "telegram_user_id",
+      "twitch_login"
+    ],
+    "viewer_folder_memberships": [
+      "telegram_user_id",
+      "twitch_login",
+      "folder_id",
+      "updated_at"
+    ],
+    "viewer_folders": [
+      "id",
+      "telegram_user_id",
+      "name",
+      "name_key",
+      "version",
+      "games_json",
+      "title_keywords_json",
+      "exclude_keywords_json",
+      "updated_at"
+    ],
+    "viewer_plan_priority": [
+      "telegram_user_id",
+      "twitch_login",
+      "priority"
+    ],
+    "viewer_reminders": [
+      "telegram_user_id",
+      "twitch_login",
+      "broadcaster_id",
+      "logical_stream_id",
+      "delay_minutes",
+      "due_at",
+      "version",
+      "queued_version",
+      "status",
+      "updated_at"
+    ],
+    "viewer_restored_sessions": [
+      "telegram_user_id",
+      "twitch_login",
+      "stream_id"
+    ],
+    "viewer_test_trials": [
+      "telegram_user_id",
+      "grant_id",
+      "started_at",
+      "expires_at"
+    ],
+    "viewer_unfollow_undo": [
+      "token_hash",
+      "telegram_user_id",
+      "twitch_login",
+      "payload",
+      "expires_at"
+    ],
+    "viewer_video_selection_state": [
+      "telegram_user_id",
+      "version"
+    ],
+    "viewer_video_selections": [
+      "telegram_user_id",
+      "broadcaster_id",
+      "twitch_login",
+      "position"
+    ]
+  },
+  "columns": {
+    "tracked_channels": [
+      "added_at",
+      "last_broadcaster_id"
+    ]
+  }
+}

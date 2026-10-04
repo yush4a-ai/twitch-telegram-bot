@@ -38,21 +38,21 @@ kwargs = {'ingress_outcome': {'failed': False}}
         if update.update_id == 10:
 >           await finished.wait()
 
-tests\test_telegram_replay.py:152: 
+tests\test_telegram_replay.py:152:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <asyncio.locks.Event object at 0x000001F531014980 [unset]>
 
     async def wait(self):
         """Block until the internal flag is true.
-    
+
         If the internal flag is true on entry, return True
         immediately.  Otherwise, block until another coroutine calls
         set() to set the flag to true, then return True.
         """
         if self._value:
             return True
-    
+
         fut = self._get_loop().create_future()
         self._waiters.append(fut)
         try:
@@ -78,7 +78,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_recovery_menu_can_cance
                 finished.set()
 >       await asyncio.wait_for(self.dispatcher(feed).recover_pending(SimpleNamespace(id=999)), 2)
 
-tests\test_telegram_replay.py:155: 
+tests\test_telegram_replay.py:155:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 ..\..\..\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py:519: in wait_for
     async with timeouts.timeout(timeout):
@@ -96,14 +96,14 @@ exc_val = CancelledError(), exc_tb = <traceback object at 0x000001F53237F080>
         exc_tb: Optional[TracebackType],
     ) -> Optional[bool]:
         assert self._state in (_State.ENTERED, _State.EXPIRING)
-    
+
         if self._timeout_handler is not None:
             self._timeout_handler.cancel()
             self._timeout_handler = None
-    
+
         if self._state is _State.EXPIRING:
             self._state = _State.EXPIRED
-    
+
             if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
                 # Since there are no new cancel requests, we're
                 # handling this.

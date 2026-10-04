@@ -1,0 +1,64 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_backup_manifest_and_restore_keep_original_legacy_rows _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_backup_manifest_and_restore_keep_original_legacy_rows>
+
+    def test_backup_manifest_and_restore_keep_original_legacy_rows(self):
+>       from scripts.production_copy_rehearsal import prepare_copy, inspect_db, restore_sealed
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:22: ModuleNotFoundError
+_ IsolatedCopyToolTests.test_foreign_key_corruption_is_a_stop_not_an_ignored_warning _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_foreign_key_corruption_is_a_stop_not_an_ignored_warning>
+
+    def test_foreign_key_corruption_is_a_stop_not_an_ignored_warning(self):
+>       from scripts.production_copy_rehearsal import inspect_db
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:58: ModuleNotFoundError
+_ IsolatedCopyToolTests.test_preservation_checks_original_values_not_just_counts _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_preservation_checks_original_values_not_just_counts>
+
+    def test_preservation_checks_original_values_not_just_counts(self):
+>       from scripts.production_copy_rehearsal import inspect_db, assert_preserved
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:66: ModuleNotFoundError
+_ IsolatedCopyToolTests.test_restore_never_replaces_source_or_stale_sidecars __
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_restore_never_replaces_source_or_stale_sidecars>
+
+    def test_restore_never_replaces_source_or_stale_sidecars(self):
+>       from scripts.production_copy_rehearsal import prepare_copy, restore_sealed
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:47: ModuleNotFoundError
+____ IsolatedCopyToolTests.test_source_outside_isolated_root_is_not_opened ____
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_source_outside_isolated_root_is_not_opened>
+
+    def test_source_outside_isolated_root_is_not_opened(self):
+>       from scripts.production_copy_rehearsal import prepare_copy
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:41: ModuleNotFoundError
+_____ IsolatedCopyToolTests.test_wrong_source_hash_stops_without_outputs ______
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_wrong_source_hash_stops_without_outputs>
+
+    def test_wrong_source_hash_stops_without_outputs(self):
+>       from scripts.production_copy_rehearsal import prepare_copy
+E       ModuleNotFoundError: No module named 'scripts.production_copy_rehearsal'
+
+tests\test_production_copy_rehearsal.py:35: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_backup_manifest_and_restore_keep_original_legacy_rows
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_foreign_key_corruption_is_a_stop_not_an_ignored_warning
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_preservation_checks_original_values_not_just_counts
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_restore_never_replaces_source_or_stale_sidecars
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_source_outside_isolated_root_is_not_opened
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_wrong_source_hash_stops_without_outputs
+6 failed in 0.22s

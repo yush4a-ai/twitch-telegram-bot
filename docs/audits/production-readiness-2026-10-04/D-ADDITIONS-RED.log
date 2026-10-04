@@ -1,0 +1,14 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_unapproved_additive_table_is_rejected_even_when_legacy_rows_survive _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_unapproved_additive_table_is_rejected_even_when_legacy_rows_survive>
+
+    def test_unapproved_additive_table_is_rejected_even_when_legacy_rows_survive(self):
+>       from scripts.production_copy_rehearsal import inspect_db, assert_expected_additions
+E       ImportError: cannot import name 'assert_expected_additions' from 'scripts.production_copy_rehearsal' (C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\scripts\production_copy_rehearsal.py)
+
+tests\test_production_copy_rehearsal.py:111: ImportError
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_unapproved_additive_table_is_rejected_even_when_legacy_rows_survive
+1 failed, 9 deselected in 0.20s

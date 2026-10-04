@@ -1,0 +1,28 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_network_guard_preserves_async_sqlite_and_denies_socket_creation _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_network_guard_preserves_async_sqlite_and_denies_socket_creation>
+
+        def test_network_guard_preserves_async_sqlite_and_denies_socket_creation(self):
+            code = '''import asyncio,socket
+    from scripts.production_copy_rehearsal import _disable_network
+    async def run():
+        _disable_network()
+        import aiosqlite
+        db=await aiosqlite.connect(':memory:')
+        try:
+            assert await (await db.execute('SELECT 1')).fetchall()==[(1,)]
+            try: socket.socket()
+            except RuntimeError: pass
+            else: raise AssertionError('network was not blocked')
+        finally: await db.close()
+    asyncio.run(run())'''
+            result = subprocess.run([sys.executable,'-c',code],capture_output=True,timeout=10)
+>           self.assertEqual(result.returncode, 0, 'offline network guard broke async SQLite or allowed sockets')
+E           AssertionError: 1 != 0 : offline network guard broke async SQLite or allowed sockets
+
+tests\test_production_copy_rehearsal.py:74: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_network_guard_preserves_async_sqlite_and_denies_socket_creation
+1 failed, 8 deselected in 0.37s

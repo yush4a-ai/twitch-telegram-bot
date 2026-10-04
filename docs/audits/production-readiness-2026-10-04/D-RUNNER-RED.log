@@ -1,0 +1,99 @@
+.....F.                                                                  [100%]
+================================== FAILURES ===================================
+_ IsolatedCopyToolTests.test_synthetic_old_artifact_migrates_reopens_and_restores_without_claiming_production _
+
+self = <test_production_copy_rehearsal.IsolatedCopyToolTests testMethod=test_synthetic_old_artifact_migrates_reopens_and_restores_without_claiming_production>
+
+        def test_synthetic_old_artifact_migrates_reopens_and_restores_without_claiming_production(self):
+            from scripts.production_copy_rehearsal import _export_artifact, rehearse, REPO
+            old_sha = 'dc9239eb0b82fb80d1788fc657205740cebc49e9'
+            artifact, _ = _export_artifact(self.root, old_sha, 'seed-artifact')
+            source = self.root/'synthetic-legacy.db'
+            key = Fernet.generate_key().decode()
+            code = '''import asyncio,os,sys
+    from bot.database import Database
+    async def run():
+        db=Database(sys.argv[1],token_encryption_key=os.environ['TOKEN_ENCRYPTION_KEY'])
+        await db.connect()
+        try:
+            await db.add_channel(101,'synthetic')
+            await db.save_user_token('synthetic','123','fixture-access','fixture-refresh',2000000000)
+            await db.add_stream_history(101,'synthetic','legacy-live',1700003600,3600,10,5,1,started_at='2023-11-14T22:13:20Z')
+        finally:
+            await db.close()
+    asyncio.run(run())'''
+            env = {k:v for k,v in os.environ.items() if k in {'PATH','SYSTEMROOT','WINDIR','TEMP','TMP'}}
+            env.update(PYTHONPATH=str(artifact), TOKEN_ENCRYPTION_KEY=key)
+            result = subprocess.run([sys.executable,'-c',code,str(source)],cwd=artifact,env=env,capture_output=True)
+            self.assertEqual(result.returncode, 0, 'synthetic old artifact seed failed')
+            authorization = self.root/'authorization.json'
+            authorization.write_text(json.dumps(dict(authorized_isolated_copy=True, source_kind='synthetic_fixture',
+                source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(), old_artifact_sha=old_sha,
+                new_artifact_sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),
+                expected_schema_versions=[
+                    'mini_001_viewer_preferences','mini_002_category_alerts','mini_003_category_delivery',
+                    'mini_004_streamer_intents','mini_005_viewer_reminders','mini_006_viewer_folders',
+                    'mini_007_viewer_history','mini_008_streamer_presets','mini_009_viewer_trial',
+                    'mini_010_viewer_favorites','mini_011_viewer_undo','prep_001_telegram_update_inbox',
+                    'r10_001_billing_subjects','r11_001_plus_payment_orders','r11_002_plus_payment_events',
+                    'r11_003_entitlement_beneficiary','r11_004_payment_reconciliation','r11_005_channel_intent_reasons',
+                    'r3_001_observations','r3_002_notification_jobs','r3_003_live_update_revision',
+                    'r4_001_streamer_access','r4_002_streamer_communities','r4_003_streamer_templates',
+                    'r4_004_streamer_stats','r5_001_billing_ledger','r7_001_viewer_filters','r8_001_growth_attribution'])))
+            with patch.dict(os.environ, {'TOKEN_ENCRYPTION_KEY':key}):
+>               evidence = rehearse(self.root, source, authorization)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_production_copy_rehearsal.py:116:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts\production_copy_rehearsal.py:217: in rehearse
+    old_open = _offline_open(old, rollback, root)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts\production_copy_rehearsal.py:145: in _offline_open
+    run = subprocess.run(command, cwd=artifact, env=env, capture_output=True, timeout=120)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\subprocess.py:550: in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Popen: returncode: 1 args: ['C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(Twt...>
+input = None, endtime = 18984.109, orig_timeout = 120
+
+    def _communicate(self, input, endtime, orig_timeout):
+        # Start reader threads feeding into a list hanging off of this
+        # object, unless they've already been started.
+        if self.stdout and not hasattr(self, "_stdout_buff"):
+            self._stdout_buff = []
+            self.stdout_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stdout, self._stdout_buff))
+            self.stdout_thread.daemon = True
+            self.stdout_thread.start()
+        if self.stderr and not hasattr(self, "_stderr_buff"):
+            self._stderr_buff = []
+            self.stderr_thread = \
+                    threading.Thread(target=self._readerthread,
+                                     args=(self.stderr, self._stderr_buff))
+            self.stderr_thread.daemon = True
+            self.stderr_thread.start()
+
+        if self.stdin:
+            self._stdin_write(input)
+
+        # Wait for the reader threads, or time out.  If we time out, the
+        # threads remain reading and the fds left open in case the user
+        # calls communicate again.
+        if self.stdout is not None:
+            self.stdout_thread.join(self._remaining_time(endtime))
+            if self.stdout_thread.is_alive():
+>               raise TimeoutExpired(self.args, orig_timeout)
+E               subprocess.TimeoutExpired: Command '['C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.venv\\Scripts\\python.exe', 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\scripts\\production_copy_rehearsal.py', 'offline-open', '--db', 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmp_jxwxtp0\\rollback.db', '--output', 'C:\\Users\\yusha\\AppData\\Local\\Temp\\tmp_jxwxtp0\\rollback-open.json']' timed out after 120 seconds
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\subprocess.py:1630: TimeoutExpired
+=========================== short test summary info ===========================
+FAILED tests/test_production_copy_rehearsal.py::IsolatedCopyToolTests::test_synthetic_old_artifact_migrates_reopens_and_restores_without_claiming_production
+1 failed, 6 passed in 135.71s (0:02:15)

@@ -19,7 +19,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_callback_and_channel_se
 >               await self.dispatcher(feed)._process_update(SimpleNamespace(id=999), u)
                       ^^^^^^^^^^^^^^^^^^^^^
 
-tests\test_telegram_replay.py:93: 
+tests\test_telegram_replay.py:93:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <test_telegram_replay.ReplayTests testMethod=test_callback_and_channel_selection_duplicates_are_guarded>
@@ -43,7 +43,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_completed_commands_surv
 >       await self.dispatcher(feed)._process_update(bot, ordinary(1))
               ^^^^^^^^^^^^^^^^^^^^^
 
-tests\test_telegram_replay.py:38: 
+tests\test_telegram_replay.py:38:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <test_telegram_replay.ReplayTests testMethod=test_completed_commands_survive_restart_without_second_mutation>
@@ -67,7 +67,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_crash_after_action_is_u
 >       dp = self.dispatcher(feed)
              ^^^^^^^^^^^^^^^^^^^^^
 
-tests\test_telegram_replay.py:61: 
+tests\test_telegram_replay.py:61:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <test_telegram_replay.ReplayTests testMethod=test_crash_after_action_is_unknown_and_never_automatically_repeats>
@@ -99,7 +99,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_financial_crash_returns
 >       dp = self.dispatcher(feed)
              ^^^^^^^^^^^^^^^^^^^^^
 
-tests\test_telegram_replay.py:110: 
+tests\test_telegram_replay.py:110:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <test_telegram_replay.ReplayTests testMethod=test_financial_crash_returns_to_durable_replay>
@@ -132,7 +132,7 @@ self = <test_telegram_replay.ReplayTests testMethod=test_storage_failure_propaga
 >       dp = self.dispatcher(feed)
              ^^^^^^^^^^^^^^^^^^^^^
 
-tests\test_telegram_replay.py:75: 
+tests\test_telegram_replay.py:75:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <test_telegram_replay.ReplayTests testMethod=test_storage_failure_propagates_before_any_handler>

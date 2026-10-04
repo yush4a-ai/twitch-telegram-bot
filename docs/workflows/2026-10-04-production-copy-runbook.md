@@ -1,0 +1,30 @@
+# Isolated migration / rollback — D НЕ ЗАКРЫТ
+
+Разрешённого representative production snapshot сейчас нет. Staging backup и synthetic selftests не подставлять. Active production DB/Volume не читаются и не изменяются этой задачей.
+
+## Owner inputs / подготовка
+
+Оператор предоставляет отдельно разрешённый consistent SQLite snapshot, exact source metadata/UTC/hash/size, имеющийся production TOKEN_ENCRYPTION_KEY через secret storage, exact совместимый old artifact и согласованный внешний backup destination. Source — production provenance, без импорта staging grants/jobs/recipients/file IDs/payment fixtures/fake users. Ключ не передавать через чат/Git/CLI аргументы и не логировать.
+
+Поместить source и authorization.json в отдельный private каталог OS TEMP вне Git. Source запечатан, без активных sidecars; sha256 подтверждён владельцем. authorization содержит authorized_isolated_copy:true, source_kind:owner_authorized_production_snapshot, source_sha256, exact old_artifact_sha/new_artifact_sha, полный approved expected_schema_versions и expected_additions:{tables:{имя:[колонки]},columns:{существующая_таблица:[новые_колонки]}}. Это заранее рассмотренная схема, не автоматически принятое изменение по результату запуска. Fixture tests/fixtures/production_legacy_additions.json относится только к историческому artifact и synthetic test, не подставлять её без сверки реальной source schema. Значение synthetic_fixture предназначено только selftest и никогда не закрывает D. Исторический production artifact dc9239eb0b82fb80d1788fc657205740cebc49e9 доступен локально, но оператор подтверждает пригодность именно этого rollback artifact перед настоящей репетицией.
+
+Запуск offline tooling: `.venv/Scripts/python.exe -m scripts.production_copy_rehearsal rehearse --isolated-root OWNER_INPUT --source OWNER_INPUT --authorization OWNER_INPUT`. Это команда репетиции, не команда deploy. Paths в TEMP, новые outputs; ни один существующий файл не перезаписывается. Ошибка hash/permissions/integrity/FK/schema/rows/key → STOP, сохранить private evidence для расследования. Не запускать main/poller/worker, не выполнять Railway/network. Изолированный opener запрещает socket network и получает только encryption key + системные переменные.
+
+Получить sealed SQLite backup API snapshot; manifest hash/size/UTC/versions, fingerprints/counts всех source таблиц. Sealed reader mode=ro&immutable=1 применяется только после отказа при любых WAL/SHM; источник не создаёт sidecars. Общий live-staging backup helper не изменён. Migration вызывает только Database.connect exact new artifact, проверяет исходные колонки/определения/значения/ID/настройки/report payloads/identity/community и заранее разрешённые additive versions/tables/columns. Закрыть/reopen; integrity/FK и все исходные rows PASS. Старый и новый artifact расшифровывают все encrypted access/refresh поля, совпадение в памяти/hash/count, токены не выводятся. Оба вызывают прежний HTML-export reader для source stream_history; sample content/count сохранены. Реальные сохранённые reports/HTML additionally просматривает оператор; empty source categories не считать coverage.
+
+После закрытия нового пути восстановить sealed backup **в новый** rollback path. Предварительный SHA восстановления равен backupSHA, нет stale WAL/SHM; открыть exact old artifact, повторить integrity/FK/rows/key/reader/HTML. Сохранить old/new commit+archive hashes, backup/restore hashes, stop/reopen evidence. Code-only Git revert не data rollback. Current backup возвращает source rows: новые записи после будущего cutover не входят в старый snapshot, их нельзя молча потерять при rollback — остановить выпуск и согласовать recovery/reconciliation.
+
+## External backup contract
+
+OWNER INPUT: внешний storage/destination/access/оператор/retention/encryption-at-rest. Backup на том же Railway Volume не достаточен. Хранить sealed image и signed/pinned manifest отдельно от volume, с контролем доступа. Загрузку в этой задаче не выполнять. Оператор скачивает **в новый TEMP путь**, сверяет exact backup SHA/size, integrity/FK, восстановление в новый путь, old artifact/key/rows/HTML. Не помещать secrets/source snapshots в Git. Только успешное внешнее download+restore evidence закрывает external backup gate.
+
+## Будущий maintenance window (до cutover отдельное разрешение)
+
+1. Зафиксировать operator/окно/target/old+new artifact/rollback point и разрешённого smoke recipient. Проверить реальную одну replica/Volume/storage/free space, paymentOFF, proxy и pending/unknown ingress/jobs. Оплатные/legal gates остаются отдельными.
+2. Остановить bot polling, notification/preview/billing workers, OAuth/public writers, ручные scripts и все другие процессы, открывающие production DB. Старый artifact не поддерживает новый lock: наличие нового lockfile само по себе не доказывает STOP старого writer.
+3. Независимо подтвердить service replicas0 или maintenance container ownership, отсутствие иных DB handles и эксклюзивный доступ. Не запускать второго writer ради проверки. Если STOP/ownership не доказаны — STOP RELEASE.
+4. Только после exclusivity оператор может выполнить WAL checkpoint(TRUNCATE); результат busy/nonzero → STOP. Active WAL/SHM не удалять вслепую, recovery bundle сохранить. SQLite backup API из подтверждённого единственного maintenance reader, hash/integrity/FK + external sealed copy и restore verification.
+5. Закрыть maintenance соединения. Выполнить утверждённую migration/reopen процедуру на точном DB path только после реальной D репетиции и прямого разрешения владельца. Ни этот документ, ни подготовленный код такого разрешения не дают.
+6. При любом admission/schema/key/identity/worker или data failure не стартовать пользователей. Остановить новый процесс и все его writers, восстановить sealed pre-migration image в новый путь без stale sidecars, подтвердить old artifact+schema/rows/key/HTML. Только оператор решает дальнейший запуск после сверки external recovery и потерь после snapshot.
+
+Native/owner acceptance и real smoke остаются NOT TESTED. Без них, representative D и external restore итог — PRODUCTION PREPARED — OWNER INPUT REQUIRED.
