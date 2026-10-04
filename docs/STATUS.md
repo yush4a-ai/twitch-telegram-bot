@@ -1,5 +1,9 @@
 # Статус TwitchSignalBot
 
+## Текущий checkpoint — 04.10.2026: оформление всех пользовательских описаний
+
+Ветка autonomous/twitchsignal-roadmap, база2bf536d. Владелец расширил замечание главной на все описания: тариф, активная подписка, помощь, подключение, настройки, отчёты. Аудит92источников/1525русских выражений; изменены длинные Telegram-описания, Mini App уже имеет группы и раскрываемые подробности.110focusedPASS/17subtests, smoke selftest8PASS; один scoped reviewer без blockers; Chromium/WebKit304checks/14PNG. Preview http://127.0.0.1:8874/ и docs/audits/telegram-copy-audit-2026-10-03/preview.html. Freshbackup63tables remote/local restorePASS;13schema/cipher/catalog и18webfiles неизменны, migration/browser reuse явно зафиксирован. Новый полный guard ещё впереди; опубликованный runtime остаётся00c6093. Native/OAuth/outbound/payment NOT TESTED. Цены150/300, Free, media и HTML/export сохранены. Детали: AUDIT.md/PLAN.md в текущем audit folder.
+
 ## Текущий checkpoint — 03.10.2026: T4–T8 опубликованы на Testbot, native приёмка открыта
 
 Release00c6093d87d1e2617ddd19a736c42aab0d14e1d6, SUCCESS603eeb44-0bca-4a28-a1e1-4d365b5db377. Полный штатный guard1541PASS/2existingWindowsSkips/3638subtests/1268.11s на чистом snapshot. Actual195runtimeSHA/17HTTPassets+shell, bot8859004067/menu«Приложение», auth401/27migrations/integrityok/FK0/paymentOFF/productionunchanged PASS. Home approvedphotos/honestcounts/unknown, add/import/channel/quiet guides, help/reportUTC/FreeHTML/tariffpaymentOFF и свежие review fixes в Testbot. Один reviewer,5RED→PASS scenarios. Ошибки старых fixtures и незавершённые/красный complete runs сохранены, assertions/skips не ослаблены.

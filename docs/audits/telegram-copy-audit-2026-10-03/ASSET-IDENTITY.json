@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "new_generated_images": 0,
+  "sha256": {
+    "bot/assets/telegram-welcome.png": "2474d99db8ce29ca12b922ef0b94b24898bb5aa5259576e5c0e695fb809cc1c4",
+    "bot/assets/telegram-home.png": "52ecd38b8180f3a0c236f7e94e044c728b4ad10e24065a07d6d15d96915f9102",
+    "bot/assets/telegram-channel-guide.png": "d65f75782189d8787077434e22f9180476baf75201e61b0839e13781ac016b5e"
+  }
+}

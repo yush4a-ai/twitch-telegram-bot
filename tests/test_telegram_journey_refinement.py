@@ -108,7 +108,7 @@ class TariffOriginTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(buttons()[-1].callback_data, 'menu:streamer')
         cb.data = buttons()[1].callback_data
         await cb_plus(cb, state, db, CONFIG)
-        self.assertIn('Зритель Plus\n150 ₽ / месяц', msg.edit_text.await_args.args[0])
+        self.assertIn('<b>Зритель Plus</b>\n<b>150 ₽ / месяц</b>', msg.edit_text.await_args.args[0])
         self.assertEqual(buttons()[-1].callback_data, 'menu:streamer')
         cb.data = buttons()[0].callback_data
         await cb_buy(cb, state, db)

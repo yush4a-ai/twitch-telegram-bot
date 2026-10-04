@@ -392,21 +392,22 @@ async def _added_channel_summary(
     target_chat_id = target_chat_id or message.chat.id
     if await db.is_telegram_channel(target_chat_id):
         return (
-            f"Готово, слежу за каналом «{login}».\n\n"
-            "🔴 Live-уведомление будет публиковаться в Telegram-канале.\n"
+            f"<b>Готово, слежу за каналом «{html.escape(login)}».</b>\n\n"
+            "<b>Начало эфира</b>\n<blockquote>🔴 Live-уведомление будет публиковаться в Telegram-канале.</blockquote>\n\n"
+            "<b>После эфира</b>\n"
             "📊 Итоговый отчёт в канал по умолчанию выключен. При необходимости "
             "включи его отдельно в карточке этого Twitch-канала."
         )
     if is_first_channel:
         return (
-            f"Готово, слежу за каналом «{login}».\n\n"
+            f"<b>Готово, слежу за каналом «{html.escape(login)}».</b>\n\n<b>Начало эфира</b>\n<blockquote>"
             "🔴 Как только стрим начнётся — здесь появится живой пост со счётчиком "
-            "зрителей. Он всегда остаётся в этом чате.\n"
+            "зрителей. Он всегда остаётся в этом чате.</blockquote>\n\n<b>После эфира</b>\n"
             "📊 После окончания стрима отчёт придёт только в привязанную личку. "
             "В общий чат итоговая статистика не публикуется."
         )
     return (
-        f"Готово, слежу за каналом «{login}».\n\n"
+        f"<b>Готово, слежу за каналом «{html.escape(login)}».</b>\n\n"
         "🔴 Live-пост — в этот чат. 📊 Итоговый отчёт — только в привязанную личку."
     )
 
@@ -1108,11 +1109,12 @@ async def _quiet_hours_screen_text_and_keyboard(
         )
         active = _is_within_quiet_hours(start_minute, end_minute, now_utc)
         text = ("🌙 <b>Тихие часы</b>\n\n"
-                f"Включены: {local_start} – {local_end}. Сейчас у тебя {now_local}.\n"
-                f"{'Тихие часы идут.' if active else 'Сейчас тихие часы не действуют.'}\n\n"
-                "Отчёты за эти часы соберутся в сводку. «Сводка после» включает вопрос о пропущенных эфирах.")
+                f"<blockquote>Включены: {local_start} – {local_end}.\nСейчас у тебя {now_local}.\n"
+                f"{'Тихие часы идут.' if active else 'Сейчас тихие часы не действуют.'}</blockquote>\n\n"
+                "<b>Отчёты и сводка</b>\nОтчёты за эти часы соберутся в сводку.\n"
+                "«Сводка после» включает вопрос о пропущенных эфирах.")
     else:
-        text = ("🌙 <b>Тихие часы</b>\n\nСейчас выключены. Выбери интервал по своему местному времени.\n"
+        text = ("🌙 <b>Тихие часы</b>\n\n<blockquote>Сейчас выключены.</blockquote>\n\nВыбери интервал по своему местному времени.\n"
                 "Отчёты за эти часы соберутся в сводку.")
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:more")])
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
@@ -1130,8 +1132,9 @@ async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Da
     if await db.get_utc_offset(chat_id) is None:
         await state.set_state(QuietHoursSetup.waiting_for_offset)
         await edit_menu(callback.message,
-            "Прежде чем настроить тихие часы, укажи свой часовой пояс относительно UTC "
-            "(например, для МСК напиши <code>+3</code>, для Калининграда <code>+2</code>).",
+            "<b>Твой часовой пояс</b>\n\nВыбери город или укажи смещение относительно UTC.\n\n"
+            "<blockquote>МСК: <code>+3</code>\nКалининград: <code>+2</code></blockquote>\n\n"
+            "По этому времени бот настроит тихие часы.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='Москва · UTC+3',callback_data='qh:offset:180')],
                 [InlineKeyboardButton(text='Калининград · UTC+2',callback_data='qh:offset:120')],
@@ -1232,10 +1235,10 @@ async def _preview_quiet_hours(message,state,actor,start_local,end_local,offset,
     await state.set_state(QuietHoursSetup.waiting_for_confirmation)
     await state.update_data(quiet_draft={'token':token,'actor':actor,'chat':message.chat.id,
         'start':start_local,'end':end_local,'offset':offset,'expires':time.time()+600})
-    text=(f'Тихие часы: {_format_minute(start_local)} – {_format_minute(end_local)}\n'
-          f'Твой часовой пояс: UTC{offset/60:+g}.\n\n'
-          'Личные оповещения о старте, категории и напоминания приостановятся, кроме стримеров с исключением. '
-          'Отчёты соберутся в сводку после этого интервала. Рейды не входят в тихие часы.\n\nСохранить интервал?')
+    text=(f'<b>Сохранить тихие часы?</b>\n\n<blockquote>Тихие часы: {_format_minute(start_local)} – {_format_minute(end_local)}\n'
+          f'Твой часовой пояс: UTC{offset/60:+g}.</blockquote>\n\n'
+          '<b>Оповещения</b>\nЛичные оповещения о старте, категории и напоминания приостановятся, кроме стримеров с исключением.\n\n'
+          '<b>Отчёты</b>\nОтчёты соберутся в сводку после этого интервала.\nРейды не входят в тихие часы.')
     keyboard=InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='Сохранить',callback_data='qh:confirm:'+token)],
         [InlineKeyboardButton(text='Отменить',callback_data='menu:quiet_hours')]])
@@ -1272,7 +1275,8 @@ async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext, db: 
                     oauth_server=oauth_server, message=callback.message)
     await state.set_state(QuietHoursSetup.waiting_for_custom_time)
     await edit_menu(callback.message,
-        "Напиши интервал в своём локальном времени в формате <code>23:00-08:00</code>.",
+        "<b>Свой интервал</b>\n\nНапиши время начала и завершения по своим часам.\n\n"
+        "<blockquote>Например: <code>23:00-08:00</code></blockquote>",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:quiet_hours")]]
         ),
@@ -1656,30 +1660,32 @@ async def _render_channel_card(
 
     if is_telegram_channel:
         text = (
-            f"📡 <b>{login}</b>\n\n"
-            "Уведомление о начале и итоговый отчёт управляются независимо. "
+            f"📡 <b>{html.escape(login)}</b>\n\n"
+            "<blockquote>Уведомление о начале и итоговый отчёт управляются независимо.\n"
             "Публичный итог выключен по умолчанию и появится в канале только после "
-            "ручного включения для этого Twitch-канала.\n\n"
+            "ручного включения для этого Twitch-канала.</blockquote>\n\n"
+            "<b>Публикации</b>\n"
             "🔔/🔕 — публиковать ли live-уведомление\n"
             "✅/❌ — публиковать ли итоговый отчёт в канал\n"
-            "📑/📄 — развёрнутый (текст + HTML) или краткий (только текст) итог"
+            "\n<b>Формат отчёта</b>\n📑/📄 — развёрнутый (текст + HTML) или краткий (только текст) итог"
         )
     else:
         lines = [
-            f"📡 <b>{login}</b>\n",
-            "Уведомление о начале и автоматический итоговый отчёт управляются независимо.",
+            f"📡 <b>{html.escape(login)}</b>\n",
+            "<blockquote>Уведомление о начале и автоматический итоговый отчёт управляются независимо.</blockquote>\n",
+            "<b>Оповещения</b>",
             "🔔/🔕 — оповещение о начале стрима",
-            "📊 — автоматический итог после стрима",
         ]
-        if not is_private:
-            lines.append("📩 — итоговый отчёт отправляется только в привязанную личку")
-        lines.append("📑/📄 — формат итогового отчёта: развёрнутый (текст + HTML с графиком) или краткий (только текст)")
         lines.append("⚡ — детектор рейдов: слать ли уведомление, когда канал начинают рейдить")
         if show_quiet_hours_toggle:
             lines.append("🌙 — действуют ли тихие часы получателя на этот канал (можно сделать исключение)")
+        lines += ['', '<b>Отчёты</b>', '📊 — автоматический итог после стрима']
+        if not is_private:
+            lines.append("📩 — итоговый отчёт отправляется только в привязанную личку")
+        lines.append("📑/📄 — формат итогового отчёта: развёрнутый (текст + HTML с графиком) или краткий (только текст)")
         if await db.get_user_token(login) is None:
             lines.append(
-                "\n⚠️ Число фолловеров недоступно — стример не подключил свой Twitch-аккаунт "
+                "\n<b>Фолловеры</b>\n⚠️ Число фолловеров недоступно — стример не подключил свой Twitch-аккаунт "
                 "к боту (/auth_twitch)."
             )
         text = "\n".join(lines)
@@ -2026,7 +2032,8 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext, db: Database |
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
 
     await edit_menu(callback.message,
-        "Пришли ник или ссылку Twitch.",
+        "<b>Добавить оповещения</b>\n\nПришли ник или ссылку Twitch.\n\n"
+        "<blockquote>Бот найдёт стримера и попросит подтвердить добавление.</blockquote>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
     await callback.answer()
@@ -2278,14 +2285,15 @@ async def _run_import_follows(
     if len(to_add) > IMPORT_PREVIEW_LIMIT:
         preview += f"\n… и ещё {len(to_add) - IMPORT_PREVIEW_LIMIT}"
 
-    text = f"Нашёл {len(new_logins)} новых подписок у «{html.escape(result.login)}»:\n\n{preview}"
-    text += f'\n\nУже в списке: {len(follows)-len(new_logins)}. Лимит: {limit}; свободно: {free_slots}.'
+    text = f"<b>Импорт подписок</b>\n\nНашёл {len(new_logins)} новых подписок у «{html.escape(result.login)}».\n\n"
+    text += f'<blockquote>Уже в списке: {len(follows)-len(new_logins)}.\nЛимит: {limit}; свободно: {free_slots}.</blockquote>'
+    text += '\n\n<b>Будут добавлены</b>\n'+preview
     if len(to_add) < len(new_logins):
         text += (
             f"\n\n⚠️ Свободных мест осталось {free_slots}, поэтому добавлю только "
             f"первые {len(to_add)}."
         )
-    text += "\n\nДобавить их в отслеживаемые?"
+    text += "\n\n<b>Добавить их в отслеживаемые?</b>\nСписок изменится после подтверждения."
 
     await message.answer(
         text,
@@ -2711,7 +2719,7 @@ def _build_report_summary(
         f"📊 Стрим <b>{html.escape(login)}</b> завершён{collab_label}\n\n"
         f"{html.escape(title or '(без названия)')}\n\n"
         f"{format_stream_period(started_at, ended_at)}"
-        f"Длительность: {duration_text}\n"
+        f"\n<blockquote>Длительность: {duration_text}\n"
         f"Пик зрителей: {peak_viewers}\n"
         f"Среднее число зрителей: {avg_viewers}"
     )
@@ -2721,12 +2729,13 @@ def _build_report_summary(
         text += f"\nПисали в чат: {unique_chatters}"
     if not chat_stats_reliable:
         text += "\nДанные чата: неполные после перезапуска бота"
+    text += '</blockquote>'
     if top_chatters:
         lines = "\n".join(
             f"{i}. {html.escape(str(nick))} — {count}"
             for i, (nick, count) in enumerate(top_chatters, 1)
         )
-        text += f"\n\n💬 Топ чатеров:\n{lines}"
+        text += f"\n\n💬 <b>Топ чатеров</b>\n{lines}"
     if raid_events:
         named = [name for _ts, _count, name in raid_events if name]
         if named:

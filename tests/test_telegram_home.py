@@ -90,7 +90,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)
         self.assertEqual([m.__api_method__ for m in self.transport.calls],['sendMessage','sendPhoto'])
         sent=self.transport.calls[-1]
-        self.assertEqual(sent.caption,'TwitchSignalBot\n\nСледи за стримерами или подключи свой канал.')
+        self.assertEqual(sent.caption,'<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал.')
         buttons=[r[0] for r in sent.reply_markup.inline_keyboard]
         self.assertEqual([b.text for b in buttons],['Открыть приложение','➕ Добавить оповещения','🎥 Я стример','Ещё'])
         self.assertEqual([b.style for b in buttons],['primary','success',None,None])

@@ -107,7 +107,7 @@ async def render_context(ctx, db, *, allow_add=False):
             and (not ctx.live_only or row[-1])]
     pages = max(1, math.ceil(len(rows)/PAGE_SIZE))
     ctx.page = min(max(0, ctx.page), pages-1)
-    text = await context_title(db, ctx.target) + f'\n\nВ списке: {len(channels)} · Найдено: {len(rows)}\nСтраница {ctx.page+1} из {pages}'
+    text = await context_title(db, ctx.target) + f'\n\n<blockquote>В списке: {len(channels)} · Найдено: {len(rows)}\nСтраница {ctx.page+1} из {pages}</blockquote>'
     if ctx.query:
         text += '\nПоиск: ' + html.escape(ctx.query)
     if ctx.live_only:
@@ -218,7 +218,7 @@ async def cb_list_search(callback, state, db, oauth_server=None):
     await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server, message=callback.message)
     await state.set_state(ListSearch.waiting)
     await state.update_data(list_token=ctx.token, list_target=ctx.target)
-    await edit_menu(callback.message, 'Пришли ник или его часть. Поиск только по этому списку, без добавления стримеров.',
+    await edit_menu(callback.message, '<b>Поиск в списке</b>\n\nПришли ник или его часть.\n\n<blockquote>Поиск только по этому списку, без добавления стримеров.</blockquote>',
                     reply_markup=Keyboard(inline_keyboard=[[Button(text='Отменить', callback_data=ctx.page_callback())]]))
     await callback.answer()
 
@@ -251,7 +251,7 @@ async def ask_delete(callback, db, target, login):
     ctx = source_from_message(callback, target)
     token = secrets.token_hex(8)
     put(_deletes, token, (ctx.owner, target, login, ctx.token, time.monotonic()+600))
-    text = await context_title(db, target) + f'\n\nУдалить <b>{html.escape(login)}</b> из этого списка? Оповещения и настройки этого стримера будут удалены.'
+    text = await context_title(db, target) + f'\n\nУдалить <b>{html.escape(login)}</b> из этого списка?\n\n<blockquote>Оповещения и настройки этого стримера будут удалены.</blockquote>'
     await edit_menu(callback.message, text, reply_markup=Keyboard(inline_keyboard=[
         [Button(text=f'Удалить {login}', style='danger', callback_data='untrackconfirm:'+token)],
         [Button(text='Отменить', callback_data=ctx.page_callback())]]))

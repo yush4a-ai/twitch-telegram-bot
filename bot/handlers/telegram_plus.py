@@ -2,6 +2,7 @@
 from ..telegram_home import edit_menu
 import secrets
 import time
+import html
 from datetime import datetime, timedelta, timezone
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from ..plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE
@@ -17,8 +18,15 @@ def product_view(product_id):
 
 def benefits(product):
     features=catalog_payload()['features']
-    return '\n'.join('• '+features[feature]['title']+' — '+features[feature]['description']
-                     for feature in product['feature_ids'])
+    groups=[]
+    for block in product['benefit_blocks']:
+        lines=['<b>'+html.escape(block['title'])+'</b>']
+        for feature_id in block['feature_ids']:
+            feature=features[feature_id]
+            label=(html.escape(feature['title'])+': ' if len(block['feature_ids'])>1 else '')
+            lines.append(label+html.escape(feature['description']))
+        groups.append('<blockquote>'+'\n'.join(lines)+'</blockquote>')
+    return '\n\n'.join(groups)
 
 
 def product_route(data, action):
@@ -76,11 +84,12 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         product=product_view(key+'_plus');active=status[key]
         label=await access_label(db,actor,product['product_id'],active,now)
         end=datetime.fromtimestamp(active['expires_at'],timezone.utc).astimezone(timezone(timedelta(hours=3)))
-        text=f"Моя подписка\n\n{product['title']}\nСтатус: {label}\nДо {end:%d.%m.%Y %H:%M} (МСК)\n\n"
+        text=f"<b>Моя подписка</b>\n\n<b>{html.escape(product['title'])}</b>\n" \
+             f"Статус: <b>{html.escape(label)}</b>\nДо <b>{end:%d.%m.%Y %H:%M} (МСК)</b>\n" \
+             "Автопродление выключено.\n\n<b>Что включено</b>\n"
         if key=='streamer': text+='Зритель Plus включён.\n\n'
         text+=benefits(product)
-        if key=='streamer': text+='\n\n'+benefits(product_view('viewer_plus'))
-        text+='\n\nАвтопродление выключено.'
+        if key=='streamer': text+='\n\n<b>Возможности зрителя</b>\n'+benefits(product_view('viewer_plus'))
         rows=[];url=_viewer_url(callback.message,config,actor_id=actor)
         if url and url.endswith('/app'):
             rows.append([InlineKeyboardButton(text='Управление подпиской',web_app=WebAppInfo(url=url+'?screen=subscription'))])
@@ -94,11 +103,13 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
             product=product_view(product_id)
         except (StopIteration,ValueError):
             await callback.answer('Тариф недоступен. Открой тариф заново.',show_alert=True);return
-        text=f"Тариф\n\n{product['title']}\n{product['price_label']} / {product['period_label'].removeprefix('1 ')}\n\n"
+        text=f"<b>{html.escape(product['title'])}</b>\n" \
+             f"<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n" \
+             "<b>Что включено</b>\n"
         if product['includes']: text+='В Стример Plus включены все возможности Зритель Plus.\n\n'
         text+=benefits(product)
-        if product['includes']: text+='\n\n'+benefits(product_view('viewer_plus'))
-        text+='\n\n'+PAYMENT_UNAVAILABLE_MESSAGE
+        if product['includes']: text+='\n\n<b>Возможности зрителя</b>\n'+benefits(product_view('viewer_plus'))
+        text+='\n\n<b>Оплата</b>\n'+PAYMENT_UNAVAILABLE_MESSAGE
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source))
     await callback.answer()
 
@@ -115,9 +126,9 @@ async def cb_buy(callback,state,db,oauth_server=None):
     await state.update_data(purchase_product=product_id,purchase_source=source,purchase_nonce=nonce,purchase_expires_at=time.time()+600)
     rows=[[InlineKeyboardButton(text=m['title'],callback_data=f"plus:pay:{nonce}:{m['id']}")] for m in catalog_payload()['methods']]
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
-    await edit_menu(callback.message,f"{product['title']}\n{product['price_label']} / {product['period_label'].removeprefix('1 ')}\n\nВыбери способ оплаты.\n"
-        "Telegram Stars — через Telegram. СБП и банковская карта — через Platega.\n\n"
-        +PAYMENT_UNAVAILABLE_MESSAGE+"\nАвтопродление выключено.",
+    await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
+        "<b>Выбери способ оплаты</b>\n<blockquote>Telegram Stars — через Telegram.\nСБП и банковская карта — через Platega.</blockquote>\n\n"
+        +PAYMENT_UNAVAILABLE_MESSAGE+"\n\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
 
@@ -131,5 +142,5 @@ async def cb_payment_method(callback,state,billing_service):
     result=billing_service.public_purchase(data['purchase_product'],parts[3])
     await state.clear()
     back=f"plus:show:{data['purchase_product']}:{data.get('purchase_source','more')}"
-    await edit_menu(callback.message,result['message']+'\n\nПлатёж не создан. Деньги не списаны.',reply_markup=back_keyboard(back))
+    await edit_menu(callback.message,'<b>Оплата недоступна</b>\n\n'+html.escape(result['message'])+'\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>',reply_markup=back_keyboard(back))
     await callback.answer()

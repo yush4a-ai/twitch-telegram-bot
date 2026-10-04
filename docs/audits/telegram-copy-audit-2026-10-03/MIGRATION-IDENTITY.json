@@ -1,0 +1,23 @@
+{
+  "status": "PASS_REUSED_IDENTICAL_CODE",
+  "base_head": "2bf536d1d22974ae742bed0c64cb0fb896f8b0d5",
+  "runtime_base": "00c6093d87d1e2617ddd19a736c42aab0d14e1d6",
+  "module_hashes": {
+    "bot/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bot/database.py": "7e93495f46c972111e352708e9dcbc84c5e18fc2365c6462043ec94d2a29e065",
+    "bot/billing_models.py": "eab1cd7eb1900c894ce24da1479c1f094fd42166ed3809c9fd857626f0440965",
+    "bot/billing_migrations.py": "597a35b161f3032b978ceaf7d633cc9293fed8aaa074b5ce8a54b5f96ba2b0b2",
+    "bot/billing_provider.py": "9ac8321433c3e0ab691e7b82e8fb45372a340699a58b2e1cc86150f55e78d9b7",
+    "bot/deep_links.py": "1562e0944346e3fa5b26b48ec3ff9d15d821b8d810466d72c4c1d95c96de56f1",
+    "bot/streamer_template.py": "e8665ebbe23c8883984b02871a9f421e77689eb12529ed8ab1d8dcf6dd26aace",
+    "bot/viewer_filter.py": "941498c22ae5bbb61c9df7ec0684b4019aa9b0ef972b0a097979125cf0d5d021",
+    "bot/viewer_preferences.py": "cc75d651a8fecd1bb72b856b2db9683f549ff76f415468e39a375392fa95515b",
+    "bot/viewer_undo.py": "230619ca42f67dfb8c90eeb03fda8a42ac236c1a385554e0c96e3cadc3e14802",
+    "bot/plan_catalog.py": "20857ea2445cc06344c703abcc86268e1a7361c15949a0c4043f9fb8f729f5f4",
+    "bot/entitlements.py": "e682927a4e3fa16740895e9b2df0978b1806f16ad226dff964dc1f4b830868e8",
+    "bot/token_store.py": "dda9a2dfbba173cf6a84d4528cca78bdc20e97004a2b1fe8109eb4baec40c438"
+  },
+  "source_evidence": "docs\\audits\\telegram-journey-final-2026-10-03\\STAGING-migration-copy.json",
+  "source_sha256": "6989eac68b7b3b0d08c43aa9ef89ef14d2247920eff6210429f002ac8aa5f290",
+  "note": "Copy-only changes. Thirteen schema/cipher/catalog Git blobs byte-identical and working files match under Git attributes (Windows CRLF). Migration-copy reused explicitly, not newly executed. Artifact byte identity is separately checked by the release guard/smoke."
+}

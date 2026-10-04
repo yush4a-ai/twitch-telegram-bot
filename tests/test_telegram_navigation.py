@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from bot.handlers.streams import cmd_start, cb_menu_home, AddChannel, QuietHoursSetup
 
-HOME = "TwitchSignalBot\n\nСледи за стримерами или подключи свой канал."
+HOME = "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
 LABELS = ["Открыть приложение", "➕ Добавить оповещения", "🎥 Я стример", "Ещё"]
 CONFIG = SimpleNamespace(mini_app_enabled=True, viewer_plus_enabled=True,
                          oauth_public_base_url="https://staging.example.test",
@@ -71,7 +71,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
             callback = SimpleNamespace(message=msg, from_user=msg.from_user, answer=AsyncMock())
             await cb_more(callback, CONFIG)
             call = msg.edit_text.await_args
-            self.assertEqual(call.args[0], 'Ещё')
+            self.assertEqual(call.args[0], '<b>Ещё</b>')
             buttons = [b for r in call.kwargs['reply_markup'].inline_keyboard for b in r]
             actions = {b.callback_data for b in buttons}
             self.assertEqual(actions - {None}, {'menu:list','menu:report','menu:quiet_hours',

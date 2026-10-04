@@ -26,7 +26,7 @@ async def show_found(message, state, login, display_name, token, *, edit=False):
     confirmation = secrets.token_hex(8)
     await state.update_data(add_confirm_token=confirmation,add_login=login)
     send = (lambda *args, **kwargs: edit_menu(message,*args,**kwargs)) if edit else message.answer
-    await send(f"Найден стример: <b>{html.escape(display_name)}</b>\nTwitch: {html.escape(login)}\n\nДобавить его?",
+    await send(f"<b>Добавить стримера?</b>\n\n<blockquote><b>{html.escape(display_name)}</b>\nTwitch: {html.escape(login)}</blockquote>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Добавить",callback_data='addconfirm:'+confirmation)],
             [InlineKeyboardButton(text="Отменить",callback_data='menu:home')]]))

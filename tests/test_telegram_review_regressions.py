@@ -15,6 +15,7 @@ from bot.handlers import streams,auth
 from bot.handlers.navigation import on_menu
 from bot.handlers.telegram_streamer import cb_streamer_channel
 from bot.handlers.telegram_plus import cb_plus
+from tests.test_telegram_home_copy import Caption
 from bot.viewer_trial import ViewerTrialService
 from tests.test_telegram_navigation import message,CONFIG
 from tests.test_channel_permissions_redesign import fake_bot
@@ -123,8 +124,10 @@ class ReviewRegressionTests(unittest.IsolatedAsyncioTestCase):
         await self.db.issue_test_viewer_plus(101,'manual20',starts_at=now-1,expires_at=expiry,issued_by=999,now=now)
         await cb_plus(self.cb('menu:plus'),self.state,self.db)
         text=self.msg.edit_text.await_args.args[0]
-        self.assertIn('Статус: Тестовый доступ',text)
-        self.assertNotIn('Статус: Ознакомительный доступ',text)
+        rendered=''.join(Caption(text).plain)
+        self.assertIn('Статус: Тестовый доступ',rendered)
+        self.assertNotIn('Статус: Ознакомительный доступ',rendered)
+        self.assertIn('Тестовый доступ',Caption(text).bold)
         from datetime import datetime,timezone,timedelta
         self.assertIn(datetime.fromtimestamp(expiry,timezone(timedelta(hours=3))).strftime('%d.%m.%Y %H:%M'),text)
 
@@ -158,8 +161,10 @@ class ReviewRegressionTests(unittest.IsolatedAsyncioTestCase):
                 await self.db.conn.commit()
                 await cb_plus(self.cb('menu:plus'),self.state,self.db)
                 text=self.msg.edit_text.await_args.args[0]
-                self.assertIn('Статус: Активна',text)
-                self.assertNotIn('Статус: Тестовый доступ',text)
+                rendered=''.join(Caption(text).plain)
+                self.assertIn('Статус: Активна',rendered)
+                self.assertNotIn('Статус: Тестовый доступ',rendered)
+                self.assertIn('Активна',Caption(text).bold)
 
     def test_help_points_to_actual_home_action(self):
         from bot.handlers.telegram_help import help_screen

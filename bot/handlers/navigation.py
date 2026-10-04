@@ -21,7 +21,7 @@ async def cb_more(callback, config=None, state=None, db=None, oauth_server=None)
     if state is not None:
         await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
     url = _viewer_url(callback.message,config,actor_id=callback.from_user.id)
-    await edit_menu(callback.message,"Ещё",reply_markup=more_keyboard(
+    await edit_menu(callback.message,"<b>Ещё</b>",reply_markup=more_keyboard(
         admin_url=_owner_admin_url(callback.message,config,actor_id=callback.from_user.id),
         legacy_viewer_url=url if url and url.endswith('/viewer') else None))
     await callback.answer()
@@ -36,7 +36,7 @@ async def cb_open_app(callback, config=None, state=None, db=None, oauth_server=N
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Открыть приложение",web_app=WebAppInfo(url=url))],
             [InlineKeyboardButton(text="← На главную",callback_data="menu:home")]])
-        await edit_menu(msg,"Открывай настройки в приложении.",reply_markup=keyboard)
+        await edit_menu(msg,"<b>Приложение</b>\n\nОткрывай настройки в приложении.",reply_markup=keyboard)
     elif msg is not None:
         await msg.answer("Открой личный чат с ботом. Приложение доступно через кнопку «Приложение».",
                          reply_markup=back_keyboard('menu:home'))

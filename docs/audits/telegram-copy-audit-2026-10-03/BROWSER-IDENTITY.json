@@ -1,0 +1,32 @@
+{
+  "status": "PASS_REUSED_IDENTICAL_SOURCE",
+  "browser_evidence_base": "527b0c3",
+  "verified_head": "1d1cca7a76759974bdeb05c08fa112a530dc75b2",
+  "mini_app_unchanged_files": 18,
+  "git_blob_ids": {
+    "bot/mini_app_ui/api.js": "6f91878463de90fd791e933330baadc03862db15",
+    "bot/mini_app_ui/app.css": "324347e495f1d00c3970629ffdfa4224d2c4a347",
+    "bot/mini_app_ui/app.js": "d8a45853b89d67091bb9d8ec493a2694c0e773e2",
+    "bot/mini_app_ui/components.js": "e2a2d9d9bd1264c9d814ec7d112ae322b74d731d",
+    "bot/mini_app_ui/index.html": "a3b552f4e9cbd37eb19701b9312bec502595e17d",
+    "bot/mini_app_ui/mascot-cutout.png": "bc2e0310848481f7b4fbe3d1a07a6efc8218a459",
+    "bot/mini_app_ui/plus-mascot.png": "5297af67c6ba7051207120be76f0bbf6d7cf13e9",
+    "bot/mini_app_ui/profile.js": "3da7b3938ab66a7a0bc6eae5c8d8d6c584803f4a",
+    "bot/mini_app_ui/purchase.js": "0b833ec6078f232cd6b72f5e3a5a44789207e92f",
+    "bot/mini_app_ui/reports.js": "dd02283f05236daedc9675c46dbe33099cee0655",
+    "bot/mini_app_ui/router.js": "5a2f81bf1f6bef33c780b324a289d90fe2bea972",
+    "bot/mini_app_ui/streamer.js": "44829931f8092ce1ee0ee0d883d11c4044a9b485",
+    "bot/mini_app_ui/streamer_posts.js": "1e97739261b1e225582f3e11b9de317ccfa35613",
+    "bot/mini_app_ui/subscription.js": "a5a9e40e6ae9ed78aadc0ce3e5356d8b6945ee8f",
+    "bot/mini_app_ui/support.js": "eec2b8778741351bdc4b41c47b514964e8330789",
+    "bot/mini_app_ui/telegram.js": "41306d824436f432f8fc4ba726af937996cf3016",
+    "bot/mini_app_ui/theme.js": "321ec8e705fc897517705c3f45fa5a17a2ddb3cc",
+    "bot/mini_app_ui/viewer.js": "d973c266437852cc3df10b5921281617dbe5915b"
+  },
+  "existing_reports": [
+    "docs/audits/telegram-journey-2026-10-03/copy/chromium/report.json",
+    "docs/audits/telegram-journey-2026-10-03/copy/webkit/report.json"
+  ],
+  "native": "NOT TESTED; browser emulation is not a Telegram client",
+  "note": "Eighteen Mini App files unchanged. Existing Chromium/WebKit component evidence reused; new Telegram browser gallery separately checked in BROWSER-QA.json. Native NOT TESTED."
+}

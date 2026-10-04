@@ -2000,7 +2000,7 @@ class StreamPoller:
             f"📊 Стрим <b>{html.escape(login)}</b> завершён{collab_label}\n\n"
             f"{html.escape(title or '(без названия)')}\n\n"
             f"{format_stream_period(started_at, history_record.ended_at)}"
-            f"Длительность: {duration_text}\n"
+            f"\n<blockquote>Длительность: {duration_text}\n"
             f"Пик зрителей: {peak}\n"
             f"Среднее число зрителей: {avg_viewers}"
         )
@@ -2010,13 +2010,14 @@ class StreamPoller:
             text += f"\nПисали в чат: {unique_chatters}"
         if not join_reliable:
             text += "\nДанные чата: неполные после перезапуска бота"
+        text += '</blockquote>'
         if comparison_lines:
             text += "\n\n" + "\n".join(comparison_lines)
         if top_chatters:
             top_lines = "\n".join(
                 f"{i}. {html.escape(nick)} — {count}" for i, (nick, count) in enumerate(top_chatters, 1)
             )
-            text += f"\n\n💬 Топ чатеров:\n{top_lines}"
+            text += f"\n\n💬 <b>Топ чатеров</b>\n{top_lines}"
         if raid_events:
             named = [name for _ts, _count, name in raid_events if name]
             if named:

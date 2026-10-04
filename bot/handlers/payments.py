@@ -15,7 +15,7 @@ from ..legal_documents import get_support_state
 
 async def on_payment_support(message, config):
     state = get_support_state(config)
-    lines = ["Поддержка по подписке и оплате"]
+    lines = ["<b>Поддержка по подписке и оплате</b>"]
     if state.telegram_url:
         lines.append(escape(state.telegram_url))
     if state.email:
