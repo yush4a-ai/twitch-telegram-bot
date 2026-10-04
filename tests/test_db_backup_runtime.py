@@ -107,5 +107,30 @@ class BackupLoopTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(task.done())
 
 
+    async def test_loop_creates_copies_and_stops_on_event(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "bot.db"
+            _seed(source)
+            stop = asyncio.Event()
+
+            task = asyncio.create_task(
+                run_backup_loop(
+                    source,
+                    root / "backups",
+                    interval_seconds=0.05,
+                    retention=3,
+                    stop_event=stop,
+                )
+            )
+            await asyncio.sleep(0.3)
+            stop.set()
+            await asyncio.wait_for(task, timeout=5.0)
+
+            copies = sorted((root / "backups").glob("auto-*.db"))
+            self.assertGreaterEqual(len(copies), 1)
+            self.assertLessEqual(len(copies), 3)
+
+
 if __name__ == "__main__":
     unittest.main()
