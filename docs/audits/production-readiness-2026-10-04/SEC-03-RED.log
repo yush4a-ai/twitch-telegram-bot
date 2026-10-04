@@ -1,0 +1,95 @@
+FF..F                                                                [100%]
+================================== FAILURES ===================================
+___________ LoginIsolationTests.test_expired_capacity_is_reclaimed ____________
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_expired_capacity_is_reclaimed>
+
+    def test_expired_capacity_is_reclaimed(self):
+        for access in self.accesses():
+            with patch('time.monotonic', return_value=100):
+>               state = access.new_login_state('same')
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: AdminAccess.new_login_state() takes 1 positional argument but 2 were given
+
+tests\test_login_state_isolation.py:35: TypeError
+_ LoginIsolationTests.test_full_streamer_sessions_fail_closed_without_eviction _
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_full_streamer_sessions_fail_closed_without_eviction>
+
+    def test_full_streamer_sessions_fail_closed_without_eviction(self):
+        access = StreamerAccess(BOT_TOKEN)
+        tokens = [access.login_webapp(signed_webapp(1000+i)) for i in range(128)]
+>       self.assertIsNone(access.login_webapp(signed_webapp(2000)))
+E       AssertionError: 's4-4sHWEn5PrVM1Z2F4A9pC452rrEF01YjlMyN9HwjU' is not None
+
+tests\test_login_state_isolation.py:52: AssertionError
+_ LoginIsolationTests.test_global_capacity_rejects_new_state_preserves_existing (access='AdminAccess') _
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_global_capacity_rejects_new_state_preserves_existing>
+
+    def test_global_capacity_rejects_new_state_preserves_existing(self):
+        for access, cap in zip(self.accesses(), (32, 128)):
+            with self.subTest(access=type(access).__name__):
+>               states = [access.new_login_state(f'client{i}') for i in range(cap)]
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: AdminAccess.new_login_state() takes 1 positional argument but 2 were given
+
+tests\test_login_state_isolation.py:26: TypeError
+_ LoginIsolationTests.test_global_capacity_rejects_new_state_preserves_existing (access='StreamerAccess') _
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_global_capacity_rejects_new_state_preserves_existing>
+
+    def test_global_capacity_rejects_new_state_preserves_existing(self):
+        for access, cap in zip(self.accesses(), (32, 128)):
+            with self.subTest(access=type(access).__name__):
+>               states = [access.new_login_state(f'client{i}') for i in range(cap)]
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: StreamerAccess.new_login_state() takes 1 positional argument but 2 were given
+
+tests\test_login_state_isolation.py:26: TypeError
+_ LoginIsolationTests.test_public_state_burst_never_evicts_other_clients (access='AdminAccess') _
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_public_state_burst_never_evicts_other_clients>
+
+    def test_public_state_burst_never_evicts_other_clients(self):
+        for access in self.accesses():
+            with self.subTest(access=type(access).__name__):
+>               victim = access.new_login_state('victim')
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: AdminAccess.new_login_state() takes 1 positional argument but 2 were given
+
+tests\test_login_state_isolation.py:17: TypeError
+_ LoginIsolationTests.test_public_state_burst_never_evicts_other_clients (access='StreamerAccess') _
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_public_state_burst_never_evicts_other_clients>
+
+    def test_public_state_burst_never_evicts_other_clients(self):
+        for access in self.accesses():
+            with self.subTest(access=type(access).__name__):
+>               victim = access.new_login_state('victim')
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TypeError: StreamerAccess.new_login_state() takes 1 positional argument but 2 were given
+
+tests\test_login_state_isolation.py:17: TypeError
+_ LoginIsolationTests.test_repeated_streamer_login_only_revokes_own_sessions __
+
+self = <test_login_state_isolation.LoginIsolationTests testMethod=test_repeated_streamer_login_only_revokes_own_sessions>
+
+    def test_repeated_streamer_login_only_revokes_own_sessions(self):
+        access = StreamerAccess(BOT_TOKEN)
+        victim = access.login_webapp(signed_webapp(101))
+        for _ in range(200):
+            attacker = access.login_webapp(signed_webapp(202))
+>       self.assertEqual(access.user_for_session(victim), 101)
+E       AssertionError: None != 101
+
+tests\test_login_state_isolation.py:45: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_login_state_isolation.py::LoginIsolationTests::test_expired_capacity_is_reclaimed
+FAILED tests/test_login_state_isolation.py::LoginIsolationTests::test_full_streamer_sessions_fail_closed_without_eviction
+SUBFAILED(access='AdminAccess') tests/test_login_state_isolation.py::LoginIsolationTests::test_global_capacity_rejects_new_state_preserves_existing
+SUBFAILED(access='StreamerAccess') tests/test_login_state_isolation.py::LoginIsolationTests::test_global_capacity_rejects_new_state_preserves_existing
+SUBFAILED(access='AdminAccess') tests/test_login_state_isolation.py::LoginIsolationTests::test_public_state_burst_never_evicts_other_clients
+SUBFAILED(access='StreamerAccess') tests/test_login_state_isolation.py::LoginIsolationTests::test_public_state_burst_never_evicts_other_clients
+FAILED tests/test_login_state_isolation.py::LoginIsolationTests::test_repeated_streamer_login_only_revokes_own_sessions
+7 failed, 2 passed in 0.19s

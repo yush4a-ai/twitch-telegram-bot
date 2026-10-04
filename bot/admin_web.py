@@ -83,7 +83,9 @@ def install_admin_routes(
         if _authorized(request):
             body = (_UI_DIR / "index.html").read_text(encoding="utf-8")
             return web.Response(text=body, content_type="text/html")
-        state = access.new_login_state()
+        state = access.new_login_state(request.remote or '', request.cookies.get('ts_admin_state'))
+        if state is None:
+            return web.Response(status=429, text='Слишком много попыток входа. Попробуй через 5 минут.')
         callback_url = f"{access.public_base_url or str(request.url.origin())}/admin/telegram-login?state={state}"
         response = web.Response(text=_login_page(username=access.bot_username, callback_url=callback_url), content_type="text/html")
         response.set_cookie("ts_admin_state", state, path="/admin", max_age=300, httponly=True, secure=access.secure_cookie, samesite="Lax")
@@ -144,11 +146,11 @@ def install_admin_routes(
             return web.Response(status=403)
         state = query.get("state", "")
         values = {key: value for key, value in query.items() if key != "state"}
+        if (access.verified_widget_user(values) is None
+                or not access.consume_login_state(state, request.cookies.get("ts_admin_state"))):
+            return web.Response(status=403)
         token = access.login_telegram_widget(values)
         if token is None:
-            return web.Response(status=403)
-        if not access.consume_login_state(state, request.cookies.get("ts_admin_state")):
-            access.logout(token)
             return web.Response(status=403)
         response = _session_response(token)
         response.del_cookie("ts_admin_state", path="/admin")

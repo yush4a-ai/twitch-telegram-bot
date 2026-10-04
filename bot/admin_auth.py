@@ -9,6 +9,7 @@ import time
 from collections.abc import Mapping
 
 from .telegram_identity import verify_login_widget_user, verify_webapp_user
+from .login_states import LoginStates
 
 
 class AdminAccess:
@@ -36,7 +37,7 @@ class AdminAccess:
         self._bot_token = bot_token
         self._sessions: dict[str, float] = {}
         self._failures: dict[str, list[float]] = {}
-        self._login_states: dict[str, float] = {}
+        self._login_states = LoginStates(32)
 
     def login(self, candidate: str, remote: str) -> tuple[str | None, bool]:
         now = time.monotonic()
@@ -61,26 +62,22 @@ class AdminAccess:
         return self._new_session(time.monotonic())
 
     def login_telegram_widget(self, values: Mapping[str, str]) -> str | None:
+        if self.verified_widget_user(values) is None:
+            return None
+        return self._new_session(time.monotonic())
+
+    def verified_widget_user(self, values: Mapping[str, str]) -> int | None:
         if not self.enabled or self.owner_id is None:
             return None
         if verify_login_widget_user(values, self._bot_token) != self.owner_id:
             return None
-        return self._new_session(time.monotonic())
+        return self.owner_id
 
-    def new_login_state(self) -> str:
-        state = secrets.token_urlsafe(24)
-        now = time.monotonic()
-        self._login_states = {key: expiry for key, expiry in self._login_states.items() if expiry > now}
-        if len(self._login_states) >= 32:
-            self._login_states.pop(next(iter(self._login_states)))
-        self._login_states[self._digest(state)] = now + 300
-        return state
+    def new_login_state(self, client: str = '', existing: str | None = None) -> str | None:
+        return self._login_states.new(client, existing)
 
     def consume_login_state(self, candidate: str, cookie: str | None) -> bool:
-        if not candidate or not cookie or not hmac.compare_digest(candidate.encode("utf-8"), cookie.encode("utf-8")):
-            return False
-        expiry = self._login_states.pop(self._digest(candidate), None)
-        return expiry is not None and expiry > time.monotonic()
+        return self._login_states.consume(candidate, cookie)
 
     def _new_session(self, now: float) -> str:
         self._prune(now)

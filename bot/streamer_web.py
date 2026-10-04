@@ -72,7 +72,9 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
                 text=(_UI_DIR / "index.html").read_text(encoding="utf-8"),
                 content_type="text/html",
             )
-        state = access.new_login_state()
+        state = access.new_login_state(request.remote or '', request.cookies.get('ts_streamer_state'))
+        if state is None:
+            return web.Response(status=429, text='Слишком много попыток входа. Попробуй через 5 минут.')
         callback_url = (
             f"{access.public_base_url or str(request.url.origin())}"
             f"/streamer/telegram-login?state={state}"
@@ -123,14 +125,16 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             return web.Response(status=403)
         state = query.get("state", "")
         values = {key: value for key, value in query.items() if key != "state"}
+        verified_user_id = access.verified_widget_user(values)
+        if verified_user_id is None or await db.get_streamer_identity(verified_user_id) is None:
+            return web.Response(status=403)
+        if not access.consume_login_state(state, request.cookies.get("ts_streamer_state")):
+            return web.Response(status=403)
         token = access.login_telegram_widget(values)
         if token is None:
             return web.Response(status=403)
         user_id = access.user_for_session(token)
         if user_id is None or await db.get_streamer_identity(user_id) is None:
-            access.logout(token)
-            return web.Response(status=403)
-        if not access.consume_login_state(state, request.cookies.get("ts_streamer_state")):
             access.logout(token)
             return web.Response(status=403)
         response = _session_response(token)
