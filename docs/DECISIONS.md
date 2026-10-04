@@ -1,3 +1,7 @@
+## D-050 — 04.10.2026: реальная D закрыта, final preflight остаётся
+
+Owner attachment5cea7fa8 прямо разрешает readonly consistent snapshot и isolated rehearsal, отменяя прежний source-copy blocker. OS uid65534 без source write permissions защищает active DB/WAL/SHM; копия только ephemeral /tmp, downloaded original sealed/private вне Git. Первая external/local copy допустима этим owner prompt и проверена download/hash/restore. D CLOSED не даёт production READY/cutover: ADMIN/admission/infra/native/отдельное разрешение открыты. Long-term backup policy и свежий cutover snapshot/reconciliation обязательны отдельно. Identity теперь два источника getMe+current deployment polling log. Runtime/tooling unchanged, focused12PASS; full не повторяется. Exact artifact Windows pathlength решён short private path, не code/global setting changes.
+
 ## D-049 — 04.10.2026: узкая preparation без production cutover
 
 Read-only metadata/getMe разрешены текущим запросом владельца, production writes/deploy/send/OAuth запрещены. Подтверждение одного getMe не закрывает требование двух источников identity. Present key не доказывает decrypt; отсутствие storage variables не доказывает отсутствие внешнего storage. Representative copy не предоставлена, поэтому D BLOCKED; staging/synthetic не подставлять. Runtime не изменять и full не повторять; packaging exit0 сохранён. Старый tag сохраняется, literal final HEAD материализуется вне Git после docs/evidence commit.

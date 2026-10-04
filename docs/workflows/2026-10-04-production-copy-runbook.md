@@ -1,6 +1,6 @@
-# Isolated migration / rollback — D НЕ ЗАКРЫТ
+# Isolated migration / rollback — D CLOSED на snapshot 04.10.2026
 
-Разрешённого representative production snapshot сейчас нет. Staging backup и synthetic selftests не подставлять. Active production DB/Volume не читаются и не изменяются этой задачей.
+Реальная authorized D rehearsal завершена PASS: D-REAL-EVIDENCE.json/D-REAL-REHEARSAL.md. Source snapshot SHA c2c8be76a11b646e850d406b6022eda9cbee84b06714367996d3873e0d647c7b,13 180 928bytes; decrypt12/12, migration/reopen/fresh rollback и old reader PASS. Active DB только readonly прочитана для consistent Backup API snapshot и schema safety comparison, без write permission на DB/WAL/SHM; источник не мигрировался. Staging/synthetic не подставлялись.
 
 ## Owner inputs / подготовка
 
@@ -27,4 +27,10 @@ OWNER INPUT: внешний storage/destination/access/оператор/retentio
 5. Закрыть maintenance соединения. Выполнить утверждённую migration/reopen процедуру на точном DB path только после реальной D репетиции и прямого разрешения владельца. Ни этот документ, ни подготовленный код такого разрешения не дают.
 6. При любом admission/schema/key/identity/worker или data failure не стартовать пользователей. Остановить новый процесс и все его writers, восстановить sealed pre-migration image в новый путь без stale sidecars, подтвердить old artifact+schema/rows/key/HTML. Только оператор решает дальнейший запуск после сверки external recovery и потерь после snapshot.
 
-Native/owner acceptance и real smoke остаются NOT TESTED. Без них, representative D и external restore итог — PRODUCTION PREPARED — OWNER INPUT REQUIRED.
+Native/owner acceptance и real smoke остаются NOT TESTED. Representative D и external/local download/hash/restore закрыты; итог — PRODUCTION PREPARED — FINAL OWNER/NATIVE PREFLIGHT REQUIRED. Долгосрочная backup policy и свежий cutover snapshot остаются отдельными условиями.
+
+## Приватный local rehearsal path и readonly source
+
+Для этой owner-authorized сессии downloaded original находится в owner-private TwitchSignalBotBackups, с ACL owner+SYSTEM и read-only attribute. OS TEMP/TMP только процесса rehearsal направлены в отдельный private короткий base C:/Users/yusha/TSBD-3083bf, isolated root — его дочерний w. Это удовлетворяет existing containment guard без public TEMP DB и без изменения tooling/global environment. Key только через secret environment; authorized source/manifest/authorization и рабочие DB вне Git. Исходный backup сохранять; migration на нём запрещена.
+
+Online source открывался после setgroups/setgid/setuid65534 и проверки read permission/no write permission для /data/DB/WAL/SHM. SQLite Backup API mode=ro/query_only сохраняет consistent image с WAL; immutable=1 для live source запрещён. Backup destination новый ephemeral /tmp path; удалён только созданный файл после downloaded hash/integrity/FK PASS. Это воспроизводимая граница этой сессии, не разрешение active cutover/maintenance/checkpoint. [SQLite: Backup API](https://www.sqlite.org/backup.html), [SQLite: readonly WAL](https://www.sqlite.org/wal.html#read_only_databases).

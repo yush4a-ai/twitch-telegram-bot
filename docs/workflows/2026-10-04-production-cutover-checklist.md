@@ -1,4 +1,4 @@
-# Production cutover — NO; подготовлено, нужны данные владельца
+# Production cutover — NO; D CLOSED, нужен final owner/native preflight
 
 Локальные результаты относятся к snapshot869009401fc638405694297b8449e04c1d96abe8/runtime3fa8b649e737693eef94c3912c22313834f57586. Они не являются production проверкой. Подробности — 2026-10-04-production-cutover-handoff.md.
 
@@ -10,10 +10,12 @@
 - [x] Final focused110PASS/118subtests; fresh scoped reviewer без code blockers; clean snapshot/diffcheck.
 - [x] Итоговый gate CONSOLIDATED PASS на869009401fc638405694297b8449e04c1d96abe8: полный1636PASS/2existingWindowsSkips/3739subtests/1136.57s, exit1 из-за двух byte-invariant subtests. Managed checkout с core.autocrlf=true добавил CR в .python-version/Procfile; immutable Git blobs и primary checkout уже имели правильные LF/хеши. Только validation bytes восстановлены из HEAD; свежий whole packaging15PASS/12subtests/0.40s, exit0. Код/tests/assertions/HEAD/deps/global Git config не изменялись. Scoped reviewer подтвердил reuse1636PASS без третьего full. Distinct consolidated1636PASS/3741subtests/2existingSkips; overlap15tests/10subtests не суммируется. FULL-BC.log/FULL-SECOND-RED.json сохраняют полный RED как RED, не fullPASS. FULL-GATE.json, PACKAGING-RECHECK.log и CHECKOUT-BYTES.json связывают correction и PASS. Первый code-related RED также сохранён. Далее только docs/evidence.
 - [x] D offline tooling/runbook/synthetic selftests — механизм проверен, production D не закрыт.
-- [ ] Разрешённый representative production snapshot и настоящий existing key decryption.
-- [ ] Реальная D migration/reopen/rows/schema/HTML/rollback репетиция.
-- [ ] Внешний backup/download/hash/restore verified; совместимый old artifact.
-- [ ] Exact production bot identity / Railway target / volume / DB / PUBLIC_URL.
+- [x] Реальный authorized representative snapshot13 180 928bytes; hash/integrity/FK PASS; decrypt12/12, failures0.
+- [x] Реальная D migration/reopen/legacy21tables/schema/HTML1622/old-artifact fresh rollback PASS.
+- [x] Первая external/local копия вне Railway: download/hash/restore PASS; exact old artifact reader PASS.
+- [ ] Long-term backup/retention и свежий cutover snapshot/reconciliation plan.
+- [x] Exact bot identity (getMe + current deployment polling log), Railway target metadata/volume/DB/PUBLIC_URL.
+- [ ] Owner-confirmed admission contract и ADMIN_PANEL_ACCESS_KEY (MISSING — REQUIRED BEFORE CUTOVER).
 - [ ] Реальные mount/space/permissions/one replica/STOP всех writers/exclusive maintenance.
 - [ ] Production proxy/TLS/client quota preflight; arbitrary XFF не доверен.
 - [ ] Owner/native Desktop/iOS/Android acceptance и конкретно разрешённый OAuth/send/media smoke.
@@ -21,9 +23,9 @@
 - [ ] Deploy.
 - [ ] Actual artifact/deployment/getMe/health/schema/integrity/FK/paymentOFF и разрешённый Telegram smoke.
 
-**D NOT CLOSED. Production untouched YES. Payments OFF YES. Cutover NO.** Staging/production не обновлялись, новых native screenshots нет. Browser/fake/исторические снимки не подменяют acceptance. Недостающие сведения — OWNER-INPUTS-FOR-LAUNCH.md; процедуры — 2026-10-04-production-copy-runbook.md; native сценарии — 2026-10-04-production-native-acceptance.md.
+**D CLOSED. Production untouched YES. Payments OFF YES. Cutover NO.** Staging/production не обновлялись, новых native screenshots нет. Browser/fake/исторические снимки не подменяют acceptance. Недостающие сведения — OWNER-INPUTS-FOR-LAUNCH.md; процедуры — 2026-10-04-production-copy-runbook.md; native сценарии — 2026-10-04-production-native-acceptance.md.
 
-## D inputs checkpoint — 04.10.2026
+## История: D inputs checkpoint — 04.10.2026
 
 - [x] Входной HEAD/tag352c7e19 и runtime3fa8b64 сверены; output/ сохранён без чтения/stage.
 - [x] Короткий review D tooling/tests/runbook, без найденного конкретного дефекта и без code changes.
@@ -38,3 +40,7 @@
 - [ ] Разрешённый account/recipient/channel и native Desktop/iOS/Android; всё NOT TESTED.
 
 Точный следующий шаг и final HEAD manifest — в новом разделе cutover handoff. PRODUCTION PREPARED — OWNER INPUT REQUIRED; production untouched YES, payments OFF YES, cutover NO.
+
+## Текущий checkpoint после реальной D
+
+D CLOSED; source/hash/size/provenance/decrypt12/12/migration/reopen/rollback/old reader/external-local PASS — D-REAL-EVIDENCE.json. Код unchanged; tooling tests12PASS/exit0, full/packaging не повторялись. ADMIN/owner admission/infra-proxy/native permissions/отдельное разрешение cutover остаются открытыми. Native NOT TESTED. Final HEAD/tree — private D-closed-checkpoint.json из handoff.

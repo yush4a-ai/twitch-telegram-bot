@@ -40,3 +40,13 @@ Railway production IDs/mount/DB/URL/PORT и текущий artifact теперь
 3. Указать уже существующее external storage/access/retention/encryption и оператора download/hash/restore. Storage keys в service не обнаружены; наличие внешнего хранилища вне service cannot verify. Railway Volume не external backup. Подтвердить maintenance owner/окно/STOP writers, фактические mount permissions/free space и edge/TLS/client-boundary preflight.
 4. Указать разрешённые account/recipient/channel и пределы OAuth/send/media для native Desktop/iOS/Android. Checklist и порядок готовы; сейчас NOT TESTED.
 5. Только после D/identity/infra/backup/native gates отдельно «Разрешаю production cutover». Payment OFF сохраняется, реальные платежи этим checkpoint не разрешены.
+
+## Актуальные оставшиеся входные данные после D CLOSED — 04.10.2026
+
+Representative source, decrypt12/12, migration/reopen/fresh rollback exact old artifact, HTML reader1622 и первая external/local download/hash/restore копия теперь PASS; повторно snapshot/key/identity не запрашивать и D не перезапускать без нового изменения. Exact identity подтверждена getMe + polling log текущего deployment; ID/target — D-REAL-EVIDENCE.json и D-IDENTITY-SECOND-SOURCE.json. Эти факты заменяют прежние BLOCKED/PARTIAL записи выше, сохранённые как история.
+
+1. ADMIN_PANEL_ACCESS_KEY: MISSING — REQUIRED BEFORE CUTOVER. Оператор готовит сильное случайное значение не менее32символов через secret storage; не передавать в чат/Git. В этой сессии значение не создавалось, variables не менялись.
+2. Подтвердить конкретный production admission contract: найденные exact bot/target/volume/paths/URL/PORT, queue policy/opt-in, единственный writer и будущий maintenance owner/окно. Известные значения не спрашивать заново; owner approval contract ещё отсутствует.
+3. Закрыть actual proxy/TLS/client-boundary/shared-peer quota, mount permissions/free space/STOP всех writers и backup retention/offsite/свежий snapshot перед cutover. Local sealed copy сохранена вне Git; её snapshot UTC не покрывает дальнейшие записи production.
+4. Разрешить конкретные recipient/account/channel и пределы send/OAuth/media; пройти native Desktop/iOS/Android и owner HTML/visual acceptance. Сейчас NOT TESTED.
+5. Только после этих gates отдельное «Разрешаю production cutover». Эта D сессия deploy/restart/production variables/migration/send/OAuth/платежи не разрешает; payment OFF сохраняется.

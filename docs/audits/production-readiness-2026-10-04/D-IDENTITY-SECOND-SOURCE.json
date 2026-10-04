@@ -1,0 +1,13 @@
+{
+  "source": "Railway current production deployment polling log; only bot identity extracted",
+  "deployment_id": "466499d5-6979-4a81-8aee-67efcf628976",
+  "matches": [
+    {
+      "username": "TwitchSignalBot",
+      "bot_id": 8707370390,
+      "timestamp": "2026-10-02T14:19:27.433461738Z"
+    }
+  ],
+  "status": "CONFIRMED",
+  "raw_logs_saved": false
+}
