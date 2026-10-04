@@ -30,10 +30,12 @@ def home_keyboard(chat_type, *, app_url=None):
 
 
 def more_keyboard(*, admin_url=None, legacy_viewer_url=None):
-    pairs = [("📡 Мои стримеры","menu:list"),("📊 Отчёты","menu:report"),
-             ("🔔 Настройки оповещений","menu:quiet_hours"),("💬 Мои Telegram-каналы","menu:manage_group"),
-             ("Тариф","menu:plus"),("❓ Помощь","menu:help")]
-    rows = [[InlineKeyboardButton(text=t, callback_data=c)] for t,c in pairs]
+    pairs = [("📡 Мои стримеры","menu:list"),("🔴 Сейчас в эфире","menu:live"),
+             ("🔔 Настройки","menu:quiet_hours"),("💬 Telegram-каналы","menu:manage_group"),
+             ("⭐ Тариф","menu:plus"),("❓ Помощь","menu:help")]
+    rows = [[InlineKeyboardButton(text=t, callback_data=c) for t,c in pairs[i:i+2]]
+            for i in range(0,len(pairs),2)]
+    rows.append([InlineKeyboardButton(text="📊 Отчёты",callback_data="menu:report")])
     if legacy_viewer_url:
         rows.append([InlineKeyboardButton(text="Мои оповещения", web_app=WebAppInfo(url=legacy_viewer_url))])
     if admin_url:
@@ -54,15 +56,31 @@ async def cancel_ui(state, *, actor_id, db=None, oauth_server=None, message=None
     data = await state.get_data()
     # Clear first: any late legacy OAuth/import result sees a different generation.
     await state.clear()
-    if data.get('legacy_oauth_state') and oauth_server is not None:
-        oauth_server.discard_state(data['legacy_oauth_state'])
-    if data.get('telegram_oauth_intent') and oauth_server is not None:
-        await oauth_server.cancel_streamer_connect_intent(actor_id, data['telegram_oauth_intent'])
-    if (data.get('telegram_community_intent') and db is not None
-        and data['telegram_community_intent'] != preserve_community_intent):
-        await db.cancel_community_intent(data['telegram_community_intent'], actor_id)
-        if message is not None and own_private(message,actor_id):
-            await message.answer('Выбор канала отменён.',reply_markup=menu_keyboard())
+    cancel_channel=(data.get('telegram_community_intent') is not None
+                    and data['telegram_community_intent']!=preserve_community_intent)
+    restore=cancel_channel and message is not None and own_private(message,actor_id)
+    if restore:
+        from .telegram_home import store_for,send_menu_keyboard
+        store=store_for(message)
+        if store: store.keyboard_unknown(message.chat.id)
+    try:
+        if data.get('legacy_oauth_state') and oauth_server is not None:
+            oauth_server.discard_state(data['legacy_oauth_state'])
+        if data.get('telegram_oauth_intent') and oauth_server is not None:
+            await oauth_server.cancel_streamer_connect_intent(actor_id, data['telegram_oauth_intent'])
+        if cancel_channel and db is not None:
+            await db.cancel_community_intent(data['telegram_community_intent'], actor_id)
+    except Exception:
+        if restore:
+            try:
+                await send_menu_keyboard(message,'Не удалось завершить отмену подключения. Можно вернуться кнопкой «Меню».',force=True,state=state)
+            except Exception:
+                # Preserve the original cleanup error; the delivery remains unknown.
+                pass
+        raise
+    else:
+        if restore:
+            await send_menu_keyboard(message,'Выбор канала отменён.',force=True,state=state)
     return data
 
 

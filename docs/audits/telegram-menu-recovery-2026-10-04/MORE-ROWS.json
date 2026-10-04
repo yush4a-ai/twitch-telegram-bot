@@ -1,0 +1,98 @@
+{
+  "viewer": [
+    [
+      [
+        "📡 Мои стримеры",
+        "menu:list"
+      ],
+      [
+        "🔴 Сейчас в эфире",
+        "menu:live"
+      ]
+    ],
+    [
+      [
+        "🔔 Настройки",
+        "menu:quiet_hours"
+      ],
+      [
+        "💬 Telegram-каналы",
+        "menu:manage_group"
+      ]
+    ],
+    [
+      [
+        "⭐ Тариф",
+        "menu:plus"
+      ],
+      [
+        "❓ Помощь",
+        "menu:help"
+      ]
+    ],
+    [
+      [
+        "📊 Отчёты",
+        "menu:report"
+      ]
+    ],
+    [
+      [
+        "← На главную",
+        "menu:home"
+      ]
+    ]
+  ],
+  "owner": [
+    [
+      [
+        "📡 Мои стримеры",
+        "menu:list"
+      ],
+      [
+        "🔴 Сейчас в эфире",
+        "menu:live"
+      ]
+    ],
+    [
+      [
+        "🔔 Настройки",
+        "menu:quiet_hours"
+      ],
+      [
+        "💬 Telegram-каналы",
+        "menu:manage_group"
+      ]
+    ],
+    [
+      [
+        "⭐ Тариф",
+        "menu:plus"
+      ],
+      [
+        "❓ Помощь",
+        "menu:help"
+      ]
+    ],
+    [
+      [
+        "📊 Отчёты",
+        "menu:report"
+      ]
+    ],
+    [
+      [
+        "🛡 Админ-панель",
+        "owner-only web_app"
+      ]
+    ],
+    [
+      [
+        "← На главную",
+        "menu:home"
+      ]
+    ]
+  ],
+  "native": "NOT TESTED",
+  "messages_sent": 0
+}

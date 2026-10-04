@@ -11,7 +11,8 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.enums import ChatType
 from aiogram.types import Message
-from ..telegram_ui import menu_keyboard, begin_legacy_oauth, legacy_oauth_current
+from ..telegram_ui import begin_legacy_oauth, legacy_oauth_current
+from ..telegram_home import send_menu_keyboard, recover_menu_keyboard
 
 from ..config import Config
 from ..database import Database
@@ -36,9 +37,8 @@ async def on_streamer_community_shared(message: Message, db: Database, state: FS
         "SELECT status FROM streamer_community_intents WHERE telegram_user_id=? AND request_id=?",
         (message.from_user.id, shared.request_id),
     )).fetchone()
-    if previous and previous[0] == 'connected':
-        return
-    saved = await complete_community_intent(
+    replay=bool(previous and previous[0]=='connected')
+    saved = replay or await complete_community_intent(
         db, message.bot, message.from_user.id, shared.request_id,
         shared.chat_id, now=time.time(),
     )
@@ -46,10 +46,14 @@ async def on_streamer_community_shared(message: Message, db: Database, state: FS
         data=await state.get_data()
         intent=data.get('telegram_community_intent')
         row=await db.get_community_intent(intent) if intent else None
-        if row and row[1]==message.from_user.id and row[2]==shared.request_id:
+        if (row and row[1]==message.from_user.id and row[2]==shared.request_id
+            and (await state.get_data()).get('telegram_community_intent')==intent):
             await state.clear()
-    await message.answer('Telegram-канал подключён. Настройки публикаций доступны в приложении.' if saved
-                         else 'Канал не подключён. Выбери его заново и проверь права бота.',reply_markup=menu_keyboard())
+    if replay:
+        await recover_menu_keyboard(message,state)
+    else:
+        await send_menu_keyboard(message,'Telegram-канал подключён. Настройки публикаций доступны в приложении.' if saved
+                                 else 'Канал не подключён. Выбери его заново и проверь права бота.',force=True,state=state)
 
 
 async def _run_auth_flow(

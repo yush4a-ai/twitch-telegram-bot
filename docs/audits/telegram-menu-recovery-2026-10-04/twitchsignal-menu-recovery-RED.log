@@ -1,0 +1,172 @@
+.FFFFFFF.                                                                [100%]
+================================== FAILURES ===================================
+__ MenuRecoveryTests.test_cancel_during_guide_does_not_send_a_late_selector ___
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_cancel_during_guide_does_not_send_a_late_selector>
+
+    async def test_cancel_during_guide_does_not_send_a_late_selector(self):
+        await cmd_start(self.message,self.state,self.db,CONFIG)
+        entered=asyncio.Event(); release=asyncio.Event(); original=self.transport.make_request
+        async def hold_guide(bot,method,timeout=None):
+            if method.__api_method__=='sendPhoto':
+                entered.set(); await release.wait()
+            return await original(bot,method,timeout)
+        with patch.object(self.transport,'make_request',new=hold_guide):
+            selector=asyncio.create_task(show_channel_selector(self.message,self.state,await self.pending(),self.db))
+            await asyncio.wait_for(entered.wait(),2)
+            await cancel_ui(self.state,actor_id=101,db=self.db,message=self.message)
+            release.set(); await selector
+        self.assertEqual(await self.state.get_data(),{})
+>       self.assert_menu(self.keyboards()[-1])
+
+tests\test_telegram_menu_recovery.py:79: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_menu_recovery.py:41: in assert_menu
+    self.assertEqual([[b.text for b in row] for row in keyboard.keyboard],[['����']])
+E   AssertionError: Lists differ: [['������� Telegram-�����'], ['����']] != [['����']]
+E   
+E   First differing element 0:
+E   ['������� Telegram-�����']
+E   ['����']
+E   
+E   First list contains 1 additional elements.
+E   First extra element 1:
+E   ['����']
+E   
+E   - [['������� Telegram-�����'], ['����']]
+E   + [['����']]
+_ MenuRecoveryTests.test_cancel_during_selector_delivery_finishes_with_ordinary_menu _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_cancel_during_selector_delivery_finishes_with_ordinary_menu>
+
+    async def test_cancel_during_selector_delivery_finishes_with_ordinary_menu(self):
+        await cmd_start(self.message,self.state,self.db,CONFIG)
+        entered=asyncio.Event(); release=asyncio.Event(); original=self.transport.make_request
+        cancelled=asyncio.Event(); original_cancel=self.db.cancel_community_intent
+        async def cancel_intent(*args):
+            result=await original_cancel(*args); cancelled.set(); return result
+        async def hold_selector(bot,method,timeout=None):
+            keyboard=getattr(method,'reply_markup',None)
+            if isinstance(keyboard,ReplyKeyboardMarkup) and keyboard.keyboard[0][0].request_chat:
+                entered.set(); await release.wait()
+            return await original(bot,method,timeout)
+        with patch.object(self.transport,'make_request',new=hold_selector), \
+             patch.object(self.db,'cancel_community_intent',new=cancel_intent):
+            selector=asyncio.create_task(show_channel_selector(self.message,self.state,await self.pending(),self.db))
+            await asyncio.wait_for(entered.wait(),2)
+            cancel=asyncio.create_task(cancel_ui(self.state,actor_id=101,db=self.db,message=self.message))
+            await asyncio.wait_for(cancelled.wait(),2)
+            self.assertEqual(await self.state.get_data(),{})
+            await asyncio.sleep(0)
+            try:
+>               self.assertFalse(cancel.done(),'restore must wait for in-flight selector delivery')
+E               AssertionError: True is not false : restore must wait for in-flight selector delivery
+
+tests\test_telegram_menu_recovery.py:101: AssertionError
+_ MenuRecoveryTests.test_cold_non_home_interaction_and_reset_recover_once_without_warm_spam _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_cold_non_home_interaction_and_reset_recover_once_without_warm_spam>
+
+    async def test_cold_non_home_interaction_and_reset_recover_once_without_warm_spam(self):
+        async def help_handler(event,data):
+            await event.answer('Help')
+        guard=ErrorGuardMiddleware()
+        for _ in range(2):
+            telegram_home._menus.clear(); before=len(self.keyboards())
+            await guard(help_handler,self.message,{'state':self.state})
+>           self.assertEqual(len(self.keyboards()),before+1)
+E           AssertionError: 0 != 1
+
+tests\test_telegram_menu_recovery.py:125: AssertionError
+_ MenuRecoveryTests.test_connected_shared_replay_recovers_failed_confirmation_without_reconnecting _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_connected_shared_replay_recovers_failed_confirmation_without_reconnecting>
+
+    async def test_connected_shared_replay_recovers_failed_confirmation_without_reconnecting(self):
+        await show_channel_selector(self.message,self.state,await self.pending(),self.db)
+        await self.db.conn.execute("UPDATE streamer_community_intents SET status='connected' WHERE intent_id='intent-local-0001'")
+        await self.db.conn.commit()
+        shared=self.message.model_copy(update={'chat_shared':ChatShared(request_id=42,chat_id=-1001)}).as_(self.bot)
+        before=len(self.keyboards())
+        await on_streamer_community_shared(shared,self.db,self.state)
+>       self.assertEqual(len(self.keyboards()),before+1)
+E       AssertionError: 1 != 2
+
+tests\test_telegram_menu_recovery.py:146: AssertionError
+_______ MenuRecoveryTests.test_error_after_fsm_clear_restores_selector ________
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_error_after_fsm_clear_restores_selector>
+
+    async def test_error_after_fsm_clear_restores_selector(self):
+        await show_channel_selector(self.message,self.state,await self.pending(),self.db)
+        async def failed_handler(event,data):
+            await self.state.clear()
+            raise RuntimeError('local handler failure')
+        with self.assertLogs('bot.middlewares',level='ERROR'):
+            await ErrorGuardMiddleware()(failed_handler,self.message,{'state':self.state})
+>       self.assert_menu(self.keyboards()[-1])
+
+tests\test_telegram_menu_recovery.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_telegram_menu_recovery.py:41: in assert_menu
+    self.assertEqual([[b.text for b in row] for row in keyboard.keyboard],[['����']])
+E   AssertionError: Lists differ: [['������� Telegram-�����'], ['����']] != [['����']]
+E   
+E   First differing element 0:
+E   ['������� Telegram-�����']
+E   ['����']
+E   
+E   First list contains 1 additional elements.
+E   First extra element 1:
+E   ['����']
+E   
+E   - [['������� Telegram-�����'], ['����']]
+E   + [['����']]
+___ MenuRecoveryTests.test_failed_cancel_delivery_is_recovered_by_next_home ___
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_failed_cancel_delivery_is_recovered_by_next_home>
+
+    async def test_failed_cancel_delivery_is_recovered_by_next_home(self):
+        await cmd_start(self.message,self.state,self.db,CONFIG)
+        await show_channel_selector(self.message,self.state,await self.pending(),self.db)
+        original=self.transport.make_request
+        async def fail_restore(bot,method,timeout=None):
+            if isinstance(getattr(method,'reply_markup',None),ReplyKeyboardMarkup):
+                raise RuntimeError('local delivery failure')
+            return await original(bot,method,timeout)
+        with patch.object(self.transport,'make_request',new=fail_restore):
+            with self.assertRaises(RuntimeError):
+                await cancel_ui(self.state,actor_id=101,db=self.db,message=self.message)
+        self.assertEqual(await self.state.get_data(),{})
+        before=len(self.keyboards())
+        await cmd_start(self.message,self.state,self.db,CONFIG)
+>       self.assertEqual(len(self.keyboards()),before+1)
+E       AssertionError: 2 != 3
+
+tests\test_telegram_menu_recovery.py:63: AssertionError
+_ MenuRecoveryTests.test_inline_edits_do_not_extend_keyboard_delivery_lifetime _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_inline_edits_do_not_extend_keyboard_delivery_lifetime>
+
+    async def test_inline_edits_do_not_extend_keyboard_delivery_lifetime(self):
+        clock=[100.0]
+        with patch('bot.telegram_home.time',SimpleNamespace(monotonic=lambda:clock[0],time=time.time)):
+            await cmd_start(self.message,self.state,self.db,CONFIG)
+            photo=list(self.transport.messages.values())[-1]
+            clock[0]+=23*3600
+            await telegram_home.edit_menu(photo,'Help')
+            before=len(self.keyboards()); clock[0]+=2*3600
+            await telegram_home.ensure_menu_keyboard(self.message)
+>       self.assertEqual(len(self.keyboards()),before+1)
+E       AssertionError: 1 != 2
+
+tests\test_telegram_menu_recovery.py:115: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_cancel_during_guide_does_not_send_a_late_selector
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_cancel_during_selector_delivery_finishes_with_ordinary_menu
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_cold_non_home_interaction_and_reset_recover_once_without_warm_spam
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_connected_shared_replay_recovers_failed_confirmation_without_reconnecting
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_error_after_fsm_clear_restores_selector
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_failed_cancel_delivery_is_recovered_by_next_home
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_inline_edits_do_not_extend_keyboard_delivery_lifetime
+7 failed, 2 passed in 9.63s

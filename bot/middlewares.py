@@ -131,12 +131,26 @@ class ErrorGuardMiddleware(BaseMiddleware):
     aiogram и сам не роняет процесс на ошибке обработчика, но пользователь при этом
     остаётся с зависшим интерфейсом и без единого намёка на то, что пошло не так."""
 
+    async def _recover(self,event,data, *, wait=True):
+        message=event.message if isinstance(event,CallbackQuery) else event
+        actor=event.from_user.id if getattr(event,'from_user',None) else None
+        from .telegram_ui import own_private
+        if isinstance(message,(Message,InaccessibleMessage)) and own_private(message,actor):
+            try:
+                from .telegram_home import recover_menu_keyboard
+                await recover_menu_keyboard(message,data.get('state'),wait=wait)
+            except Exception as error:
+                logger.warning('Menu keyboard recovery unavailable (%s)',type(error).__name__)
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
+        # A cold OAuth/import handler can wait minutes. Install the return path
+        # before it waits, then repair replacements/unknown sends on completion.
+        await self._recover(event,data,wait=False)
         try:
             return await handler(event, data)
         except Exception:
@@ -147,6 +161,8 @@ class ErrorGuardMiddleware(BaseMiddleware):
                 except Exception:
                     pass
             return None
+        finally:
+            await self._recover(event,data)
 
 
 def setup_middlewares(dp) -> None:

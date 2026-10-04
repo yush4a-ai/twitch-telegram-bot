@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ MenuRecoveryTests.test_database_cancel_failure_restores_menu_without_false_success _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_database_cancel_failure_restores_menu_without_false_success>
+
+    async def test_database_cancel_failure_restores_menu_without_false_success(self):
+        row=await self.pending()
+        await show_channel_selector(self.message,self.state,row,self.db)
+        async def fail_cancel(*args): raise RuntimeError('local database failure')
+        with patch.object(self.db,'cancel_community_intent',new=fail_cancel):
+            with self.assertRaisesRegex(RuntimeError,'local database failure'):
+                await cancel_ui(self.state,actor_id=101,db=self.db,message=self.message)
+        self.assert_menu(self.keyboards()[-1])
+        self.assertEqual((await self.db.get_community_intent(row[0]))[6],'pending')
+>       self.assertNotEqual(self.transport.calls[-1].text,'����� ������ �������.')
+E       AssertionError: '����� ������ �������.' == '����� ������ �������.'
+
+tests\test_telegram_menu_recovery.py:75: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_database_cancel_failure_restores_menu_without_false_success
+1 failed, 12 deselected in 4.03s

@@ -1,0 +1,43 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ NavigationTests.test_more_prioritizes_streamers_and_live_and_keeps_owner_admin_only _
+
+self = <test_telegram_navigation.NavigationTests testMethod=test_more_prioritizes_streamers_and_live_and_keeps_owner_admin_only>
+
+    async def test_more_prioritizes_streamers_and_live_and_keeps_owner_admin_only(self):
+        from bot.handlers.navigation import cb_more
+        for actor, kind, chat in ((101,'private',101),(202,'private',202),(101,'supergroup',-5)):
+            msg = message(actor, chat, kind)
+            callback = SimpleNamespace(message=msg, from_user=msg.from_user, answer=AsyncMock())
+            await cb_more(callback, CONFIG)
+            call = msg.edit_text.await_args
+            self.assertEqual(call.args[0], '<b>Ещё</b>')
+            buttons = [b for r in call.kwargs['reply_markup'].inline_keyboard for b in r]
+            rows=call.kwargs['reply_markup'].inline_keyboard
+>           self.assertEqual([[b.text for b in row] for row in rows[:4]],[
+                ['📡 Мои стримеры','🔴 Сейчас в эфире'],
+                ['🔔 Настройки','💬 Telegram-каналы'],
+                ['⭐ Тариф','❓ Помощь'],['📊 Отчёты']])
+E           AssertionError: Lists differ: [['📡 Мои стримеры'], ['📊 Отчёты'], ['🔔 Настройки оповещений[25 chars]лы']] != [['📡 Мои стримеры', '🔴 Сейчас в эфире'], ['🔔 Настройки', '💬[53 chars]ты']]
+E           
+E           First differing element 0:
+E           ['📡 Мои стримеры']
+E           ['📡 Мои стримеры', '🔴 Сейчас в эфире']
+E           
+E           - [['📡 Мои стримеры'],
+E           + [['📡 Мои стримеры', '🔴 Сейчас в эфире'],
+E           +  ['🔔 Настройки', '💬 Telegram-каналы'],
+E           +  ['⭐ Тариф', '❓ Помощь'],
+E           -  ['📊 Отчёты'],
+E           ?              ^
+E           
+E           +  ['📊 Отчёты']]
+E           ?              ^
+E           
+E           -  ['🔔 Настройки оповещений'],
+E           -  ['💬 Мои Telegram-каналы']]
+
+tests\test_telegram_navigation.py:77: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_navigation.py::NavigationTests::test_more_prioritizes_streamers_and_live_and_keeps_owner_admin_only
+1 failed, 4 deselected in 3.49s

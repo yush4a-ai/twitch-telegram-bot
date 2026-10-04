@@ -600,3 +600,9 @@ Checkpoint 03.10.2026: разрешённый guarded staging выполнен �
 
 
 Миграция committed кода 38f5f21 на свежей копии staging завершилась PASS: 60→63 таблицы, 27 schema versions; все прежние строки/ID сохранены, reopen и rollback после искусственной ошибки подтверждены, два Fernet-поля читаются текущим ключом без его экспорта. Активная БД не заменялась, исходящих сообщений нет. Selftest release smoke: 7 PASS. Следующий шаг — штатный полный guard/deploy на чистой ветке autonomous/twitchsignal-roadmap.
+
+## 04.10.2026 — постоянный возврат и приоритет live в «Ещё»
+
+Прямое решение владельца: «📡 Мои стримеры» и «🔴 Сейчас в эфире» в первом ряду; настройки/Telegram-каналы во втором; тариф/помощь в третьем; reports вторичны, admin owner-only, Home внизу. Переиспользуем menu:live.
+
+ReplyKeyboard [Меню] и system WebApp [Приложение] остаются независимыми. MenuStore хранит последний успешный delivery/type/time отдельно от editable Home; API не подтверждает клиентскую видимость. Bounded recovery при cold/reset/expiry/замене, без повтора при обычном warm Home. Общий lock selector/restore и generation guards; неблокирующий pre-recovery не задерживает отмену. При DB failure нельзя утверждать, что подключение отменено. Telegram Desktop visibility/client toggle пока не проверены; native UI ввод paused по конфликту с вводом владельца, других сообщений/получателей нет.

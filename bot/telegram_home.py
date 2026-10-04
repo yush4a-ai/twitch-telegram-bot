@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message, FSInputFile, InputMediaPhoto
+from aiogram.types import Message, InaccessibleMessage, FSInputFile, InputMediaPhoto
 
 from .telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard
 
@@ -98,6 +98,8 @@ class MenuStore:
     def __init__(self):
         self.messages = OrderedDict()
         self.locks = weakref.WeakValueDictionary()
+        self.keyboards = OrderedDict()
+        self.keyboard_locks = weakref.WeakValueDictionary()
         self.asset_file_ids = {}
 
     def lock(self, chat_id):
@@ -110,28 +112,44 @@ class MenuStore:
         entry = self.messages.get(chat_id)
         if entry and time.monotonic()-entry[0] < 24*3600:
             self.messages.move_to_end(chat_id)
-            return entry[1],entry[2]
+            return entry[1],self.keyboard_state(chat_id)[0]=='menu'
         self.messages.pop(chat_id,None)
-        return None,False
+        return None,self.keyboard_state(chat_id)[0]=='menu'
 
-    def remember(self, message, *, keyboard_ready=None):
-        old = self.messages.get(message.chat.id)
-        ready = keyboard_ready if keyboard_ready is not None else bool(old and old[2])
-        self.messages[message.chat.id] = (time.monotonic(),message,ready)
+    def remember(self, message):
+        self.messages[message.chat.id] = (time.monotonic(),message)
         self.messages.move_to_end(message.chat.id)
         while len(self.messages)>1024: self.messages.popitem(last=False)
 
     def keyboard_initialized(self, chat_id):
-        previous, _ = self.get(chat_id)
-        # Never remember an incoming user's /start or Menu message as the bot's
-        # editable menu. A cold deep entry may initialize the keyboard alone.
-        self.messages[chat_id] = (time.monotonic(),previous,True)
-        self.messages.move_to_end(chat_id)
-        while len(self.messages)>1024: self.messages.popitem(last=False)
+        # Last successful delivery, not a claim about client visibility.
+        self.keyboard_sent(chat_id,'menu')
+
+    def keyboard_state(self, chat_id):
+        entry=self.keyboards.get(chat_id)
+        if entry and time.monotonic()-entry[0]<24*3600:
+            self.keyboards.move_to_end(chat_id)
+            return entry[1:]
+        self.keyboards.pop(chat_id,None)
+        return None,None,None
+
+    def keyboard_sent(self, chat_id, mode, intent=None, expires_at=None):
+        self.keyboards[chat_id]=(time.monotonic(),mode,intent,expires_at)
+        self.keyboards.move_to_end(chat_id)
+        while len(self.keyboards)>1024: self.keyboards.popitem(last=False)
+
+    def keyboard_unknown(self, chat_id):
+        self.keyboards.pop(chat_id,None)
+
+    def keyboard_lock(self, chat_id):
+        lock=self.keyboard_locks.get(chat_id)
+        if lock is None:
+            lock=asyncio.Lock(); self.keyboard_locks[chat_id]=lock
+        return lock
 
 
 def store_for(message):
-    if not isinstance(message,Message): return None
+    if not isinstance(message,(Message,InaccessibleMessage)): return None
     bot = message.bot
     store = _menus.get(bot.id)
     if store is None:
@@ -183,13 +201,56 @@ async def edit_menu(message, text, *, reply_markup=None, force_text=False, **kwa
     return result
 
 
-async def ensure_menu_keyboard(message):
+async def send_menu_keyboard(message, text='Возвращайся сюда кнопкой «Меню».', *, force=False, state=None, wait=True):
     if message.chat.type!='private': return
     store=store_for(message)
-    _,ready=store.get(message.chat.id) if store else (None,False)
-    if not ready:
-        await message.answer('Возвращайся сюда кнопкой «Меню».',reply_markup=menu_keyboard())
+
+    async def send():
+        if store and state is not None:
+            mode,intent,expiry=store.keyboard_state(message.chat.id)
+            if mode=='selector' and expiry>time.time():
+                if (await state.get_data()).get('telegram_community_intent')==intent:
+                    # A delayed outcome for an older request must not replace
+                    # a newer active selector. Its ordinary status still reaches the user.
+                    if force: return await message.answer(text)
+                    return
+        if store and not force and store.keyboard_state(message.chat.id)[0]=='menu': return
+        # A timeout may mean the request reached Telegram. Never keep an old
+        # successful flag across an attempted replacement with unknown outcome.
+        if store: store.keyboard_unknown(message.chat.id)
+        result=await message.answer(text,reply_markup=menu_keyboard())
         if store: store.keyboard_initialized(message.chat.id)
+        return result
+
+    if store:
+        lock=store.keyboard_lock(message.chat.id)
+        if not wait and lock.locked(): return
+        async with lock: return await send()
+    return await send()
+
+
+async def ensure_menu_keyboard(message):
+    return await send_menu_keyboard(message)
+
+
+async def send_channel_keyboard(message, state, row, keyboard):
+    store=store_for(message)
+
+    async def send():
+        if (await state.get_data()).get('telegram_community_intent')!=row[0] or row[4]<=time.time(): return
+        if store: store.keyboard_unknown(message.chat.id)
+        result=await message.answer('<b>Выбери Telegram-канал</b>\nНажми кнопку ниже. Бот должен быть администратором с правом публикации сообщений.',
+                                    reply_markup=keyboard)
+        if store: store.keyboard_sent(message.chat.id,'selector',row[0],row[4])
+        return result
+
+    if store:
+        async with store.keyboard_lock(message.chat.id): return await send()
+    return await send()
+
+
+async def recover_menu_keyboard(message, state=None, *, wait=True):
+    await send_menu_keyboard(message,state=state,wait=wait)
 
 
 async def send_brand_card(message, asset, path, text, *, reply_markup=None):
@@ -248,7 +309,7 @@ async def show_home(message, view, *, app_url=None, callback=False):
             result=await message.answer(view.text,reply_markup=keyboard)
         if store and isinstance(result,Message):
             if result.photo: store.asset_file_ids[asset]=result.photo[-1].file_id
-            store.remember(result,keyboard_ready=ready)
+            store.remember(result)
         return result
 
     if store:

@@ -1,0 +1,20 @@
+{
+  "backup": "/data/backups/telegram-menu-20261004-97d5a1ed913640728eacd00257e0cb6c.db",
+  "created": {
+    "integrity": "ok",
+    "bytes": 3416064
+  },
+  "restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3416064
+  },
+  "sha256": "a167807b56a55e26d173158f3bb5f02bfd4bff74be53744b988712d47544f9ec",
+  "local_export": "C:\\Users\\yusha\\AppData\\Local\\TwitchSignalBot\\staging-backups\\telegram-menu-20261004-97d5a1ed913640728eacd00257e0cb6c.db",
+  "local_restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3416064
+  },
+  "status": "PASS"
+}

@@ -1,0 +1,22 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ MenuRecoveryTests.test_stale_shared_request_does_not_replace_another_active_selector _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_stale_shared_request_does_not_replace_another_active_selector>
+
+    async def test_stale_shared_request_does_not_replace_another_active_selector(self):
+        old=await self.pending()
+        await self.db.cancel_community_intent(old[0],101)
+        await self.db.create_community_intent('intent-local-0002',101,43,'channel',now=time.time())
+        row=await self.db.get_community_intent('intent-local-0002')
+        await show_channel_selector(self.message,self.state,row,self.db)
+        shared=self.message.model_copy(update={'chat_shared':ChatShared(request_id=42,chat_id=-1001)}).as_(self.bot)
+        before=len(self.keyboards())
+        await on_streamer_community_shared(shared,self.db,self.state)
+>       self.assertEqual(len(self.keyboards()),before)
+E       AssertionError: 2 != 1
+
+tests\test_telegram_menu_recovery.py:157: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_stale_shared_request_does_not_replace_another_active_selector
+1 failed, 9 deselected in 3.98s

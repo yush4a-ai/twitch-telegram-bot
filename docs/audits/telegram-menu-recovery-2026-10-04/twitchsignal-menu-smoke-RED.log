@@ -1,0 +1,14 @@
+.....F...
+======================================================================
+FAIL: test_owner_menu_commands_override_is_rejected_even_with_correct_default (__main__.SmokeGuards.test_owner_menu_commands_override_is_rejected_even_with_correct_default)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\docs\audits\telegram-menu-recovery-2026-10-04\twitchsignal-ui-smoke.py", line 36, in test_owner_menu_commands_override_is_rejected_even_with_correct_default
+    with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: AssertionError not raised
+
+----------------------------------------------------------------------
+Ran 9 tests in 76.324s
+
+FAILED (failures=1)

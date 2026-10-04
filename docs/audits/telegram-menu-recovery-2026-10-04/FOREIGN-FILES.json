@@ -1,0 +1,35 @@
+{
+  "status": "PRESERVED_UNTRACKED",
+  "source_thread": "Спроектировать концепцию админ-панел",
+  "not_changed_or_staged_by_this_task": true,
+  "files": {
+    "docs/design/admin-concept-2026-10-04/01-overview-users.png": {
+      "bytes": 1196197,
+      "sha256": "fa6ed71f4344f7e096a902de7f42d5cef51d9b95f7922c690dfbc7acfbb9ee54"
+    },
+    "docs/design/admin-concept-2026-10-04/02-user-grant.png": {
+      "bytes": 1235440,
+      "sha256": "0864af08c39e1a18e842e484b32dd4943973aae38900e95bbe682bcda714f7be"
+    },
+    "docs/design/admin-concept-2026-10-04/03-access-growth.png": {
+      "bytes": 1243150,
+      "sha256": "e643ad86dce2a028658bd8f5817a4e46745b40bf2ddf67b97cdfcce9e1c90c22"
+    },
+    "docs/design/admin-concept-2026-10-04/04-system-payments.png": {
+      "bytes": 1162151,
+      "sha256": "6a5842bc5aaf128e08f87dd2711bd04b31b9f53a7626ff595b0bab6d2b29b3e0"
+    },
+    "docs/design/admin-concept-2026-10-04/05-mobile.png": {
+      "bytes": 1577690,
+      "sha256": "0f4df01c7e6fdc51c2ed734272538588e452db16a3050469edc3ed1af8cd37fd"
+    },
+    "docs/design/admin-concept-2026-10-04/CONCEPT.md": {
+      "bytes": 36096,
+      "sha256": "03710876731d90a5d6aa7dc302e3758bd14db1992615a436720c6f7b87445787"
+    },
+    "docs/design/admin-concept-2026-10-04/PROMPTS.md": {
+      "bytes": 15868,
+      "sha256": "84e9c996056485147c11f78b3fbfaf2e5dafd2be0dedcdb24b54b808caad5b26"
+    }
+  }
+}

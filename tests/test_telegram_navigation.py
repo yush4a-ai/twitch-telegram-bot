@@ -64,7 +64,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.state.get_data(), {})
         self.db.mark_known_private_user.assert_awaited_once_with(101)
 
-    async def test_more_contains_six_sections_and_owner_admin_only(self):
+    async def test_more_prioritizes_streamers_and_live_and_keeps_owner_admin_only(self):
         from bot.handlers.navigation import cb_more
         for actor, kind, chat in ((101,'private',101),(202,'private',202),(101,'supergroup',-5)):
             msg = message(actor, chat, kind)
@@ -73,8 +73,17 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
             call = msg.edit_text.await_args
             self.assertEqual(call.args[0], '<b>Ещё</b>')
             buttons = [b for r in call.kwargs['reply_markup'].inline_keyboard for b in r]
+            rows=call.kwargs['reply_markup'].inline_keyboard
+            self.assertEqual([[b.text for b in row] for row in rows[:4]],[
+                ['📡 Мои стримеры','🔴 Сейчас в эфире'],
+                ['🔔 Настройки','💬 Telegram-каналы'],
+                ['⭐ Тариф','❓ Помощь'],['📊 Отчёты']])
+            self.assertEqual([[b.callback_data for b in row] for row in rows[:4]],[
+                ['menu:list','menu:live'],['menu:quiet_hours','menu:manage_group'],
+                ['menu:plus','menu:help'],['menu:report']])
+            self.assertEqual(rows[-1][0].callback_data,'menu:home')
             actions = {b.callback_data for b in buttons}
-            self.assertEqual(actions - {None}, {'menu:list','menu:report','menu:quiet_hours',
+            self.assertEqual(actions - {None}, {'menu:list','menu:live','menu:report','menu:quiet_hours',
                              'menu:manage_group','menu:plus','menu:help','menu:home'})
             admin = [b for b in buttons if b.text=='🛡 Админ-панель']
             self.assertEqual(len(admin), int(actor==101 and kind=='private'))

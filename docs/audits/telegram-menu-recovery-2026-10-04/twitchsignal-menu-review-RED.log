@@ -1,0 +1,46 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+_ MenuRecoveryTests.test_cold_callback_from_deleted_own_message_still_recovers_menu _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_cold_callback_from_deleted_own_message_still_recovers_menu>
+
+    async def test_cold_callback_from_deleted_own_message_still_recovers_menu(self):
+        callback=CallbackQuery(id='local-query',from_user=self.message.from_user,chat_instance='local',
+            message=InaccessibleMessage(message_id=2,chat=self.message.chat),data='menu:help').as_(self.bot)
+        async def noop(event,data): pass
+        await ErrorGuardMiddleware()(noop,callback,{'state':self.state})
+>       self.assertEqual(len(self.keyboards()),1); self.assert_menu(self.keyboards()[-1])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: 0 != 1
+
+tests\test_telegram_menu_recovery.py:191: AssertionError
+_ MenuRecoveryTests.test_late_shared_row_read_cannot_clear_a_new_selector_generation _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_late_shared_row_read_cannot_clear_a_new_selector_generation>
+
+    async def test_late_shared_row_read_cannot_clear_a_new_selector_generation(self):
+        old=await self.pending()
+        await show_channel_selector(self.message,self.state,old,self.db)
+        await self.db.conn.execute("UPDATE streamer_community_intents SET status='connected' WHERE intent_id=?",(old[0],))
+        await self.db.conn.commit()
+        await self.db.create_community_intent('intent-local-0002',101,43,'channel',now=time.time())
+        row=await self.db.get_community_intent('intent-local-0002')
+        shared=self.message.model_copy(update={'chat_shared':ChatShared(request_id=42,chat_id=-1001)}).as_(self.bot)
+        entered=asyncio.Event(); release=asyncio.Event(); original=self.db.get_community_intent
+        async def hold_old(key):
+            result=await original(key)
+            if key==old[0]: entered.set(); await release.wait()
+            return result
+        with patch.object(self.db,'get_community_intent',new=hold_old):
+            delayed=asyncio.create_task(on_streamer_community_shared(shared,self.db,self.state))
+            await asyncio.wait_for(entered.wait(),2)
+            await show_channel_selector(self.message,self.state,row,self.db)
+            release.set(); await delayed
+>       self.assertEqual((await self.state.get_data()).get('telegram_community_intent'),row[0])
+E       AssertionError: None != 'intent-local-0002'
+
+tests\test_telegram_menu_recovery.py:182: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_cold_callback_from_deleted_own_message_still_recovers_menu
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_late_shared_row_read_cannot_clear_a_new_selector_generation
+2 failed, 10 deselected in 4.61s

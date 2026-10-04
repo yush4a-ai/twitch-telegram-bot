@@ -1,0 +1,26 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ MenuRecoveryTests.test_cold_oauth_has_menu_while_waiting_for_external_authorization _
+
+self = <test_telegram_menu_recovery.MenuRecoveryTests testMethod=test_cold_oauth_has_menu_while_waiting_for_external_authorization>
+
+    async def test_cold_oauth_has_menu_while_waiting_for_external_authorization(self):
+        entered=asyncio.Event(); release=asyncio.Event()
+        async def authorization(*args,on_url_ready):
+            await on_url_ready('https://id.twitch.tv/oauth2/authorize?state=local-oauth')
+            entered.set(); await release.wait()
+            raise OAuthFlowError('local expiry')
+        async def handler(event,data):
+            await _run_auth_flow(event,self.db,SimpleNamespace(twitch_client_id='local',twitch_client_secret='local'),
+                                 SimpleNamespace(),state=self.state)
+        with patch('bot.handlers.auth.run_authorization_flow',new=authorization):
+            task=asyncio.create_task(ErrorGuardMiddleware()(handler,self.message,{'state':self.state}))
+            await asyncio.wait_for(entered.wait(),2)
+            try:
+>               self.assertEqual(len(self.keyboards()),1,'Menu must arrive before OAuth completes')
+E               AssertionError: 0 != 1 : Menu must arrive before OAuth completes
+
+tests\test_telegram_menu_recovery.py:181: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_menu_recovery.py::MenuRecoveryTests::test_cold_oauth_has_menu_while_waiting_for_external_authorization
+1 failed, 14 deselected in 3.64s

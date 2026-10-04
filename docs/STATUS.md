@@ -1,3 +1,9 @@
+## Текущий checkpoint — 04.10.2026: «Меню» и «Ещё», локальный gate завершён
+
+База cf57fbd, autonomous/twitchsignal-roadmap. Сохраняем выбранный дизайн, production, Free, HTML/export и system «Приложение». «Ещё»: live вернулся в первый ряд через прежний menu:live; три пары, отдельные reports/admin/Home. Keyboard recovery теперь учитывает успешную отправку отдельно от Home cache, сериализует selector/restore, отменяет stale generation и восстанавливает cold/ошибки без тёплого спама. До долгого OAuth устанавливает Menu; при занятой отправке пропускает отмену в handler.
+
+RED сохранены; последний scoped snapshot: 16 PASS / 2 subtests, expanded предыдущий: 105 PASS / 13 subtests, release-smoke selftest 9 PASS. Один reviewer сообщил no blockers после fixes. Browser More: 32 PASS / 4 PNG; http://127.0.0.1:8874/more.html. Fresh backup/remote и local restore 63 таблиц PASS. Reuse migration/Mini App evidence подтверждён по 13/18 Git blobs; три иллюстрации unchanged. Полный guard финального commit и pinned staging ещё впереди. Опубликованный runtime остаётся 8350306 / 55fe18be. Native Desktop приостановлен из-за inputguard/перекрытого окна; ответ о доступности pending, Desktop/iOS/Android NOT TESTED. Доказательства: docs/audits/telegram-menu-recovery-2026-10-04/.
+
 # Статус TwitchSignalBot
 
 ## Текущий checkpoint — 04.10.2026: оформление всех пользовательских описаний

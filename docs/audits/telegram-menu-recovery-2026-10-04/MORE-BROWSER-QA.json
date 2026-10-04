@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "checks": 32,
+  "screenshots": 4,
+  "native": "NOT TESTED",
+  "scope": "local layout only; actual More rows; zero Telegram requests"
+}

@@ -114,9 +114,10 @@ async def show_channel_selector(message,state,row,db,oauth_server=None):
             [InlineKeyboardButton(text='Отменить',callback_data='menu:streamer')]]))
     button=KeyboardButton(text="Выбрать Telegram-канал",request_chat=KeyboardButtonRequestChat(
         request_id=row[2],chat_is_channel=True,bot_is_member=True,request_title=True))
-    await message.answer("<b>Выбери Telegram-канал</b>\nНажми кнопку ниже. Бот должен быть администратором с правом публикации сообщений.",
-        reply_markup=ReplyKeyboardMarkup(keyboard=[[button],[KeyboardButton(text='Меню')]],
-                                        resize_keyboard=True,is_persistent=True,one_time_keyboard=False))
+    from ..telegram_home import send_channel_keyboard
+    await send_channel_keyboard(message,state,row,
+        ReplyKeyboardMarkup(keyboard=[[button],[KeyboardButton(text='Меню')]],
+                            resize_keyboard=True,is_persistent=True,one_time_keyboard=False))
 
 
 async def cb_streamer_channel(callback,state,db,oauth_server=None):
