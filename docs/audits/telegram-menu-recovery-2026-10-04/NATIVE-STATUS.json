@@ -1,0 +1,18 @@
+{
+  "bot": "@TwitchSignalTestbot",
+  "scope": "owner private chat only; no foreign messages/channel selection/OAuth/payments",
+  "before": {
+    "runtime": "83503067736c0a2468726d7eba0a7b339183cb0a",
+    "observed": "2026-10-04T07:30:14.566Z",
+    "identity": "profile username verified",
+    "system_app_and_reply_menu": "both visible",
+    "menu_click": "opens Home with real counters",
+    "more": "old single-column buttons; live missing"
+  },
+  "after": {
+    "status": "NOT TESTED",
+    "reason": "Computer Use stopped by the user with physical Escape; no further CU calls",
+    "deployment": "5211c9f8-6a2f-4834-9aa6-88706a4a34a7",
+    "sha": "39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0"
+  }
+}

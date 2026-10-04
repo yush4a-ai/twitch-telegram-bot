@@ -10,7 +10,8 @@ def verify(result,sha,hashes,versions,deployment,http_hashes=None):
  assert result['cli_sha']==sha
  assert result['bot']['username']=='TwitchSignalTestbot' and result['bot']['is_bot'] is True
  assert result['menu']=={'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'}
- assert result['owner_menu']=={'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'}
+ # https://core.telegram.org/api/bots/menu: scoped default inherits the global button.
+ assert result['owner_menu'] in (result['menu'],{'type':'default','text':None,'url':None})
  assert result['integrity']=='ok' and result['foreign_key_check']==[] and result['versions']==versions
  assert result['money']=={'mode':'offline','external_create':False,'invoice':False,'live_callback':404}
  assert result['file_hashes']==hashes
@@ -32,6 +33,15 @@ def fake():
  hashes={'bot/mini_app_ui/index.html':'shell',**{'bot/mini_app_ui/'+n:'asset' for n in ASSET_NAMES}}
  return hashes,{'deployment':'d','cli_sha':'s','bot':{'username':'TwitchSignalTestbot','is_bot':True},'menu':{'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'},'owner_menu':{'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'},'integrity':'ok','foreign_key_check':[],'versions':['v'],'money':{'mode':'offline','external_create':False,'invoice':False,'live_callback':404},'file_hashes':hashes,'health':{'status':'ok','http':200},'app':{'http':200,'xfo':None,'ancestors':'https://web.telegram.org','hash':'shell'},'unsigned':{n:401 for n in UNSIGNED_NAMES},'http_asset_hashes':{n:'asset' for n in ASSET_NAMES},'legal_http':{n:503 for n in ['privacy','agreement','support','tariffs','payments']},'trial_owner_allowlisted':True}
 class SmokeGuards(unittest.TestCase):
+ def test_owner_default_inherits_verified_global_webapp(self):
+  hashes,result=fake();result['owner_menu']={'type':'default','text':None,'url':None}
+  self.assertTrue(verify(result,'s',hashes,['v'],'d'))
+ def test_owner_default_does_not_hide_wrong_global_url(self):
+  hashes,result=fake();result['owner_menu']={'type':'default','text':None,'url':None};result['menu']['url']='https://wrong.example/app'
+  with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
+ def test_malformed_owner_default_is_rejected(self):
+  hashes,result=fake();result['owner_menu']={'type':'default','text':'Приложение','url':'https://'+T['staging_domain']+'/app'}
+  with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
  def test_owner_menu_commands_override_is_rejected_even_with_correct_default(self):
   hashes,result=fake();result['owner_menu']={'type':'commands','text':None,'url':None}
   with self.assertRaises(AssertionError):verify(result,'s',hashes,['v'],'d')
@@ -185,7 +195,9 @@ if __name__=='__main__':
   verify(result,sha,hashes,versions,stage['id'],http_hashes);after=ops.status();assert after==before
   original=json.loads((ROOT/'docs/audits/telegram-menu-recovery-2026-10-04/STAGING-staging-before.json').read_text(encoding='utf-8'))['status']['production']
   assert after['production']==original,'Production metadata changed since initial checkpoint'
-  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Exact committed Git archive artifact bytes; HTTP assets JS/CSS/PNG remain raw; only index.html uses server read_text UTF-8/universal-newline normalization',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0)
+  result.update(status='PASS',sha=sha,production_before_after_equal=True,source_note='Exact committed Git archive artifact bytes; HTTP assets JS/CSS/PNG remain raw; only index.html uses server read_text UTF-8/universal-newline normalization',native='NOT TESTED',signed_live_api='NOT TESTED',external_payments=0,outbound_messages=0,
+                owner_menu_effective=result['menu'] if result['owner_menu']['type']=='default' else result['owner_menu'],
+                owner_menu_resolution='https://core.telegram.org/api/bots/menu')
   import re
   logs=ops._capture(['railway','logs',stage['id'],'--project',T['project_id'],'--environment',T['staging_environment_id'],'--service',T['service_id'],'--lines','100','--json'])
   entries=[json.loads(line) for line in logs.splitlines() if line.strip()]

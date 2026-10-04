@@ -27,6 +27,8 @@
 
 ## Native и внешние ограничения
 
-Desktop BEFORE/AFTER, закрыть/открыть чат, совместное отображение ReplyKeyboard с «Приложение», WebApp return и selector dialog/cancel: NOT TESTED. Ввод приостановлен после обнаруженного ввода владельца; окно Testbot позднее оказалось перекрыто другим окном. Ответ о доступности pending. Чужие снимки не сохранены.
+Desktop BEFORE: Testbot username подтверждён, системная «Приложение» и ReplyKeyboard «Меню» видны вместе, нажатие Menu открывает Home. BEFORE chat/identity/menu/more сохранены без других переписок. Это старый runtime8350306. AFTER на39bc821, закрыть/открыть чат, новое More/live, WebApp return и selector dialog/cancel: NOT TESTED. Пользователь остановил Computer Use физическим Escape при подготовке AFTER; app input прекращён, последующих CU вызовов нет. Native приёмка не завершена.
 
 iOS/Android, owner OAuth, реальная отправка другим получателям/группам/каналам и реальные платежи: NOT TESTED. Никаких новых outbound сообщений во время local/fake/API read-only проверок. Не утверждать, что сервер знает клиентскую видимость клавиатуры.
+
+Финальный guard39bc821:1570 passed/2 existing Windows symlink skip/3646 subtests. Active5211c9f8-6a2f-4834-9aa6-88706a4a34a7, actual server smoke и deployed pure builders PASS. Подробности, snapshot SHA, production baseline и native ограничения: RELEASE.md.

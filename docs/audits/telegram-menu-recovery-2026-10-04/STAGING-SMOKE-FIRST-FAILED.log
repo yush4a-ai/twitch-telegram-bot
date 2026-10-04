@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen runpy>", line 287, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "docs/audits/telegram-menu-recovery-2026-10-04/twitchsignal-ui-smoke.py", line 185, in <module>
+    verify(result,sha,hashes,versions,stage['id'],http_hashes);after=ops.status();assert after==before
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/audits/telegram-menu-recovery-2026-10-04/twitchsignal-ui-smoke.py", line 13, in verify
+    assert result['owner_menu']=={'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

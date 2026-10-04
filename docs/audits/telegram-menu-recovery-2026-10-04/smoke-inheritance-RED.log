@@ -1,0 +1,17 @@
+.......F....
+======================================================================
+FAIL: test_owner_default_inherits_verified_global_webapp (__main__.SmokeGuards.test_owner_default_inherits_verified_global_webapp)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\docs\audits\telegram-menu-recovery-2026-10-04\twitchsignal-ui-smoke.py", line 37, in test_owner_default_inherits_verified_global_webapp
+    self.assertTrue(verify(result,'s',hashes,['v'],'d'))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\docs\audits\telegram-menu-recovery-2026-10-04\twitchsignal-ui-smoke.py", line 13, in verify
+    assert result['owner_menu']=={'type':'web_app','text':'Приложение','url':'https://'+T['staging_domain']+'/app'}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+----------------------------------------------------------------------
+Ran 12 tests in 25.577s
+
+FAILED (failures=1)

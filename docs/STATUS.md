@@ -386,3 +386,13 @@ Chromium и WebKit PASS: по 30 сочетаний ширин 360/390/430/768/1
 
 
 Миграция committed кода 38f5f21 на свежей копии staging завершилась PASS: 60→63 таблицы, 27 schema versions; все прежние строки/ID сохранены, reopen и rollback после искусственной ошибки подтверждены, два Fernet-поля читаются текущим ключом без его экспорта. Активная БД не заменялась, исходящих сообщений нет. Selftest release smoke: 7 PASS. Следующий шаг — штатный полный guard/deploy на чистой ветке autonomous/twitchsignal-roadmap.
+
+## 04.10.2026 — постоянная «Меню» и приоритет live: staging checkpoint
+
+Полный guard на чистой autonomous/twitchsignal-roadmap:39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0, tree161aaa501555e38ad731e531d72955f0d8f49a2d.1570 passed/2 прежних Windows symlink skip/3646 subtests. Testbot deployment5211c9f8-6a2f-4834-9aa6-88706a4a34a7 SUCCESS. Runtime changes0b68427, owner-approved unchanged admin mockups отдельно2a418bb. После gate только evidence/docs/smoke helper; runtime не менялся.
+
+Исправлены recovery после cold/restart/error, cache TTL и selector/cancel/ChatShared races; warm Home не спамит keyboard message. «Ещё» соответствует прямой схеме владельца: streamers/live, settings/channels, tariff/help, reports, owner admin, Home. Прежний menu:live/handler сохранён. Scoped reviewer закрыл findings; TDD и точные negative permissions/replay tests сохранены.
+
+Actual pinned server smoke PASS: getMe Testbot8859004067, exact SHA/195 runtime hashes/17 assets, unsigned401,27 schema versions/integrity/FK, payment OFF и production unchanged. Default MenuButton — web_app «Приложение»/app; owner default наследует его по официальному контракту, helper12selftestsPASS/commands override rejected. Deployed pure builders More/Menu/live PASS. Backup remote/local63tablesPASS; migration/schema/cipher/unchanged browser/assets reuse проверен по файловой идентичности. HTML/export и прежние Free/group возможности сохранены.
+
+Desktop BEFORE: настоящий Testbot, обе кнопки видны, Menu открывает Home; четыре PNG только Testbot. BEFORE показывает старый8350306. Пользователь остановил Computer Use физическим Escape при подготовке AFTER, дальше CU не вызывался. AFTER/новые native flows/iOS/Android/OAuth/реальное завершение selector/чужие sends/реальные платежи NOT TESTED. Причина исходного визуального отсутствия Menu не установлена. Нативная приёмка открыта. Итог: docs/audits/telegram-menu-recovery-2026-10-04/RELEASE.md; следующая проверка Desktop AFTER по продолжению владельца.

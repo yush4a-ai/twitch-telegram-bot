@@ -1,7 +1,6 @@
 {
-  "status": "PRESERVED_UNTRACKED",
+  "status": "PRESERVED_SEPARATE_DOCS_COMMIT",
   "source_thread": "Спроектировать концепцию админ-панел",
-  "not_changed_or_staged_by_this_task": true,
   "files": {
     "docs/design/admin-concept-2026-10-04/01-overview-users.png": {
       "bytes": 1196197,
@@ -31,5 +30,9 @@
       "bytes": 15868,
       "sha256": "84e9c996056485147c11f78b3fbfaf2e5dafd2be0dedcdb24b54b808caad5b26"
     }
-  }
+  },
+  "owner_authorization": "Сохранить макеты отдельным коммитом и продолжить выкладку",
+  "preservation_commit": "2a418bb140715ae9eb57fc1c4637fd3ccee62332",
+  "final_hashes_verified": true,
+  "initial_snapshot_not_changed_or_staged_by_this_task": true
 }

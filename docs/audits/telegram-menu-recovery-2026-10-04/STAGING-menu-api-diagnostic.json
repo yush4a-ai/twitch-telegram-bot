@@ -1,0 +1,17 @@
+{
+  "bot": "TwitchSignalTestbot",
+  "menus": {
+    "default": {
+      "type": "web_app",
+      "text": "Приложение",
+      "web_app": {
+        "url": "https://worker-staging-2f74.up.railway.app/app"
+      }
+    },
+    "owner": {
+      "type": "default",
+      "text": null,
+      "web_app": null
+    }
+  }
+}
