@@ -126,7 +126,7 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         from bot.handlers.streams import cb_menu_manage_group
         await self.db.add_channel(-1001,'alpha')
         self.msg.bot.get_chat.return_value.type='supergroup'
-        self.msg.bot.get_me=AsyncMock(return_value=SimpleNamespace(username='TwitchSignalTestbot'))
+        self.msg.bot.get_me=AsyncMock(return_value=SimpleNamespace(username='SignalStreamsBot'))
         await cb_menu_manage_group(self.cb('menu:manage_group'),self.db)
         call=self.msg.edit_text.await_args
         buttons=[b for row in call.kwargs['reply_markup'].inline_keyboard for b in row]

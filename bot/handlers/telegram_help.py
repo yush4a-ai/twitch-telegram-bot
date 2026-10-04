@@ -76,7 +76,7 @@ async def cb_commands(callback,config=None):
           '<b>Свой Twitch</b>\n/auth_twitch — фолловеры своего Twitch-канала\n'
           '/streamer_connect — подключить свой Twitch\n\n<b>Навигация и поддержка</b>\n'
           '/myid — мой Telegram ID\n/paysupport — поддержка по подписке\n/help — помощь\n/start — главное меню')
-    if getattr(config,'growth_enabled',False) and getattr(config,'admin_telegram_bot_username','')=='TwitchSignalTestbot':
+    if getattr(config,'growth_enabled',False) and getattr(config,'admin_telegram_bot_username','')=='SignalStreamsBot':
         text+='\n/invite — ссылка-приглашение'
     if _owner_admin_url(callback.message,config,actor_id=callback.from_user.id):
         text+='\n\n<b>Для владельца бота</b>\n/admin — админ-панель\n/stats — статистика бота\n/health — состояние бота'

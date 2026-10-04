@@ -39,7 +39,7 @@ from .preview_runtime import PreviewObservation, PreviewObserver
 from . import stream_thumbnail
 from .token_store import TokenStore
 from .follow_listener import FollowEventListener
-from .twitch import ClipInfo, StreamInfo, TwitchClient
+from .twitch import ClipInfo, StreamInfo, TwitchAuthError, TwitchClient
 from .notification_queue import NotificationJob, NotificationQueue
 from .category_alerts import CategoryObservation
 from .category_alert_store import CategoryAlertStore
@@ -365,6 +365,26 @@ def _build_vod_chapters(samples: list[tuple[float, int, str, str]], start_ts: fl
     return chapters
 
 
+# Telegram отвечает Forbidden, когда доставка невозможна в принципе: пользователь
+# заблокировал бота, аккаунт деактивирован, чат удалён или бот исключён из группы.
+# Такие подписки выключаются, чтобы не пробовать снова каждый цикл. Ошибки прав
+# (CHAT_WRITE_FORBIDDEN и подобные) сюда не входят: их владелец может исправить.
+_UNREACHABLE_CHAT_MARKERS = (
+    "bot was blocked by the user",
+    "user is deactivated",
+    "chat not found",
+    "bot was kicked",
+    "bot is not a member",
+    "peer_id_invalid",
+    "bot was blocked",
+)
+
+
+def _chat_is_unreachable(error: BaseException) -> bool:
+    text = str(error).casefold()
+    return any(marker in text for marker in _UNREACHABLE_CHAT_MARKERS)
+
+
 class StreamPoller:
     def __init__(
         self,
@@ -501,6 +521,7 @@ class StreamPoller:
         *,
         retries: int = 1,
         permanent_failure_is_success: bool = False,
+        unavailable_chat_id: int | None = None,
     ):
         """Единая точка вызова Telegram API из поллера.
 
@@ -527,7 +548,10 @@ class StreamPoller:
                 logger.info("%s: лимит Telegram, жду %sс", description, delay)
                 await asyncio.sleep(delay)
             except (TelegramForbiddenError, TelegramBadRequest) as e:
-                logger.warning("%s: %s", description, e)
+                if unavailable_chat_id is not None and _chat_is_unreachable(e):
+                    await self._suppress_unreachable_chat(unavailable_chat_id)
+                else:
+                    logger.warning("%s: %s", description, e)
                 # Для удаления «нет такого сообщения» и «бот больше не участник»
                 # означают, что локальную ссылку на пост всё равно можно забыть.
                 return None if permanent_failure_is_success else _FAILED
@@ -538,6 +562,19 @@ class StreamPoller:
                 logger.exception("%s: неожиданная ошибка", description)
                 return _FAILED
         return _FAILED
+
+    async def _suppress_unreachable_chat(self, chat_id: int) -> None:
+        """Выключает подписки чата, который бот больше не может достать.
+
+        Пишет ровно одну строку в журнал: раньше такой чат давал предупреждение
+        каждый цикл, пока владелец не заметит.
+        """
+        disabled = await self._db.disable_notifications_for_chat(chat_id)
+        logger.warning(
+            "Чат %s недоступен для бота: уведомления отключены (%s подписок)",
+            mask_chat_id(chat_id),
+            disabled,
+        )
 
     async def run(self) -> None:
         logger.info("Поллер запущен, интервал %s сек", self._interval)
@@ -1568,6 +1605,15 @@ class StreamPoller:
                         broadcaster_id, access_token
                     ),
                 )
+            except TwitchAuthError:
+                # Канал не подключал свой Twitch или токен отозван. Это ожидаемое
+                # состояние: раньше каждый такой канал каждый цикл печатал
+                # traceback, и журнал терял реальные проблемы.
+                cache[login] = None
+                logger.debug(
+                    "Фолловеры %s пропущены: нет действующего Twitch-токена", login
+                )
+                return
             except Exception:
                 cache[login] = None
                 logger.exception("Не удалось получить число фолловеров для %s", login)
@@ -2227,6 +2273,12 @@ class StreamPoller:
                     broadcaster_id, access_token
                 ),
             )
+        except TwitchAuthError:
+            logger.debug(
+                "Итоговые фолловеры %s пропущены: нет действующего Twitch-токена",
+                login,
+            )
+            return None
         except Exception:
             logger.exception("Не удалось получить итоговое число фолловеров для %s", login)
             return None
@@ -2770,7 +2822,9 @@ class StreamPoller:
             )
         message = (
             await send() if direct else await self._tg_call(
-                send, f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}"
+                send,
+                f"Отправка поста о старте стрима в {mask_chat_id(chat_id)}",
+                unavailable_chat_id=chat_id,
             )
         )
         if message is _FAILED or message is None:

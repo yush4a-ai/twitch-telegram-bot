@@ -789,7 +789,7 @@ async function oauthResultsJourney(page) {
     await page.goto(`${base}/_qa/oauth-result/${status}`);
     await page.getByRole('heading',{name:title,exact:true}).waitFor();
     assert.equal(await page.locator('#result-description').getAttribute('role'),'status');
-    assert.equal(await page.getByRole('link',{name:'Вернуться к боту',exact:true}).getAttribute('href'),'https://t.me/TwitchSignalTestbot');
+    assert.equal(await page.getByRole('link',{name:'Вернуться к боту',exact:true}).getAttribute('href'),'https://t.me/SignalStreamsBot');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
     const file=`oauth-${argument('engine','chromium')}-${status}-390.png`;
     await page.screenshot({path:path.join(output,file),animations:'disabled'});

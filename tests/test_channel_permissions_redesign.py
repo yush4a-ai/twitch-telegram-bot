@@ -99,7 +99,7 @@ class ChannelIntentTests(unittest.IsolatedAsyncioTestCase):
         await self.db.link_streamer_identity(101, "11", "alpha", verified_at=time.time())
         self.bot = fake_bot()
         app = web.Application(); install_mini_app_routes(app, self.db, BOT_TOKEN, bot=self.bot,
-                                                        bot_username="TwitchSignalTestbot")
+                                                        bot_username="SignalStreamsBot")
         self.client = TestClient(TestServer(app)); await self.client.start_server(); self.addAsyncCleanup(self.client.close)
 
     async def post(self, path, **values):

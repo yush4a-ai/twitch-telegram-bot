@@ -633,14 +633,14 @@ async def cmd_invite(message: Message, db: Database, config: Config) -> None:
     if (
         not getattr(config, "growth_enabled", False)
         or getattr(config, "admin_telegram_bot_username", "").casefold()
-        != "twitchsignaltestbot"
+        != "signalstreamsbot"
         or message.chat.type != ChatType.PRIVATE
         or message.from_user is None
         or message.from_user.id != message.chat.id
     ):
         return
     code = await db.get_or_create_growth_referral_code(message.chat.id)
-    link = build_growth_deep_link("TwitchSignalTestbot", f"ref_{code}")
+    link = build_growth_deep_link("SignalStreamsBot", f"ref_{code}")
     await message.answer(
         "Пригласи друга в тестовый бот: " + link + "\n\n"
         "Ссылка не даёт платных прав или наград."

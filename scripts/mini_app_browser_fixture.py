@@ -279,7 +279,7 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             )
         install_mini_app_routes(
             app, db, FIXTURE_BOT_TOKEN, bot=state.bot, twitch=state.twitch,
-            bot_username="TwitchSignalTestbot", billing_test_enabled=False,
+            bot_username="SignalStreamsBot", billing_test_enabled=False,
             legal_store=legal_store, owner_config=owner_config,
         )
 
@@ -340,7 +340,7 @@ async def build_fixture(scenario: str, *, now: float | None = None) -> tuple[web
             status = request.match_info["status"]
             if status not in OAUTH_MESSAGES:
                 raise web.HTTPNotFound()
-            response = web.Response(text=result_page(status, bot_username="TwitchSignalTestbot"),
+            response = web.Response(text=result_page(status, bot_username="SignalStreamsBot"),
                                     content_type="text/html", headers={"Cache-Control": "no-store"})
             response.set_cookie("qa_oauth_status", status, httponly=True, samesite="Strict", path="/twitch/result")
             return response
@@ -428,7 +428,7 @@ async def main() -> None:
         app = web.Application()
         install_mini_app_routes(
             app, db, "123456:test-telegram-token", bot=bot,
-            twitch=FixtureTwitch(), bot_username="TwitchSignalTestbot",
+            twitch=FixtureTwitch(), bot_username="SignalStreamsBot",
             billing_test_enabled=True,
             billing_test_user_ids=frozenset({501, 603, 605, 504} if os.getenv("MINI_APP_QA_TRIAL") else {501, 603, 605}),
             preview_status_provider=(

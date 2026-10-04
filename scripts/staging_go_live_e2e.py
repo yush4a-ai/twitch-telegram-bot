@@ -28,7 +28,7 @@ from bot.poller import StreamPoller
 
 TARGET = Path(__file__).with_name("staging_target.json")
 CONFIRMED_OWNER_ID = 425785231
-EXPECTED_BOT_USERNAME = "TwitchSignalTestbot"
+EXPECTED_BOT_USERNAME = "SignalStreamsBot"
 
 
 def validate_runtime(environ: Mapping[str, str]) -> int:

@@ -27,7 +27,7 @@ def validate_r9_runtime(environ: Mapping[str, str]) -> None:
         or environ.get("RAILWAY_ENVIRONMENT_ID") != target["staging_environment_id"]
         or environ.get("RAILWAY_SERVICE_ID") != target["service_id"]
         or environ.get("NOTIFICATION_QUEUE_ENABLED") != "1"
-        or environ.get("ADMIN_TELEGRAM_BOT_USERNAME") != "TwitchSignalTestbot"
+        or environ.get("ADMIN_TELEGRAM_BOT_USERNAME") != "SignalStreamsBot"
     ):
         raise ValueError("Pinned staging R9 runtime mismatch")
 

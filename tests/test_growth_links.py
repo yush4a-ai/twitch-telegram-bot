@@ -19,16 +19,16 @@ class GrowthLinksTests(unittest.TestCase):
 
     def test_builder_uses_explicit_testbot_and_rejects_unsafe_inputs(self):
         self.assertEqual(
-            deep_links.build_growth_deep_link("TwitchSignalTestbot", "src_site"),
-            "https://t.me/TwitchSignalTestbot?start=src_site",
+            deep_links.build_growth_deep_link("SignalStreamsBot", "src_site"),
+            "https://t.me/SignalStreamsBot?start=src_site",
         )
         self.assertEqual(
-            deep_links.build_track_deep_link("PaverPapa", bot_username="TwitchSignalTestbot"),
-            "https://t.me/TwitchSignalTestbot?start=track_paverpapa",
+            deep_links.build_track_deep_link("PaverPapa", bot_username="SignalStreamsBot"),
+            "https://t.me/SignalStreamsBot?start=track_paverpapa",
         )
         for username, payload in (
             ("evil.example/path", "src_site"), ("Testbot", "src_other"),
-            ("TwitchSignalTestbot", "ref_short"),
+            ("SignalStreamsBot", "ref_short"),
         ):
             with self.subTest(username=username, payload=payload):
                 with self.assertRaises(ValueError):

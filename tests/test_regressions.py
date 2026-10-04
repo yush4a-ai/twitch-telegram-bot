@@ -6800,7 +6800,7 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             twitch_client_id="client", twitch_client_secret="secret",
             poll_interval_seconds=60, owner_chat_id=None,
             oauth_public_base_url="https://example.test",
-            admin_telegram_bot_username="TwitchSignalTestbot",
+            admin_telegram_bot_username="SignalStreamsBot",
             oauth_host="127.0.0.1", oauth_port=0, auto_track=(),
         )
         db = SimpleNamespace(

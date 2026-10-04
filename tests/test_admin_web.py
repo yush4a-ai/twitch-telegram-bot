@@ -18,7 +18,7 @@ KEY = "staging-test-key-with-at-least-32-chars-123"
 class AdminWebTests(unittest.IsolatedAsyncioTestCase):
     async def test_spoofed_forwarded_ip_cannot_bypass_peer_quota_or_evict_valid_state(self):
         access = AdminAccess(KEY, enabled=True, secure_cookie=False, bot_token=BOT_TOKEN,
-                             bot_username='TwitchSignalTestbot', owner_id=OWNER_ID)
+                             bot_username='SignalStreamsBot', owner_id=OWNER_ID)
         session, base = await self.start_server(access)
         states = []
         for i in range(5):
@@ -120,7 +120,7 @@ class AdminWebTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 303)
 
     async def test_direct_url_and_non_owner_signed_identity_are_denied(self):
-        access = AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=OWNER_ID, bot_token=BOT_TOKEN, bot_username="TwitchSignalTestbot")
+        access = AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=OWNER_ID, bot_token=BOT_TOKEN, bot_username="SignalStreamsBot")
         session, base = await self.start_server(access)
         async with session.get(base + "/admin") as response:
             html = await response.text()
@@ -143,7 +143,7 @@ class AdminWebTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 200)
 
     async def test_widget_callback_requires_state_and_signed_owner(self):
-        access = AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=OWNER_ID, bot_token=BOT_TOKEN, bot_username="TwitchSignalTestbot")
+        access = AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=OWNER_ID, bot_token=BOT_TOKEN, bot_username="SignalStreamsBot")
         session, base = await self.start_server(access)
         async with session.get(base + "/admin") as response:
             html = await response.text()

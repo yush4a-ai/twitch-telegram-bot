@@ -11,7 +11,7 @@ class R9GuardTests(unittest.TestCase):
             "RAILWAY_SERVICE_ID": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
             "RAILWAY_ENVIRONMENT_NAME": "staging",
             "NOTIFICATION_QUEUE_ENABLED": "1",
-            "ADMIN_TELEGRAM_BOT_USERNAME": "TwitchSignalTestbot",
+            "ADMIN_TELEGRAM_BOT_USERNAME": "SignalStreamsBot",
         }
         validate_r9_runtime(staging)
         for key, value in (

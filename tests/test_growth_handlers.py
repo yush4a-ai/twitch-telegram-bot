@@ -10,7 +10,7 @@ from main import _private_bot_commands
 
 
 STAGE = SimpleNamespace(
-    growth_enabled=True, admin_telegram_bot_username="TwitchSignalTestbot",
+    growth_enabled=True, admin_telegram_bot_username="SignalStreamsBot",
     owner_chat_id=425785231, admin_panel_access_key=None,
     oauth_public_base_url="https://staging.example.test", viewer_plus_enabled=False,
 )
@@ -37,7 +37,7 @@ class GrowthHandlersTests(unittest.IsolatedAsyncioTestCase):
         own = message()
         await streams.cmd_invite(own, self.db, STAGE)
         text = own.answer.await_args.args[0]
-        self.assertIn("https://t.me/TwitchSignalTestbot?start=ref_", text)
+        self.assertIn("https://t.me/SignalStreamsBot?start=ref_", text)
         self.assertNotIn("101", text)
         for denied, config in (
             (message(-1001, 101, ChatType.GROUP), STAGE),

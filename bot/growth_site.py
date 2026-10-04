@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from aiohttp import web
 
 _ASSETS = Path(__file__).with_name("growth_ui")
-_BOT_USERNAME = "TwitchSignalTestbot"
+_BOT_USERNAME = "SignalStreamsBot"
 _BOT_LINK = f"https://t.me/{_BOT_USERNAME}?start=src_site"
 _HEADERS = {
     "Cache-Control": "no-store",
@@ -233,7 +233,7 @@ def _render(path: str, base_url: str) -> str:
 def install_growth_site(app: web.Application, bot_username: str, public_base_url: str | None) -> None:
     """Mount only the exact test bot. Never infer this from a production host."""
     if bot_username != _BOT_USERNAME:
-        raise ValueError("R8 site is restricted to TwitchSignalTestbot")
+        raise ValueError("R8 site is restricted to SignalStreamsBot")
     base_url = _validate_base_url(public_base_url)
     pages = {path: _render(path, base_url) for path in _PAGES}
 

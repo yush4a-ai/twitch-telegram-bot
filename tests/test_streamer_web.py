@@ -21,7 +21,7 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
         self.db = Database(os.path.join(self.directory.name, "bot.db"))
         await self.db.connect()
         await self.db.link_streamer_identity(101, "11", "alpha", verified_at=100)
-        self.access = StreamerAccess(BOT_TOKEN, bot_username="TwitchSignalTestbot", secure_cookie=False)
+        self.access = StreamerAccess(BOT_TOKEN, bot_username="SignalStreamsBot", secure_cookie=False)
         self.user_admin = True
         async def member(_chat_id, user_id):
             return SimpleNamespace(

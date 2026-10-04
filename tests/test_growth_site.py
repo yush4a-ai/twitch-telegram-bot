@@ -21,7 +21,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
     async def start(self, *, username=None, owner=False):
         access = AdminAccess(
             "emergency-key-" + "x" * 32, enabled=True, owner_id=425785231,
-            bot_token=BOT_TOKEN, bot_username="TwitchSignalTestbot",
+            bot_token=BOT_TOKEN, bot_username="SignalStreamsBot",
             public_base_url="https://staging.example.test",
         ) if owner else None
         self.server = OAuthCallbackServer(
@@ -50,7 +50,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
             await self.server.start()
 
     async def test_four_pages_have_unique_server_html_and_safe_metadata(self):
-        base = await self.start(username="TwitchSignalTestbot", owner=True)
+        base = await self.start(username="SignalStreamsBot", owner=True)
         titles = set()
         descriptions = set()
         for path in ("/site", "/site/for-viewers", "/site/for-streamers", "/site/help"):
@@ -72,7 +72,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(title and description)
                 titles.add(title)
                 descriptions.add(description)
-                self.assertIn("https://t.me/TwitchSignalTestbot?start=src_site", html)
+                self.assertIn("https://t.me/SignalStreamsBot?start=src_site", html)
                 self.assertNotIn("Админ-панель", html)
                 self.assertNotIn("/admin", html)
                 self.assertNotIn("мгновенно", html.lower())
@@ -91,7 +91,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 401)
 
     async def test_robots_noindex_assets_and_feature_truth(self):
-        base = await self.start(username="TwitchSignalTestbot")
+        base = await self.start(username="SignalStreamsBot")
         async with self.session.get(base + "/robots.txt") as response:
             self.assertEqual(response.status, 200)
             robots = await response.text()
@@ -118,7 +118,7 @@ class GrowthSiteTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("тестовый plus", streamer.lower())
 
     async def test_video_is_user_controlled_and_supports_partial_load(self):
-        base = await self.start(username="TwitchSignalTestbot")
+        base = await self.start(username="SignalStreamsBot")
         async with self.session.get(base + "/site") as response:
             html = await response.text()
         self.assertIn('poster="/site/demo-poster.png"', html)

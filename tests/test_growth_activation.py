@@ -44,13 +44,13 @@ class GrowthActivationTests(unittest.IsolatedAsyncioTestCase):
     async def test_staging_live_post_track_link_points_to_testbot(self):
         poller = StreamPoller(
             SimpleNamespace(), self.db, SimpleNamespace(), 60,
-            bot_username="TwitchSignalTestbot",
+            bot_username="SignalStreamsBot",
         )
         text = await poller._build_live_text(
             "paverpapa", "Demo", "Game", 12, None,
             include_track_link=True, is_channel=True,
         )
-        self.assertIn("https://t.me/TwitchSignalTestbot?start=track_paverpapa", text)
+        self.assertIn("https://t.me/SignalStreamsBot?start=track_paverpapa", text)
         self.assertNotIn("https://t.me/twitchSignalBot", text)
 
 

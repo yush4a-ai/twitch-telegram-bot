@@ -3,7 +3,7 @@
 ## Scope and authority
 Use the owner-requested NEW visible app chat "Мини-апп" in the existing TwitchSignalBot project and branch `autonomous/twitchsignal-roadmap`. One implementation owner; no hidden parallel CLI development or second controller.
 The owner approved the roadmap and delegated reversible staging decisions. Continue spec -> plan -> implementation -> tests -> staging evidence without routine approval pauses. Actual owner visual acceptance remains pending.
-Only `@TwitchSignalTestbot` and verified test recipients. Never push/merge main or master, deploy to production, alter production data/config/secrets, or change CigilBot/Media.
+Only `@SignalStreamsBot` and verified test recipients. Never push/merge main or master, deploy to production, alter production data/config/secrets, or change CigilBot/Media.
 Real payments/provider choice, public promotion, purchases and paid infrastructure upgrades are deferred. Use mocks/local alternatives and record external blockers; continue independent work.
 
 ## Current task and guidance

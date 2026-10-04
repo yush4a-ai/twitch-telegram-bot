@@ -8,6 +8,7 @@ import os
 import sys
 import time
 from dataclasses import replace
+from pathlib import Path
 
 import aiohttp
 from aiogram import Bot
@@ -36,6 +37,7 @@ from bot.config import (
     load_config,
 )
 from bot.database import Database, DatabaseConfigurationError
+from bot.db_backup import run_backup_loop
 from bot.deep_links import TELEGRAM_BOT_USERNAME
 from bot.handlers import register_all_handlers
 from bot.billing import BillingService
@@ -144,7 +146,7 @@ def _menu_button_for_config(config) -> MenuButtonCommands | MenuButtonWebApp:
         getattr(config, "mini_app_enabled", False)
         and getattr(config, "pinned_staging", False)
         and str(getattr(config, "admin_telegram_bot_username", "") or "").casefold()
-        == "twitchsignaltestbot"
+        == "signalstreamsbot"
         and base_url.startswith("https://")
     ):
         return MenuButtonWebApp(text="Приложение", web_app=WebAppInfo(url=f"{base_url}/app"))
@@ -156,8 +158,8 @@ async def _verify_staging_bot_identity(bot: Bot, config) -> None:
             and getattr(config, "pinned_staging", False)):
         return
     identity = await bot.get_me()
-    if str(getattr(identity, "username", "") or "").casefold() != "twitchsignaltestbot":
-        raise ConfigError("Mini App staging token должен принадлежать TwitchSignalTestbot")
+    if str(getattr(identity, "username", "") or "").casefold() != "signalstreamsbot":
+        raise ConfigError("Mini App staging token должен принадлежать SignalStreamsBot")
 
 
 async def _with_startup_retry(coro_factory, description: str) -> None:
@@ -510,9 +512,9 @@ async def main() -> None:
     if (
         is_railway_environment()
         and getattr(config, "growth_enabled", False)
-        and config.admin_telegram_bot_username.casefold() != "twitchsignaltestbot"
+        and config.admin_telegram_bot_username.casefold() != "signalstreamsbot"
     ):
-        raise ConfigError("R8 staging требует username TwitchSignalTestbot")
+        raise ConfigError("R8 staging требует username SignalStreamsBot")
 
     contract = getattr(config, 'production_contract', None)
     if contract is not None:
@@ -624,7 +626,7 @@ async def main() -> None:
             billing_test_enabled = (
                 getattr(config, "pinned_staging", False)
                 and getattr(config, "mini_app_enabled", False)
-                and config.admin_telegram_bot_username.casefold() == "twitchsignaltestbot"
+                and config.admin_telegram_bot_username.casefold() == "signalstreamsbot"
                 and config.owner_chat_id is not None
             )
             oauth_server = OAuthCallbackServer(
@@ -686,6 +688,7 @@ async def main() -> None:
             preview_capture_service = None
             poller_task: asyncio.Task | None = None
             polling_task: asyncio.Task | None = None
+            backup_task: asyncio.Task | None = None
             notification_worker: NotificationWorker | None = None
             try:
                 await oauth_server.start()
@@ -765,6 +768,20 @@ async def main() -> None:
                     notification_worker.start()
                 poller_task = asyncio.create_task(poller.run())
 
+                # Свежая копия базы раз в сутки. Без неё откат означал бы потерю
+                # всех данных с момента последней ручной копии. Копия делается
+                # средствами SQLite и не отправляет ничего пользователям.
+                backup_task = asyncio.create_task(
+                    run_backup_loop(
+                        config.db_path,
+                        Path(config.db_path).parent / "backups",
+                        interval_seconds=getattr(
+                            config, "backup_interval_seconds", 24 * 60 * 60
+                        ),
+                        retention=getattr(config, "backup_retention", 5),
+                    )
+                )
+
                 # Только теперь runtime собран целиком, и /healthz может отвечать
                 # ok вместо starting. Provider синхронный и читает готовые
                 # in-memory snapshot, поэтому HTTP-запрос не трогает ни SQLite,
@@ -822,6 +839,7 @@ async def main() -> None:
                     poller.stop()
                 await _cancel_task(polling_task, "Telegram polling")
                 await _cancel_task(poller_task, "StreamPoller")
+                await _cancel_task(backup_task, "DB backup")
                 if notification_worker is not None:
                     await _safe_cleanup("Notification worker", notification_worker.stop())
                 await _shutdown_preview_runtime(

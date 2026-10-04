@@ -1,3 +1,43 @@
+## Исправления по аудиту production — 04.10.2026
+
+**Три находки закрыты в коде, тесты зелёные. В production НЕ выложено: нужен отдельный deploy-разрешение владельца. Сообщения пользователям и в каналы не отправлялись и не отправляются этими правками.**
+
+- Тихий пропуск фолловеров: `bot/poller.py` различает `TwitchAuthError` («канал не подключал Twitch» / токен отозван) и настоящий сбой. Раньше на каждый такой канал каждый цикл печатался traceback (111 записей за 4 минуты), теперь это `debug`, а неожиданные ошибки по-прежнему логируются как `exception`.
+- Недоступные чаты: при Forbidden с признаками «bot was blocked by the user», «user is deactivated», «chat not found», «bot was kicked» поллер выключает подписки этого чата (`Database.disable_notifications_for_chat`, только `notify_enabled`) и пишет одну строку вместо предупреждения каждый цикл. Ошибки прав (`CHAT_WRITE_FORBIDDEN`) подписку не выключают.
+- Свежие копии базы: новый `bot/db_backup.py` раз в сутки (настраивается `BACKUP_INTERVAL_SECONDS`, по умолчанию 86400; `BACKUP_RETENTION`, по умолчанию 5, максимум 20) делает консистентную онлайн-копию в `<каталог БД>/backups`, никогда не заменяет существующий файл, не трогает чужие файлы и не роняет бота при сбое. Задача подключена в `main.py` отдельным таском и отменяется при остановке.
+- Тесты: новый `tests/test_audit_production_fixes.py` (10) и `tests/test_db_backup_runtime.py` (5) — 15 passed; связанный набор 381 passed/129 subtests. Пять тестов `test_production_admission.py` в этой среде не выполняются: им нужен файл контракта **вне** каталога проекта, а файловая песочница разрешает запись только внутри проекта; падают они одинаково и до этих правок.
+- Правки не меняют момент отправки: состояние сессий хранится в БД (`is_live`, `last_message_id`), поэтому перезапуск обрабатывает продолжающиеся эфиры так же, как до него. В момент аудита «висящих» подписок без поста было 4, все — личные чаты; в каналах таких нет.
+
+## Аудит production, только чтение — 04.10.2026
+
+**Production работает штатно, критичных сбоев не найдено. Три находки качества, не доступности.**
+
+- Identity/deploy: active SUCCESS `44fe69d3-2d89-466c-9202-fcbf56e6c05a`, cliMessage «production cutover retry 1c49330 exact», image digest `sha256:3dde1f84…`; getMe `@TwitchSignalBot` id `8707370390`; MenuButtonWebApp «Приложение» → `/app`; команды 12 (личка) / 6 (группы) / 13 (owner scope); webhook не задан (long polling), pending 0.
+- HTTP: `/healthz`200, `/app`200, `/admin`200 (login), `/admin/api/snapshot`401, `/streamer/api/profile`401, `/app/legal/*`503 ожидаемо, `legal.css`200, `/site`404 (R8 только staging).
+- DB только чтение: `integrity=ok`, FK 0, 28 миграций, tracked112/private-users67/telegram-channels4/stream_history1660/vod1275; stream_history до 14:36Z, samples ~16:44Z; writer lock на месте, реплика 1; в логе 0 «database is locked», 0 duplicate writer, 0 429, 0 ConfigError/CRITICAL. Платежи OFF.
+- Находки: (1) `TwitchAuthError` 111 за 4 минуты — сбор followers по каналам без user-token; токен `dobriy_yura` просрочен 25 дней, остальные 5 обновляются (ключ шифрования верный), это известный reauthorization cleanup; (2) свежих backup на volume нет — последний 30.09, откат означал бы потерю нескольких дней; (3) повторяющиеся WARNING доставки в заблокированные/деактивированные чаты (3 chat id).
+- Ограничения: Railway logs хранит ~4 минуты; native Telegram-клиенты, реальная отправка/OAuth, платежи (OFF) и сценарии Mini App с initData не проверялись. Ничего в production не изменялось.
+
+## Переезд staging-бота на @SignalStreamsBot — 04.10.2026
+
+**КОД ГОТОВ И ПРОВЕРЕН ЛОКАЛЬНО, STAGING НЕ ПЕРЕКЛЮЧЁН. Нужны шаги владельца в BotFather и Railway.**
+
+- Новый бот `@SignalStreamsBot` создан владельцем; username подтверждён публичной ссылкой `t.me/SignalStreamsBot`. Токен владельцем получен и в переписку не выводился; `.env` остаётся в `.gitignore`.
+- Переведены с `TwitchSignalTestbot` на `SignalStreamsBot`: staging-guard'ы `main.py` (menu button, staging identity, R8, mock checkout), `bot/growth_site.py`, `bot/handlers/telegram_help.py`, `/invite` в `bot/handlers/streams.py`, `bot/production_admission.py` (production отвергает и старое, и новое staging-имя), `scripts/staging_go_live_e2e.py`, `scripts/r9_scale_validation.py`, browser-fixtures, `README.md`, `docs/runbooks/staging-deploy.md`, `AGENTS.md`, `PRODUCT.md`, `docs/ROADMAP.md`, `mini-app/START-HERE.md`.
+- Focused gate на текущем снапшоте: **443 passed, 183 subtests passed** (13 файлов, включая `test_regressions.py` и `test_production_admission.py`). Полный gate и staging deploy не выполнялись. Локальный shim `.pytest_tmp/fix_tempfile.py` (в `.gitignore`) компенсирует ACL файловой песочницы и продуктовый код не меняет.
+- Production не тронут: `bot/deep_links.py` (`twitchSignalBot`), имя `@TwitchSignalBot`, production contract, DB и variables — без изменений.
+- Открыто: BotFather (display name, bio, аватар, команды, `/setdomain`, Main Mini App), Railway staging `TELEGRAM_BOT_TOKEN` и `ADMIN_TELEGRAM_BOT_USERNAME=SignalStreamsBot` только после выкладки кода, повторная выдача админ-прав бота в каналах, повторный `/start` у пользователей, замена бренд-текстов «TwitchSignalBot», полный gate перед deploy.
+
+## Production cutover — SUCCESS, 04.10.2026
+
+**POST-CUTOVER PASS. Production live на новом runtime, payments OFF, queue OFF. Дополнительных deploy/rollback не выполнялось.**
+
+- Active production deployment `44fe69d3-2d89-466c-9202-fcbf56e6c05a` SUCCESS (`stopped=false`), exact runtime `1c49330…`; staging `b3d8be15…` без изменений. `/healthz`200, `/app`200, `getMe`=@TwitchSignalBot.
+- Независимая read-only проверка: env-флаги admission/replica/writer/queue/payment совпадают с контрактом; DB integrity ok, FK пуст, 28 версий, legacy counts сохранены (users67/channels112/tokens6/history1645); unsigned API401, Platega callback404, legal503 ожидаемо; логи без ConfigError/corruption/duplicate writer.
+- System MenuButton = web_app «Приложение» (production `/app`), persistent ReplyKeyboard «Меню» сохранена. Наблюдавшееся «Меню» приходило от старого artifact `dc9239…` (`MenuButtonCommands()`); клиент держал значение до обновления чата — владелец подтвердил AFTER. Runtime-код не менялся, добавлен регрессионный тест production-ветки.
+- Новый HEAD после cutover: `fc85583` (docs). Изменения этой проверки: handoff/checklist/STATUS, evidence и один тест. Rollback-точка `cutover-20261004T1540Z\production-precutover-final.db` не тронута.
+- Открыто: owner/native Desktop/iOS/Android acceptance, Twitch reauthorization cleanup, legal/support inputs, long-term offsite backup; замечание по расхождению env `RAILWAY_VOLUME_INSTANCE_ID` и фактического volume instance (тот же volume, данные целы).
+
 ## Compact staging checkpoint — 04.10.2026
 
 **PRODUCTION PREPARED — OWNER FINAL ACCEPTANCE REQUIRED. D CLOSED. Cutover NO.**

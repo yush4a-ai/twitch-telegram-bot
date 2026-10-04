@@ -18,7 +18,7 @@ TwitchSignalBot связывает события Twitch с Telegram-уведо�
 
 ## Operating Context
 
-- Рабочий контур разработки — Railway staging и `@TwitchSignalTestbot`; production `@TwitchSignalBot` связан с GitHub `main` и не изменяется автономно.
+- Рабочий контур разработки — Railway staging и `@SignalStreamsBot`; production `@TwitchSignalBot` связан с GitHub `main` и не изменяется автономно.
 - У бота уже есть owner-only Telegram `/stats` и `/health`, а постоянный aiohttp server обслуживает Twitch OAuth callback и `/healthz`.
 - `OWNER_CHAT_ID` отсутствует в staging на момент R2. Сценарии входа можно проверить локально с явным тестовым fixture; реальный staging login останется непроверенным, пока подтверждённый owner ID не будет настроен.
 

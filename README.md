@@ -118,7 +118,7 @@ Read-only `/admin` показывает Telegram, Twitch, Preview, аудито�
 Telegram Login Widget и совпадение user ID с `OWNER_CHAT_ID`.
 
 Для браузерного Telegram Login у тестового бота нужно разрешить staging domain
-в BotFather и задать `ADMIN_TELEGRAM_BOT_USERNAME=TwitchSignalTestbot` на staging.
+в BotFather и задать `ADMIN_TELEGRAM_BOT_USERNAME=SignalStreamsBot` на staging.
 Аварийный ключ остаётся на отдельном скрытом `/admin/emergency` до реальной
 проверки Telegram-входа; обычная страница ключ не показывает. Текущее состояние
 проверки — в `docs/STATUS.md`. Production-панель автономно не включалась.

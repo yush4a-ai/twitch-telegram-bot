@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import errno
@@ -3045,6 +3045,23 @@ class Database:
         )
         row = await cursor.fetchone()
         return bool(row[0]) if row else True
+
+    @_serialized
+    async def disable_notifications_for_chat(self, chat_id: int) -> int:
+        """Выключает все подписки чата, ставшего недоступным боту.
+
+        Telegram отвечает Forbidden, когда пользователь заблокировал бота или
+        аккаунт деактивирован. Повторять отправку в такой чат каждый цикл
+        бессмысленно: это тратит лимит Telegram и забивает журнал. Метод
+        трогает только notify_enabled и возвращает число изменённых подписок.
+        """
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET notify_enabled = 0 "
+            "WHERE chat_id = ? AND notify_enabled = 1",
+            (chat_id,),
+        )
+        await self.conn.commit()
+        return cursor.rowcount
 
     @_serialized
     async def set_preview_enabled(

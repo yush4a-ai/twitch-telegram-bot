@@ -292,6 +292,9 @@ class Config:
     legal_retention: str | None = None
     legal_refund_policy: str | None = None
     legal_chargeback_policy: str | None = None
+    # Периодические онлайн-копии рабочей базы: интервал и сколько копий хранить.
+    backup_interval_seconds: int = 24 * 60 * 60
+    backup_retention: int = 5
 
 
 def _parse_auto_track(raw: str | None) -> tuple[tuple[int, str], ...]:
@@ -373,6 +376,11 @@ def load_config() -> Config:
         )
         if notification_queue_enabled and not pinned_staging and production_contract is None:
             raise ConfigError("NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging")
+    backup_interval_seconds = max(
+        300, _positive_int("BACKUP_INTERVAL_SECONDS", str(24 * 60 * 60))
+    )
+    # Верхняя граница не даёт случайной настройкой забить диск копиями.
+    backup_retention = min(20, _positive_int("BACKUP_RETENTION", "5"))
     return Config(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
         twitch_client_id=_require("TWITCH_CLIENT_ID"),
@@ -402,4 +410,6 @@ def load_config() -> Config:
         legal_retention=os.getenv("LEGAL_RETENTION") or None,
         legal_refund_policy=os.getenv("LEGAL_REFUND_POLICY") or None,
         legal_chargeback_policy=os.getenv("LEGAL_CHARGEBACK_POLICY") or None,
+        backup_interval_seconds=backup_interval_seconds,
+        backup_retention=backup_retention,
     )

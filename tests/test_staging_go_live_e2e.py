@@ -28,7 +28,7 @@ class StagingGoLiveE2ETests(unittest.IsolatedAsyncioTestCase):
 
     async def test_fake_bot_receives_one_go_live_post_and_cleanup(self):
         bot = SimpleNamespace(
-            get_me=AsyncMock(return_value=SimpleNamespace(username="TwitchSignalTestbot")),
+            get_me=AsyncMock(return_value=SimpleNamespace(username="SignalStreamsBot")),
             send_message=AsyncMock(return_value=SimpleNamespace(message_id=321)),
             edit_message_text=AsyncMock(return_value=True),
             delete_message=AsyncMock(return_value=True),

@@ -128,7 +128,7 @@ class MenuButtonCompatibilityTests(unittest.TestCase):
 
         config = SimpleNamespace(
             mini_app_enabled=True, pinned_staging=True,
-            admin_telegram_bot_username="TwitchSignalTestbot",
+            admin_telegram_bot_username="SignalStreamsBot",
             oauth_public_base_url="https://staging.example.test",
         )
         button = _menu_button_for_config(config)
@@ -140,6 +140,34 @@ class MenuButtonCompatibilityTests(unittest.TestCase):
         self.assertIsInstance(_menu_button_for_config(SimpleNamespace(**{**vars(config), "mini_app_enabled": False})), MenuButtonCommands)
         self.assertIsInstance(_menu_button_for_config(SimpleNamespace(**{**vars(config), "oauth_public_base_url": "http://staging.example.test"})), MenuButtonCommands)
 
+    def test_production_admission_uses_app_button_with_public_url(self):
+        from main import _menu_button_for_config
+
+        config = SimpleNamespace(
+            mini_app_enabled=True,
+            production_admitted=True,
+            production_contract=object(),
+            admin_telegram_bot_username="TwitchSignalBot",
+            oauth_public_base_url="https://worker-production-cee5.up.railway.app",
+        )
+        button = _menu_button_for_config(config)
+        self.assertIsInstance(button, MenuButtonWebApp)
+        self.assertEqual(button.text, "Приложение")
+        self.assertEqual(
+            button.web_app.url,
+            "https://worker-production-cee5.up.railway.app/app",
+        )
+        for mutation in (
+            {"production_contract": None},
+            {"production_admitted": False},
+            {"mini_app_enabled": False},
+        ):
+            with self.subTest(mutation=mutation):
+                self.assertIsInstance(
+                    _menu_button_for_config(SimpleNamespace(**{**vars(config), **mutation})),
+                    MenuButtonCommands,
+                )
+
 
 class StagingIdentityCompatibilityTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_bot_identity_must_match_before_staging_menu_writes(self):
@@ -147,7 +175,7 @@ class StagingIdentityCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         from main import _verify_staging_bot_identity
 
         config = SimpleNamespace(mini_app_enabled=True, pinned_staging=True,
-                                 admin_telegram_bot_username="TwitchSignalTestbot")
+                                 admin_telegram_bot_username="SignalStreamsBot")
         bot = SimpleNamespace(get_me=AsyncMock(return_value=SimpleNamespace(username="AnotherBot")))
         with self.assertRaises(ConfigError):
             await _verify_staging_bot_identity(bot, config)
@@ -157,7 +185,7 @@ class StagingIdentityCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         from main import _verify_staging_bot_identity
 
         config = SimpleNamespace(mini_app_enabled=True, pinned_staging=False,
-                                 admin_telegram_bot_username="TwitchSignalTestbot")
+                                 admin_telegram_bot_username="SignalStreamsBot")
         bot = SimpleNamespace(get_me=AsyncMock())
         await _verify_staging_bot_identity(bot, config)
         bot.get_me.assert_not_awaited()

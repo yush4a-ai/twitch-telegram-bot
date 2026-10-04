@@ -81,7 +81,7 @@ def load_production_admission(*, railway, db_path, public_url):
             or contract.volume_instance_id == target['staging_volume_instance_id']
             or contract.environment_name.casefold() in {'staging', 'test', 'development', ''}
             or contract.bot_id == 8859004067
-            or contract.bot_username.casefold() == 'twitchsignaltestbot'
+            or contract.bot_username.casefold() in {'twitchsignaltestbot', 'signalstreamsbot'}
             or target['staging_domain'] in contract.public_url):
         raise ConfigError('Production contract содержит staging identity')
     if (type(contract.bot_id) is not int or contract.bot_id <= 0

@@ -69,6 +69,7 @@ class AdmissionTests(unittest.TestCase):
 
     def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
         for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'bot_username': 'SignalStreamsBot'},
             {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
             {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
             {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
