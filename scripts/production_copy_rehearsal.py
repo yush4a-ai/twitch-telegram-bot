@@ -8,7 +8,6 @@ import argparse
 import asyncio
 from contextlib import closing
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
@@ -166,10 +165,21 @@ def _export_artifact(root, sha, name):
         raise ValueError('Exact artifact commit required')
     destination = _contained(root, Path(root)/name)
     destination.mkdir()  # no reuse of a prior mutable artifact directory
-    raw = subprocess.check_output(['git', 'archive', '--format=tar', sha], cwd=REPO)
-    with tarfile.open(fileobj=io.BytesIO(raw)) as archive:
-        archive.extractall(destination, filter='data')
-    return destination, hashlib.sha256(raw).hexdigest()
+    archive_path = _new_destination(root, Path(root)/(name+'.tar'))
+    # This repository includes hundreds of MiB of historical QA assets. Keep
+    # the complete exact artifact, but stream it instead of retaining tar bytes
+    # in the Python process (the R9 RSS guard measures lifetime peak).
+    archive_stream = archive_path.open('xb')
+    try:
+        with archive_stream:
+            subprocess.run(['git', 'archive', '--format=tar', sha], cwd=REPO,
+                           stdout=archive_stream, stderr=subprocess.PIPE, check=True)
+        digest = _sha(archive_path)
+        with tarfile.open(archive_path, mode='r:') as archive:
+            archive.extractall(destination, filter='data')
+        return destination, digest
+    finally:
+        archive_path.unlink()  # only our exclusively created file inside TEMP
 
 
 def _offline_open(artifact, path, root):

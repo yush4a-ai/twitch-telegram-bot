@@ -1,126 +1,64 @@
-# Production cutover: checkpoint 04.10.2026
+# Production preparation — checkpoint 04.10.2026
 
-**PREPARATION INCOMPLETE — DEPLOY NOT STARTED. Cutover: NO.**
+**PRODUCTION PREPARED — OWNER INPUT REQUIRED. DEPLOY NOT STARTED. Cutover: NO.**
 
-Владелец разрешил завершать подготовку при малом остатке allowance и остановиться на проверенном checkpoint. В этой сессии закрыты SEC-01, SEC-02, SEC-03 и маленький UX blocker. Этапы B, C, D остаются открытыми. Не маркировать проект `PRODUCTION READY` до их завершения и проверки владельцем.
+B1/B2/C закрыты локально; D не закрыт. Production source copy не предоставлена. Подготовка исправительного scope: **7/8 = 87,5% (≈88%)** — SEC-01/02/03, Retry, B1, B2, C; D открыт. Это счётчик восьми пунктов, не оценка готовности всего продукта. Native/owner/infra prerequisites дополнительно открыты. Production READY не заявляется.
 
-## Ветка и snapshot
+## Точная версия
 
-- Final branch: `autonomous/twitchsignal-roadmap`.
-- Последний commit с изменением runtime: `9e899300fbc222058a2ca746fb90336d78a8d2a5`. Полный suite запущен один раз на этом чистом committed snapshot.
-- Final HEAD SHA: закреплён локальным tag `production-prep-partial-2026-10-04`; точный hash получить `git rev-parse 'production-prep-partial-2026-10-04^{commit}'`. Тот же полный SHA указан в финальном сообщении владельцу. Tag фиксирует финальный документальный commit; runtime SHA выше остаётся источником полного test gate.
-- База задачи: `81e186ac2dddb88b0d29e131a8fb38ad61d87d0d`.
-- Source of truth: `docs/audits/production-readiness-2026-10-04/REPORT.md` и связанные PLAN/SCENARIOS/LOCAL-ADMISSION/RUNTIME-PREREQUISITES/STAGING-READ-ONLY. Старый REPORT остаётся историей исходных findings.
+- Ветка: `autonomous/twitchsignal-roadmap`, база этого продолжения `b175782621e7aa818b4ca63d40927500a61d20f2`.
+- Runtime SHA: `3fa8b649e737693eef94c3912c22313834f57586`.
+- Первый полный test snapshot: `5474e5833bb8fc3eae3e1169f69c2bfe0ca55ff6`; RED1634PASS/2FAIL/2existingSkips/3741subtests. Обнаружены lifetime-RSS от buffered Git tar и устаревшее copy expectation. Исправлены offline tooling и усилен copy audit; Bot runtime не менялся. Final snapshot закрепляет FULL-GATE.json после нового clean commit/review.
+- Final HEAD закрепляется локальным tag `production-prepared-2026-10-04`. Exact SHA: `git rev-parse 'production-prepared-2026-10-04^{commit}'`; полный literal SHA также в финальном сообщении и материализованном handoff/manifest вне Git: `C:/Users/yusha/.codex/visualizations/2026/10/04/01a10670-d2b9-7420-96b0-f052f5135c96/production-checkpoint.json`. Сам документ входит в final commit, поэтому его content-addressed SHA записывается после commit во внешний manifest, а не выдумывается внутри него.
+- Финальный полный gate: **PENDING**, повтор обязателен после изменения offline tooling; первый RED сохранён в FULL-FIRST-RED.log/json; `docs/audits/production-readiness-2026-10-04/FULL-GATE.json`, `FULL-BC.log`. После него разрешены только документы/evidence, никаких runtime/tests changes.
+- Исторические audit REPORT/PLAN/SCENARIOS сохраняются. Текущий журнал: `CONTINUATION-PLAN.md`; свежий обзор: `FINAL-REVIEW.md` в том же audit folder. Общий аудит не повторялся.
 
-## Сделанные изменения и точечные доказательства
+## Исправления и доказательства
 
-| Пункт | Изменение | Commit / проверка |
+| Этап | Результат | Проверка |
 |---|---|---|
-| SEC-01 | add draft получает actor и 10-минутный expiry; прямой add flow проверяет автора/target/expiry и Telegram-права до lookup и после него непосредственно перед domain write | `51ffec7`; RED: 4 failures; PASS: 14 tests /2 subtests |
-| SEC-02 | cheap tracked/limit check до Twitch; 6 follow requests/user/10s, 30 globally/10s; cache positive/negative 10s до256 entries; сериализация одинаковых lookup с5s timeout. Ограничитель относится только к Mini App follow и не оборачивает poller client | `911f126`; RED:4; PASS:22 tests /3 subtests |
-| SEC-03 | hashed client ownership,4 outstanding widget states/client, global32 admin/128 streamer, expiry300s, reuse cookie state; новый запрос при заполнении получает429 вместо чужого eviction. Сессии streamer4/user,128 total, отзыв только собственного oldest, deny нового пользователя при capacity | `9a2383c`; RED:7 failures; PASS:30 tests /4 subtests |
-| SEC-03 callback | Подпись и linked identity проверяются до расходования nonce; consume и session creation идут без await между ними. Неудачный unlinked login не портит следующую корректную попытку | Исходные HTTP assertions403→403→303→403 проходят. Один scoped reviewer проверил diff; полный scan не повторялся |
-| UX | Первая сетевая ошибка streamer предлагает «Повторить»; повтор использует существующий abort/generation flow, disabled при загрузке. Текст не обещает прошлые данные, если их нет | `9e89930`; Python13 PASS /3023 subtests; browser error→retry→loaded Chromium/WebKit,390/1440,light/dark; см. уточнение QA ниже |
+| B1 | D-048 не утверждает исключение raid. Сохранён runtime: личные live и raids подчиняются quiet; exemption стримера есть; channel publication отдельно. Исправлена только help/confirmation copy | commit9888455; RED2→24PASS, Free50/live/raid inside/outside/exemption/delayed fresh check/community |
+| B2 | Pending updates не удаляются. Durable received до yield/ACK, atomic processing/done по bot+update ID. Done не выполняется повторно. Ordinary ambiguous→unknown без автоматического второго опасного действия; financial→retry через прежний ledger | commit5fdd5b2 + shared-budget correction в3fa8b64; restart/replay/callback/chat_shared/OAuth cancel/owned-task shutdown/shared32 и crash после реального ledger grant/refund PASS |
+| C | Отдельный frozen/hash-pinned operator admission вне Git: local target/storage/config phase1, exact getMe phase2, OS exclusive writer lock, затем DB/migrations/menu/worker/routes. Отдельный queue opt-in после admitted | runtime3fa8b64; missing/placeholder/staging/wrong URL/path/bot/queue/replica, отсутствие DB side effects, второй writer STOP, credentials не включают деньги PASS |
+| D tooling | Offline-only sealed SQLite backup API, hash/size/UTC/schema/rows, immutable source/no sidecars, migrations через Database.connect exact artifact, key/HTML readers, reopen и fresh restore в новый путь старым artifact после migration |12 synthetic tool tests в final focused PASS; stageD **NOT CLOSED**, source/key/external restore отсутствуют |
+| Proxy | request.remote ownership сохранён, XFF/Forwarded не доверены; spoofed headers не обходят quota и не вытесняют valid state | local HTTP regression PASS; actual Railway edge/TLS/client boundary — OWNER INPUT/preflight |
 
-Логи RED/PASS и screenshot находятся в `docs/audits/production-readiness-2026-10-04/`. Reusable browser script: `scripts/production_retry_qa.cjs`; для установленного Playwright использовать `NODE_PATH=C:/Users/yusha/.agents/skills/playwright-skill/node_modules`, `RETRY_ENGINE=chromium` или `webkit`. Он использует fake API и local data modules, без сервера/Telegram/credentials. Native iOS/Android/Desktop Telegram и signed live API этим не подтверждаются.
+Focused B/C: **110 passed /118 subtests**,80.94s; после полного RED и streaming-tool/copy correction: **22 passed /6 subtests**,19.27s, включая неизменный R9 RSS256MiB guard. Новых skips нет. RED/PASS логи сохранены; trailing whitespace удалён только для diffcheck. В scoped review исправлены подтверждённые recovery/cancellation/shared-budget и D Windows IOCP/WAL/order ошибки. Дополнительный review подтвердил buffered tar rootcause: Git snapshot347MiB при RSS лимите256MiB; exact archive теперь stream→exclusive TEMP file→digest/extract→удаление только своего файла. Ничего не исключалось из artifact и memory guard не повышен. Assertions не ослаблялись, skips не добавлялись, runtime/schema/payment guard не отключались.
 
-Полный suite: **PASS —1582 passed,2 skipped,3656 subtests,1085.49s (18:05),exit0**. Лог `docs/audits/production-readiness-2026-10-04/FULL-PREP.log`, manifest `PREP-EVIDENCE.json`. Два исходных Windows skips сохранены, новые skips/assertion weakening не добавлялись. Команда соответствует test gate `scripts/staging_deploy.py`: `.venv/Scripts/python.exe -m pytest -q -p no:cacheprovider`; deployment script не запускался. Runtime (`bot`/`main.py`/config) и `tests` byte-identical source9e89930 во время и после прогона; после него менялись только QA fixture, browser evidence и документы, полный suite повторно не запускался.
+B2 — at-least-once transport в пределах Telegram retention, не exactly-once SQLite+send. MemoryStorage FSM не durable: unknown требует operator review/нового действия пользователя. Не replay unknown callbacks массово; payload не логировать. Полный контракт: `2026-10-04-telegram-replay-contract.md`.
 
-QA уточнение: первый вариант screenshot fixture задавал атрибут темы без semantic tokens. Это обнаружено визуальным просмотром; fixture исправлен на существующий theme controller с assertion фактического colorScheme, повторные8 checks и screenshots PASS, mobile dark/desktop light просмотрены. Это ошибка isolated fixture, не изменение дизайна продукта. Исходный UX RED — отсутствие кнопки. При первой проверке успеха fixture также использовал неверный heading «Telegram-канал»; actual heading «Мой канал» восстановлен, assertions не ослаблены.
+C template и точные обязательные env: `2026-10-04-production-admission-contract.md`. Required secrets только presence/format до getMe; настоящий key decryption доказывается отдельно в D. Одна replica в env не подтверждает Railway control plane; новый lock не останавливает старый artifact. Growth/site остаются отдельным staging-only контуром; новых public-site работ нет.
 
-## Оставшиеся блокеры
+Money: effective `first_release_payment_policy` OFF, allow_invoice=false, allow_external_create=false. Публичный prepare unavailable, без order/checkout/grant; production не получает staging mock grants/trial. Credentials не монтируют live provider transport/routes. Реальные Stars invoices/Platega POST не выполнялись; финансовые tests используют только существующие sandbox doubles.
 
-1. **B/quiet hours + raid:** runtime и help расходятся. D-048 сохраняет старую семантику quiet-hours go-live/raid, но оставляет несоответствие на T12. `tests/test_mini_app_legacy_compat.py` утверждает блокировку личного raid во время quiet hours и fresh check после retry. Help обещает исключение. В этой сессии ни runtime, ни copy не менялись. Следующий исполнитель должен зафиксировать canonical решение с источником; при отсутствии утверждённого исключения сохранить существующий runtime и исправить copy. Проверить ordinary personal/live, raids с/без quiet, exemption, community separately, delayed retry/toggle.
-2. **B/polling:** `main.py` по-прежнему вызывает `delete_webhook(drop_pending_updates=True)`. Не заменять флаг без regression-first плана retention/replay. Нужны replay-safe commands/channel selections и recovery границы. Stars ledger имеет local idempotency, но полная входящая processing/recovery стратегия не завершена. Деньги OFF не дают права обещать exactly-once Telegram delivery.
-3. **C/admission:** безопасный production contract ещё НЕ реализован. Текущие staging guards не сняты. Production features выключены и queue ON приводит к ConfigError. Требования к реализации ниже; документация не является runtime guard.
-4. **D/migration:** нет разрешённой репрезентативной isolated production copy и key recovery evidence. Active migration/rollback rehearsal, external production backup и остановка writers не выполнены. Staging backup не подставлять вместо production source.
-5. **Release acceptance:** native, owner visual acceptance, разрешённые OAuth/channel/outbound/media smoke открыты. Эти результаты не подменять browser/fake evidence.
-6. **SEC-03 proxy pre-flight:** per-client quota использует `request.remote`, без доверия произвольному X-Forwarded-For. При общем proxy/NAT клиенты делят лимит4 states/300s. До release проверить реальные client boundaries и выбрать проверенную trusted proxy конфигурацию либо скорректировать ownership contract regression-first. Старые valid states сохраняются даже при capacity.
+## Что требуется от владельца — пять групп
 
-Прогресс текущего исправительного scope: **4 из8 пунктов (50%)**: три SEC findings и UX закрыты; два B-дефекта, C и D открыты. Это счётчик обязательных пунктов этой задачи, не измерение готовности всего продукта или вероятности успешного deploy.
+1. Подтвердить production bot ID/username, Railway project/envID+name/service/volumeID+instance/mount, DB path/PUBLIC_URL/PORT, одну replica и admission contract. Исторические candidate IDs не являются подтверждёнными значениями. OWNER_CHAT_ID425785231 известен, quiet/raid и цены150/300 не спрашиваются заново.
+2. Дать разрешённый representative isolated production snapshot с manifest/provenance и доступность существующего encryption key через secret storage; подтвердить exact старый rollback artifact. Выполнить реальную D репетицию на этой копии. Staging/synthetic не заменяют её.
+3. Выбрать внешнее backup storage и доказать download/hash/restore; подтвердить maintenance оператор/окно/STOP всех writers/exclusivity/rollback и production proxy/TLS/client-boundary preflight. NAT/shared proxy пока делит4states/300s, capacity429 без eviction.
+4. Разрешить конкретные recipient/account/channel и лимит OAuth/send/media; пройти свежую native/owner acceptance Desktop/iOS/Android. Сейчас **NOT TESTED**.
+5. Только после всех gates отдельное прямое сообщение **«Разрешаю production cutover»**. Подготовка этого разрешения не даёт.
 
-## Production admission contract, ещё без реализации
+Детали: `OWNER-INPUTS-FOR-LAUNCH.md`. Денежные/legal/bank условия остаются отдельными; документы от имени владельца не приняты.
 
-Новый продукт допускается только отдельным явным production opt-in, после совпадения всех ожидаемых значений. Отсутствие, пустое значение, placeholder, staging/testbot identity, несовпадение или невозможность проверки: ConfigError и остановка до открытия/migration БД, Telegram commands/menu, worker, OAuth/public routes, poller и исходящих запросов продукта.
+## Migration, rollback, maintenance и STOP
 
-Двухфазная проверка: сначала локальный immutable target/config, затем getMe для точного bot ID+username. Создать Bot и подтвердить identity **до** `Database.connect()`: сейчас main делает DB mutations раньше identity check. Нельзя просто разрешить production через `not railway` либо переименовать staging. First release payment policy сохраняется OFF независимо от env/secrets. Negative tests проверяют отсутствие DB/worker/menu side effects при wrong target/bot и каждый missing prerequisite.
+Воспроизводимая процедура/CLI/authorization/schema-additions: `2026-10-04-production-copy-runbook.md`. Только отдельный каталог OS TEMP с разрешённым sealed source, без source WAL/SHM. Exact old/new artifacts экспортируются из commits. До миграции backup API→hash/size/integrity/FK/schema/counts/fingerprints; all legacy users/tracked/settings/routing/report/identity/community rows сохраняются. Existing key расшифровывает access/refresh без логов. Ожидаемые additions рассматриваются заранее, не принимаются автоматически по факту.
 
-Ожидаемые operator inputs, все обязательны:
+Migration: Database.connect only→close→integrity/FK/legacy columns+values/schema/additions→reopen. Потом закрытый новый path, sealed pre-migration backup→**новый** rollback path, exact SHA без stale sidecars, old artifact open→integrity/FK/rows/key/reader/HTML. Synthetic fixture подтверждает механизм, не полноту production категорий. Native HTML дополнительно проверяет оператор. Git revert не data rollback.
 
-| Поле | Что подтвердить |
-|---|---|
-| production bot | Числовой bot ID и точный username основного бота из проверенного getMe. **Не**8859004067/`TwitchSignalTestbot` |
-| Railway target | exact project ID, environment ID+name, service ID, volume ID/instance ID, mount path; single worker/replica и эксклюзивные writers |
-| DB | absolute normalized path строго внутри ожидаемого volume; реальный mount, существующий source DB, ownership/permissions и свободное место |
-| Required secrets | TELEGRAM_BOT_TOKEN matches getMe; TWITCH_CLIENT_ID/SECRET; существующий TOKEN_ENCRYPTION_KEY decrypts старые token fields; ADMIN_PANEL_ACCESS_KEY≥32, OWNER_CHAT_ID, production admin widget username, PUBLIC_URL HTTPS/PORT |
-| Queue | отдельный явный production queue opt-in, согласованный queue/worker режим, lease/recovery policy; ledger pending/leased/unknown и frozen recipient review |
-| Money | effective first_release_payment_policy=OFF; allow_invoice=false, allow_external_create=false; billing prepare не создаёт checkout/order/grant; live provider routes не монтируются |
-| Runtime | FFmpeg/ffprobe доступны в новом production artifact, preview contract6→12→18→24→6/H.264/no audio/size guard; approved resource limits |
-| Artifact | утверждённый exact commit/tree/artifact digest, полные tests именно этого snapshot, совместимый rollback artifact |
+Будущий maintenance требует STOP polling, notification/preview/billing workers, OAuth/public writers, scripts и любых других DB процессов. Независимо доказать ноль старых writers/один maintenance owner и реальные replicas. Только после этого WAL checkpoint; busy/неизвестное ownership→STOP RELEASE. Active WAL/SHM вслепую не удалять. Backup на том же Volume недостаточен.
 
-`scripts/staging_target.json` содержит исторические production candidate IDs: environment `af6d873b-a2cf-45aa-be42-cd9efbd102a7`, volume instance `eded4a6e-c2c1-44ab-a238-b3c860632cee`, project `14282646-e318-4b80-b35d-4369270de255`, service `45e46f2a-dba3-4b18-bc5f-b6fafa260055`. Это **не подтверждённые inputs для нового admission**. Не брать testbot IDs или staging DB. Записанный `expected_production_branch=main` не разрешает push/merge main.
+STOP при target/bot/artifact/mount mismatch, плохом key/hash/integrity/FK, потере/изменении legacy данных, неразрешённых schema additions, двух writers, unexpected money/send/auth bypass или duplicate mutation. При unknown external delivery сначала reconciliation. При data rollback сохранить post-failure snapshot; новые записи после snapshot нельзя молча потерять. Сверить совместимый old artifact и key перед любым будущим запуском.
 
-## OWNER INPUTS ещё отсутствуют
+Native checklist: `2026-10-04-production-native-acceptance.md` — все новые Desktop/iOS/Android сценарии NOT TESTED; browser/fake не подменяют их. Preview6→12→18→24→6/H.264/no audio/guard и старые HTML/groups сохранены.
 
-- Подтверждённые exact production identity/target/volume/DB/PUBLIC_URL и способ одноразового закрепления contract без секретов в Git.
-- Разрешённый isolated source snapshot, его manifest/hash, внешний backup storage/access/restore, существующий encryption key через secret storage.
-- Проверенный maintenance path: остановка bot/poller/worker/OAuth/прочих writers с сохранением доступа к volume; оператор, окно и rollback artifact.
-- Решение по quiet/raid, если ранее утверждалось исключение, которого нет в прочитанном D-048.
-- Конкретный разрешённый smoke recipient/account/channel, лимит отправок и native acceptance.
-- Отдельное разрешение на production cutover. Эта задача его не даёт.
+## Production / staging
 
-Сведения для реальных платежей/legal остаются в `OWNER-INPUTS-FOR-LAUNCH.md`; payment OFF release не закрывает bank approval, legal acceptance или реальную продажу. Настроенный support/legal без owner acceptance не выдумывать.
+**Production untouched: YES. Payments OFF: YES. Cutover allowed: NO.** Не выполнялись deploy/config/production DB mutations, Railway commands, реальные Bot API/Twitch/OAuth/send/invoice/Platega операции; main/master не push/merge. Созданы только локальные TEMP DB и fake/local HTTP tests. Новые изменения не опубликованы даже на staging.
 
-## PRE-FLIGHT
+Исторически рабочий staging: [Testbot](https://t.me/TwitchSignalTestbot), [Mini App](https://worker-staging-2f74.up.railway.app/app); deployment5211c9f8-6a2f-4834-9aa6-88706a4a34a7/runtime39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0. Новая live проверка здесь не выполнялась. Исторические снимки в audit folders относятся к прежним версиям, новых native screenshots нет. Старый production metadata466499d5/dc9239eb также не переверялся и не выдаётся за актуальный admission.
 
-1. Проверить branch/clean tree, exact runtime/tests SHA; закончить B/C/D и scoped review. Полный gate после последнего runtime изменения; старый gate не покрывает новый код.
-2. Получить отдельное разрешение владельца и заполнить inputs. Сверить Railway/бот/volume двумя независимыми read-only источниками, не выводя secrets.
-3. Проверить negative admission matrix: wrong/missing bot,project,environment,service,volume,DB,key,queue,payment. Во всех случаях ноль пользовательских и DB side effects.
-4. Подтвердить fresh consistent backup, hash, integrity, восстановление из внешнего хранилища, token decryption и rollback artifact. Закрыть isolated rehearsal ниже.
-5. Установить maintenance window и наблюдение; проверить отсутствие second writer/replica. Проверить новые/старые pending report recipients и unknown jobs. Зафиксировать offset/update replay recovery решение. Все send проверки требуют конкретного разрешённого адресата.
+## Следующий шаг
 
-## Migration на isolated copy и будущая production процедура
-
-Эта процедура пока **не отрепетирована и не разрешает выполнять её на active production**.
-
-1. Оператор получает consistent production snapshot через SQLite backup API; исходный файл не заменяется. Не копировать live DB/WAL/SHM последовательно как три независимых файла. `scripts/sqlite_backup.py` имеет staging `/data` guard: не отключать guard и не запускать его как production maintenance tool.
-2. Сохранить sealed backup и manifest (source identity,UTC timestamp,hash,size,schema versions, таблицы/counts/ключевые ID, encrypted-field count) вне Railway Volume. Проверить скачанную внешнюю копию по hash и восстановить её в новый isolated путь; source остаётся read-only.
-3. Для offline migration обеспечить остановку всех writers/worker, закрытие соединений и эксклюзивный filesystem lock. Подтверждённый checkpoint WAL выполняет только оператор в утверждённом maintenance path. Если checkpoint занят или ownership не доказан, STOP. Сохранить оригинальный recovery bundle; старые WAL/SHM не должны попасть к восстановленному файлу. Не удалять sidecars активной DB.
-4. На isolated restored copy выполнить integrity_check=`ok`, foreign_key_check пуст; снять logical fingerprint legacy user/subscription/report rows и token fields. Существующий Fernet key должен расшифровать все legacy encrypted access/refresh fields; содержимое token не логировать. Ошибка ключа: STOP.
-5. Запустить **только** `Database.connect()`/migration и закрыть БД; не запускать main/poller/handlers/network. Сверить expected schema versions и additive changes, старые IDs/row contents/subscriptions/report payloads и token plaintext equality в памяти. Закрыть и повторно открыть; integrity/FK и права Free/HTML/старых групп снова проверить.
-6. Не импортировать staging grants/jobs/test recipients/Telegram file IDs/payment fixtures. Сохранять реальные source rows; случайную staging provenance обнаружить и остановиться, не чистить production молча.
-7. Репетиция rollback: закрыть новый код; восстановить sealed pre-migration backup в **новый** isolated DB path без stale sidecars; открыть старым exact artifact/schema, проверить integrity, legacy rows/HTML и key decryption. R2 reader compatibility/materialized legacy samples проверить отдельно; Git revert не является data rollback.
-8. Сохранить evidence stop/reopen/hash/decryption counts/migration/rollback/external restore. Только затем отдельное owner-approved production окно повторяет эти операции на точном target. Перед активной заменой DB ещё раз backup последнего состояния и эксклюзивная остановка writers.
-
-## Deployment, только после отдельного разрешения
-
-1. Начинать лишь после закрытия pre-flight и решения `PRODUCTION READY — DEPLOY NOT STARTED` с evidence.
-2. Использовать утверждённый immutable artifact и явно pinned production target; staging deployment helper для production не использовать. Не push/merge main/master в рамках этой задачи.
-3. Остановить старый writer, выполнить утверждённую migration и запустить ровно одну новую replica. Admission должен закончиться до DB/user side effects; payment OFF остаётся enforced.
-4. Проверить фактические deployment ID, artifact/commit SHA, environment/project/service/volume/DB и getMe. HTTP200 не заменяет эти проверки.
-
-## Post-deploy smoke
-
-- health и worker/poller state; exact getMe и системный MenuButtonWebApp «Приложение».
-- Schema/integrity/FK, preserved old subscriptions/reports/groups, existing Twitch token decryption без вывода значения.
-- Неподписанные/expired/tampered запросы401/403, cross-user/admin denial, свежие Telegram-права и follow burst.
-- По отдельному конкретному разрешению: Telegram /start→Меню→live→App→return, Viewer add/pause/delete, streamer error→retry, подключение/permissions; personal quiet/raid и community отдельно; photo/video fallback только в согласованном test scope.
-- effective payment OFF; billing prepare unavailable и ноль invoice/external checkout/grant. Provider POST и реальные деньги не тестировать.
-- Recovered pending updates не теряются и не дублируют grants/side effects; queue pending/leased/unknown и frozen report recipient сверены.
-- Наблюдение latency/errors/retries/resources в согласованное окно. Native/device/media результаты, которые не выполнены, оставить NOT TESTED.
-
-## Rollback и stop conditions
-
-Остановить выпуск при mismatch identity/artifact/volume, неизвестном key/backup, integrity/FK failure, потерянных legacy rows, migration failure, неожиданных оплатах/отправках, auth bypass, повторных grants/side effects или двух writers. При unknown external delivery сначала reconciliation, не повторная отправка.
-
-Rollback: остановить новую replica и все writers, сохранить свежий consistent post-failure snapshot для расследования, восстановить проверенный pre-migration backup без чужого WAL/SHM, запустить совместимый старый artifact, повторить identity/DB/key/health/разрешённый smoke. Не совмещать старый код с неизвестной новой schema. Учесть новые записи после cutover: восстановление старого backup может их потерять; оператор должен согласовать reconciliation до восстановления. Secrets сохраняются в secret storage; не копировать staging key в production.
-
-## Production и текущий staging
-
-В этой сессии production **не затронут**: не выполнялись deploy/config/DB writes, Railway commands, getMe/network к внешним API, owner OAuth, Telegram sends, invoice или Platega POST. Платежи **OFF**, staging guards сохранены. Создавались только локальные временные test DB/fake API.
-
-Последнее внешнее состояние взято из предыдущего read-only audit, а не повторно проверено в этой сессии: Testbot `@TwitchSignalTestbot`, deployment `5211c9f8-6a2f-4834-9aa6-88706a4a34a7`, runtime `39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0`; app `https://worker-staging-2f74.up.railway.app/app`. Исправления этой сессии не опубликованы. Старый production metadata: `466499d5-6979-4a81-8aee-67efcf628976` / `dc9239eb0b82fb80d1788fc657205740cebc49e9`, без новой live проверки.
-
-## Точный следующий prompt
-
-> Продолжи TwitchSignalBot на autonomous/twitchsignal-roadmap с чистого checkpoint. Прочитай docs/workflows/2026-10-04-production-cutover-handoff.md и checklist, актуальные STATUS/DECISIONS и исходный production-readiness REPORT. Сначала сверяй HEAD и final full-suite evidence, не повторяй общий audit. SEC-01/02/03 и UX уже исправлены, сохрани их и исторические HTML/groups. Закрой B: canonical quiet/raid из D-048/current tests/help и pending Telegram retention/replay regression-first. Затем C: отдельный fail-closed production admission с owner/operator inputs и identity до DB mutations, не снимай staging guards. Затем D: разрешённая isolated representative source copy, existing encryption key, внешний backup, exclusive stop/migration/reopen/legacy rows/rollback rehearsal. Никаких production deploy/config/DB writes, real sends, OAuth владельца, Stars invoice, Platega POST, денег, main/master push/merge. Payments OFF. По одному focused fix RED→PASS→review→commit; полный suite один раз после последнего runtime snapshot. При малом allowance остановись на clean committed checkpoint с updated handoff. Cutover только после отдельного явного разрешения владельца и закрытых gates. Не называй preparation PRODUCTION READY, пока открыты B/C/D/native/owner prerequisites.
+Продолжать только D на отдельно разрешённой isolated representative source copy после owner inputs. Сначала сверить tag/exact HEAD/runtime/full evidence/clean tree, сохранить закрытые SEC/Retry/B1/B2/C и Free/HTML/groups. Не повторять общий audit и R/P/T этапы. Без source/key продолжать лишь разрешённые preflight/backup/native preparation. Production cutover не начинать без прямого сообщения владельца и реально закрытых D/infra/native gates.

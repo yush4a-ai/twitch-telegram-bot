@@ -1,0 +1,52 @@
+.............F.F......                                             [100%]
+================================== FAILURES ===================================
+_ R9MixedLoadTests.test_two_rounds_keep_one_job_per_destination_and_recover_lease _
+
+self = <test_r9_mixed_load.R9MixedLoadTests testMethod=test_two_rounds_keep_one_job_per_destination_and_recover_lease>
+
+    async def test_two_rounds_keep_one_job_per_destination_and_recover_lease(self):
+>       result = await run_mixed_profile(4, rounds=2, seed=7)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_r9_mixed_load.py:9:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts\r9_mixed_load.py:79: in run_mixed_profile
+    guard("start", directory)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+phase = 'start'
+directory = WindowsPath('C:/Users/yusha/AppData/Local/Temp/twitchsignal-r9-8m1lswhq')
+
+    def guard(phase: str, directory: Path) -> None:
+        if time.perf_counter() - started > max_seconds:
+            raise CapacityLimit(f"{phase}: wall time limit")
+        rss = _peak_rss_bytes()
+        if rss is not None and rss > max_rss_bytes:
+>           raise CapacityLimit(f"{phase}: process RSS limit")
+E           scripts.r9_mixed_load.CapacityLimit: start: process RSS limit
+
+scripts\r9_mixed_load.py:73: CapacityLimit
+_ CopyAuditTests.test_help_topics_have_section_titles_and_keep_free_limits_and_exclusions _
+
+self = <test_telegram_copy_audit.CopyAuditTests testMethod=test_help_topics_have_section_titles_and_keep_free_limits_and_exclusions>
+
+    def test_help_topics_have_section_titles_and_keep_free_limits_and_exclusions(self):
+        from bot.handlers.telegram_help import TOPICS, help_screen
+        caption = Caption(help_screen()[0])
+        self.assertIn('������', caption.bold)
+        self.assertGreaterEqual(len(caption.bold), 4)
+        for name, (_title, body) in TOPICS.items():
+            with self.subTest(topic=name):
+                topic = Caption(body)
+                self.assertGreaterEqual(len(topic.bold), 2)
+                self.assertGreaterEqual(topic.quotes, 1)
+>       self.assertIn('����� �� ������', TOPICS['quiet'][1])
+E       AssertionError: '\u0420\u0435\u0439\u0434\u044b \u043d\u0435 \u0432\u0445\u043e\u0434\u044f\u0442' not found in '<b>\u041a\u0430\u043a \u043d\u0430\u0441\u0442\u0440\u043e\u0438\u0442\u044c</b>\\n\u041e\u0442\u043a\u0440\u043e\u0439 \xab\u0415\u0449\u0451\xbb \u2192 \xab\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438\xbb, \u0443\u043a\u0430\u0436\u0438 \u0441\u0432\u043e\u0439 UTC \u0438 \u0432\u044b\u0431\u0435\u0440\u0438 \u0438\u043d\u0442\u0435\u0440\u0432\u0430\u043b.\\n\u041f\u0435\u0440\u0435\u0434 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u043e\u0432\u0435\u0440\u044c \u043c\u0435\u0441\u0442\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f.\\n\\n<b>\u0427\u0442\u043e \u043f\u0440\u0438\u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f</b>\\n<blockquote>\u041b\u0438\u0447\u043d\u044b\u0435 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u044f \u043e \u043d\u0430\u0447\u0430\u043b\u0435 \u044d\u0444\u0438\u0440\u0430, \u0440\u0435\u0439\u0434\u0430\u0445, \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u0438 \u043d\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u044f.\\n\u0414\u043b\u044f \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u044b\u0445 \u0441\u0442\u0440\u0438\u043c\u0435\u0440\u043e\u0432 \u043c\u043e\u0436\u043d\u043e \u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0438\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435.\\n\u041e\u0442\u0447\u0451\u0442\u044b \u043e \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d\u043d\u044b\u0445 \u044d\u0444\u0438\u0440\u0430\u0445 \u043f\u043e\u043f\u0430\u0434\u0443\u0442 \u0432 \u0441\u0432\u043e\u0434\u043a\u0443 \u043f\u043e\u0441\u043b\u0435 \u0442\u0438\u0445\u0438\u0445 \u0447\u0430\u0441\u043e\u0432.</blockquote>\\n\\n\u0420\u0435\u0439\u0434\u044b \u0442\u0430\u043a\u0436\u0435 \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u044e\u0442 \u0442\u0438\u0445\u0438\u0435 \u0447\u0430\u0441\u044b \u0438 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0435 \u0438\u0441\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f.\\n\\n<b>\u0427\u0442\u043e \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e</b>\\n\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0432 Telegram-\u043a\u0430\u043d\u0430\u043b\u0430\u0445 \u0438\u0434\u0443\u0442 \u043f\u043e \u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430\u043c \u043a\u0430\u043d\u0430\u043b\u0430.'
+
+tests\test_telegram_copy_audit.py:36: AssertionError
+---------------------------- Captured stdout call -----------------------------
+uuuu
+=========================== short test summary info ===========================
+FAILED tests/test_r9_mixed_load.py::R9MixedLoadTests::test_two_rounds_keep_one_job_per_destination_and_recover_lease
+FAILED tests/test_telegram_copy_audit.py::CopyAuditTests::test_help_topics_have_section_titles_and_keep_free_limits_and_exclusions
+2 failed, 20 passed, 6 subtests passed in 18.99s

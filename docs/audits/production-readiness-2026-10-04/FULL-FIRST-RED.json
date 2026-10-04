@@ -1,0 +1,21 @@
+{
+  "head": "5474e5833bb8fc3eae3e1169f69c2bfe0ca55ff6",
+  "tree": "200bbb617cd743f60580e1eb52147c06b30efbf4",
+  "runtime_sha": "3fa8b649e737693eef94c3912c22313834f57586",
+  "code_test_manifest_sha256": "43d52d0e8057d25c1e55faf41928f3a22371f0d77f11773a5268cf67c4439a9d",
+  "requirements_sha256": "f5bd4ea20697cf9ca788eeef0b2ea71caacc828339cd48e1606930a6388c16a1",
+  "python": "3.12.10",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "command": "python -m pytest -q -p no:cacheprovider",
+  "started_utc": "2026-10-04T11:11:23.059681+00:00",
+  "clean_before_start": true,
+  "scoped_review_head": "5474e5833bb8fc3eae3e1169f69c2bfe0ca55ff6",
+  "exit_code": 1,
+  "passed": 1634,
+  "failed": 2,
+  "skipped": 2,
+  "subtests_passed": 3741,
+  "seconds": 1144.44,
+  "result": "RED",
+  "completed_before_tooling_correction": true
+}
