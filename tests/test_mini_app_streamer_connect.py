@@ -5,6 +5,7 @@ import asyncio
 import tempfile
 import time
 import unittest
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from unittest.mock import patch
@@ -12,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 from aiogram.enums import ChatType
+from aiogram.types import Chat, ChatShared, Message, User
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
@@ -145,27 +147,43 @@ class MiniAppStreamerConnectTests(unittest.IsolatedAsyncioTestCase):
     async def test_older_client_deep_link_and_chat_shared_use_same_intent(self):
         from bot.handlers.streams import cmd_start_link
         from bot.handlers.auth import on_streamer_community_shared
+        from bot import telegram_home
+        from tests.test_telegram_home import MenuClient, MenuTransport
+        telegram_home._menus.pop(999, None)
+        self.addCleanup(telegram_home._menus.pop, 999, None)
+        transport = MenuTransport()
+        client = MenuClient(999, transport)
+        client.get_chat = self.bot.get_chat
+        client.get_chat_member = self.bot.get_chat_member
+        state = FSMContext(MemoryStorage(), StorageKey(bot_id=999, chat_id=101, user_id=101))
         async with self.request("/app/api/streamer/community-intent", chat_type="channel") as response:
             intent_id = (await response.json())["intent_id"]
         row = await self.db.get_community_intent(intent_id)
-        message = SimpleNamespace(
-            chat=SimpleNamespace(id=101, type=ChatType.PRIVATE),
-            from_user=SimpleNamespace(id=101), bot=self.bot,
-            answer=AsyncMock(), answer_photo=AsyncMock(),
-        )
+        message = Message(
+            message_id=1, date=datetime.now(timezone.utc),
+            chat=Chat(id=101, type=ChatType.PRIVATE),
+            from_user=User(id=101, is_bot=False, first_name="Test"),
+            text=f"/start tscommunity_{intent_id}",
+        ).as_(client)
         await cmd_start_link(
             message, SimpleNamespace(args=f"tscommunity_{intent_id}"),
-            FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=101,user_id=101)), self.db, None,
+            state, self.db, None,
         )
-        keyboard = message.answer.await_args.kwargs["reply_markup"]
+        keyboard = transport.calls[-1].reply_markup
         self.assertEqual(keyboard.keyboard[0][0].request_chat.request_id, row[2])
-        message.chat_shared = SimpleNamespace(request_id=row[2], chat_id=-1001)
-        await on_streamer_community_shared(message, self.db)
+        message = message.model_copy(update={
+            "chat_shared": ChatShared(request_id=row[2], chat_id=-1001),
+        }).as_(client)
+        await on_streamer_community_shared(message, self.db, state)
         self.assertEqual(len(await self.db.list_streamer_communities(101)), 1)
         self.assertEqual((await self.db.get_community_intent(intent_id))[6], "connected")
-        before = message.answer.await_count
-        await on_streamer_community_shared(message, self.db)
-        self.assertEqual(message.answer.await_count, before)
+        self.assertIsNone(await state.get_state())
+        self.assertEqual(transport.calls[-1].reply_markup.keyboard[0][0].text, "Меню")
+        self.bot.get_chat_member.assert_awaited()
+        before = len(transport.calls)
+        await on_streamer_community_shared(message, self.db, state)
+        self.assertEqual(len(transport.calls), before)
+        self.assertEqual(len(await self.db.list_streamer_communities(101)), 1)
 
     async def test_explicit_free_publication_toggle_rechecks_placement_rights(self):
         from bot.mini_app_streamer import complete_community_intent
