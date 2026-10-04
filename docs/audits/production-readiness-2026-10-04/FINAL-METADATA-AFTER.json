@@ -1,0 +1,34 @@
+{
+  "staging_before_after_equal": true,
+  "production_before_after_equal": true,
+  "metadata": {
+    "staging": [
+      {
+        "id": "5211c9f8-6a2f-4834-9aa6-88706a4a34a7",
+        "status": "SUCCESS",
+        "commit": null,
+        "cliMessage": "staging 39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0"
+      }
+    ],
+    "production": [
+      {
+        "id": "466499d5-6979-4a81-8aee-67efcf628976",
+        "status": "SUCCESS",
+        "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+        "cliMessage": null
+      }
+    ]
+  },
+  "new_deployment_created": false,
+  "upload_status": "BLOCKED - 323153880bytes/File too large",
+  "staging_payment_off": true,
+  "runtime_unchanged": true,
+  "desktop": "NOT TESTED - owner deferred",
+  "ios": "NOT TESTED",
+  "android": "NOT TESTED",
+  "signed_smoke": "NOT TESTED",
+  "production_db_snapshot_repeated": false,
+  "D": "CLOSED",
+  "production_untouched": true,
+  "cutover_allowed": false
+}

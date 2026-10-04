@@ -44,3 +44,17 @@
 ## Текущий checkpoint после реальной D
 
 D CLOSED; source/hash/size/provenance/decrypt12/12/migration/reopen/rollback/old reader/external-local PASS — D-REAL-EVIDENCE.json. Код unchanged; tooling tests12PASS/exit0, full/packaging не повторялись. ADMIN/owner admission/infra-proxy/native permissions/отдельное разрешение cutover остаются открытыми. Native NOT TESTED. Final HEAD/tree — private D-closed-checkpoint.json из handoff.
+
+## Final preflight — current
+
+- [x] Runtime/tooling/tests unchanged, tested gate reuse, D CLOSED preserved.
+- [x] Pinned staging identity/paymentOFF и staging Backup API/download/restore PASS.
+- [ ] Exact prepared staging release BLOCKED: payload323153880bytes rejected; two attempts, no new deployment.
+- [ ] New artifact staging smoke/Desktop/iOS/Android: NOT TESTED; native deferred owner.
+- [x] Production mount/path/permissions/free≈382MiB/replica1/process inventory read-only, TLS/HTTPS/301 redirect PASS.
+- [ ] Actual request.remote/Forwarded/XFF boundary and full writer exclusivity PARTIAL.
+- [x] Known-values owner admission draft and operator ADMIN/fresh backup/STOP/manual plans prepared.
+- [ ] OWNER APPROVAL PENDING; ADMIN key PENDING; fresh cutover backup PLANNED.
+- [ ] Direct owner cutover approval after all gates.
+
+PRODUCTION PREPARATION BLOCKED — STAGING UPLOAD LIMIT; D CLOSED, production untouched/paymentOFF YES, cutover NO. Evidence FINAL-OWNER-PREFLIGHT.md/FINAL-STAGING-UPLOAD.json/FINAL-PRODUCTION-INFRA.json.

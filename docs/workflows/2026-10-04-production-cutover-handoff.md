@@ -1,8 +1,48 @@
 # Production preparation — D закрыт, 04.10.2026
 
-**PRODUCTION PREPARED — FINAL OWNER/NATIVE PREFLIGHT REQUIRED. DEPLOY NOT STARTED. Cutover NO.**
+**PRODUCTION PREPARATION BLOCKED — STAGING ARTIFACT UPLOAD LIMIT. D CLOSED. Cutover NO.**
 
 Исправительный scope8/8=100%; production READY не заявляется.
+
+## Final owner/native/infra preflight — 04.10.2026
+
+**PRODUCTION PREPARATION BLOCKED — STAGING ARTIFACT UPLOAD LIMIT. D CLOSED; cutover NO.**
+
+- Base/prepared artifact557244dd01c8e98d6d8bc8cdf5927f052b630a93; runtime3fa8b649e737693eef94c3912c22313834f57586, tested tooling869009401fc638405694297b8449e04c1d96abe8. Code/runtime/tests/build unchanged YES, full/D не повторялись. Final docs-only HEAD/tree после commit — external final-owner-preflight-checkpoint.json рядом с private D manifest. output/ не читался/не stage/не изменялся.
+- Pinned staging перед upload: project14282646-e318-4b80-b35d-4369270de255/environment7a873177-8ada-4b78-8732-a0bfdc1d519b/service45e46f2a-dba3-4b18-bc5f-b6fafa260055; Testbot getMe/8859004067, separate staging Volume, /data/bot.db, verified allowlisted owner, payment offline/invoice false/external create false — PASS. Owner/test account numeric ID не включён в этот отчёт.
+- Staging backup перед upload сохранён через existing guarded SQLite Backup API, integrity/FK/restore и downloaded hash PASS: FINAL-STAGING-BACKUP.json, private local source сохранён. Production DB не использовалась.
+- Exact full committed artifact upload дважды rejected: **323153880bytes/File too large**, нового deployment нет. После двух failures retries STOP; scoped read-only reviewer подтвердил отдельный packaging scope, без урезания runtime или обхода gate. CLI detach попытка тоже rejected; runtime/tooling не менялись. FINAL-STAGING-UPLOAD.json/FINAL-UPLOAD-REVIEW.md.
+- Staging остаётся старым SUCCESS deployment5211c9f8-6a2f-4834-9aa6-88706a4a34a7/39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0. Exact prepared artifact release **FAIL/BLOCKED**. Post-deploy health/app/menu/signed bootstrap/Viewer/Streamer/payment smoke для нового runtime **NOT TESTED**; старый staging не подставлялся. Предыдущие local/full evidence сохранены.
+- Desktop/native attempt остановлена по прямому сообщению владельца «давай без проверки», «я работаю за компьютером». После этого Computer Use inputs прекращены; native Desktop/iOS/Android NOT TESTED, screenshots не сохранялись. Telegram sends/public posts/OAuth/invoices/Platega POST0. Browser screenshots/polish не выполнялись.
+- Production metadata подтверждены read-only: deployment466499d5-6979-4a81-8aee-67efcf628976/old dc9239eb unchanged; project/env/service/volume/instance/mount/DB/URL/PORT совпали. Фактический /data mount ext4/rw, DB строго внутри, read/write permissions текущего runtime uid0 подходят. Free space **400228352bytes (≈382MiB)** на момент чтения; total **454299648bytes**. Резерв для будущего backup/artifact footprint оператор сверяет до cutover; данное чтение не резервирует место. Production DB не открывалась; /proc и statvfs metadata only.
+- Replica manifest1, RUNNING instances1; namespace inventory и STOP plan ниже. Отсутствие всех внешних writers/exclusive maintenance — ещё gate. Variables digest before/after unchanged; production config/DB/volume writes/deploy/restart0.
+- TLS PASS: HTTPS /healthz200, TLSv1.3/certificate hostname verification PASS; HTTP301→same HTTPS /healthz. HSTS отсутствует; policy зафиксирована, не изменялась. Proxy/client boundary **PARTIAL**: на нынешнем old artifact нет observer endpoint/разрешённых двух сетей, новый request.remote не доказан. XFF/Forwarded не доверять; SEC-03 не ослаблялся.
+- Owner admission draft с известными несекретными values: docs/workflows/2026-10-04-production-owner-admission-draft.md и private production-admission-DRAFT.json. **OWNER APPROVAL: PENDING**. ADMIN key PENDING/MISSING. Fresh cutover backup PLANNED. Native/manual/owner visual ниже.
+- Production untouched YES; payments OFF YES; staging backup only allowed staging writes. D sealed source сохранён без чтения/повторной проверки этой сессией.
+
+## Production STOP order — только план, сейчас ничего не остановлено
+
+Read-only inventory: один RUNNING service instance, main.py/PID1 имеет DB/WAL/SHM handles и35threads; на момент чтения ffmpeg отдельным процессом без DB handles. Отдельных process writers в данном namespace не найдено. Notification/preview/OAuth tasks живут внутри main.py; их точное активное состояние этим inventory не доказано. Billing отсутствует в текущем old artifact; будущий новый runtime имеет собственные workers. Другие контейнеры/ручные operator scripts inventory не исключает.
+
+После отдельного cutover approval оператор: (1) фиксирует maintenance окно/единственного controller и исключает запуск внешних scripts; (2) прекращает новые входящие write flows и выводит единственный старый service instance из работы, останавливая bot/poller, in-process notification/preview/OAuth/public writers вместе с main; (3) дожидается остановки ffmpeg/child jobs и подтверждает отсутствие дополнительных replicas/DB handles/других writers на Volume; (4) допускает только maintenance reader для свежего consistent Backup API snapshot и external restore; (5) закрывает maintenance reader, затем только разрешённые migration/admission/start нового runtime. Старый artifact не поддерживает новый OS lock; lockfile не заменяет подтверждение STOP. При неизвестных writers/занятости — STOP RELEASE. Массовый replay unknown внешних действий запрещён без reconciliation. Никаких команд scale/stop/restart сейчас не выполнялось.
+
+## ADMIN key — PENDING, operator step
+
+Только после owner approval непосредственно перед cutover: оператор генерирует cryptographically strong random secret не менее32символов (например32 random bytes, encode base64url), сохраняет исключительно в Railway secret storage как ADMIN_PANEL_ACCESS_KEY. Не печатать/не вставлять в чат/Git/docs/logs/CLI аргументы. После установки проверять только present=true и length_contract>=32 без вывода значения; затем admission preflight. В этой сессии secret не генерировался, production variable не устанавливалась.
+
+## Fresh cutover backup — PLANNED
+
+D CLOSED/private sealed source сохранить; это исторический UTC2026-10-04T12:49:58.568205+00:00, не финальная cutover recovery точка. После owner cutover approval и STOP/exclusivity получить НОВЫЙ SQLite consistent snapshot: exact UTC/target/old artifact, SHA256/size/integrity/FK, source schema/counts, отдельный download вне Railway Volume, private local/offsite copy и restore verification exact old artifact/key. Оператор заранее фиксирует destination/access/retention/encryption и владельца хранения. Reconciliation boundary — snapshot UTC/последний подтверждённый update/job/payment audit watermark; новые записи/unknown deliveries после boundary сохраняются и сверяются перед data rollback. Нельзя молча потерять их восстановлением старого D snapshot. В этой сессии production snapshot/decrypt/D/migration/rollback не повторялись.
+
+## Manual iOS / Android — NOT TESTED
+
+На каждом реальном устройстве отдельно: открыть @TwitchSignalTestbot → Меню → Приложение/Mini App → переключить Viewer/Streamer → Back/close → reopen → safe areas → клавиатура → тема → Тариф/payment unavailable. Результат каждого устройства: PASS / FAIL / NOT TESTED; указать client version/UTC/deployment artifact и один снимок. Пока актуальный prepared artifact не опубликован, старый staging не закрывает эту acceptance.
+
+Owner visual: подтвердить (1) прежние пользователи/стримеры отображаются, (2) существующий report/HTML открывается, (3) Mini App правильный, (4) Home/Menu и возврат правильные, (5) нет явно потерянных данных. Новый дизайн-аудит не нужен.
+
+## Точный следующий запрос
+
+«Продолжаем final preflight с D CLOSED, native отложено владельцем. Final HEAD/tree взять из private final-owner-preflight-checkpoint.json. Staging upload blocked323153880bytes; после двух failures retries остановлены. Только scoped packaging plan по Git archive metadata, без чтения output/, runtime/design/features/security/D/full-suite изменений. Согласовать reproducible deploy package, сохранив exact runtime/config/legal/dependency bytes, integrity manifests и tests/assertions; не урезать runtime и не считать старый deployment новым. После решения повторить только guarded staging release и его evidence. Owner admission/ADMIN/actual proxy boundary/maintenance/fresh backup/native/cutover approval остаются pending. Production deploy/config/DB/volume writes/restart/send третьим лицам/OAuth/реальные платежи запрещены».
 
 ## Реальная D rehearsal — 04.10.2026
 

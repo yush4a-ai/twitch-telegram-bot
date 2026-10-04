@@ -1,3 +1,7 @@
+## D-051 — 04.10.2026: native отложено, staging upload STOP
+
+Owner отложил UI/native проверку, поскольку работает за компьютером; Computer Use inputs прекращены. Background pinned staging release разрешён, production read-only. Два upload failures/File too large323153880bytes — retries STOP, scoped read-only reviewer; exact artifact не урезать и старый stage не подставлять. Runtime/code/tests unchanged, full/D не повторять. Mount/TLS metadata PASS, actual request.remote/external writers PARTIAL. Draft admission owner approval не подделывать; ADMIN только будущий operatorsecret step, свежий cutoverbackup отдельный future gate. D CLOSED/private sealed copy сохранить; cutover NO.
+
 ## D-050 — 04.10.2026: реальная D закрыта, final preflight остаётся
 
 Owner attachment5cea7fa8 прямо разрешает readonly consistent snapshot и isolated rehearsal, отменяя прежний source-copy blocker. OS uid65534 без source write permissions защищает active DB/WAL/SHM; копия только ephemeral /tmp, downloaded original sealed/private вне Git. Первая external/local copy допустима этим owner prompt и проверена download/hash/restore. D CLOSED не даёт production READY/cutover: ADMIN/admission/infra/native/отдельное разрешение открыты. Long-term backup policy и свежий cutover snapshot/reconciliation обязательны отдельно. Identity теперь два источника getMe+current deployment polling log. Runtime/tooling unchanged, focused12PASS; full не повторяется. Exact artifact Windows pathlength решён short private path, не code/global setting changes.

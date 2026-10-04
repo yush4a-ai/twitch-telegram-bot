@@ -1,0 +1,20 @@
+{
+  "backup": "/data/backups/owner-final-20261004-d637711ae3b04b7b8d4c411c58bec971.db",
+  "created": {
+    "integrity": "ok",
+    "bytes": 3661824
+  },
+  "restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3661824
+  },
+  "sha256": "0960f3a4e60e76d3884ce4caff402f426f9178a0709cb6335a6dec6dce9b0a54",
+  "local_export": "C:\\Users\\yusha\\AppData\\Local\\TwitchSignalBot\\staging-backups\\owner-final-20261004-d637711ae3b04b7b8d4c411c58bec971.db",
+  "local_restore": {
+    "integrity": "ok",
+    "restored_tables": 63,
+    "bytes": 3661824
+  },
+  "status": "PASS"
+}

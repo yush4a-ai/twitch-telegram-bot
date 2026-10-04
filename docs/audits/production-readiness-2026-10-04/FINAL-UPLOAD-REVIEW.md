@@ -1,0 +1,3 @@
+# Scoped review: staging upload STOP
+
+Два upload failures; Railway отклонил payload323153880bytes до создания deployment. Полный committed snapshot создаётся git archive и передаётся --path-as-root; .railwayignore отсутствует. Причина отказа — размер payload, состав источников объёма не определён в этом scope. Runtime/tooling не менять, не урезать artifact и не делать следующий upload retry. Отдельный следующий scope: inspect Git archive metadata и согласовать воспроизводимую упаковку, сохранив exact runtime/config/legal/dependency bytes и tests/assertions. Текущий staging оставить прежним. Reviewer read-only: output/ не читался, файлы не изменялись.

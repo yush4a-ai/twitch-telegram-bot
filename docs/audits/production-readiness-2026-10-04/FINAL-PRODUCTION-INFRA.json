@@ -1,0 +1,93 @@
+{
+  "checked_utc": "2026-10-04T13:13:00.988866+00:00",
+  "project_id": "14282646-e318-4b80-b35d-4369270de255",
+  "environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+  "environment_name": "production",
+  "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+  "volume_id": "9afd2204-881d-41af-bfd8-ad395b9c9ca9",
+  "volume_instance_id": "eded4a6e-c2c1-44ab-a238-b3c860632cee",
+  "mount_path": "/data",
+  "config": {
+    "DB_PATH": "/data/bot.db",
+    "PUBLIC_URL": "https://worker-production-cee5.up.railway.app",
+    "PORT": "8765"
+  },
+  "deployment_id": "466499d5-6979-4a81-8aee-67efcf628976",
+  "artifact_sha": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+  "image_digest": "sha256:87924e3c4fa8b00940da8baed931abae3f1fed96be84c937c6de8a92c358ec76",
+  "replicas_manifest": 1,
+  "running_instances": 1,
+  "instance_id": "40f6aa60-a0ee-4302-93fa-978d28d7a508",
+  "filesystem": {
+    "checked_utc": "2026-10-04T13:12:49.529165+00:00",
+    "deployment_id": "466499d5-6979-4a81-8aee-67efcf628976",
+    "runtime_uid": 0,
+    "mount": [
+      {
+        "mount": "/data",
+        "options": "rw,relatime",
+        "filesystem": "ext4"
+      }
+    ],
+    "db_resolved": "/data/bot.db",
+    "db_inside_mount": true,
+    "db_exists": true,
+    "mount_is_mount": true,
+    "free_bytes": 400228352,
+    "total_bytes": 454299648,
+    "mount_readable": true,
+    "mount_writable_for_runtime_uid": true,
+    "db_readable": true,
+    "db_writable_for_runtime_uid": true,
+    "possible_writers": [
+      {
+        "pid": 1,
+        "program": "python",
+        "main_py": true,
+        "db_handles": [
+          "/data/bot.db",
+          "/data/bot.db-shm",
+          "/data/bot.db-wal"
+        ],
+        "threads": 35
+      },
+      {
+        "pid": 66633,
+        "program": "ffmpeg",
+        "main_py": false,
+        "db_handles": [],
+        "threads": 3
+      }
+    ],
+    "proc_inventory_scope": "one container process namespace; in-process workers not separate processes; other namespaces not proven",
+    "db_opened": false,
+    "writes": 0
+  },
+  "web": {
+    "https": {
+      "http_status": 200,
+      "location": null,
+      "hsts": null
+    },
+    "http": {
+      "http_status": 301,
+      "location": "https://worker-production-cee5.up.railway.app/healthz",
+      "hsts": null
+    }
+  },
+  "tls": {
+    "status": "PASS",
+    "version": "TLSv1.3",
+    "certificate_hostname_verified": true,
+    "cipher": "TLS_AES_256_GCM_SHA384"
+  },
+  "proxy_client_boundary": "PARTIAL - no observer endpoint or approved two-network native flows; current old production artifact cannot prove new request.remote behavior",
+  "xff_policy": "untrusted headers must not change ownership; peer_shared_fail_safe retained",
+  "admin_key": "PENDING - absent; no variable writes",
+  "variables_unchanged": true,
+  "production_writes": 0,
+  "production_db_opened": false,
+  "production_restarts": 0,
+  "production_deploys": 0,
+  "cutover_allowed": false
+}

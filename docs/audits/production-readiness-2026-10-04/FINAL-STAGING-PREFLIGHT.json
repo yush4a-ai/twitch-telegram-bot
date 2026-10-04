@@ -1,0 +1,36 @@
+{
+  "sha": "557244dd01c8e98d6d8bc8cdf5927f052b630a93",
+  "before": {
+    "staging": [
+      {
+        "id": "5211c9f8-6a2f-4834-9aa6-88706a4a34a7",
+        "status": "SUCCESS",
+        "commit": null,
+        "cliMessage": "staging 39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0"
+      }
+    ],
+    "production": [
+      {
+        "id": "466499d5-6979-4a81-8aee-67efcf628976",
+        "status": "SUCCESS",
+        "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+        "cliMessage": null
+      }
+    ]
+  },
+  "staging_preflight": {
+    "bot": {
+      "username": "TwitchSignalTestbot",
+      "id": 8859004067
+    },
+    "payment_mode": "offline",
+    "external_create": false,
+    "invoice": false,
+    "owner_allowlisted": true,
+    "db_path": "/data/bot.db",
+    "production_bot_excluded": true
+  },
+  "runtime_unchanged": true,
+  "tested_tooling": "869009401fc638405694297b8449e04c1d96abe8",
+  "runtime_sha": "3fa8b649e737693eef94c3912c22313834f57586"
+}

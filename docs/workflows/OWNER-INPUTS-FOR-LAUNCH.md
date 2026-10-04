@@ -50,3 +50,11 @@ Representative source, decrypt12/12, migration/reopen/fresh rollback exact old a
 3. Закрыть actual proxy/TLS/client-boundary/shared-peer quota, mount permissions/free space/STOP всех writers и backup retention/offsite/свежий snapshot перед cutover. Local sealed copy сохранена вне Git; её snapshot UTC не покрывает дальнейшие записи production.
 4. Разрешить конкретные recipient/account/channel и пределы send/OAuth/media; пройти native Desktop/iOS/Android и owner HTML/visual acceptance. Сейчас NOT TESTED.
 5. Только после этих gates отдельное «Разрешаю production cutover». Эта D сессия deploy/restart/production variables/migration/send/OAuth/платежи не разрешает; payment OFF сохраняется.
+
+## Final preflight: что осталось — 04.10.2026
+
+1. Решить scoped staging packaging blocker323153880bytes/File too large; новый prepared runtime пока не опубликован. После двух failures retries остановлены, без runtime урезания.
+2. Рассмотреть конкретный known-values admission draft: 2026-10-04-production-owner-admission-draft.md, OWNER APPROVAL PENDING; отдельно решить queue enabled initial policy. ADMIN key operator step после approval перед cutover, не менее32 strong random chars, только secret storage, presence/length verification без значения. Сейчас не генерировался/не установлен.
+3. Закрыть actual proxy/client boundary (TLS/HTTPS/redirect уже PASS), внешних writers/exclusive maintenance и fresh cutover backup/offsite/retention/reconciliation. Mount/free≈382MiB/permissions/one-instance evidence есть; storage резерв не обещан.
+4. Native Desktop/iOS/Android/owner visual и безопасный signed smoke остаются NOT TESTED, native отложено владельцем. Manual checklist готов; OAuth/внешний канал требуют отдельных permissions.
+5. После всех gates отдельное «Разрешаю production cutover». Production untouched, payments OFF, D CLOSED не перезапускать.

@@ -1,6 +1,6 @@
 # Production admission первого выпуска — деньги OFF
 
-Это локальная реализация допуска, не разрешение на deploy. Никаких production IDs или секретов не подставлено. Старый Railway production без opt-in сохраняет выключенные новые поверхности; staging guards не сняты. Growth/site/referral остаётся отдельным staging-only контуром.
+Это локальная реализация допуска, не разрешение на deploy. Первоначальный template ниже сохранён как контрактная схема; актуальный known-values draft подготовлен отдельно: 2026-10-04-production-owner-admission-draft.md, OWNER APPROVAL PENDING. Runtime JSON вне Git, секретов не содержит. Старый Railway production без opt-in сохраняет выключенные новые поверхности; staging guards не сняты. Growth/site/referral остаётся отдельным staging-only контуром.
 
 Оператор после отдельного разрешения получает подтверждённые metadata и сохраняет JSON **вне repository**, например в read-only operator/config mount. Задаёт PRODUCTION_PRODUCT_ENABLED=1, PRODUCTION_ADMISSION_FILE=absolute_path, PRODUCTION_ADMISSION_SHA256=hash exact bytes. Файл читается один раз в frozen ProductionAdmission. Template ниже намеренно невалиден до OWNER INPUT.
 
