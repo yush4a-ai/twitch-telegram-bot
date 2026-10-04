@@ -145,6 +145,64 @@ class UnreachableChatTests(unittest.IsolatedAsyncioTestCase):
 
         db.disable_notifications_for_chat.assert_not_awaited()
 
+    async def test_channel_chat_is_disabled_too(self):
+        """A channel where the bot was kicked must stop retrying as well."""
+        db = SimpleNamespace(disable_notifications_for_chat=AsyncMock(return_value=1))
+        poller = _poller(db)
+
+        async def broken():
+            raise TelegramForbiddenError(
+                SimpleNamespace(), "Forbidden: bot was kicked from the group chat"
+            )
+
+        with patch("bot.poller.logger"):
+            await poller._tg_call(
+                broken, "Отправка поста о старте стрима", unavailable_chat_id=-1001
+            )
+
+        db.disable_notifications_for_chat.assert_awaited_once_with(-1001)
+
+    async def test_successful_send_disables_nothing(self):
+        db = SimpleNamespace(disable_notifications_for_chat=AsyncMock(return_value=0))
+        poller = _poller(db)
+
+        async def fine():
+            return SimpleNamespace(message_id=7)
+
+        with patch("bot.poller.logger"):
+            result = await poller._tg_call(
+                fine, "Отправка поста о старте стрима", unavailable_chat_id=42
+            )
+
+        self.assertEqual(result.message_id, 7)
+        db.disable_notifications_for_chat.assert_not_awaited()
+
+
+class DisableNotificationsTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        from bot.database import Database
+
+        self.db = Database(":memory:")
+        await self.db.connect()
+        self.addAsyncCleanup(self.db.close)
+
+    async def test_only_target_chat_is_disabled_and_rows_are_kept(self):
+        await self.db.add_channel(101, "alpha")
+        await self.db.add_channel(101, "beta")
+        await self.db.add_channel(202, "alpha")
+
+        changed = await self.db.disable_notifications_for_chat(101)
+
+        self.assertEqual(changed, 2)
+        self.assertFalse(await self.db.get_notify_enabled(101, "alpha"))
+        self.assertFalse(await self.db.get_notify_enabled(101, "beta"))
+        self.assertTrue(await self.db.get_notify_enabled(202, "alpha"))
+        # Подписки не удалены: пользователь снова увидит их в /list.
+        tracked = await self.db.list_channels(101)
+        self.assertEqual(sorted(tracked), ["alpha", "beta"])
+        # Повторный вызов уже ничего не меняет.
+        self.assertEqual(await self.db.disable_notifications_for_chat(101), 0)
+
 
 class BackupConfigTests(unittest.TestCase):
     base_env = {
