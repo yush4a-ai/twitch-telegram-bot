@@ -262,7 +262,7 @@ class MiniAppStreamerPlusTests(unittest.IsolatedAsyncioTestCase):
             self.bot, self.db, SimpleNamespace(), 60, notification_queue_enabled=True,
         )
 
-        async def expire_then_send(send, _label):
+        async def expire_then_send(send, _label, **_kwargs):
             await self.db.revoke_test_streamer_plus(
                 grant_id, issued_by=425785231, revoked_at=time.time(),
             )
