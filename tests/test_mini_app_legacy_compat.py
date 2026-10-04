@@ -71,7 +71,7 @@ class QuietHoursCompatibilityTests(unittest.IsolatedAsyncioTestCase):
     async def test_raid_rechecks_quiet_hours_after_telegram_retry_wait(self):
         await self.db.clear_quiet_hours(101)
 
-        async def delayed_retry(send, _description):
+        async def delayed_retry(send, _description, **_kwargs):
             now = datetime.now(timezone.utc)
             minute = now.hour * 60 + now.minute
             await self.db.set_quiet_hours(101, (minute - 1) % 1440, (minute + 2) % 1440, 0)
@@ -84,7 +84,7 @@ class QuietHoursCompatibilityTests(unittest.IsolatedAsyncioTestCase):
     async def test_raid_rechecks_toggle_after_telegram_retry_wait(self):
         await self.db.clear_quiet_hours(101)
 
-        async def delayed_retry(send, _description):
+        async def delayed_retry(send, _description, **_kwargs):
             await self.db.set_raid_detection_enabled(101, "alpha", False)
             return await send()
 
