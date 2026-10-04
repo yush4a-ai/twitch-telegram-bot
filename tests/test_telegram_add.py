@@ -108,3 +108,38 @@ class TelegramAddTests(unittest.IsolatedAsyncioTestCase):
         for text in ('https://twitch.tv.evil.test/alpha','https://evil.test/alpha','https://twitch.tv/videos/123',
                      'https://user@twitch.tv/alpha','https://twitch.tv:443/alpha','javascript:alpha'):
             self.assertIsNone(_extract_login_text(text))
+
+    async def remote_draft(self):
+        self.msg.bot = SimpleNamespace(get_chat_member=AsyncMock(
+            return_value=SimpleNamespace(status='administrator')))
+        cb = self.callback('menu:add:-500')
+        cb.bot = self.msg.bot
+        await cb_menu_add(cb, self.state)
+        self.msg.text = 'alpha'
+
+    async def test_revoked_admin_cannot_complete_open_remote_add(self):
+        await self.remote_draft()
+        self.msg.bot.get_chat_member.return_value.status = 'member'
+        await process_login_input(self.msg, self.state, self.db, self.twitch)
+        self.assertEqual(await self.db.list_channels(-500), [])
+        self.assertEqual(await self.state.get_data(), {})
+        self.twitch.channel_exists.assert_not_awaited()
+
+    async def test_revocation_during_twitch_lookup_blocks_domain_write(self):
+        await self.remote_draft()
+        async def revoke(login):
+            self.msg.bot.get_chat_member.return_value.status = 'member'
+            return True
+        self.twitch.channel_exists.side_effect = revoke
+        await process_login_input(self.msg, self.state, self.db, self.twitch)
+        self.assertEqual(await self.db.list_channels(-500), [])
+        self.assertEqual(await self.state.get_data(), {})
+
+    async def test_foreign_or_expired_remote_draft_is_cleared(self):
+        for values in ({'add_actor_id':202}, {'add_expires_at':time.time()-1}):
+            with self.subTest(values=values):
+                await self.remote_draft()
+                await self.state.update_data(**values)
+                await process_login_input(self.msg, self.state, self.db, self.twitch)
+                self.assertEqual(await self.db.list_channels(-500), [])
+                self.assertEqual(await self.state.get_data(), {})

@@ -1,0 +1,101 @@
+.FF                                                                    [100%]
+================================== FAILURES ===================================
+_ TelegramAddTests.test_foreign_or_expired_remote_draft_is_cleared (values={'add_actor_id': 202}) _
+
+self = <test_telegram_add.TelegramAddTests testMethod=test_foreign_or_expired_remote_draft_is_cleared>
+
+    async def test_foreign_or_expired_remote_draft_is_cleared(self):
+        for values in ({'add_actor_id':202}, {'add_expires_at':time.time()-1}):
+            with self.subTest(values=values):
+                await self.remote_draft()
+                await self.state.update_data(**values)
+                await process_login_input(self.msg, self.state, self.db, self.twitch)
+>               self.assertEqual(await self.db.list_channels(-500), [])
+E               AssertionError: Lists differ: ['alpha'] != []
+E               
+E               First list contains 1 additional elements.
+E               First extra element 0:
+E               'alpha'
+E               
+E               - ['alpha']
+E               + []
+
+tests\test_telegram_add.py:144: AssertionError
+_ TelegramAddTests.test_foreign_or_expired_remote_draft_is_cleared (values={'add_expires_at': 1791107077.7456412}) _
+
+self = <test_telegram_add.TelegramAddTests testMethod=test_foreign_or_expired_remote_draft_is_cleared>
+
+    async def test_foreign_or_expired_remote_draft_is_cleared(self):
+        for values in ({'add_actor_id':202}, {'add_expires_at':time.time()-1}):
+            with self.subTest(values=values):
+                await self.remote_draft()
+                await self.state.update_data(**values)
+                await process_login_input(self.msg, self.state, self.db, self.twitch)
+>               self.assertEqual(await self.db.list_channels(-500), [])
+E               AssertionError: Lists differ: ['alpha'] != []
+E               
+E               First list contains 1 additional elements.
+E               First extra element 0:
+E               'alpha'
+E               
+E               - ['alpha']
+E               + []
+
+tests\test_telegram_add.py:144: AssertionError
+__ TelegramAddTests.test_revocation_during_twitch_lookup_blocks_domain_write __
+
+self = <test_telegram_add.TelegramAddTests testMethod=test_revocation_during_twitch_lookup_blocks_domain_write>
+
+    async def test_revocation_during_twitch_lookup_blocks_domain_write(self):
+        await self.remote_draft()
+        async def revoke(login):
+            self.msg.bot.get_chat_member.return_value.status = 'member'
+            return True
+        self.twitch.channel_exists.side_effect = revoke
+        await process_login_input(self.msg, self.state, self.db, self.twitch)
+>       self.assertEqual(await self.db.list_channels(-500), [])
+E       AssertionError: Lists differ: ['alpha'] != []
+E       
+E       First list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - ['alpha']
+E       + []
+
+tests\test_telegram_add.py:135: AssertionError
+_____ TelegramAddTests.test_revoked_admin_cannot_complete_open_remote_add _____
+
+self = <test_telegram_add.TelegramAddTests testMethod=test_revoked_admin_cannot_complete_open_remote_add>
+
+    async def test_revoked_admin_cannot_complete_open_remote_add(self):
+        await self.remote_draft()
+        self.msg.bot.get_chat_member.return_value.status = 'member'
+        await process_login_input(self.msg, self.state, self.db, self.twitch)
+>       self.assertEqual(await self.db.list_channels(-500), [])
+E       AssertionError: Lists differ: ['alpha'] != []
+E       
+E       First list contains 1 additional elements.
+E       First extra element 0:
+E       'alpha'
+E       
+E       - ['alpha']
+E       + []
+
+tests\test_telegram_add.py:124: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\_pytest\cacheprovider.py:469
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: cache could not write path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\nodeids: [Errno 13] Permission denied: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache\\nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+.venv\Lib\site-packages\_pytest\cacheprovider.py:423
+  C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.venv\Lib\site-packages\_pytest\cacheprovider.py:423: PytestCacheWarning: could not create cache path C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\.pytest_cache\v\cache\lastfailed: [WinError 5] �������� � �������: 'C:\\Users\\yusha\\Desktop\\cloude\\TG-BOT.(TwtichSignal)\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/lastfailed", self.lastfailed)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SUBFAILED(values={'add_actor_id': 202}) tests/test_telegram_add.py::TelegramAddTests::test_foreign_or_expired_remote_draft_is_cleared
+SUBFAILED(values={'add_expires_at': 1791107077.7456412}) tests/test_telegram_add.py::TelegramAddTests::test_foreign_or_expired_remote_draft_is_cleared
+FAILED tests/test_telegram_add.py::TelegramAddTests::test_revocation_during_twitch_lookup_blocks_domain_write
+FAILED tests/test_telegram_add.py::TelegramAddTests::test_revoked_admin_cannot_complete_open_remote_add
+4 failed, 1 passed, 6 deselected, 2 warnings in 5.66s

@@ -2017,7 +2017,9 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext, db: Database |
     await cancel_ui(state, actor_id=callback.from_user.id, db=db,
                     oauth_server=oauth_server, message=callback.message)
     await state.set_state(AddChannel.waiting_for_login)
-    await state.update_data(target_chat_id=target_chat_id, confirm_add=(own_private(callback.message,callback.from_user.id) and target_chat_id==current_chat_id))
+    await state.update_data(target_chat_id=target_chat_id, add_actor_id=callback.from_user.id,
+                            add_expires_at=time.time()+600,
+                            confirm_add=(own_private(callback.message,callback.from_user.id) and target_chat_id==current_chat_id))
     back_callback = _channels_list_back_callback(current_chat_id, target_chat_id)
 
     rows = []
@@ -2123,6 +2125,7 @@ async def _add_validated_tracking(
     login: str,
     db: Database,
     twitch: TwitchClient,
+    *, authorize=None,
 ) -> tuple[str, bool]:
     """Общий add-flow для /track, menu:add и /start track_*.
 
@@ -2147,6 +2150,9 @@ async def _add_validated_tracking(
     if not exists:
         return _TRACK_NOT_FOUND, False
 
+    # Recheck after the external await, immediately before the domain mutation.
+    if authorize is not None and not await authorize():
+        return "forbidden", False
     result = await db.add_channel_with_limit(
         chat_id, login, limit
     )
@@ -2420,6 +2426,23 @@ async def process_login_input(
         await process_confirmed_input(message,state,db,twitch)
         return
     target_chat_id = data.get("target_chat_id", message.chat.id)
+    async def authorize():
+        current = await state.get_data()
+        actor = getattr(message.from_user, 'id', None)
+        if (current.get('target_chat_id') != target_chat_id
+                or current.get('add_actor_id') != actor
+                or current.get('add_expires_at', 0) <= time.time()
+                or (message.chat.id > 0 and message.chat.id != actor)):
+            return False
+        if target_chat_id > 0:
+            return target_chat_id == message.chat.id == actor
+        return actor is not None and await _chat_member_status(
+            message.bot, target_chat_id, actor) in ADMIN_STATUSES
+
+    if not await authorize():
+        await state.clear()
+        await message.answer("Добавление устарело или права изменились. Открой добавление заново.")
+        return
     back_keyboard = _back_keyboard() if target_chat_id == message.chat.id else InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(
             text="⬅️ Назад",
@@ -2436,8 +2459,12 @@ async def process_login_input(
         return
 
     result, is_first_channel = await _add_validated_tracking(
-        target_chat_id, login, db, twitch
+        target_chat_id, login, db, twitch, authorize=authorize
     )
+    if result == "forbidden":
+        await state.clear()
+        await message.answer("Добавление устарело или права изменились. Открой добавление заново.")
+        return
     if result == _TRACK_NOT_FOUND:
         await _offer_search_results(message, query, target_chat_id, twitch, back_keyboard)
         return
