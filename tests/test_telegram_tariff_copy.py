@@ -18,7 +18,7 @@ class TariffCopyTests(unittest.IsolatedAsyncioTestCase):
         db=Database(':memory:');await db.connect();self.addAsyncCleanup(db.close)
         state=FSMContext(MemoryStorage(),StorageKey(bot_id=999,chat_id=101,user_id=101))
         msg=message();cb=SimpleNamespace(message=msg,from_user=msg.from_user,answer=AsyncMock(),data='menu:plus')
-        self.assertEqual(next(b.text for row in more_keyboard().inline_keyboard for b in row if b.callback_data=='menu:plus'),'Тариф')
+        self.assertEqual(next(b.text for row in more_keyboard().inline_keyboard for b in row if b.callback_data=='menu:plus'),'⭐ Тариф')
         await cb_plus(cb,state,db)
         call=msg.edit_text.await_args;self.assertIn('<b>Зритель Plus</b>\n<b>150 ₽ / месяц</b>',call.args[0])
         buttons=[b for row in call.kwargs['reply_markup'].inline_keyboard for b in row]
