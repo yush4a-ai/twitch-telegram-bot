@@ -45,6 +45,7 @@ from bot.config import first_release_payment_policy
 from bot.admin_auth import AdminAccess
 from bot.streamer_auth import StreamerAccess
 from bot.admin_metrics import AdminSnapshot
+from bot.admin_directory import AdminDirectory
 from bot.logging_utils import mask_chat_id
 from bot.live_preview_provider import LivePreviewArtifactProvider
 from bot.live_post import LivePostUpdater
@@ -771,10 +772,11 @@ async def main() -> None:
                 # Свежая копия базы раз в сутки. Без неё откат означал бы потерю
                 # всех данных с момента последней ручной копии. Копия делается
                 # средствами SQLite и не отправляет ничего пользователям.
+                backup_dir = Path(config.db_path).parent / "backups"
                 backup_task = asyncio.create_task(
                     run_backup_loop(
                         config.db_path,
-                        Path(config.db_path).parent / "backups",
+                        backup_dir,
                         interval_seconds=getattr(
                             config, "backup_interval_seconds", 24 * 60 * 60
                         ),
@@ -807,6 +809,11 @@ async def main() -> None:
                             None if polling_task is None else not polling_task.done()
                         ),
                         environment="staging" if config.oauth_public_base_url.startswith("https://") else "local",
+                        directory=AdminDirectory(
+                            db,
+                            backup_dir=backup_dir,
+                            retention=getattr(config, "backup_retention", 5),
+                        ),
                     )
                     oauth_server.set_admin_snapshot_provider(admin_snapshot.collect)
 
