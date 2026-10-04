@@ -1,0 +1,1417 @@
+.F..F.F                                                         [100%]
+================================== FAILURES ===================================
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_PROJECT_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_PROJECT_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_PROJECT_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_NAME', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_NAME', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_ENVIRONMENT_NAME', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_SERVICE_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_SERVICE_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_SERVICE_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_INSTANCE_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_INSTANCE_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='RAILWAY_VOLUME_INSTANCE_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='OWNER_CHAT_ID', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_TELEGRAM_BOT_USERNAME', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_TELEGRAM_BOT_USERNAME', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_TELEGRAM_BOT_USERNAME', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TOKEN_ENCRYPTION_KEY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TOKEN_ENCRYPTION_KEY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_PANEL_ACCESS_KEY', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_PANEL_ACCESS_KEY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='ADMIN_PANEL_ACCESS_KEY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TWITCH_CLIENT_ID', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TWITCH_CLIENT_ID', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TWITCH_CLIENT_SECRET', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TWITCH_CLIENT_SECRET', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TELEGRAM_BOT_TOKEN', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='TELEGRAM_BOT_TOKEN', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_REPLICA_COUNT', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_REPLICA_COUNT', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_REPLICA_COUNT', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_PAYMENT_POLICY', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_PAYMENT_POLICY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_PAYMENT_POLICY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_WRITER_POLICY', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_WRITER_POLICY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_WRITER_POLICY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_POLICY', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_POLICY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_POLICY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_ENABLED', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_ENABLED', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_QUEUE_ENABLED', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_LOGIN_CLIENT_POLICY', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_LOGIN_CLIENT_POLICY', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_LOGIN_CLIENT_POLICY', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_ADMISSION_SHA256', value='') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_ADMISSION_SHA256', value='OWNER INPUT') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed (key='PRODUCTION_ADMISSION_SHA256', value='staging') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed>
+
+    def test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed(self):
+        for key in ('RAILWAY_PROJECT_ID', 'RAILWAY_ENVIRONMENT_ID', 'RAILWAY_ENVIRONMENT_NAME',
+            'RAILWAY_SERVICE_ID', 'RAILWAY_VOLUME_ID', 'RAILWAY_VOLUME_INSTANCE_ID',
+            'RAILWAY_VOLUME_MOUNT_PATH', 'DB_PATH', 'PUBLIC_URL', 'OWNER_CHAT_ID',
+            'ADMIN_TELEGRAM_BOT_USERNAME', 'TOKEN_ENCRYPTION_KEY', 'ADMIN_PANEL_ACCESS_KEY',
+            'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET', 'TELEGRAM_BOT_TOKEN', 'PORT',
+            'PRODUCTION_REPLICA_COUNT', 'PRODUCTION_PAYMENT_POLICY', 'PRODUCTION_WRITER_POLICY',
+            'PRODUCTION_QUEUE_POLICY', 'PRODUCTION_QUEUE_ENABLED', 'PRODUCTION_LOGIN_CLIENT_POLICY',
+            'PRODUCTION_ADMISSION_SHA256'):
+            for value in ('', 'OWNER INPUT', 'staging'):
+>               with self.subTest(key=key, value=value), self.assertRaises(ConfigError):
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:67: AssertionError
+_ AdmissionTests.test_local_contract_enables_product_but_does_not_claim_bot_admission _
+
+self = <test_production_admission.AdmissionTests testMethod=test_local_contract_enables_product_but_does_not_claim_bot_admission>
+
+    def test_local_contract_enables_product_but_does_not_claim_bot_admission(self):
+        c = self.load()
+>       self.assertTrue(c.mini_app_enabled)
+E       AssertionError: False is not true
+
+tests\test_production_admission.py:50: AssertionError
+_________ AdmissionTests.test_queue_requires_separate_matching_opt_in _________
+
+self = <test_production_admission.AdmissionTests testMethod=test_queue_requires_separate_matching_opt_in>
+
+    def test_queue_requires_separate_matching_opt_in(self):
+        with self.assertRaises(ConfigError):
+            self.load({'NOTIFICATION_QUEUE_ENABLED': '1'})
+>       c = self.load({'NOTIFICATION_QUEUE_ENABLED': '1', 'PRODUCTION_QUEUE_ENABLED': '1'},
+                      {'queue_enabled': True})
+
+tests\test_production_admission.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_production_admission.py:46: in load
+    return load_config()
+           ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def load_config() -> Config:
+        from .legal_documents import support_username, support_email
+        contacts = {}
+        for field, validate in (("support_username", support_username), ("support_email", support_email)):
+            raw = os.getenv(field.upper())
+            contacts[field] = validate(raw) if raw else None
+            if raw and contacts[field] is None:
+                raise ConfigError(f"���������� {field.upper()} �������� ������������ �������")
+        railway = is_railway_environment()
+        oauth_port = _positive_int("PORT", "8765")
+        # PUBLIC_URL � ��������� �����, �� ������� Twitch ������ ����� �������� �����
+        # ����������� (��������, https://<project>.up.railway.app). ��� ���� (���������
+        # ����������) ���������� localhost � ����� �������� ������ �� ���� �� ����������.
+        public_url = _public_base_url(oauth_port, railway=railway)
+        token_encryption_key = os.getenv("TOKEN_ENCRYPTION_KEY")
+        if token_encryption_key is not None:
+            token_encryption_key = token_encryption_key.strip() or None
+        if railway and token_encryption_key is None:
+            raise ConfigError("�� Railway ���������� TOKEN_ENCRYPTION_KEY ��� Twitch-�������")
+        admin_panel_access_key = os.getenv("ADMIN_PANEL_ACCESS_KEY") or None
+        admin_telegram_bot_username = os.getenv("ADMIN_TELEGRAM_BOT_USERNAME", "").lstrip("@")
+        if railway and os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging":
+            admin_panel_access_key = None
+            admin_telegram_bot_username = ""
+        if admin_panel_access_key is not None and len(admin_panel_access_key) < 32:
+            raise ConfigError("ADMIN_PANEL_ACCESS_KEY ������ ��������� �� ����� 32 ��������")
+        queue_flag = os.getenv("NOTIFICATION_QUEUE_ENABLED", "0").strip()
+        if queue_flag not in {"0", "1"}:
+            raise ConfigError("NOTIFICATION_QUEUE_ENABLED ������ ���� 0 ��� 1")
+        notification_queue_enabled = queue_flag == "1"
+        pinned_staging = False
+        if railway:
+            try:
+                target = json.loads(
+                    (Path(__file__).resolve().parents[1] / "scripts" / "staging_target.json")
+                    .read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError):
+                target = {}
+            pinned_staging = (
+                os.getenv("RAILWAY_ENVIRONMENT_NAME") == "staging"
+                and all(
+                    isinstance(target.get(key), str) and bool(target.get(key))
+                    for key in ("project_id", "staging_environment_id", "service_id")
+                )
+                and os.getenv("RAILWAY_PROJECT_ID") == target.get("project_id")
+                and os.getenv("RAILWAY_ENVIRONMENT_ID") == target.get("staging_environment_id")
+                and os.getenv("RAILWAY_SERVICE_ID") == target.get("service_id")
+            )
+            if notification_queue_enabled and not pinned_staging:
+>               raise ConfigError("NOTIFICATION_QUEUE_ENABLED �������� ������ �� pinned Railway staging")
+E               bot.config.ConfigError: NOTIFICATION_QUEUE_ENABLED �������� ������ �� pinned Railway staging
+
+bot\config.py:370: ConfigError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'bot_id': 8859004067}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'bot_username': 'TwitchSignalTestbot'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'db_path': '/data/../tmp/bot.db'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'mount_path': '/'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'replica_count': 2}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'queue_policy': 'anything'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+_ AdmissionTests.test_testbot_staging_target_and_unsafe_paths_are_rejected (change={'payment_policy': 'on'}) _
+
+self = <test_production_admission.AdmissionTests testMethod=test_testbot_staging_target_and_unsafe_paths_are_rejected>
+
+    def test_testbot_staging_target_and_unsafe_paths_are_rejected(self):
+        for change in ({'bot_id': 8859004067}, {'bot_username': 'TwitchSignalTestbot'},
+            {'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'},
+            {'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'},
+            {'db_path': '/data/../tmp/bot.db'}, {'mount_path': '/'},
+            {'replica_count': 2}, {'queue_policy': 'anything'}, {'payment_policy': 'on'}):
+>           with self.subTest(change=change), self.assertRaises(ConfigError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:76: AssertionError
+___ IdentityTests.test_wrong_bot_stops_before_database_and_any_user_actions ___
+
+self = <test_production_admission.IdentityTests testMethod=test_wrong_bot_stops_before_database_and_any_user_actions>
+
+    async def test_wrong_bot_stops_before_database_and_any_user_actions(self):
+        import main
+        local = AdmissionTests()
+        local.setUp()
+        self.addCleanup(local.tmp.cleanup)
+        config = local.load()
+        for identity in (SimpleNamespace(id=123456789, username='WrongBot'),
+                         SimpleNamespace(id=999, username='OwnerProductionBot')):
+            bot = SimpleNamespace(get_me=AsyncMock(return_value=identity), session=SimpleNamespace(close=AsyncMock()))
+            db = SimpleNamespace(connect=AsyncMock(), close=AsyncMock())
+            with (patch.object(main, 'load_config', return_value=config),
+                  patch.object(main, 'Bot', return_value=bot), patch.object(main, 'Database', return_value=db),
+>                 patch('bot.production_admission.validate_storage'), self.assertRaises(ConfigError)):
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_production_admission.py:114: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py:1451: in __enter__
+    self.target = self.getter()
+                  ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+name = 'bot.production_admission'
+
+    def resolve_name(name):
+        """
+        Resolve a name to an object.
+    
+        It is expected that `name` will be a string in one of the following
+        formats, where W is shorthand for a valid Python identifier and dot stands
+        for a literal period in these pseudo-regexes:
+    
+        W(.W)*
+        W(.W)*:(W(.W)*)?
+    
+        The first form is intended for backward compatibility only. It assumes that
+        some part of the dotted name is a package, and the rest is an object
+        somewhere within that package, possibly nested inside other objects.
+        Because the place where the package stops and the object hierarchy starts
+        can't be inferred by inspection, repeated attempts to import must be done
+        with this form.
+    
+        In the second form, the caller makes the division point clear through the
+        provision of a single colon: the dotted name to the left of the colon is a
+        package to be imported, and the dotted name to the right is the object
+        hierarchy within that package. Only one import is needed in this form. If
+        it ends with the colon, then a module object is returned.
+    
+        The function will return an object (which might be a module), or raise one
+        of the following exceptions:
+    
+        ValueError - if `name` isn't in a recognised format
+        ImportError - if an import failed when it shouldn't have
+        AttributeError - if a failure occurred when traversing the object hierarchy
+                         within the imported package to get to the desired object.
+        """
+        global _NAME_PATTERN
+        if _NAME_PATTERN is None:
+            # Lazy import to speedup Python startup time
+            import re
+            dotted_words = r'(?!\d)(\w+)(\.(?!\d)(\w+))*'
+            _NAME_PATTERN = re.compile(f'^(?P<pkg>{dotted_words})'
+                                       f'(?P<cln>:(?P<obj>{dotted_words})?)?$',
+                                       re.UNICODE)
+    
+        m = _NAME_PATTERN.match(name)
+        if not m:
+            raise ValueError(f'invalid format: {name!r}')
+        gd = m.groupdict()
+        if gd.get('cln'):
+            # there is a colon - a one-step import is all that's needed
+            mod = importlib.import_module(gd['pkg'])
+            parts = gd.get('obj')
+            parts = parts.split('.') if parts else []
+        else:
+            # no colon - have to iterate to find the package boundary
+            parts = name.split('.')
+            modname = parts.pop(0)
+            # first part *must* be a module/package.
+            mod = importlib.import_module(modname)
+            while parts:
+                p = parts[0]
+                s = f'{modname}.{p}'
+                try:
+                    mod = importlib.import_module(s)
+                    parts.pop(0)
+                    modname = s
+                except ImportError:
+                    break
+        # if we reach this point, mod is the module, already imported, and
+        # parts is the list of parts in the object hierarchy to be traversed, or
+        # an empty list if just the module is wanted.
+        result = mod
+        for p in parts:
+>           result = getattr(result, p)
+                     ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'bot' has no attribute 'production_admission'
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\pkgutil.py:528: AttributeError
+------------------------------ Captured log call ------------------------------
+WARNING  asyncio:base_events.py:1994 Executing <Task finished name='Task-2' coro=<IdentityTests.test_wrong_bot_stops_before_database_and_any_user_actions() done, defined at C:\Users\yusha\Desktop\cloude\TG-BOT.(TwtichSignal)\tests\test_production_admission.py:102> exception=AttributeError("module 'bot' has no attribute 'production_admission'") created at C:\Users\yusha\AppData\Local\Programs\Python\Python312\Lib\asyncio\runners.py:100> took 2.766 seconds
+=========================== short test summary info ===========================
+SUBFAILED(key='RAILWAY_PROJECT_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_PROJECT_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_PROJECT_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_NAME', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_NAME', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_ENVIRONMENT_NAME', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_SERVICE_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_SERVICE_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_SERVICE_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_INSTANCE_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_INSTANCE_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='RAILWAY_VOLUME_INSTANCE_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='OWNER_CHAT_ID', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_TELEGRAM_BOT_USERNAME', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_TELEGRAM_BOT_USERNAME', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_TELEGRAM_BOT_USERNAME', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TOKEN_ENCRYPTION_KEY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TOKEN_ENCRYPTION_KEY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_PANEL_ACCESS_KEY', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_PANEL_ACCESS_KEY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='ADMIN_PANEL_ACCESS_KEY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TWITCH_CLIENT_ID', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TWITCH_CLIENT_ID', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TWITCH_CLIENT_SECRET', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TWITCH_CLIENT_SECRET', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TELEGRAM_BOT_TOKEN', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='TELEGRAM_BOT_TOKEN', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_REPLICA_COUNT', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_REPLICA_COUNT', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_REPLICA_COUNT', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_PAYMENT_POLICY', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_PAYMENT_POLICY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_PAYMENT_POLICY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_WRITER_POLICY', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_WRITER_POLICY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_WRITER_POLICY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_POLICY', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_POLICY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_POLICY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_ENABLED', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_ENABLED', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_QUEUE_ENABLED', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_LOGIN_CLIENT_POLICY', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_LOGIN_CLIENT_POLICY', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_LOGIN_CLIENT_POLICY', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_ADMISSION_SHA256', value='') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_ADMISSION_SHA256', value='OWNER INPUT') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+SUBFAILED(key='PRODUCTION_ADMISSION_SHA256', value='staging') tests/test_production_admission.py::AdmissionTests::test_each_required_operator_input_is_missing_empty_or_mismatched_fail_closed
+FAILED tests/test_production_admission.py::AdmissionTests::test_local_contract_enables_product_but_does_not_claim_bot_admission
+FAILED tests/test_production_admission.py::AdmissionTests::test_queue_requires_separate_matching_opt_in
+SUBFAILED(change={'bot_id': 8859004067}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'bot_username': 'TwitchSignalTestbot'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'environment_id': '7a873177-8ada-4b78-8732-a0bfdc1d519b'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'volume_instance_id': 'f1e0d4c5-c190-4989-ae34-29a61f9010bb'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'db_path': '/data/../tmp/bot.db'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'mount_path': '/'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'replica_count': 2}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'queue_policy': 'anything'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+SUBFAILED(change={'payment_policy': 'on'}) tests/test_production_admission.py::AdmissionTests::test_testbot_staging_target_and_unsafe_paths_are_rejected
+FAILED tests/test_production_admission.py::IdentityTests::test_wrong_bot_stops_before_database_and_any_user_actions
+66 failed, 4 passed, 18 subtests passed in 3.41s

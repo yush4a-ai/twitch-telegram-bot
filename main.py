@@ -7,6 +7,7 @@ import logging.handlers
 import os
 import sys
 import time
+from dataclasses import replace
 
 import aiohttp
 from aiogram import Bot
@@ -135,6 +136,10 @@ def _private_bot_commands(
 
 def _menu_button_for_config(config) -> MenuButtonCommands | MenuButtonWebApp:
     base_url = str(getattr(config, "oauth_public_base_url", "") or "").rstrip("/")
+    if (getattr(config, 'production_admitted', False)
+            and getattr(config, 'production_contract', None) is not None
+            and getattr(config, 'mini_app_enabled', False)):
+        return MenuButtonWebApp(text="Приложение", web_app=WebAppInfo(url=f"{base_url}/app"))
     if (
         getattr(config, "mini_app_enabled", False)
         and getattr(config, "pinned_staging", False)
@@ -488,6 +493,9 @@ async def _reconcile_telegram_channels(
 def _make_notification_worker(
     config, db, poller: StreamPoller, send_budget: TelegramSendBudget | None = None,
 ) -> NotificationWorker | None:
+    if (getattr(config, 'production_contract', None) is not None
+            and not getattr(config, 'production_admitted', False)):
+        raise ConfigError('Production queue требует успешный getMe admission')
     if not getattr(config, "notification_queue_enabled", False):
         return None
     return NotificationWorker(
@@ -506,10 +514,23 @@ async def main() -> None:
     ):
         raise ConfigError("R8 staging требует username TwitchSignalTestbot")
 
-    db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
+    contract = getattr(config, 'production_contract', None)
+    if contract is not None:
+        from bot.production_admission import validate_storage
+        validate_storage(contract)
+    db = None
     bot: Bot | None = None
     billing_service: BillingService | None = None
+    writer_lock = None
     try:
+        if contract is not None:
+            from bot.production_admission import verify_identity, WriterLock
+            bot = Bot(token=config.telegram_bot_token,
+                      default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+            await _with_startup_retry(lambda: verify_identity(bot, contract), 'Проверка production bot identity')
+            writer_lock = WriterLock(contract)
+            config = replace(config, production_admitted=True)
+        db = Database(config.db_path, token_encryption_key=config.token_encryption_key)
         await db.connect()
         # Между остановкой старого процесса и запуском нового EventSub не слушается:
         # текущий эфир уже нельзя считать полностью покрытым событиями.
@@ -520,10 +541,11 @@ async def main() -> None:
         await _log_known_chats(db)
         await _apply_auto_track(db, config)
 
-        bot = Bot(
-            token=config.telegram_bot_token,
-            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-        )
+        if bot is None:
+            bot = Bot(
+                token=config.telegram_bot_token,
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            )
         await _with_startup_retry(
             lambda: _verify_staging_bot_identity(bot, config),
             "Проверка личности тестового бота",
@@ -815,7 +837,10 @@ async def main() -> None:
             await _safe_cleanup("Billing worker", billing_service.close())
         if bot is not None:
             await _safe_cleanup("Telegram session", bot.session.close())
-        await _safe_cleanup("SQLite", db.close())
+        if db is not None:
+            await _safe_cleanup("SQLite", db.close())
+        if writer_lock is not None:
+            writer_lock.close()
 
 
 # если процесс упадёт по неожиданной причине (не Ctrl+C), не завершаемся молча —

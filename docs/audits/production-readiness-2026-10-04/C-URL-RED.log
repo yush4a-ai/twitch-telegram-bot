@@ -1,0 +1,52 @@
+.                                                                    [100%]
+================================== FAILURES ===================================
+_ AdmissionTests.test_placeholder_domains_cannot_be_production_contract_values (url='https://example.com') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_placeholder_domains_cannot_be_production_contract_values>
+
+    def test_placeholder_domains_cannot_be_production_contract_values(self):
+        for url in ('https://example.com', 'https://bot.invalid', 'https://bot.test', 'https://localhost'):
+>           with self.subTest(url=url), self.assertRaises(ConfigError):
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:89: AssertionError
+_ AdmissionTests.test_placeholder_domains_cannot_be_production_contract_values (url='https://bot.invalid') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_placeholder_domains_cannot_be_production_contract_values>
+
+    def test_placeholder_domains_cannot_be_production_contract_values(self):
+        for url in ('https://example.com', 'https://bot.invalid', 'https://bot.test', 'https://localhost'):
+>           with self.subTest(url=url), self.assertRaises(ConfigError):
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:89: AssertionError
+_ AdmissionTests.test_placeholder_domains_cannot_be_production_contract_values (url='https://bot.test') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_placeholder_domains_cannot_be_production_contract_values>
+
+    def test_placeholder_domains_cannot_be_production_contract_values(self):
+        for url in ('https://example.com', 'https://bot.invalid', 'https://bot.test', 'https://localhost'):
+>           with self.subTest(url=url), self.assertRaises(ConfigError):
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:89: AssertionError
+_ AdmissionTests.test_placeholder_domains_cannot_be_production_contract_values (url='https://localhost') _
+
+self = <test_production_admission.AdmissionTests testMethod=test_placeholder_domains_cannot_be_production_contract_values>
+
+    def test_placeholder_domains_cannot_be_production_contract_values(self):
+        for url in ('https://example.com', 'https://bot.invalid', 'https://bot.test', 'https://localhost'):
+>           with self.subTest(url=url), self.assertRaises(ConfigError):
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: ConfigError not raised
+
+tests\test_production_admission.py:89: AssertionError
+=========================== short test summary info ===========================
+SUBFAILED(url='https://example.com') tests/test_production_admission.py::AdmissionTests::test_placeholder_domains_cannot_be_production_contract_values
+SUBFAILED(url='https://bot.invalid') tests/test_production_admission.py::AdmissionTests::test_placeholder_domains_cannot_be_production_contract_values
+SUBFAILED(url='https://bot.test') tests/test_production_admission.py::AdmissionTests::test_placeholder_domains_cannot_be_production_contract_values
+SUBFAILED(url='https://localhost') tests/test_production_admission.py::AdmissionTests::test_placeholder_domains_cannot_be_production_contract_values
+4 failed, 1 passed, 10 deselected in 0.25s

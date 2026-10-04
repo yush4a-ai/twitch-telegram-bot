@@ -283,6 +283,8 @@ class Config:
     growth_enabled: bool = False
     mini_app_enabled: bool = False
     pinned_staging: bool = False
+    production_contract: object | None = None
+    production_admitted: bool = False
     support_username: str | None = None
     support_email: str | None = None
     legal_operator: str | None = None
@@ -331,6 +333,9 @@ def load_config() -> Config:
     # авторизации (например, https://<project>.up.railway.app). Без него (локальная
     # разработка) используем localhost — тогда работает только на этом же компьютере.
     public_url = _public_base_url(oauth_port, railway=railway)
+    db_path = _database_path(railway=railway)
+    from .production_admission import load_production_admission
+    production_contract = load_production_admission(railway=railway, db_path=db_path, public_url=public_url)
     token_encryption_key = os.getenv("TOKEN_ENCRYPTION_KEY")
     if token_encryption_key is not None:
         token_encryption_key = token_encryption_key.strip() or None
@@ -338,7 +343,7 @@ def load_config() -> Config:
         raise ConfigError("На Railway обязателен TOKEN_ENCRYPTION_KEY для Twitch-токенов")
     admin_panel_access_key = os.getenv("ADMIN_PANEL_ACCESS_KEY") or None
     admin_telegram_bot_username = os.getenv("ADMIN_TELEGRAM_BOT_USERNAME", "").lstrip("@")
-    if railway and os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging":
+    if railway and os.getenv("RAILWAY_ENVIRONMENT_NAME") != "staging" and production_contract is None:
         admin_panel_access_key = None
         admin_telegram_bot_username = ""
     if admin_panel_access_key is not None and len(admin_panel_access_key) < 32:
@@ -366,14 +371,14 @@ def load_config() -> Config:
             and os.getenv("RAILWAY_ENVIRONMENT_ID") == target.get("staging_environment_id")
             and os.getenv("RAILWAY_SERVICE_ID") == target.get("service_id")
         )
-        if notification_queue_enabled and not pinned_staging:
+        if notification_queue_enabled and not pinned_staging and production_contract is None:
             raise ConfigError("NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging")
     return Config(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
         twitch_client_id=_require("TWITCH_CLIENT_ID"),
         twitch_client_secret=_require("TWITCH_CLIENT_SECRET"),
         poll_interval_seconds=_positive_int("POLL_INTERVAL_SECONDS", "60"),
-        db_path=_database_path(railway=railway),
+        db_path=db_path,
         owner_chat_id=_optional_int("OWNER_CHAT_ID"),
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,
@@ -385,11 +390,12 @@ def load_config() -> Config:
         admin_panel_access_key=admin_panel_access_key,
         admin_telegram_bot_username=admin_telegram_bot_username,
         notification_queue_enabled=notification_queue_enabled,
-        streamer_plus_enabled=not railway or pinned_staging,
-        viewer_plus_enabled=not railway or pinned_staging,
+        streamer_plus_enabled=not railway or pinned_staging or production_contract is not None,
+        viewer_plus_enabled=not railway or pinned_staging or production_contract is not None,
         growth_enabled=not railway or pinned_staging,
-        mini_app_enabled=not railway or pinned_staging,
+        mini_app_enabled=not railway or pinned_staging or production_contract is not None,
         pinned_staging=pinned_staging,
+        production_contract=production_contract,
         **contacts,
         legal_operator=os.getenv("LEGAL_OPERATOR") or None,
         legal_operator_address=os.getenv("LEGAL_OPERATOR_ADDRESS") or None,
