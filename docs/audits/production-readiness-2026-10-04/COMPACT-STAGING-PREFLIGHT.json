@@ -1,0 +1,63 @@
+{
+  "commit": "1c49330e773ded22d47a185866dd3921b1e00806",
+  "status": {
+    "staging": [
+      {
+        "id": "5211c9f8-6a2f-4834-9aa6-88706a4a34a7",
+        "status": "SUCCESS",
+        "commit": null,
+        "cliMessage": "staging 39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0"
+      }
+    ],
+    "production": [
+      {
+        "id": "466499d5-6979-4a81-8aee-67efcf628976",
+        "status": "SUCCESS",
+        "commit": "dc9239eb0b82fb80d1788fc657205740cebc49e9",
+        "cliMessage": null
+      }
+    ]
+  },
+  "production_variables_sha256": "789f95a7ce097f4677ceddbce8d02495f770d2a31f86960e6d5b2e17e6788c9f",
+  "runtime": {
+    "identity": {
+      "id": 8859004067,
+      "username": "TwitchSignalTestbot"
+    },
+    "pinned_staging": true,
+    "db": "/data/bot.db",
+    "volume": "/data",
+    "payment": "OFF",
+    "invoice": false,
+    "external_create": false,
+    "versions": [
+      "mini_001_viewer_preferences",
+      "mini_002_category_alerts",
+      "mini_003_category_delivery",
+      "mini_004_streamer_intents",
+      "mini_005_viewer_reminders",
+      "mini_006_viewer_folders",
+      "mini_007_viewer_history",
+      "mini_008_streamer_presets",
+      "mini_009_viewer_trial",
+      "mini_010_viewer_favorites",
+      "mini_011_viewer_undo",
+      "r10_001_billing_subjects",
+      "r11_001_plus_payment_orders",
+      "r11_002_plus_payment_events",
+      "r11_003_entitlement_beneficiary",
+      "r11_004_payment_reconciliation",
+      "r11_005_channel_intent_reasons",
+      "r3_001_observations",
+      "r3_002_notification_jobs",
+      "r3_003_live_update_revision",
+      "r4_001_streamer_access",
+      "r4_002_streamer_communities",
+      "r4_003_streamer_templates",
+      "r4_004_streamer_stats",
+      "r5_001_billing_ledger",
+      "r7_001_viewer_filters",
+      "r8_001_growth_attribution"
+    ]
+  }
+}

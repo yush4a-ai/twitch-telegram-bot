@@ -9,3 +9,11 @@ Related staging/payment: pytest -q -p no:cacheprovider tests/test_staging_mock_b
 
 Dry-run: 164 files / 9584073 bytes / limit 52428800 bytes.
 Read-only reviewer: PASS; no blockers. Runtime unchanged. Full release gate pending.
+
+Required full gate on committed 1c49330e773ded22d47a185866dd3921b1e00806:
+1648 passed, 2 existing Windows skips, 3741 subtests passed in 1137.31s; exit0.
+One full run; assertions unchanged; no new skips.
+Compact upload accepted FIRST attempt; deployment b3d8be15-0b6a-4b03-a131-b339e7e78917 SUCCESS.
+Final canonical manifest SHA256 57a0472d07c31f73c3097e3686ca1395a0f6d017056fe872ab1a89b02cac7bad
+
+Fresh deployment smoke PASS:164actual file hashes,17HTTPassets,9unsigned401,health200/app200/menu,integrity/FK/schema28,Testbot/Volume/DB,paymentOFF/invoicefalse/externalfalse. Production deployment/variables unchanged. Native NOT TESTED. Cutover NO.

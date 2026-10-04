@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "commit": "1c49330e773ded22d47a185866dd3921b1e00806",
+  "tests_passed": 1648,
+  "subtests_passed": 3741,
+  "existing_windows_skips": 2,
+  "seconds": 1137.31,
+  "exit": 0,
+  "new_skips": 0,
+  "code_changed_after_gate": false,
+  "runtime_changed": false,
+  "full_suite_runs": 1,
+  "manifest_sha256": "57a0472d07c31f73c3097e3686ca1395a0f6d017056fe872ab1a89b02cac7bad",
+  "source_bytes": 9584073,
+  "log_credential_pattern_matches": [
+    0,
+    0,
+    0
+  ],
+  "gate_policy": "Unchanged staging_deploy.main --deploy; exact clean Git checkout with core.autocrlf=false; Windows native CLI/link context adapter only, no test or target bypass."
+}

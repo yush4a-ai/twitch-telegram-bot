@@ -1,0 +1,177 @@
+{
+  "schema": 1,
+  "commit": "1c49330e773ded22d47a185866dd3921b1e00806",
+  "file_count": 164,
+  "total_bytes": 9584073,
+  "size_limit_bytes": 52428800,
+  "allowed_roots": [
+    "bot/",
+    "docs/legal/"
+  ],
+  "allowed_files": [
+    "main.py",
+    "requirements.txt",
+    "railpack.json",
+    "railway.json",
+    "Procfile",
+    ".python-version",
+    "scripts/staging_target.json"
+  ],
+  "manifest_sha256": "57a0472d07c31f73c3097e3686ca1395a0f6d017056fe872ab1a89b02cac7bad",
+  "largest_20_files": [
+    {
+      "path": "bot/mini_app_ui/plus-mascot.png",
+      "size": 1650620,
+      "sha256": "347f0a80d8639025ff4b6a656f60719c86f9b58e3714189bc89d336352e27a84",
+      "git_blob": "5297af67c6ba7051207120be76f0bbf6d7cf13e9",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/assets/telegram-welcome.png",
+      "size": 1459984,
+      "sha256": "2474d99db8ce29ca12b922ef0b94b24898bb5aa5259576e5c0e695fb809cc1c4",
+      "git_blob": "46ec1fef93b6c4bea8cc49f00d9806425fbeedbc",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/assets/telegram-channel-guide.png",
+      "size": 1454351,
+      "sha256": "d65f75782189d8787077434e22f9180476baf75201e61b0839e13781ac016b5e",
+      "git_blob": "103dea76eaf4ad472f7f0feb9ef044de63db6926",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/assets/telegram-home.png",
+      "size": 1358436,
+      "sha256": "52ecd38b8180f3a0c236f7e94e044c728b4ad10e24065a07d6d15d96915f9102",
+      "git_blob": "487607e2ca68394aa4a1259750a7885f9c149264",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/mini_app_ui/mascot-cutout.png",
+      "size": 820165,
+      "sha256": "c8ac42d0c6178e9abd1478acc52d189fa1add5752087a3fd654d61718a6e1a38",
+      "git_blob": "bc2e0310848481f7b4fbe3d1a07a6efc8218a459",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/growth_ui/demo-portrait.mp4",
+      "size": 384878,
+      "sha256": "0cc372c18f7cb2a370a32794eb79b92d23d57a01b3d614f1ce04c9730cdbc816",
+      "git_blob": "3f86f02aa29b46a9b2376aab5f3b4c1e96ad72fb",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/growth_ui/demo-landscape.mp4",
+      "size": 368031,
+      "sha256": "fa3abf22e27f8f0ef1cf2fd6fa194c473f4997ebe7f33320459b4b82b6b65570",
+      "git_blob": "35a37af4d6e59dfeba2fab2ad80d63b7afaa7450",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/database.py",
+      "size": 255904,
+      "sha256": "03f2acf2641ce6278126c884526c161af96f8caeb422840982c22f120249beeb",
+      "git_blob": "f1b1dd607a74811e99cdf5eaa795f7682bfbc531",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/poller.py",
+      "size": 153891,
+      "sha256": "5c2f502c19a380a82c42e115749e0cbe637f3a83f986de07d351082212d32459",
+      "git_blob": "d1f7712c09d4e7250a8b0c584138e1a3fc68afbd",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/handlers/streams.py",
+      "size": 139759,
+      "sha256": "d2fd71c95da1311ff1ec0b2b4030aa6d4696f5a6ccb1e529c7f6e6bd94469721",
+      "git_blob": "5a3d392cecd86168d4937e25d8a97137a9d51dad",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/growth_ui/demo-poster.png",
+      "size": 87510,
+      "sha256": "d2236bf36d551d748846ccedc1d03190c370aac2802ef2b0bd0e08264bb14d80",
+      "git_blob": "02e544796de2c47852154a1453ae589e40493fb3",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/mini_app_ui/viewer.js",
+      "size": 81705,
+      "sha256": "526fe2ce2be84072f6ed26d051cfcee13fc014b9df3a92e7130812a393897876",
+      "git_blob": "d973c266437852cc3df10b5921281617dbe5915b",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/mini_app_viewer.py",
+      "size": 42002,
+      "sha256": "403afbe473571a9b5a9b5db0128f38a4abba210dd2c2ed232885e7f6665b04b2",
+      "git_blob": "5049d390513423c57da4fe009897f061a2606d8d",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/preview_runtime.py",
+      "size": 41275,
+      "sha256": "90d2da008867960e77182a0ab53432a09ad7699dc3502ebdd49b40567afc9437",
+      "git_blob": "aae02d58eaf421dad29b000c324fff85f1efa67d",
+      "mode": "100644"
+    },
+    {
+      "path": "main.py",
+      "size": 39492,
+      "sha256": "e62f8089fba672c25084040600a6a958c3673a69e68c3373185f826ef4520202",
+      "git_blob": "233b9232f9a04ff1b83e4302816cd18c842312bf",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/growth_ui/golos-latin.woff2",
+      "size": 37916,
+      "sha256": "9a69d0aa4734c4022224c002a3d944a702e0204972a49d892789f5668b922c2a",
+      "git_blob": "2d554c89c2a85c817c76a78c9cdf9d1995a61533",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/report.py",
+      "size": 37563,
+      "sha256": "d59932d634658348654b68e76a51c887bbd38d0ac6c78a5db28f7690dcbb6fb0",
+      "git_blob": "19f625090fa90cc947d6fba89f77a1f6b7196ac8",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/live_post.py",
+      "size": 36298,
+      "sha256": "ead416e440587c04d1c46fade4e2a72c1676d57e4ae6244d63ba055a51a1a446",
+      "git_blob": "4167c4710cd054c7e4931137047865008dbdfc9a",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/oauth.py",
+      "size": 35951,
+      "sha256": "57e3efe170e3bbbbfcb35c5256641be0d67faef7f0247b55995141edce39f488",
+      "git_blob": "8fb68a211921ff1136c281782609b21f2f686db7",
+      "mode": "100644"
+    },
+    {
+      "path": "bot/mini_app_ui/app.css",
+      "size": 34507,
+      "sha256": "a37e8e5f7e7e1bc0a69541cbc73d26c37274b0e3a23744469f6453d831c670f8",
+      "git_blob": "324347e495f1d00c3970629ffdfa4224d2c4a347",
+      "mode": "100644"
+    }
+  ],
+  "excluded_categories": [
+    "docs/audits",
+    "docs/design",
+    "docs/superpowers",
+    "screenshots/evidence",
+    ".agents",
+    "tests",
+    "development scripts (except staging_target.json)",
+    "marketing research/historical exports",
+    "untracked files/output",
+    ".env/secrets/DB/backups"
+  ],
+  "runtime_changed": false,
+  "runtime_diff_exit": 0
+}

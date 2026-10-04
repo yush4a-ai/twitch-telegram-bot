@@ -1,3 +1,11 @@
+# Native acceptance — NOT TESTED, compact staging опубликован
+
+Owner отложил native, поскольку работает за компьютером. Computer Use/Telegram Desktop не использовались. Ручные Desktop/iOS/Android сценарии ниже теперь закреплять за `b3d8be15-0b6a-4b03-a131-b339e7e78917` / `1c49330e773ded22d47a185866dd3921b1e00806` / @TwitchSignalTestbot8859004067. API/file-hash smoke PASS не закрывает native/owner visual.
+
+На каждом устройстве: открыть Testbot → Меню → system «Приложение» → Viewer/Streamer → Back/close/reopen → safe areas/keyboard/theme → payment unavailable; затем отдельные legacy HTML/report/group journeys. Записать client version/UTC/PASS/FAIL/NOT TESTED и реальный screenshot. Сейчас все три **NOT TESTED**, signed/OAuth/send/media не запускались; не отправлять третьим лицам и не включать реальные платежи.
+
+## Исторический checklist (старые staging identity statements superseded checkpoint выше)
+
 # Native acceptance — NOT TESTED
 
 Текущая сессия: native-проверку владелец отложил, поскольку работает за компьютером. Computer Use прекращён; Desktop/iOS/Android NOT TESTED, screenshots отсутствуют. Exact prepared staging upload BLOCKED по size; old staging не закрывает новый runtime.
