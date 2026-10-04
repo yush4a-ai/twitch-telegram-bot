@@ -694,7 +694,67 @@ class Database:
         await self._migrate_streamer_intents_schema()
         await self._migrate_growth_attribution_schema()
         await migrate_plus_payments(self.conn, now=time.time())
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS telegram_update_inbox ("
+            "bot_id INTEGER NOT NULL, update_id INTEGER NOT NULL, kind TEXT NOT NULL, "
+            "status TEXT NOT NULL CHECK(status IN ('received','processing','done','unknown')), "
+            "payload TEXT NOT NULL, created_at REAL NOT NULL, updated_at REAL NOT NULL, "
+            "PRIMARY KEY(bot_id,update_id)) WITHOUT ROWID"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_telegram_inbox_pending "
+            "ON telegram_update_inbox(bot_id,status,update_id)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('prep_001_telegram_update_inbox',?)", (time.time(),)
+        )
         await self.conn.commit()
+
+    @_serialized
+    async def receive_telegram_update(self, bot_id, update_id, kind, payload):
+        at = time.time()
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO telegram_update_inbox VALUES (?,?,?,'received',?,?,?)",
+            (bot_id, update_id, kind, self._encrypt_token(payload), at, at),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def claim_telegram_update(self, bot_id, update_id):
+        cursor = await self.conn.execute(
+            "UPDATE telegram_update_inbox SET status='processing',updated_at=? "
+            "WHERE bot_id=? AND update_id=? AND status='received'",
+            (time.time(), bot_id, update_id),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    @_serialized
+    async def finish_telegram_update(self, bot_id, update_id, status):
+        await self.conn.execute(
+            "UPDATE telegram_update_inbox SET status=?,updated_at=?, "
+            "payload=CASE WHEN ?='done' THEN '' ELSE payload END "
+            "WHERE bot_id=? AND update_id=? AND status='processing'",
+            (status, time.time(), status, bot_id, update_id),
+        )
+        await self.conn.commit()
+
+    @_serialized
+    async def recover_telegram_updates(self, bot_id):
+        await self.conn.execute(
+            "UPDATE telegram_update_inbox SET "
+            "status=CASE WHEN kind='financial' THEN 'received' ELSE 'unknown' END,updated_at=? "
+            "WHERE bot_id=? AND status='processing'", (time.time(), bot_id),
+        )
+        await self.conn.commit()
+
+    async def pending_telegram_updates(self, bot_id, *, limit, after_id=-1):
+        rows = await (await self.conn.execute(
+            "SELECT payload FROM telegram_update_inbox WHERE bot_id=? AND status='received' "
+            "AND update_id>? ORDER BY update_id LIMIT ?", (bot_id, after_id, limit),
+        )).fetchall()
+        return [self._decrypt_token(row[0]) for row in rows]
 
     async def _migrate_growth_attribution_schema(self) -> None:
         await self.conn.execute(

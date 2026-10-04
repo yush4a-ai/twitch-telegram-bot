@@ -1,0 +1,32 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+____ ReplayTests.test_recovery_and_fresh_dispatch_share_one_handler_budget ____
+
+self = <test_telegram_replay.ReplayTests testMethod=test_recovery_and_fresh_dispatch_share_one_handler_budget>
+
+    async def test_recovery_and_fresh_dispatch_share_one_handler_budget(self):
+        release = asyncio.Event()
+        active = 0
+        peak = 0
+        async def feed(*args, **kwargs):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            try:
+                await release.wait()
+            finally:
+                active -= 1
+        dp = self.dispatcher(feed)
+        tasks = [asyncio.create_task(dp._process_update(SimpleNamespace(id=999), ordinary(i)))
+                 for i in range(100, 164)]
+        try:
+            await asyncio.sleep(1)
+            release.set()
+            await asyncio.gather(*tasks)
+>           self.assertLessEqual(peak, 32)
+E           AssertionError: 37 not less than or equal to 32
+
+tests\test_telegram_replay.py:198: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_replay.py::ReplayTests::test_recovery_and_fresh_dispatch_share_one_handler_budget
+1 failed, 9 deselected in 5.86s

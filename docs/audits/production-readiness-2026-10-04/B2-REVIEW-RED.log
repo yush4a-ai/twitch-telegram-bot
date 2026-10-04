@@ -1,0 +1,117 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+__ ReplayTests.test_cancel_start_polling_stops_owned_polling_before_db_close __
+
+self = <test_telegram_replay.ReplayTests testMethod=test_cancel_start_polling_stops_owned_polling_before_db_close>
+
+    async def test_cancel_start_polling_stops_owned_polling_before_db_close(self):
+        from aiogram import Dispatcher
+        entered = asyncio.Event()
+        stopped = asyncio.Event()
+        async def polling(*args, **kwargs):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                stopped.set()
+        async def feed(*args, **kwargs):
+            pass
+        dp = self.dispatcher(feed)
+        with patch.object(Dispatcher, '_polling', polling):
+            task = asyncio.create_task(dp.start_polling(SimpleNamespace(id=999),
+                handle_signals=False, close_bot_session=False))
+            await asyncio.wait_for(entered.wait(), 1)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+>           self.assertTrue(stopped.is_set())
+E           AssertionError: False is not true
+
+tests\test_telegram_replay.py:177: AssertionError
+_________ ReplayTests.test_recovery_menu_can_cancel_an_inflight_oauth _________
+
+bot = namespace(id=999)
+update = Update(update_id=10, message=Message(message_id=10, date=datetime.datetime(2023, 11, 14, 22, 13, 20, tzinfo=TzInfo(0))...hat_member=None, chat_join_request=None, chat_boost=None, removed_chat_boost=None, managed_bot=None, subscription=None)
+kwargs = {'ingress_outcome': {'failed': False}}
+
+    async def feed(bot, update, **kwargs):
+        calls.append(update.update_id)
+        if update.update_id == 10:
+>           await finished.wait()
+
+tests\test_telegram_replay.py:152: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.locks.Event object at 0x000001F531014980 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\asyncio\locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <test_telegram_replay.ReplayTests testMethod=test_recovery_menu_can_cancel_an_inflight_oauth>
+
+    async def test_recovery_menu_can_cancel_an_inflight_oauth(self):
+        await self.db.receive_telegram_update(999, 10, 'ordinary', ordinary(10, '/auth_twitch').model_dump_json())
+        await self.db.receive_telegram_update(999, 11, 'ordinary', ordinary(11, '����').model_dump_json())
+        finished = asyncio.Event()
+        calls = []
+        async def feed(bot, update, **kwargs):
+            calls.append(update.update_id)
+            if update.update_id == 10:
+                await finished.wait()
+            else:
+                finished.set()
+>       await asyncio.wait_for(self.dispatcher(feed).recover_pending(SimpleNamespace(id=999)), 2)
+
+tests\test_telegram_replay.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\asyncio\tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x000001F53237F080>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+..\..\..\AppData\Local\Programs\Python\Python312\Lib\asyncio\timeouts.py:115: TimeoutError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_replay.py::ReplayTests::test_cancel_start_polling_stops_owned_polling_before_db_close
+FAILED tests/test_telegram_replay.py::ReplayTests::test_recovery_menu_can_cancel_an_inflight_oauth
+2 failed, 7 deselected in 6.92s

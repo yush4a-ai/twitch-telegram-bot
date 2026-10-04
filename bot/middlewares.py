@@ -154,6 +154,11 @@ class ErrorGuardMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception:
+            outcome = data.get('ingress_outcome')
+            if outcome is not None:
+                outcome['failed'] = True
+            if isinstance(event, Message) and (event.successful_payment or event.refunded_payment):
+                raise
             logger.exception("Необработанная ошибка в обработчике %s", type(event).__name__)
             if isinstance(event, CallbackQuery):
                 try:

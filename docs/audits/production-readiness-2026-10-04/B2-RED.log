@@ -1,0 +1,153 @@
+FFFFFF                                                                   [100%]
+================================== FAILURES ===================================
+___ ReplayTests.test_callback_and_channel_selection_duplicates_are_guarded ____
+
+self = <test_telegram_replay.ReplayTests testMethod=test_callback_and_channel_selection_duplicates_are_guarded>
+
+    async def test_callback_and_channel_selection_duplicates_are_guarded(self):
+        updates = [Update.model_validate({'update_id': 5, 'callback_query': {
+            'id': 'c', 'from': {'id': 101, 'is_bot': False, 'first_name': 'A'},
+            'chat_instance': 'ci', 'data': 'notify:alpha'}}),
+            Update.model_validate({'update_id': 6, 'message': {'message_id': 6,
+            'date': 1700000000, 'chat': {'id': 101, 'type': 'private'},
+            'chat_shared': {'request_id': 123, 'chat_id': -100123}}})]
+        calls = []
+        async def feed(bot, update, **kwargs):
+            calls.append(update.update_id)
+        for u in updates:
+            for _ in range(2):
+>               await self.dispatcher(feed)._process_update(SimpleNamespace(id=999), u)
+                      ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_replay.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_callback_and_channel_selection_duplicates_are_guarded>
+feed = <function ReplayTests.test_callback_and_channel_selection_duplicates_are_guarded.<locals>.feed at 0x000002B8E08C77E0>
+
+    def dispatcher(self, feed):
+>       from bot.telegram_replay import ReplayDispatcher
+E       ModuleNotFoundError: No module named 'bot.telegram_replay'
+
+tests\test_telegram_replay.py:26: ModuleNotFoundError
+_ ReplayTests.test_completed_commands_survive_restart_without_second_mutation _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_completed_commands_survive_restart_without_second_mutation>
+
+    async def test_completed_commands_survive_restart_without_second_mutation(self):
+        calls = []
+        async def feed(bot, update, **kwargs):
+            calls.append(update.update_id)
+            await self.db.add_channel(101, 'alpha')
+        bot = SimpleNamespace(id=999)
+>       await self.dispatcher(feed)._process_update(bot, ordinary(1))
+              ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_replay.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_completed_commands_survive_restart_without_second_mutation>
+feed = <function ReplayTests.test_completed_commands_survive_restart_without_second_mutation.<locals>.feed at 0x000002B8E09FAA20>
+
+    def dispatcher(self, feed):
+>       from bot.telegram_replay import ReplayDispatcher
+E       ModuleNotFoundError: No module named 'bot.telegram_replay'
+
+tests\test_telegram_replay.py:26: ModuleNotFoundError
+_ ReplayTests.test_crash_after_action_is_unknown_and_never_automatically_repeats _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_crash_after_action_is_unknown_and_never_automatically_repeats>
+
+    async def test_crash_after_action_is_unknown_and_never_automatically_repeats(self):
+        calls = []
+        async def feed(bot, update, **kwargs):
+            calls.append(update.update_id)
+            await self.db.add_channel(101, 'alpha')
+            raise asyncio.CancelledError()
+>       dp = self.dispatcher(feed)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_replay.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_crash_after_action_is_unknown_and_never_automatically_repeats>
+feed = <function ReplayTests.test_crash_after_action_is_unknown_and_never_automatically_repeats.<locals>.feed at 0x000002B8E09FADE0>
+
+    def dispatcher(self, feed):
+>       from bot.telegram_replay import ReplayDispatcher
+E       ModuleNotFoundError: No module named 'bot.telegram_replay'
+
+tests\test_telegram_replay.py:26: ModuleNotFoundError
+_________ ReplayTests.test_financial_crash_returns_to_durable_replay __________
+
+self = <test_telegram_replay.ReplayTests testMethod=test_financial_crash_returns_to_durable_replay>
+
+    async def test_financial_crash_returns_to_durable_replay(self):
+        u = ordinary(7).model_copy(update={'message': ordinary(7).message.model_copy(update={
+            'successful_payment': SimpleNamespace()})})
+        # Build a real, validated financial Update without transport.
+        payload = ordinary(7).model_dump(mode='json', exclude_none=True)
+        payload['message'].pop('text')
+        payload['message']['successful_payment'] = {'currency': 'XTR', 'total_amount': 1,
+            'invoice_payload': 'old', 'telegram_payment_charge_id': 'charge', 'provider_payment_charge_id': ''}
+        u = Update.model_validate(payload)
+        calls = []
+        async def feed(bot, update, **kwargs):
+            calls.append(update.update_id)
+            if len(calls) == 1:
+                raise RuntimeError('local failure')
+>       dp = self.dispatcher(feed)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_replay.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_financial_crash_returns_to_durable_replay>
+feed = <function ReplayTests.test_financial_crash_returns_to_durable_replay.<locals>.feed at 0x000002B8E09FB420>
+
+    def dispatcher(self, feed):
+>       from bot.telegram_replay import ReplayDispatcher
+E       ModuleNotFoundError: No module named 'bot.telegram_replay'
+
+tests\test_telegram_replay.py:26: ModuleNotFoundError
+____ ReplayTests.test_received_pending_update_is_recovered_before_polling _____
+
+self = <test_telegram_replay.ReplayTests testMethod=test_received_pending_update_is_recovered_before_polling>
+
+    async def test_received_pending_update_is_recovered_before_polling(self):
+        u = ordinary(2, '/track alpha')
+>       await self.db.receive_telegram_update(999, 2, 'ordinary', u.model_dump_json())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'Database' object has no attribute 'receive_telegram_update'
+
+tests\test_telegram_replay.py:48: AttributeError
+_______ ReplayTests.test_storage_failure_propagates_before_any_handler ________
+
+self = <test_telegram_replay.ReplayTests testMethod=test_storage_failure_propagates_before_any_handler>
+
+    async def test_storage_failure_propagates_before_any_handler(self):
+        calls = []
+        async def feed(*args, **kwargs):
+            calls.append(1)
+>       dp = self.dispatcher(feed)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_telegram_replay.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_storage_failure_propagates_before_any_handler>
+feed = <function ReplayTests.test_storage_failure_propagates_before_any_handler.<locals>.feed at 0x000002B8E09FA700>
+
+    def dispatcher(self, feed):
+>       from bot.telegram_replay import ReplayDispatcher
+E       ModuleNotFoundError: No module named 'bot.telegram_replay'
+
+tests\test_telegram_replay.py:26: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_replay.py::ReplayTests::test_callback_and_channel_selection_duplicates_are_guarded
+FAILED tests/test_telegram_replay.py::ReplayTests::test_completed_commands_survive_restart_without_second_mutation
+FAILED tests/test_telegram_replay.py::ReplayTests::test_crash_after_action_is_unknown_and_never_automatically_repeats
+FAILED tests/test_telegram_replay.py::ReplayTests::test_financial_crash_returns_to_durable_replay
+FAILED tests/test_telegram_replay.py::ReplayTests::test_received_pending_update_is_recovered_before_polling
+FAILED tests/test_telegram_replay.py::ReplayTests::test_storage_failure_propagates_before_any_handler
+6 failed in 7.38s

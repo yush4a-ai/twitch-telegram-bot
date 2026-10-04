@@ -35,6 +35,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "mini_009_viewer_trial",
                             "mini_010_viewer_favorites",
                             "mini_011_viewer_undo",
+                            "prep_001_telegram_update_inbox",
                             "r10_001_billing_subjects",
                             "r11_001_plus_payment_orders",
                             "r11_002_plus_payment_events",

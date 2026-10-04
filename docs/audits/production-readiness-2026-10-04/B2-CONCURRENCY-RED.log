@@ -1,0 +1,26 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ ReplayTests.test_next_update_is_journaled_while_previous_oauth_can_still_wait _
+
+self = <test_telegram_replay.ReplayTests testMethod=test_next_update_is_journaled_while_previous_oauth_can_still_wait>
+
+    async def test_next_update_is_journaled_while_previous_oauth_can_still_wait(self):
+        from aiogram import Dispatcher
+        async def incoming(*args, **kwargs):
+            yield ordinary(8, '/auth_twitch')
+            yield ordinary(9, '����')
+        async def feed(*args, **kwargs):
+            await asyncio.Event().wait()
+        dp = self.dispatcher(feed)
+        with patch.object(Dispatcher, '_listen_updates', incoming):
+            iterator = dp._listen_updates(SimpleNamespace(id=999))
+            first = await anext(iterator)
+            row = await (await self.db.conn.execute(
+                'SELECT status FROM telegram_update_inbox WHERE update_id=8')).fetchone()
+>           self.assertEqual(row, ('received',))
+E           AssertionError: None != ('received',)
+
+tests\test_telegram_replay.py:130: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_telegram_replay.py::ReplayTests::test_next_update_is_journaled_while_previous_oauth_can_still_wait
+1 failed, 6 deselected in 3.78s

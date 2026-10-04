@@ -9,7 +9,8 @@ import sys
 import time
 
 import aiohttp
-from aiogram import Bot, Dispatcher
+from aiogram import Bot
+from bot.telegram_replay import ReplayDispatcher as Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ChatType, ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
@@ -771,7 +772,7 @@ async def main() -> None:
                     oauth_server.set_admin_snapshot_provider(admin_snapshot.collect)
 
                 await _with_startup_retry(
-                    lambda: bot.delete_webhook(drop_pending_updates=True), "Удаление webhook"
+                    lambda: bot.delete_webhook(drop_pending_updates=False), "Удаление webhook"
                 )
                 polling_task = asyncio.create_task(
                     dp.start_polling(bot, close_bot_session=False)
