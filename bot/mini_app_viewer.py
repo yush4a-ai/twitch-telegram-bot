@@ -26,6 +26,47 @@ _SEARCH_WINDOW_LIMIT = 6
 _NAMES_TIMEOUT = 5.0
 
 
+class _FollowLookup:
+    """Route-only budget; never wraps or delays the poller's Twitch client."""
+
+    def __init__(self, twitch):
+        self.twitch = twitch
+        self.users = {}
+        self.global_times = deque()
+        self.cache = OrderedDict()
+        self.lock = asyncio.Lock()
+
+    def admit(self, user_id):
+        now = time.monotonic()
+        cutoff = now - 10
+        while self.global_times and self.global_times[0] <= cutoff:
+            self.global_times.popleft()
+        self.users = {key: deque(t for t in times if t > cutoff)
+                      for key, times in self.users.items() if times and times[-1] > cutoff}
+        times = self.users.get(user_id, deque())
+        if len(times) >= 6 or len(self.global_times) >= 30:
+            return False
+        times.append(now)
+        self.users[user_id] = times
+        self.global_times.append(now)
+        return True
+
+    async def exists(self, login):
+        # Include time waiting for an overlapping lookup in the route's timeout.
+        async with asyncio.timeout(5):
+            async with self.lock:
+                now = time.monotonic()
+                cached = self.cache.get(login)
+                if cached is not None and now - cached[0] < 10:
+                    return cached[1]
+                exists = await self.twitch.channel_exists(login)
+                self.cache[login] = (time.monotonic(), exists)
+                self.cache.move_to_end(login)
+                while len(self.cache) > 256:
+                    self.cache.popitem(last=False)
+                return exists
+
+
 def _avatar_url(value):
     if not isinstance(value, str) or len(value)>2048:
         return None
@@ -130,6 +171,7 @@ def install_mini_app_viewer_routes(
     folders = ViewerFolderService(db)
     history = ViewerHistoryService(db)
     public_names = _PublicNames(twitch)
+    follow_lookup = _FollowLookup(twitch)
 
     def folder_payload(saved) -> dict[str, object]:
         return {
@@ -458,12 +500,18 @@ def install_mini_app_viewer_routes(
         login = normalize_twitch_login(values.get("login"))
         if login is None:
             return web.json_response({"error": "invalid_login"}, status=400)
-        if login in await db.list_channels(user_id):
+        tracked = await db.list_channels(user_id)
+        if login in tracked:
             return web.json_response({"result": "already", "login": login})
+        flags = await capabilities.for_user(user_id, now=time.time())
+        if len(tracked) >= flags.viewer_channel_limit:
+            return web.json_response({"error": "channel_limit"}, status=409)
+        if not follow_lookup.admit(user_id):
+            return web.json_response({"error": "rate_limited"}, status=429)
         if twitch is None:
             return web.json_response({"error": "search_unavailable"}, status=503)
         try:
-            exists = await twitch.channel_exists(login)
+            exists = await follow_lookup.exists(login)
         except Exception:
             logger.exception("Mini App Twitch lookup failed")
             return web.json_response({"error": "search_unavailable"}, status=503)

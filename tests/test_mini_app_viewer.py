@@ -150,6 +150,47 @@ class MiniAppViewerTests(unittest.IsolatedAsyncioTestCase):
         async with self.request("search", 202, query="alpha") as response:
             self.assertEqual(response.status, 200)
 
+    async def test_full_list_never_spends_twitch_lookup_budget(self):
+        for index in range(50):
+            await self.db.add_channel(101, f'full{index:02}')
+        self.twitch.channel_exists = AsyncMock(return_value=True)
+        async with self.request('follow', login='alpha') as response:
+            self.assertEqual(response.status, 409)
+        self.twitch.channel_exists.assert_not_awaited()
+
+    async def test_follow_burst_has_user_and_global_bounds(self):
+        self.twitch.channel_exists = AsyncMock(return_value=False)
+        for index in range(20):
+            async with self.request('follow', login=f'unknown{index}') as response:
+                self.assertEqual(response.status, 404 if index < 6 else 429)
+        self.assertEqual(self.twitch.channel_exists.await_count, 6)
+        for index in range(50):
+            async with self.request('follow', actor_id=200+index, login=f'other{index}') as response:
+                self.assertIn(response.status, (404, 429))
+        self.assertLessEqual(self.twitch.channel_exists.await_count, 30)
+
+    async def test_concurrent_identical_negative_lookup_is_shared_and_cached(self):
+        async def missing(login):
+            await asyncio.sleep(.05)
+            return False
+        self.twitch.channel_exists = AsyncMock(side_effect=missing)
+        async def follow(actor):
+            async with self.request('follow', actor_id=actor, login='missing') as response:
+                return response.status
+        self.assertEqual(await asyncio.gather(*(follow(300+i) for i in range(6))), [404]*6)
+        self.assertEqual(self.twitch.channel_exists.await_count, 1)
+        self.assertEqual(await follow(400), 404)
+        self.assertEqual(self.twitch.channel_exists.await_count, 1)
+
+    async def test_follow_gate_does_not_replace_shared_twitch_client(self):
+        self.twitch.channel_exists = AsyncMock(return_value=False)
+        for index in range(7):
+            async with self.request('follow', login=f'unknown{index}') as response:
+                await response.read()
+        # A poller-side call uses the unchanged client, outside the route's gate.
+        self.assertFalse(await self.twitch.channel_exists('pollerlogin'))
+        self.assertEqual(self.twitch.channel_exists.await_count, 7)
+
     async def test_state_names_are_public_bounded_cached_and_fallback_to_real_login(self):
         await self.db.add_channel(101, "alpha")
         await self.db.add_channel(101, "beta")
