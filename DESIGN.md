@@ -4,43 +4,62 @@
 
 ## Direction
 
-Операционная консоль владельца: плотная, спокойная, читаемая. Визуальная связь с существующими `bot_avatar.png` и `bot_welcome_banner.png`: глубокий navy, холодный фиолетовый и точечный красный сигнал эфира. Числа и состояния важнее декора. Первый экран отвечает на вопросы «бот работает?», «что происходит сейчас?» и «где очередь или отказ?».
+Операционная консоль владельца: спокойный графит, мягкие поверхности, лавандовый accent только для главного действия и выбранного состояния. Первый экран отвечает на вопросы «что происходит с ботом?», «кто эти люди?» и «что требует внимания?». Числа и состояния важнее декора: панель читают, а не разглядывают.
+
+Направление заменено 4 октября 2026 по решению владельца: прежняя navy-палитра (`#0B1020`) больше не используется. Визуальная система общая с Mini App (тёмная тема), но панель владельца остаётся отдельной поверхностью со своей строгой авторизацией.
+
+Правила: цвет никогда не несёт смысл в одиночку — состояние всегда подписано словом и знаком. Выдуманные метрики, нарисованные тренды и «зелёное» состояние без наблюдения запрещены. Светлой темы нет.
 
 ## Tokens
 
-| Роль | Dark | Light |
-| --- | --- | --- |
-| canvas | `#0B1020` | `#F3F3FA` |
-| surface | `#151C31` | `#FFFFFF` |
-| surface raised | `#1D2540` | `#E9EAF5` |
-| text primary | `#F4F5FF` | `#171B31` |
-| text secondary | `#BFC6DF` | `#4B536C` |
-| border | `#39415C` | `#D4D8E8` |
-| accent | `#AD86FF` | `#6A39C5` |
-| success | `#82DCC2` | `#146F59` |
-| warning | `#F1C779` | `#8B5700` |
-| danger / live | `#FF727D` | `#AF2039` |
+| Роль | Токен | Значение | Проверено |
+| --- | --- | --- | --- |
+| Фон приложения | `--canvas` | `#171717` | — |
+| Поверхность карточки | `--surface` | `#242424` | — |
+| Приподнятая поверхность | `--raised` | `#2D2B31` | — |
+| Разделитель | `--border` | `#3B3841` | — |
+| Основной текст | `--text` | `#F1F1F1` | 15.9:1 на `--canvas` |
+| Вторичный текст | `--muted` | `#B9B6BF` | 7.8:1 на `--surface` |
+| Accent / главное действие | `--accent` | `#C7A5FF` | 7.6:1 на `--surface` |
+| Текст на accent | `--accent-ink` | `#21162F` | 8.4:1 на `--accent` |
+| Успех | `--good` | `#7FD8B4` | 9.1:1 на `--surface` |
+| Предупреждение | `--warn` | `#F0C674` | 9.6:1 на `--surface` |
+| Ошибка, эфир | `--danger` | `#FF7A85` | 6.2:1 на `--surface` |
+| Неизвестность | `--unknown` | `#B9B6BF` | 7.8:1 на `--surface` |
+| Фокус | `--focus` | `#C7A5FF` | контур 2 px с отступом 2 px |
 
-Semantic tokens `--color-canvas`, `--color-surface`, `--color-raised`, `--color-text`, `--color-muted`, `--color-border`, `--color-accent`, `--color-good`, `--color-warn`, `--color-danger`. Status always uses text plus color; no color-only meaning. Focus ring accent, 2 px with offset. Spacing scale 4/8/12/16/24/32/48 px. Radius 12–16 px for grouped surfaces; small controls may be pills. No decorative gradients or glass.
+Семантические токены: `--color-canvas`, `--color-surface`, `--color-raised`, `--color-border`, `--color-text`, `--color-muted`, `--color-accent`, `--color-accent-ink`, `--color-good`, `--color-warn`, `--color-danger`, `--color-unknown`. Контраст проверяется по реальным отрисованным цветам, а не по значениям в этом документе; при изменении значения строка «Проверено» обновляется первой.
+
+Семантика состояний: успех — `--good`, предупреждение и задержка — `--warn`, ошибка и live — `--danger`, отсутствие сигнала и «нет данных» — `--unknown`. Один и тот же смысл не кодируется разными цветами на разных экранах.
+
+Отступы 4/8/12/16/24/32/48 px. Радиусы: карточки 20 px, смысловые группы 24 px, кнопки и поля 12 px. Никаких декоративных градиентов, стекла и тяжёлых теней: объём дают поверхность и тонкая граница.
 
 ## Typography
 
-System UI for body to keep Cyrillic and Latin legible without a CDN. Fixed-width system stack only for timestamps, latency and queue counts. Page title 32–40 px; section labels 20–24 px; body 14–16 px with line-height at least 1.45. Tabular lining numerals for metrics; longest Russian labels wrap without clipping. No faux illustration or glyph icons.
+Системный шрифт без CDN — так кириллица и латиница остаются читаемыми офлайн и не нарушают CSP. Моноширинный системный стек только для времени, идентификаторов, счётчиков очереди и задержек.
+
+Заголовок экрана 30–32 px, заголовок смысловой группы 18–20 px, основной текст 15–16 px с межстрочным не менее 1.45, вспомогательные подписи 12–13 px. Числа — табличными цифрами, чтобы колонки не «плясали». Длинные русские названия и логины переносятся, а не обрезаются многоточием.
 
 ## Layout and components
 
-- Header: product, `STAGING` marker, refreshed time, refresh/logout controls.
-- Health section: three unequal content columns on desktop, stacked on phone. Explicit status, explanation, and 2–4 useful values per subsystem.
-- Audience: compact aligned metrics, without interchangeable promotional cards.
-- Live: table with channel, placements, viewers and observed time; at narrow widths each row becomes a labeled vertical item.
-- Operations: queues, errors, resources in clear grouped rows. Only source-backed values.
-- Login: plain protected entry, field label, error near form, no operational data until authenticated.
-- Empty/loading/error/stale states occupy the same semantic regions as loaded content. Refresh remains usable after errors. Buttons have hover/focus/active/disabled feedback; reduced motion removes transitions.
+- **Оболочка.** Десктоп: постоянный сайдбар 200–216 px и рабочая область до 1440 px, поля 32 px, промежутки 24 px. Телефон: нижняя навигация «Обзор / Люди / Доступы / Ещё», одна колонка.
+- **Шапка.** Продукт, метка окружения словом (`STAGING` / `LOCAL`), время последнего успешного обновления, «Обновить», «Выйти». Переключения окружений в панели нет.
+- **Показатели.** Одна группа выровненных чисел; каждый показатель несёт собственный период. Не заменяются рекламными карточками.
+- **Требует внимания.** До трёх строк, отсортированных по влиянию на людей: что произошло, кого касается, сколько длится, переход к подробностям.
+- **Таблицы.** Действующие доступы, история, эфиры. На узких ширинах строка становится вертикальной карточкой с подписями, горизонтальной прокрутки документа нет.
+- **Диалоги.** Выдача, продление и отзыв: 520 px на десктопе, отдельный экран на телефоне; фокус удерживается внутри, Escape закрывает безопасно, фокус возвращается в исходную кнопку.
+- **Вход.** Обычная защищённая страница: подпись поля, ошибка рядом с формой, никаких операционных данных до входа.
+- **Состояния.** Загрузка (скелетон в месте содержимого, без выдуманных нулей), пусто (причина и действие), ошибка (что не удалось и как повторить; форма не очищается), устарело (последнее успешное время и «Обновить»), нет прав (данные не раскрываются). Состояния занимают те же области, что и загруженное содержимое.
+- **Кнопки.** Главная — заливка accent с текстом `--accent-ink`; вторичные — тихие, с границей. Есть hover, focus-visible, active и disabled; при `prefers-reduced-motion` переходы отключаются.
 
 ## Responsive and accessibility
 
-Test at 360, 390, 768 and 1440 px. Max content width 1440 px, fluid gutters 16–32 px. Avoid document-level horizontal overflow. Touch controls at least 44 px tall. Visible keyboard focus; semantic headings, form labels, table headers, live region for refresh status. Dark and light via `prefers-color-scheme`, with contrast checked against actual rendered colors. Native Telegram screens are separate R7 work.
+Проверка на 360, 390, 768 и 1440 px. Максимальная ширина содержимого 1440 px, поля 16–32 px. Горизонтального переполнения документа нет ни на одной ширине. Цели нажатия не меньше 44 px. Видимый фокус клавиатуры, осмысленные заголовки, подписи полей и заголовки таблиц, живой регион для статуса обновления. Увеличение до 200 % не ломает раскладку. Только тёмная тема и `color-scheme: dark`.
+
+Доступность проверяется на реальном браузере, а не по коду: контраст по отрисованным цветам, обход клавиатурой, состояния загрузки, пустоты, ошибки и устаревания.
 
 ## Evidence and acceptance
 
-Agent-selected initial direction from incumbent brand assets and R2 brief; owner taste acceptance pending. Visual baselines must come from real browser screenshots after functional tests. No fabricated audience, revenue or delivery signals.
+Визуальные базовые снимки берутся только из реального браузера после функциональных тестов и складываются рядом с концептом. Никаких выдуманных аудиторий, выручки и сигналов доставки: недоступное значение показывается как «Нет данных» с причиной.
+
+Приёмка вкуса — за владельцем: агентские снимки не заменяют его решение. Изменения палитры, радиусов и типографики фиксируются здесь до правок в `bot/admin_ui`, а не после.
