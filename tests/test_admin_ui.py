@@ -8,6 +8,8 @@ from bot.oauth import OAuthCallbackServer
 
 KEY = "staging-test-key-with-at-least-32-chars-123"
 
+VIEWS = ("overview", "users", "access", "system", "growth", "payments")
+
 
 class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -29,22 +31,25 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         await self.session.close()
         await self.server.stop()
 
+    async def login(self):
+        async with self.session.post(
+            self.base + "/admin/emergency/login", data={"access_key": KEY},
+            allow_redirects=False,
+        ):
+            pass
+
     async def test_login_and_panel_routes_have_distinct_access(self):
         async with self.session.get(self.base + "/admin") as response:
             body = await response.text()
             self.assertIn("Вход", body)
-            self.assertNotIn("id=\"health-grid\"", body)
+            self.assertNotIn('id="app-nav"', body)
         for path in ("/admin/panel.css", "/admin/panel.js"):
             async with self.session.get(self.base + path) as response:
                 self.assertEqual(response.status, 401)
-        async with self.session.post(self.base + "/admin/emergency/login", data={"access_key": KEY}, allow_redirects=False):
-            pass
+        await self.login()
         async with self.session.get(self.base + "/admin") as response:
             body = await response.text()
             self.assertEqual(response.status, 200)
-            self.assertIn('id="health-grid"', body)
-            self.assertIn('id="live-list"', body)
-            self.assertIn('<table', body)
             self.assertIn('href="#main-content"', body)
             self.assertIn('src="/admin/panel.js"', body)
         async with self.session.get(self.base + "/admin/panel.css") as response:
@@ -54,26 +59,62 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 200)
             self.assertIn("javascript", response.headers["Content-Type"])
 
-    async def test_owner_panel_displays_live_queue_depth_and_oldest_due_age(self):
-        async with self.session.post(
-            self.base + "/admin/emergency/login", data={"access_key": KEY},
-            allow_redirects=False,
-        ):
-            pass
+    async def test_panel_shell_has_navigation_and_every_view(self):
+        await self.login()
         async with self.session.get(self.base + "/admin") as response:
             html = await response.text()
-        for field in (
-            "live-queue-pending", "live-queue-leased", "live-queue-due",
-            "live-queue-failed", "live-queue-oldest",
-        ):
-            self.assertIn(f'id="{field}"', html)
+
+        self.assertIn('id="app-nav"', html)
+        for view in VIEWS:
+            self.assertIn(f'id="view-{view}"', html)
+        for anchor in ("#/overview", "#/users", "#/access", "#/system", "#/growth", "#/payments"):
+            self.assertIn(anchor, html)
+
+    async def test_overview_renders_metrics_and_attention_region(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
         async with self.session.get(self.base + "/admin/panel.js") as response:
             script = await response.text()
-        for field in (
-            "pending_jobs", "leased_jobs", "due_jobs", "failed_jobs",
-            "oldest_due_age_seconds",
-        ):
-            self.assertIn(field, script)
+
+        for field in ("stat-users", "stat-plus", "stat-deliveries", "stat-active-today", "stat-new-7d"):
+            self.assertIn(f'id="{field}"', html)
+        self.assertIn('id="attention-list"', html)
+        self.assertIn('id="health-line"', html)
+        for key in ("active_total", "deliveries", "attention"):
+            self.assertIn(key, script)
+
+    async def test_access_screen_has_tabs_and_empty_states(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+
+        self.assertIn('id="tab-active"', html)
+        self.assertIn('id="tab-history"', html)
+        self.assertIn('id="access-active-body"', html)
+        self.assertIn('id="access-history-body"', html)
+        self.assertIn("Ничего не найдено", html)
+
+    async def test_system_screen_shows_queue_and_backup_honestly(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
+
+        for field in ("queue-pending", "queue-failed", "queue-oldest", "backup-state", "restore-verified"):
+            self.assertIn(f'id="{field}"', html)
+        for key in ("pending_jobs", "failed_jobs", "oldest_due_age_seconds", "restore_verified"):
+            self.assertIn(key, script)
+
+    async def test_placeholders_explain_why_data_is_missing(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+
+        self.assertIn("Нет сквозных данных", html)
+        self.assertIn("Приём платежей не подключён", html)
+        self.assertIn("Нет данных", html)
 
 
 if __name__ == "__main__":

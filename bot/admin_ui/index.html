@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <meta name="theme-color" content="#0B1020" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#F3F3FA" media="(prefers-color-scheme: light)">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#171717">
   <title>Панель владельца · TwitchSignalBot</title>
   <link rel="stylesheet" href="/admin/panel.css">
   <script src="/admin/panel.js" defer></script>
@@ -13,61 +12,262 @@
 <body>
   <a class="skip-link" href="#main-content">К содержанию</a>
   <div class="shell">
-    <header class="topbar">
-      <div class="brand" aria-label="TwitchSignalBot"><span class="brand-mark" aria-hidden="true"></span><span>TwitchSignal<span class="brand-bot">Bot</span></span></div>
-      <div class="topbar-actions">
-        <span class="environment" id="environment">STAGING</span>
-        <button class="button button-quiet" id="refresh" type="button">Обновить</button>
+    <aside class="sidebar" id="app-nav" aria-label="Разделы панели">
+      <div class="brand" aria-label="TwitchSignalBot">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>TwitchSignal<span class="brand-bot">Bot</span></span>
+      </div>
+      <nav class="nav">
+        <a class="nav-link" href="#/overview" data-view-link="overview">Обзор</a>
+        <a class="nav-link" href="#/users" data-view-link="users">Пользователи</a>
+        <a class="nav-link" href="#/access" data-view-link="access">Доступы</a>
+        <div class="nav-separator" role="presentation"></div>
+        <a class="nav-link" href="#/system" data-view-link="system">Система<span class="nav-badge" id="nav-system-badge" hidden>0</span></a>
+        <a class="nav-link" href="#/growth" data-view-link="growth">Рост</a>
+        <a class="nav-link" href="#/payments" data-view-link="payments">Оплаты<span class="nav-note">Выключены</span></a>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="owner">Владелец</span>
         <form method="post" action="/admin/logout"><button class="button button-quiet" type="submit">Выйти</button></form>
       </div>
-    </header>
+    </aside>
 
-    <main id="main-content" tabindex="-1">
-      <div class="page-intro">
-        <div><h1>Состояние бота</h1><p>Тестовый контур · данные обновляются каждые 30 секунд</p></div>
-        <div class="update-meta" role="status" aria-live="polite"><span id="updated-at">Загрузка…</span><span class="freshness" id="freshness">Ожидание данных</span></div>
-      </div>
-
-      <div class="notice" id="notice" role="alert" hidden></div>
-
-      <section aria-labelledby="health-heading">
-        <div class="section-head"><h2 id="health-heading">Подсистемы</h2><p>Состояния рассчитаны отдельно</p></div>
-        <div class="health-grid" id="health-grid">
-          <article class="health-panel" id="telegram-panel"><div class="health-title"><h3>Telegram</h3><span class="state" id="telegram-state">Нет данных</span></div><p class="health-description">Задача получения сообщений и команд</p><dl><div><dt>Polling</dt><dd id="telegram-polling">Нет данных</dd></div><div><dt>Доставка сообщений</dt><dd id="telegram-delivery">Не проверена</dd></div></dl></article>
-          <article class="health-panel" id="twitch-panel"><div class="health-title"><h3>Twitch</h3><span class="state" id="twitch-state">Нет данных</span></div><p class="health-description">Опрос каналов и EventSub</p><dl><div><dt>Успешный опрос</dt><dd id="twitch-success">Нет данных</dd></div><div><dt>EventSub</dt><dd id="twitch-eventsub">Нет данных</dd></div><div><dt>Нужна повторная авторизация</dt><dd id="twitch-auth">Нет данных</dd></div></dl></article>
-          <article class="health-panel" id="preview-panel"><div class="health-title"><h3>Live preview</h3><span class="state" id="preview-state">Нет данных</span></div><p class="health-description">Сборка Telegram Animation · до 24 сек.</p><dl><div><dt>Активные сессии / задачи</dt><dd id="preview-active">Нет данных</dd></div><div><dt>Последний успех</dt><dd id="preview-success">Нет данных</dd></div><div><dt>Причина отключения</dt><dd id="preview-reason">Нет данных</dd></div></dl></article>
+    <div class="workspace">
+      <header class="topbar">
+        <span class="environment" id="environment">STAGING</span>
+        <span class="topbar-note">Только владелец · данные обновляются каждые 30 секунд</span>
+        <div class="topbar-actions">
+          <span class="update-meta" role="status" aria-live="polite">
+            <span id="updated-at">Загрузка…</span>
+            <span class="freshness" id="freshness" data-state="unknown">Ожидание данных</span>
+          </span>
+          <button class="button button-primary" id="refresh" type="button">Обновить</button>
         </div>
-      </section>
+      </header>
 
-      <section aria-labelledby="audience-heading" class="audience-section">
-        <div class="section-head"><h2 id="audience-heading">Аудитория staging</h2><p>Записи тестовой базы, не production-аудитория</p></div>
-        <div class="audience-grid"><div><strong id="stat-users">—</strong><span>Личных пользователей</span></div><div><strong id="stat-groups">—</strong><span>Групп</span></div><div><strong id="stat-tracked">—</strong><span>Подписок чат + канал</span></div><div><strong id="stat-channels">—</strong><span>Уникальных Twitch-каналов</span></div></div>
-      </section>
+      <main id="main-content" tabindex="-1">
+        <div class="notice" id="notice" role="alert" hidden></div>
 
-      <section aria-labelledby="growth-heading" class="growth-section">
-        <div class="section-head"><h2 id="growth-heading">Путь новых пользователей</h2><p>Агрегаты staging · без личных данных и выручки</p></div>
-        <table class="live-table growth-table"><thead><tr><th scope="col">Источник</th><th scope="col">Открыли бота</th><th scope="col">Добавили канал</th><th scope="col">Получали тестовый Plus</th></tr></thead><tbody id="growth-list"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody></table>
-        <p class="growth-note">Plus: число людей с тестовым доступом после добавления канала, включая истёкший или отозванный доступ. Это не оплаты.</p>
-      </section>
+        <section class="view" id="view-overview" data-view="overview" aria-labelledby="overview-heading">
+          <div class="page-head">
+            <div>
+              <h1 id="overview-heading">Обзор</h1>
+              <p class="page-sub">Состояние бота и люди, которым он нужен</p>
+            </div>
+            <p class="health-line" id="health-line" data-state="unknown">Не удалось проверить</p>
+          </div>
 
-      <div class="lower-grid">
-        <section class="live-section" aria-labelledby="live-heading"><div class="section-head"><h2 id="live-heading">Сейчас в эфире</h2><p>По последнему состоянию poller</p></div><table class="live-table"><thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead><tbody id="live-list"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody></table></section>
-        <section class="operations-section" aria-labelledby="operations-heading">
-          <div class="section-head"><h2 id="operations-heading">Операции</h2><p>Очереди, ошибки, ресурсы процесса</p></div>
-          <div class="operation-group"><h3>Очередь live-постов</h3><dl>
-            <div><dt>Ожидают</dt><dd id="live-queue-pending">—</dd></div>
-            <div><dt>В обработке</dt><dd id="live-queue-leased">—</dd></div>
-            <div><dt>Готовы к отправке</dt><dd id="live-queue-due">—</dd></div>
-            <div><dt>Окончательные ошибки</dt><dd id="live-queue-failed">—</dd></div>
-            <div><dt>Старейший готовый job</dt><dd id="live-queue-oldest">—</dd></div>
-          </dl></div>
-          <div class="operation-group"><h3>Очереди отчётов</h3><dl><div><dt>Ожидают отправки</dt><dd id="queue-pending">—</dd></div><div><dt>Старейший элемент</dt><dd id="queue-age">—</dd></div><div><dt>Отложены на тихие часы</dt><dd id="queue-deferred">—</dd></div></dl></div>
-          <div class="operation-group"><h3>Ошибки</h3><dl><div><dt>Poller</dt><dd id="error-poller">—</dd></div><div><dt>EventSub</dt><dd id="error-eventsub">—</dd></div><div><dt>Preview</dt><dd id="error-preview">—</dd></div><div><dt>База данных</dt><dd id="error-database">—</dd></div></dl></div>
-          <div class="operation-group"><h3>Ресурсы</h3><dl><div><dt>CPU процесса</dt><dd id="resource-cpu">—</dd></div><div><dt>RAM процесса</dt><dd id="resource-ram">—</dd></div><div><dt>Свободно на томе DB</dt><dd id="resource-disk">—</dd></div><div><dt>SQLite DB / WAL</dt><dd id="resource-db">—</dd></div></dl></div>
+          <div class="metric-grid">
+            <div class="metric"><span class="metric-label">Всего пользователей</span><strong id="stat-users">Нет данных</strong><span class="metric-note">Известные личные пользователи</span></div>
+            <div class="metric"><span class="metric-label">Активный Plus</span><strong id="stat-plus">Нет данных</strong><span class="metric-note" id="stat-plus-note">Действующие права</span></div>
+            <div class="metric"><span class="metric-label">Доставки за 24 ч</span><strong id="stat-deliveries">Нет данных</strong><span class="metric-note">Уведомления и отчёты</span></div>
+            <div class="metric"><span class="metric-label">Активны сегодня</span><strong id="stat-active-today">Нет данных</strong><span class="metric-note">Появится после обновления</span></div>
+            <div class="metric"><span class="metric-label">Новые за 7 дней</span><strong id="stat-new-7d">Нет данных</strong><span class="metric-note">Появится после обновления</span></div>
+          </div>
+
+          <section class="panel" aria-labelledby="attention-heading">
+            <div class="panel-head">
+              <h2 id="attention-heading">Требует внимания</h2>
+              <span class="panel-note" id="attention-note">Проверяется при каждом обновлении</span>
+            </div>
+            <ul class="attention-list" id="attention-list">
+              <li class="empty-line">Нет открытых проблем</li>
+            </ul>
+          </section>
+
+          <div class="split">
+            <section class="panel" aria-labelledby="live-heading">
+              <div class="panel-head"><h2 id="live-heading">Сейчас в эфире</h2><span class="panel-note">По последнему опросу</span></div>
+              <table class="data-table">
+                <thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead>
+                <tbody id="live-body"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
+              </table>
+            </section>
+            <section class="panel" aria-labelledby="subsystems-heading">
+              <div class="panel-head"><h2 id="subsystems-heading">Подсистемы</h2><span class="panel-note">Состояния считаются отдельно</span></div>
+              <ul class="state-list">
+                <li><span class="state-name">Telegram</span><span class="state" id="telegram-state" data-state="unknown">Нет данных</span></li>
+                <li><span class="state-name">Twitch</span><span class="state" id="twitch-state" data-state="unknown">Нет данных</span></li>
+                <li><span class="state-name">Видеопревью</span><span class="state" id="preview-state" data-state="unknown">Нет данных</span></li>
+              </ul>
+            </section>
+          </div>
         </section>
-      </div>
-    </main>
-    <footer>Внутренняя панель TwitchSignalBot · данные только для диагностики staging</footer>
+
+        <section class="view" id="view-users" data-view="users" aria-labelledby="users-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="users-heading">Пользователи</h1>
+              <p class="page-sub">Поиск человека по числовому Telegram ID</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Профили появятся позже</h2></div>
+            <p class="panel-text">Имена и <span class="mono">@username</span> начнут сохраняться вместе со следующей версией панели: сейчас база знает только числовой идентификатор. До этого поиск идёт по ID, а карточка показывает права и сроки.</p>
+            <form class="search-row" id="user-search" method="get" action="#/users">
+              <label class="field-label" for="user-id">Telegram ID</label>
+              <input id="user-id" name="id" inputmode="numeric" autocomplete="off" placeholder="Например, 425785231">
+              <button class="button button-primary" type="submit">Открыть</button>
+            </form>
+            <p class="panel-text" id="user-search-hint">Карточка человека в этой версии показывает только действующие права и историю.</p>
+          </section>
+          <section class="panel" aria-labelledby="user-card-heading">
+            <div class="panel-head"><h2 id="user-card-heading">Карточка</h2><span class="panel-note" id="user-card-id">ID не выбран</span></div>
+            <dl class="detail-list" id="user-card">
+              <div><dt>Действующие права</dt><dd id="user-card-plans">Нет данных</dd></div>
+              <div><dt>Срок</dt><dd id="user-card-expiry">Нет данных</dd></div>
+              <div><dt>Источник</dt><dd id="user-card-source">Нет данных</dd></div>
+            </dl>
+          </section>
+        </section>
+
+        <section class="view" id="view-access" data-view="access" aria-labelledby="access-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="access-heading">Доступы</h1>
+              <p class="page-sub">Действующие права и история изменений</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="tabs" role="tablist" aria-label="Доступы">
+              <button class="tab" id="tab-active" role="tab" aria-selected="true" aria-controls="access-active" type="button">Действующие</button>
+              <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="access-history" type="button">История</button>
+            </div>
+            <div id="access-active" role="tabpanel" aria-labelledby="tab-active">
+              <table class="data-table">
+                <thead><tr><th scope="col">Получатель</th><th scope="col">План</th><th scope="col">Источник</th><th scope="col">Срок</th></tr></thead>
+                <tbody id="access-active-body"><tr class="empty-row"><td colspan="4">Ничего не найдено</td></tr></tbody>
+              </table>
+            </div>
+            <div id="access-history" role="tabpanel" aria-labelledby="tab-history" hidden>
+              <table class="data-table">
+                <thead><tr><th scope="col">Когда</th><th scope="col">Кто</th><th scope="col">Действие</th><th scope="col">План</th></tr></thead>
+                <tbody id="access-history-body"><tr class="empty-row"><td colspan="4">Ничего не найдено</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="view-system" data-view="system" aria-labelledby="system-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="system-heading">Система</h1>
+              <p class="page-sub">Что работает, что мешает людям и с какого времени</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Подсистемы</h2><span class="panel-note">Цвет всегда сопровождается словом</span></div>
+            <ul class="state-list" id="system-states">
+              <li><span class="state-name">Telegram</span><span class="state" id="system-telegram" data-state="unknown">Нет данных</span></li>
+              <li><span class="state-name">Twitch</span><span class="state" id="system-twitch" data-state="unknown">Нет данных</span></li>
+              <li><span class="state-name">Видеопревью</span><span class="state" id="system-preview" data-state="unknown">Нет данных</span></li>
+              <li><span class="state-name">Очередь уведомлений</span><span class="state" id="system-queue" data-state="unknown">Нет данных</span></li>
+              <li><span class="state-name">База данных</span><span class="state" id="system-database" data-state="unknown">Нет данных</span></li>
+            </ul>
+          </section>
+          <div class="split">
+            <section class="panel" aria-labelledby="queue-heading">
+              <div class="panel-head"><h2 id="queue-heading">Очередь</h2><span class="panel-note">Живые задания</span></div>
+              <dl class="detail-list">
+                <div><dt>Ожидают</dt><dd id="queue-pending">Нет данных</dd></div>
+                <div><dt>В обработке</dt><dd id="queue-leased">Нет данных</dd></div>
+                <div><dt>Готовы к отправке</dt><dd id="queue-due">Нет данных</dd></div>
+                <div><dt>Неудачные</dt><dd id="queue-failed">Нет данных</dd></div>
+                <div><dt>Старейшее задание</dt><dd id="queue-oldest">Нет данных</dd></div>
+              </dl>
+            </section>
+            <section class="panel" aria-labelledby="backup-heading">
+              <div class="panel-head"><h2 id="backup-heading">Резервная копия</h2><span class="panel-note">Раз в сутки</span></div>
+              <dl class="detail-list">
+                <div><dt>Последняя копия</dt><dd id="backup-state">Нет данных</dd></div>
+                <div><dt>Файл</dt><dd id="backup-name" class="mono">Нет данных</dd></div>
+                <div><dt>Хранится копий</dt><dd id="backup-retention">Нет данных</dd></div>
+                <div><dt>Проверка восстановления</dt><dd id="restore-verified">Не проводилась</dd></div>
+              </dl>
+              <p class="panel-text">Свежая копия не доказывает, что из неё можно восстановиться: отдельная проверка восстановления пока не выполняется.</p>
+            </section>
+          </div>
+          <div class="split">
+            <section class="panel" aria-labelledby="errors-heading">
+              <div class="panel-head"><h2 id="errors-heading">Ошибки</h2><span class="panel-note">Только классы ошибок</span></div>
+              <dl class="detail-list">
+                <div><dt>Опрос Twitch</dt><dd id="error-poller">Нет</dd></div>
+                <div><dt>EventSub</dt><dd id="error-eventsub">Нет</dd></div>
+                <div><dt>Видеопревью</dt><dd id="error-preview">Нет</dd></div>
+                <div><dt>Сбор данных</dt><dd id="error-database">Нет</dd></div>
+                <div><dt>Разделы панели</dt><dd id="error-directory">Нет</dd></div>
+              </dl>
+            </section>
+            <section class="panel" aria-labelledby="resources-heading">
+              <div class="panel-head"><h2 id="resources-heading">Ресурсы процесса</h2><span class="panel-note">Только этот процесс</span></div>
+              <dl class="detail-list">
+                <div><dt>CPU</dt><dd id="resource-cpu">Нет данных</dd></div>
+                <div><dt>RAM</dt><dd id="resource-ram">Нет данных</dd></div>
+                <div><dt>Свободно на томе БД</dt><dd id="resource-disk">Нет данных</dd></div>
+                <div><dt>SQLite DB / WAL</dt><dd id="resource-db">Нет данных</dd></div>
+              </dl>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-growth" data-view="growth" aria-labelledby="growth-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="growth-heading">Рост</h1>
+              <p class="page-sub">Путь нового пользователя</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Нет сквозных данных</h2></div>
+            <p class="panel-text">Сейчас бот надёжно различает только источник перехода <span class="mono">site</span> и приглашения. Пока не собираются шаги внутри Mini App и просмотр тарифа, воронка показывала бы выдуманные числа, поэтому мы её не рисуем.</p>
+            <p class="panel-text">Измеримая часть уже видна в таблице источников ниже: сколько людей пришло, открыли бота и добавили канал.</p>
+          </section>
+          <section class="panel" aria-labelledby="sources-heading">
+            <div class="panel-head"><h2 id="sources-heading">Источники</h2><span class="panel-note">Строго по атрибуции</span></div>
+            <table class="data-table">
+              <thead><tr><th scope="col">Источник</th><th scope="col">Пришли</th><th scope="col">Добавили канал</th><th scope="col">Получали тестовый Plus</th></tr></thead>
+              <tbody id="growth-body"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
+            </table>
+            <p class="panel-text">Plus: люди с тестовым доступом после добавления канала, включая истёкший и отозванный. Это не оплаты.</p>
+          </section>
+        </section>
+
+        <section class="view" id="view-payments" data-view="payments" aria-labelledby="payments-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="payments-heading">Оплаты</h1>
+              <p class="page-sub">Раздел готовится, приём денег выключен</p>
+            </div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><h2>Приём платежей не подключён</h2></div>
+            <p class="panel-text">Кнопки оформления, счёта и возврата появятся только после согласованного подключения провайдера. До этого никакие списания невозможны, а ручной доступ выдаётся отдельно.</p>
+            <div class="tabs" aria-hidden="true">
+              <span class="tab tab-disabled">Заказы</span>
+              <span class="tab tab-disabled">Проверка</span>
+              <span class="tab tab-disabled">Возвраты</span>
+            </div>
+            <p class="panel-text">Будущая строка заказа: номер, пользователь, тариф, сумма, способ, дата и статус. Провайдер и способ оплаты показываются раздельно.</p>
+          </section>
+        </section>
+      </main>
+
+      <footer class="foot">TwitchSignalBot · панель владельца · данные тестового контура staging</footer>
+    </div>
   </div>
+
+  <nav class="mobile-nav" aria-label="Разделы панели на телефоне">
+    <a class="mobile-link" href="#/overview" data-view-link="overview">Обзор</a>
+    <a class="mobile-link" href="#/users" data-view-link="users">Люди</a>
+    <a class="mobile-link" href="#/access" data-view-link="access">Доступы</a>
+    <details class="mobile-more">
+      <summary class="mobile-link">Ещё</summary>
+      <div class="mobile-more-list">
+        <a href="#/system" data-view-link="system">Система</a>
+        <a href="#/growth" data-view-link="growth">Рост</a>
+        <a href="#/payments" data-view-link="payments">Оплаты</a>
+      </div>
+    </details>
+  </nav>
 </body>
 </html>
