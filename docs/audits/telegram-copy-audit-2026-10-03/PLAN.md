@@ -13,6 +13,8 @@
 
 ## Общие правила
 
+Финальный checkpoint04.10.2026: пункт6 завершён. Runtime8350306, full1554PASS/2existingWindowsSkips/3644subtests/1014.45s, activeSUCCESS55fe18be. Actual195runtimehashes/17HTTPassets/Testbot8859004067/MenuButtonWebApp/9auth401/27versions/paymentOFF/productionunchanged PASS; deployed pure buildersPASS. RELEASE.md/SCENARIOS.md. Native/визуальная приёмка остаются открыты; платежей/исходящих сообщений0.
+
 Checkpoint04.10.2026: пункты1–5 выполнены. Инвентаризация92источников;110focusedPASS/17subtests; scoped reviewer без blockers; Chromium/WebKit304checks/14PNG. Свежий stagingbackup remote/local restore63tables/integrityok;13schema/cipher/catalog и18MiniApp исходников подтверждены идентичными прошлому проверенному коду. Далее один полный suite итогового commit, guarded staging и actual proof. Native NOT TESTED.
 
 Telegram: короткий заголовок, факты/условия в нативном blockquote, действия в кнопках, промежутки между разными задачами. Не оборачивать всё автоматически и не делать global replace. Каталог/цены150/300, наследование Viewer, offline-video slots, срок trial, paymentOFF, права, HTML/export и готовность документов сохраняются. Нативный цвет/шрифт выбирает Telegram. Мини-апп сохраняет выбранную композицию А; исправления описаний не запускают новый redesign.

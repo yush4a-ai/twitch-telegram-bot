@@ -1,5 +1,9 @@
 # Редизайн Mini App — выполнение P01–P21
 
+## Оформление описаний — 04.10.2026
+
+Продолжение замечаний владельца к Telegram. Аудит92источников и группировка всех длинных bot-описаний опубликованы на pinned Testbot: runtime8350306, deployment55fe18be activeSUCCESS. Full1554PASS/2existingWindowsSkips/3644subtests; focused110PASS, reviewerblockers0, Chromium/WebKit304checks/14PNG. Actual195runtimeSHA/17HTTPassets/9auth401/MenuButtonWebApp/paymentOFF/productionunchanged PASS. Mini App18webfiles и13schema/cipher/catalog modules identical; browser/migration evidence явно reused, freshbackupremote/local63tablesPASS. RELEASE.md/SCENARIOS.md в docs/audits/telegram-copy-audit-2026-10-03/. Native/owner visual/OAuth/outbound/payment NOT TESTED; HTML/export/цены150/300/Free/media сохранены. Это copy follow-up, не повтор этапов P01–P21.
+
 Основание: финальный промпт владельца `650afe6a-f60f-4201-bc2e-938a49c9d84a`. План: `docs/superpowers/plans/2026-10-02-mini-app-redesign-plus-staging.md`.
 Исходный HEAD `e0d44c315a1c81dc5b310dd1f3c7f3169915c985`, ветка `autonomous/twitchsignal-roadmap`. Один исполнитель. Production и деньги запрещены; staging после всех gates разрешён.
 

@@ -2,6 +2,8 @@
 
 ## Текущий checkpoint — 04.10.2026: оформление всех пользовательских описаний
 
+**Опубликовано:** runtime83503067736c0a2468726d7eba0a7b339183cb0a, activeSUCCESS55fe18be-799a-4475-86c4-c912dd05340d. Штатный полный guard1554PASS/2existingWindowsSkips/3644subtests/1014.45s. Actual195runtimeSHA/17HTTPassets/bot8859004067/MenuButtonWebApp/9auth401/27versions/integrity/FK/paymentOFF/productionunchanged PASS; deployed pure Home/tariff/report buildersPASS. RELEASE.md/SCENARIOS.md в docs/audits/telegram-copy-audit-2026-10-03/. Native/owner visual acceptance NOT TESTED; исходящих сообщений/платежей/мутацийБД0. Нижний абзац — сохранённый pre-release checkpoint; runtime00c6093 заменён этим выпуском.
+
 Ветка autonomous/twitchsignal-roadmap, база2bf536d. Владелец расширил замечание главной на все описания: тариф, активная подписка, помощь, подключение, настройки, отчёты. Аудит92источников/1525русских выражений; изменены длинные Telegram-описания, Mini App уже имеет группы и раскрываемые подробности.110focusedPASS/17subtests, smoke selftest8PASS; один scoped reviewer без blockers; Chromium/WebKit304checks/14PNG. Preview http://127.0.0.1:8874/ и docs/audits/telegram-copy-audit-2026-10-03/preview.html. Freshbackup63tables remote/local restorePASS;13schema/cipher/catalog и18webfiles неизменны, migration/browser reuse явно зафиксирован. Новый полный guard ещё впереди; опубликованный runtime остаётся00c6093. Native/OAuth/outbound/payment NOT TESTED. Цены150/300, Free, media и HTML/export сохранены. Детали: AUDIT.md/PLAN.md в текущем audit folder.
 
 ## Текущий checkpoint — 03.10.2026: T4–T8 опубликованы на Testbot, native приёмка открыта
