@@ -1,4 +1,10 @@
-## Текущий checkpoint — 04.10.2026: аудит готовности к основному боту
+## Текущий checkpoint — 04.10.2026: подготовка production, частичный локальный результат
+
+Ветка autonomous/twitchsignal-roadmap; runtime HEAD9e899300fbc222058a2ca746fb90336d78a8d2a5, tree3568b006d9431f76b6dfe903e077af94ac94ab9c. SEC-01 свежие права/actor/expiry до domain write; SEC-02 local limit до Twitch, bounded follow gate/cache; SEC-03 изоляция Login Widget states и собственных sessions; первая streamer network error имеет Retry. Focused14/22/30/13 PASS, browser8 checks Chromium/WebKit390/1440/light/dark с действительным theme controller. Один scoped reviewer SEC-03, найденный nonce-order blocker исправлен без ослабления старых assertions. Native/OAuth/live sends NOT TESTED.
+
+Полный suite один раз на committed9e89930:1582 PASS/2 исходных skips/3656 subtests/1085.49s/exit0. Runtime/tests после gate unchanged; затем только docs/evidence и исправление theme fixture,8 fresh browser checks PASS. Производственные B quiet/raid copy и pending updates, C admission, D isolated migration/key/external backup/rehearsal ещё открыты. Исправительный scope4/8=50%; PRODUCTION READY не достигнут, cutover NO. Старые staging guards/paymentOFF сохранены, production/staging deploy/config/DB/внешние sends в этой сессии0. Не запускались Railway команды или повторный общий audit. Handoff и короткий checklist: docs/workflows/2026-10-04-production-cutover-handoff.md и 2026-10-04-production-cutover-checklist.md. Следующая задачаB→C→D; сначала owner/operator inputs и проверка client quota за proxy.
+
+## Предыдущий checkpoint — 04.10.2026: аудит готовности к основному боту
 
 Source3dc9aad, ветка autonomous/twitchsignal-roadmap; продуктовый runtime остаётся39bc82171114a0a6b20ad4251bd68c4cc2d3f3f0 / SUCCESS5211c9f8-6a2f-4834-9aa6-88706a4a34a7 / @TwitchSignalTestbot8859004067. Свежий read-only smoke:195runtime hashes/17HTTPassets/9unsigned401/27versions/integrity/FK/menu/paymentOFF/production unchanged PASS; FFmpeg/ffprobe9.0.1 найдены, pending/leased/failed jobs нет на момент чтения. Runtime/tests source identical — переиспользован full1570PASS/2existingWindowsSkips/3646subtests/1004.99s, новый полный suite не запускался.
 

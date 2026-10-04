@@ -19,8 +19,10 @@ function moduleUrl(name) {
       const page = await browser.newPage({viewport:{width, height:844}});
       try {
         await page.setContent(`<html data-theme="${theme}"><style>${fs.readFileSync(path.join(ui,'app.css'),'utf8')}</style><main id="content"></main></html>`);
-        await page.evaluate(async ({url, apiUrl}) => {
+        await page.evaluate(async ({url, apiUrl, themeUrl, theme}) => {
           const {createStreamerFeature} = await import(url), {ApiError} = await import(apiUrl);
+          const {createThemeController} = await import(themeUrl);
+          window.themeController = createThemeController({storage:{getItem:()=>theme,setItem:()=>{}}});
           window.calls = 0;
           const api = {storage:{getItem:()=>null,setItem:()=>{}}, post:async()=>{
             ++window.calls;
@@ -33,7 +35,8 @@ function moduleUrl(name) {
             window.feature.render(target,route);
           }};
           window.feature=createStreamerFeature(api,()=>router,{}); router.refresh();
-        }, {url:moduleUrl('streamer.js'),apiUrl:moduleUrl('api.js')});
+        }, {url:moduleUrl('streamer.js'),apiUrl:moduleUrl('api.js'),themeUrl:moduleUrl('theme.js'),theme});
+        assert.equal(await page.evaluate(()=>document.documentElement.style.colorScheme),theme);
         const retry = page.getByRole('button',{name:'Повторить',exact:true});
         await retry.waitFor({timeout:3000});
         await page.screenshot({path:path.join(out,`retry-${engine}-${width}-${theme}.png`)});
@@ -41,7 +44,7 @@ function moduleUrl(name) {
         await page.getByRole('heading',{name:'Мой канал',exact:true}).waitFor({timeout:3000});
         assert.equal(await page.evaluate(()=>window.calls),2);
         assert.equal(await retry.count(),0);
-        await page.evaluate(()=>window.feature.dispose());
+        await page.evaluate(()=>{window.feature.dispose();window.themeController.dispose();});
         console.log(`PASS ${engine} ${width} ${theme}: first error -> retry -> loaded`);
       } finally { await page.close(); }
     }
