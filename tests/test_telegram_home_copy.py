@@ -3,7 +3,7 @@ import unittest
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, quote
 
-from bot.telegram_home import HomeState, build_home
+from bot.telegram_home import COMMUNITY_URL, HomeState, build_home
 
 
 class Caption(HTMLParser):
@@ -23,7 +23,11 @@ class Caption(HTMLParser):
         if tag == 'a':
             assert len(attrs) == 1 and attrs[0][0] == 'href'
             parsed = urlsplit(attrs[0][1])
-            assert parsed.scheme == 'https' and parsed.netloc == 'www.twitch.tv'
+            assert parsed.scheme == 'https'
+            # Ссылки на Twitch строятся из логинов, поэтому домен фиксирован.
+            # Единственное исключение — доверенная ссылка на сообщество проекта.
+            allowed = parsed.netloc == 'www.twitch.tv' or attrs[0][1] == COMMUNITY_URL
+            assert allowed, attrs[0][1]
             self.links.append(attrs[0][1])
         else:
             assert not attrs
@@ -54,7 +58,8 @@ class HomeCopyTests(unittest.TestCase):
         self.assertEqual(caption.quotes, 1)
         self.assertEqual(caption.links, ['https://www.twitch.tv/derzko69',
                                         'https://www.twitch.tv/dmitry_lixxx',
-                                        'https://www.twitch.tv/hesoyamof1974'])
+                                        'https://www.twitch.tv/hesoyamof1974',
+                                        COMMUNITY_URL])
         self.assertIn('По последней проверке', ''.join(caption.plain))
         self.assertIn('Just Chatting', ''.join(caption.plain))
         self.assertNotIn('Just Chatting', caption.italic)
@@ -80,7 +85,7 @@ class HomeCopyTests(unittest.TestCase):
                                                True, 200, True, 99)).text)
         self.assertEqual(caption.bold.count(login[:60]), 3)
         self.assertEqual(''.join(caption.plain).count(category[:100]), 3)
-        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(login, safe='')] * 3)
+        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(login, safe='')] * 3 + [COMMUNITY_URL])
         self.assertLessEqual(len(''.join(caption.plain).encode('utf-16-le')) // 2, 1024)
         self.assertIn('И ещё 2 в эфире', ''.join(caption.plain))
 
@@ -96,6 +101,6 @@ class HomeCopyTests(unittest.TestCase):
         hostile = '//evil.example/?q="</a><a href="javascript:alert(1)">'
         caption = Caption(build_home(HomeState(tracked=1, live=((hostile, '</blockquote><b>fake'),))).text)
         self.assertEqual(caption.quotes, 1)
-        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(hostile, safe='')])
+        self.assertEqual(caption.links, ['https://www.twitch.tv/' + quote(hostile, safe=''), COMMUNITY_URL])
         self.assertIn('</blockquote><b>fake', ''.join(caption.plain))
         self.assertNotIn('fake', caption.bold)

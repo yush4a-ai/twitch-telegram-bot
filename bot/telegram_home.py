@@ -19,6 +19,10 @@ from .telegram_ui import HOME_TEXT, home_keyboard, menu_keyboard
 BANNER_PATH = Path(__file__).resolve().parent / 'assets' / 'telegram-welcome.png'
 HOME_CARD_PATH = BANNER_PATH.with_name('telegram-home.png')
 CHANNEL_GUIDE_PATH = BANNER_PATH.with_name('telegram-channel-guide.png')
+# Сообщество проекта: одна ссылка внизу главного экрана, чтобы человек знал,
+# куда писать и где читать новости.
+COMMUNITY_URL = 'https://t.me/signalbot_dev'
+COMMUNITY_LINE = f'💬 <a href="{COMMUNITY_URL}">Сообщество проекта</a>: новости и обратная связь'
 logger = logging.getLogger(__name__)
 _menus = OrderedDict()
 
@@ -91,7 +95,7 @@ def build_home(state: HomeState) -> HomeView:
             text += '\nTelegram-канал пока не выбран. Продолжи в «Я стример».'
         elif state.communities:
             text += f' · Telegram-подключений: <b>{state.communities}</b>\nПрава и публикации: «Я стример».'
-    return HomeView(text, not state.tracked and not state.verified)
+    return HomeView(text + '\n\n' + COMMUNITY_LINE, not state.tracked and not state.verified)
 
 
 class MenuStore:
