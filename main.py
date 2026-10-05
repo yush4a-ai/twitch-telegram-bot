@@ -43,7 +43,10 @@ from bot.db_backup import run_backup_loop
 from bot.deep_links import TELEGRAM_BOT_USERNAME
 from bot.handlers import register_all_handlers
 from bot.billing import BillingService
+from bot.billing_models import AccessPeriodPolicy
 from bot.config import first_release_payment_policy
+from bot.plan_catalog import PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION, PLUS_TERMS_VERSION
+from bot.stars_provider import TelegramStarsProvider
 from bot.admin_auth import AdminAccess
 from bot.streamer_auth import StreamerAccess
 from bot.admin_metrics import AdminSnapshot
@@ -563,7 +566,17 @@ async def main() -> None:
             "Проверка Telegram-каналов",
         )
         dp = Dispatcher()
-        billing_service = BillingService(db, runtime_policy=first_release_payment_policy())
+        payment_policy = first_release_payment_policy()
+        # Провайдер Stars подключается только при включённой денежной политике:
+        # пока режим «выключено», покупка отвечает «недоступно» и заказ не создаётся.
+        stars_provider = (
+            TelegramStarsProvider(bot, payment_policy) if payment_policy.mode != "offline" else None
+        )
+        billing_service = BillingService(
+            db, stars_provider, runtime_policy=payment_policy,
+            access_policy=AccessPeriodPolicy(PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION),
+            terms_version=PLUS_TERMS_VERSION,
+        )
         dp["billing_service"] = billing_service
         dp["channel_username_cache"] = channel_username_cache
         setup_middlewares(dp, db=db)
@@ -677,6 +690,9 @@ async def main() -> None:
                 mini_app_billing_test_enabled=billing_test_enabled,
                 mini_app_billing_test_user_ids=(
                     frozenset({config.owner_chat_id}) if billing_test_enabled else frozenset()
+                ),
+                mini_app_billing_service=(
+                    billing_service if getattr(config, "mini_app_enabled", False) else None
                 ),
                 growth_bot_username=(
                     config.admin_telegram_bot_username
