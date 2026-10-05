@@ -90,6 +90,10 @@ class BillingService:
         self._check_now(now)
         if type(user_id) is not int or user_id <= 0 or method not in {"sbp", "bank_card", "stars"}:
             raise ValueError("invalid purchase request")
+        # Денежные операции невозможны, пока режим выключен или цель не подтверждена:
+        # одного факта наличия провайдера и ключей для оплаты недостаточно.
+        if self._runtime_policy.mode == "offline" or not self._runtime_policy.target_verified:
+            return CheckoutResult("unavailable", reason_code="payments_unavailable")
         product = self._catalog(product_id)
         if not self._period_ready(product.period_rule, product.period_rule_version) or self._terms_version is None:
             return CheckoutResult("unavailable", reason_code="payments_unavailable")

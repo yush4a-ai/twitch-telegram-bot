@@ -21,12 +21,17 @@ from .subscription_state import SubscriptionService
 def install_mini_app_billing_routes(
     app: web.Application, db: Database, bot_token: str, *,
     test_enabled: bool = False, test_user_ids: frozenset[int] = frozenset(),
+    live_service: BillingService | None = None,
 ) -> None:
     # This secret never leaves the server. No real payment provider is wired here.
     provider = MockPaymentProvider(hashlib.sha256(
         b"mini-app-mock-billing:" + bot_token.encode("utf-8")
     ).digest()) if test_enabled else None
     service = BillingService(db, provider) if provider is not None else None
+    # Публичная покупка идёт через живой сервис (Telegram Stars). Он передаётся
+    # снаружи только когда денежная политика включена владельцем; иначе покупка
+    # честно отвечает «недоступно», а QA-маршруты продолжают работать на mock.
+    public_service = live_service
     trial = ViewerTrialService(db)
     subscriptions = SubscriptionService(db,test_user_ids=test_user_ids if test_enabled else frozenset())
 
@@ -49,7 +54,7 @@ def install_mini_app_billing_routes(
         return order, None
 
     async def prepare(request: web.Request):
-        _user_id, values, error = await read(request)
+        user_id, values, error = await read(request)
         if error is not None:
             return error
         if (set(values) != {"init_data", "product", "method", "request_key"}
@@ -60,9 +65,32 @@ def install_mini_app_billing_routes(
             or not isinstance(values.get("request_key"), str)
             or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", values["request_key"]) is None):
             return web.json_response({"error": "invalid_purchase_request"}, status=400)
-        # First release is unconditionally OFF, independent of env credentials.
-        # No checkout/provider/order creation or entitlement mutation happens here.
-        return web.json_response(BillingService.public_purchase(values["product"],values["method"]),status=503)
+        if public_service is None:
+            # Денежная политика выключена: покупка недоступна, заказ не создаётся.
+            return web.json_response(
+                BillingService.public_purchase(values["product"], values["method"]), status=503,
+            )
+        try:
+            result = await public_service.prepare_payment(
+                user_id, values["product"], values["method"], values["request_key"], now=time.time(),
+            )
+        except PermissionError:
+            return web.json_response({"error": "twitch_required"}, status=403)
+        except ValueError:
+            return web.json_response({"error": "invalid_purchase_request"}, status=400)
+        if result.state == "pending":
+            return web.json_response({
+                "state": "pending", "order_id": result.order_id,
+                "payment_url": result.hosted_url,
+            })
+        if result.state == "unavailable":
+            payload = BillingService.public_purchase(values["product"], values["method"])
+            payload["reason_code"] = result.reason_code
+            return web.json_response(payload, status=503)
+        return web.json_response({
+            "state": result.state, "order_id": result.order_id,
+            "payment_url": None, "reason_code": result.reason_code,
+        }, status=503)
 
     async def purchase_state(request: web.Request):
         user_id, values, error = await read(request)

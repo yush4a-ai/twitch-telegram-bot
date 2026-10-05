@@ -19,10 +19,28 @@ export function createPurchaseFeature(api,getRouter,telegram) {
     if(current.method!==method)current.requestKey=null;
     current.busy=true;current.method=method;current.message='';current.failed=false;
     current.requestKey ||= crypto.randomUUID();refresh();
-    const request=new AbortController(), timer=setTimeout(()=>request.abort(),5000);requests.add(request);
+    const request=new AbortController(), timer=setTimeout(()=>request.abort(),20000);requests.add(request);
     try{
-      await api.post('/app/api/purchase/prepare',{product:id,method,request_key:current.requestKey},{signal:request.signal});
-      current.message='Не удалось получить статус оплаты. Попробуйте ещё раз.';current.failed=true;
+      const result=await api.post('/app/api/purchase/prepare',{product:id,method,request_key:current.requestKey},{signal:request.signal});
+      clearTimeout(timer);
+      if(result?.state==='pending'&&typeof result.payment_url==='string'&&result.payment_url){
+        if(method==='stars'){
+          current.message='Открыли окно оплаты Telegram. После оплаты вернитесь сюда.';
+          const status=await telegram.openInvoice(result.payment_url);
+          if(status==='paid')current.message='Оплата прошла. Обновляем доступ…';
+          else if(status==='pending')current.message='Оплата обрабатывается. Нажмите «Обновить статус» через минуту.';
+          else if(status==='cancelled')current.message='Оплата отменена. Можно попробовать снова.';
+          else if(status==='failed'){current.message='Оплата не прошла. Попробуйте другой способ.';current.failed=true;}
+          else current.message='Если окно оплаты не открылось, обновите статус операции.';
+        }else{
+          telegram.openLink(result.payment_url);
+          current.message='Открыли страницу оплаты. После оплаты вернитесь в приложение.';
+        }
+        if(typeof result.order_id==='string'&&result.order_id)getRouter().openDetail({name:'purchase-order',id:result.order_id});
+      }else{
+        current.message=typeof result?.message==='string'?result.message:'Оплата сейчас недоступна.';
+        current.failed=true;
+      }
     }catch(cause){
       if(cause instanceof ApiError&&cause.status===503&&cause.data?.state==='unavailable'&&cause.data?.payment_request_created===false&&typeof cause.data?.message==='string')current.message=cause.data.message;
       else{current.message='Нет связи. Попробуйте ещё раз.';current.failed=true;}

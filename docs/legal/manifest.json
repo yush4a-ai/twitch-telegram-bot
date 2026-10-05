@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-05-legal-v2",
+  "version": "2026-10-05-legal-v3",
   "documents": [
     {
       "id": "privacy",
@@ -48,8 +48,8 @@
       "id": "tariffs",
       "filename": "TARIFFS.md",
       "title": "Тарифы",
-      "version": "2026-10-02-legal-v1",
-      "source_sha256": "109eca3496cc14590e695c866c2b93c7246aacfaef6fdac34be67acb57c4a6ac",
+      "version": "2026-10-05-legal-v3",
+      "source_sha256": "2433a7eb92d4e3c8bfb7a73853dd22e5f7328ef954adec66a735571fff06fe56",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [],
       "owner_accepted": true
@@ -58,8 +58,8 @@
       "id": "payments",
       "filename": "PAYMENTS.md",
       "title": "Оплата",
-      "version": "2026-10-02-legal-v1",
-      "source_sha256": "e7f2ffe0523520e959c5f66e04a610718aa89f06bfecf7dd0c5ca8f474ad2cf9",
+      "version": "2026-10-05-legal-v3",
+      "source_sha256": "c6283afe431cce97fc09b957fa93c196dbbd6c1225f471303697df6ea897dc32",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "support_contact",

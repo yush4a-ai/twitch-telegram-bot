@@ -54,6 +54,7 @@ def install_mini_app_routes(
     capability_service: CapabilityService | None = None,
     billing_test_enabled: bool = False,
     billing_test_user_ids: frozenset[int] = frozenset(),
+    billing_service=None,
     preview_status_provider=None,
     owner_config=None,
     legal_store=None,
@@ -118,5 +119,5 @@ def install_mini_app_routes(
     )
     install_mini_app_billing_routes(
         app, db, bot_token, test_enabled=billing_test_enabled,
-        test_user_ids=billing_test_user_ids,
+        test_user_ids=billing_test_user_ids, live_service=billing_service,
     )

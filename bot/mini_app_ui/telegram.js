@@ -95,6 +95,18 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
       if (sdk?.openLink) sdk.openLink(url);
       else window.open(url, '_blank', 'noopener,noreferrer');
     },
+    openInvoice(url) {
+      // Открывает счёт Telegram Stars. Возвращает статус оплаты: paid, cancelled,
+      // failed, pending или null, если клиент не умеет открывать счета.
+      return new Promise((resolve) => {
+        if (disposed || !sdk?.openInvoice || typeof url !== 'string' || !url) { resolve(null); return; }
+        let settled = false;
+        const finish = (status) => { if (!settled) { settled = true; clearTimeout(timer); resolve(status); } };
+        const timer = setTimeout(() => finish(null), 180000);
+        try { sdk.openInvoice(url, (status) => finish(status)); }
+        catch { finish(null); }
+      });
+    },
     openTelegramLink(url) {
       if (sdk?.openTelegramLink) sdk.openTelegramLink(url);
       else window.open(url, '_blank', 'noopener,noreferrer');
