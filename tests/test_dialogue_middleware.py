@@ -184,6 +184,8 @@ class RegistrationTests(unittest.IsolatedAsyncioTestCase):
             kinds = [type(mw).__name__ for mw in getattr(dp, name).items]
             with self.subTest(observer=name):
                 self.assertIn("DialogueMiddleware", kinds)
+                # Переписка идёт первой: внутренние слои не должны её отменять.
+                self.assertEqual(kinds[0], "DialogueMiddleware")
 
 
 if __name__ == "__main__":

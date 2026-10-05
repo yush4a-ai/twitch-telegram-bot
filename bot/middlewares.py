@@ -359,6 +359,10 @@ class DialogueMiddleware(BaseMiddleware):
         text = ((getattr(event, "text", None) or getattr(event, "caption", None)) or "").strip()
         attachment = self._attachment_of(event)
         if not text and not attachment:
+            logger.info(
+                "Переписка: в %s нет ни текста, ни вложения",
+                type(event).__name__,
+            )
             return
         # Команда без вложения — это не переписка, а нажатие в меню.
         if text.startswith("/") and not attachment:
@@ -374,6 +378,16 @@ class DialogueMiddleware(BaseMiddleware):
 def setup_middlewares(dp, db=None, media_dir=None) -> None:
     """Порядок важен: сначала отбраковка мусорных апдейтов, затем троттлинг,
     и только потом — перехват ошибок вокруг самого обработчика."""
+    # Переписка ставится самым первым слоем: она обязана записать сообщение
+    # даже если внутренние слои отбросят апдейт (троттлинг, защита от мусора).
+    if db is not None:
+        # Telegram шлёт сообщения разными обновлениями (обычные, бизнес- и
+        # гостевые): без этого часть людей выглядела молчащей.
+        for observer_name in ("message", "business_message", "guest_message"):
+            observer = getattr(dp, observer_name, None)
+            if observer is not None:
+                observer.middleware(DialogueMiddleware(db, media_dir=media_dir))
+
     for observer in (dp.message, dp.callback_query):
         observer.middleware(ErrorGuardMiddleware())
 
@@ -389,10 +403,3 @@ def setup_middlewares(dp, db=None, media_dir=None) -> None:
         profile = ProfileMiddleware(db)
         dp.message.middleware(profile)
         dp.callback_query.middleware(profile)
-        # Переписка владельца с людьми. Telegram шлёт сообщения разными
-        # обновлениями (обычные, бизнес- и гостевые): без этого часть людей
-        # выглядела молчащей, хотя они писали.
-        for observer_name in ("message", "business_message", "guest_message"):
-            observer = getattr(dp, observer_name, None)
-            if observer is not None:
-                observer.middleware(DialogueMiddleware(db, media_dir=media_dir))
