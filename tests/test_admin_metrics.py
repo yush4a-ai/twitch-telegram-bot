@@ -1,4 +1,7 @@
+import asyncio
+import time
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 from bot.admin_metrics import AdminSnapshot
@@ -57,6 +60,9 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
             {"source": "site", "touched": 0, "activated": 0, "ever_test_plus": 0},
             {"source": "referral", "touched": 0, "activated": 0, "ever_test_plus": 0},
         ])
+        self.db.count_active_since = AsyncMock(return_value=7)
+        self.db.count_first_seen_since = AsyncMock(return_value=3)
+        self.db.activity_by_day = AsyncMock(return_value=[{"date": 0.0, "users": 2}])
         self.poller = Mock(health_snapshot=Mock(return_value={"running": True, "stopping": False, "last_successful_cycle_age_seconds": 2.0, "stale_after_seconds": 180.0, "last_cycle_duration_seconds": 0.8, "last_cycle_error": None}))
         self.eventsub = Mock(health_snapshot=Mock(return_value={"running": True, "configured_logins": 1, "ready_logins": 1, "last_error": None}))
         self.tokens = Mock(health_snapshot=Mock(return_value={"auth_blocked_logins": 0}))
@@ -82,6 +88,20 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["queues"]["pending_deliveries"], 1)
         self.assertNotIn("db_path", str(result))
         self.assertIsNone(result["resources"]["db_volume_free_bytes"])
+
+    async def test_degraded_twitch_names_channels_and_logins(self):
+        self.eventsub.health_snapshot.return_value.update(
+            {"configured_logins": 6, "ready_logins": 5, "last_error": "TwitchAuthError"})
+        self.tokens.health_snapshot.return_value = {"auth_blocked_logins": 1}
+        self.tokens.blocked_logins = Mock(return_value=["dobriy_yura"])
+
+        result = await self.build().collect()
+
+        self.assertEqual(result["twitch"]["state"], "degraded")
+        self.assertEqual(result["twitch"]["auth_blocked_names"], ["dobriy_yura"])
+        detail = next(item["detail"] for item in result["attention"] if item["kind"] == "eventsub")
+        self.assertIn("Подписано 5 из 6 каналов", detail)
+        self.assertIn("dobriy_yura", detail)
 
     async def test_degraded_and_disabled_states(self):
         self.poller.health_snapshot.return_value["last_successful_cycle_age_seconds"] = 300.0
@@ -202,6 +222,87 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["telegram"]["state"], "ok")
         self.assertEqual(result["backup"]["retention"], 5)
         self.assertNotIn("secret", str(result))
+
+    async def test_activity_block_reports_today_and_week(self):
+        result = await self.build().collect()
+
+        self.assertEqual(result["activity"]["active_today"], 7)
+        self.assertEqual(result["activity"]["new_7d"], 3)
+        self.assertEqual(result["activity"]["by_day"], [{"date": 0.0, "users": 2}])
+        self.assertIsNone(result["errors"]["activity"])
+        self.assertEqual(result["attention"], [])
+
+    async def test_activity_failure_is_isolated_and_visible(self):
+        self.db.count_active_since.side_effect = RuntimeError("secret /data/bot.db")
+
+        result = await self.build().collect()
+
+        self.assertIsNone(result["activity"])
+        self.assertEqual(result["errors"]["activity"], "unavailable")
+        self.assertIn("activity", [item["kind"] for item in result["attention"]])
+        self.assertNotIn("secret", str(result))
+        self.assertEqual(result["telegram"]["state"], "ok")
+
+    async def test_activity_block_is_none_without_database_methods(self):
+        # SimpleNamespace, а не Mock: Mock создаёт атрибут при обращении.
+        self.db = SimpleNamespace(
+            get_bot_stats=AsyncMock(return_value={"private_users": 1}),
+            get_admin_live_streams=AsyncMock(return_value=[]),
+            health_snapshot=AsyncMock(return_value={}),
+            growth_funnel_snapshot=AsyncMock(return_value=[]),
+        )
+
+        result = await self.build().collect()
+
+        self.assertIsNone(result["activity"])
+        self.assertIsNone(result["errors"]["activity"])
+
+    async def test_directory_failure_is_visible_in_attention(self):
+        directory = self.directory(
+            access_overview=AsyncMock(side_effect=RuntimeError("secret /data/bot.db"))
+        )
+
+        result = await self.build(directory=directory).collect()
+
+        kinds = [item["kind"] for item in result["attention"]]
+        self.assertIn("directory", kinds)
+        self.assertEqual(result["errors"]["directory"], "unavailable")
+        self.assertNotIn("secret", str(result))
+
+    async def test_directory_blocks_share_one_time_budget(self):
+        async def overview(now):
+            await asyncio.sleep(1.0)
+            return {"active_total": 0}
+
+        async def rows(*args):
+            await asyncio.sleep(1.0)
+            return []
+
+        async def backup():
+            await asyncio.sleep(1.0)
+            return {"last_backup_at": None, "last_backup_name": None,
+                    "retention": 5, "restore_verified": False, "copies": 0}
+
+        async def deliveries(now):
+            await asyncio.sleep(1.0)
+            return {"notifications": 0, "reports": 0, "total": 0}
+
+        directory = Mock()
+        directory.access_overview = AsyncMock(side_effect=overview)
+        directory.active_grants = AsyncMock(side_effect=rows)
+        directory.history = AsyncMock(side_effect=rows)
+        directory.backup_status = AsyncMock(side_effect=backup)
+        directory.deliveries_24h = AsyncMock(side_effect=deliveries)
+
+        started = time.monotonic()
+        result = await self.build(directory=directory).collect()
+        elapsed = time.monotonic() - started
+
+        # Пять блоков по 1 с должны уложиться в общий бюджет, а не идти последовательно.
+        self.assertLess(elapsed, 2.5)
+        self.assertEqual(result["access"]["active_total"], 0)
+        self.assertEqual(result["backup"]["copies"], 0)
+        self.assertIsNone(result["errors"]["directory"])
 
     async def test_attention_lists_queues_and_errors_by_impact(self):
         self.db.health_snapshot.return_value = {

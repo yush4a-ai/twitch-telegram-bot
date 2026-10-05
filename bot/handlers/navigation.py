@@ -77,4 +77,9 @@ def build_navigation_router():
     router.callback_query.register(cb_help,F.data == 'menu:help')
     router.callback_query.register(cb_commands,F.data == 'help:commands')
     router.callback_query.register(cb_help_topic,F.data.startswith('help:topic:'))
+    from .telegram_help import cb_help_data, cb_privacy_export, cb_privacy_delete, cb_privacy_delete_confirm
+    router.callback_query.register(cb_help_data,F.data == 'help:data')
+    router.callback_query.register(cb_privacy_export,F.data == 'privacy:export')
+    router.callback_query.register(cb_privacy_delete,F.data == 'privacy:delete')
+    router.callback_query.register(cb_privacy_delete_confirm,F.data == 'privacy:delete:confirm')
     return router

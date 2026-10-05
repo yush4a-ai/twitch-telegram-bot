@@ -24,11 +24,13 @@ def result_page(status: str, *, bot_username: str = "") -> str:
     link = (f'<a class="button" href="https://t.me/{escape(bot_username)}">Вернуться к боту</a>'
             if re.fullmatch(r"[A-Za-z0-9_]{5,32}", bot_username) else "")
     return f'''<!doctype html><html lang="ru"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex,nofollow">
 <title>Подключение Twitch</title><link rel="stylesheet" href="/twitch/result/ui.css">
 <script type="module" src="/twitch/result/ui.js"></script></head>
-<body data-result-status="{escape(status)}"><main><p class="brand">TwitchSignalBot</p>
-<svg class="mark" width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h4V3h8v10h-4v8H7Z" /></svg>
+<body data-result-status="{escape(status)}"><main>
+<p class="brand"><span class="brand-mark" aria-hidden="true"></span><span>TwitchSignalBot</span></p>
+<p class="badge" aria-hidden="true"><svg class="icon icon-wait" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" /><path d="M12 8.5V12l2.6 1.6" /></svg><svg class="icon icon-ok" viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 8" /></svg><svg class="icon icon-warn" viewBox="0 0 24 24"><path d="M12 7.5v6" /><path d="M12 16.8h.01" /></svg></p>
 <h1 id="result-title">{escape(title)}</h1><p id="result-description" role="status" aria-live="polite">{escape(description)}</p>
-<p id="result-account"></p><button id="result-retry" type="button">Проверить ещё раз</button>{link}
+<p id="result-account" class="account"></p>
+<div class="actions"><button id="result-retry" type="button" hidden>Проверить ещё раз</button>{link}</div>
 </main></body></html>'''

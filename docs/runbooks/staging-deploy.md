@@ -1,8 +1,12 @@
 # Staging deploy — TwitchSignalBot
 
+> **Не используется.** Владелец выключил тестовый контур 05.10.2026: он больше не
+> обязательный шаг и не участвует в проверке перед релизом. Файл сохранён как
+> справка на случай, если окружение когда-нибудь вернут.
+
 ## Граница
 
-Этот runbook относится только к Railway project `14282646-e318-4b80-b35d-4369270de255`, environment `staging` (`7a873177-8ada-4b78-8732-a0bfdc1d519b`), service `worker` (`45e46f2a-dba3-4b18-bc5f-b6fafa260055`) и боту `@SignalStreamsBot`. Production получает код из GitHub `main`; push/merge `main` здесь запрещён. ID проверяются скриптом `scripts/staging_deploy.py` и зафиксированы в `scripts/staging_target.json`.
+Этот runbook относится только к Railway project `14282646-e318-4b80-b35d-4369270de255`, environment `staging` (`7a873177-8ada-4b78-8732-a0bfdc1d519b`), service `worker` (`45e46f2a-dba3-4b18-bc5f-b6fafa260055`) и боту `@SignalStreamsBot`. Релиз в production выполняется скриптом `scripts/production_release.py` (runbook `production-release.md`); рабочий контейнер собирается из ветки GitHub `main`. ID проверяются скриптом `scripts/staging_deploy.py` и зафиксированы в `scripts/staging_target.json`.
 
 ## Перед загрузкой
 

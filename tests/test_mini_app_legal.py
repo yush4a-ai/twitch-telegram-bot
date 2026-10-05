@@ -177,8 +177,10 @@ class MiniAppLegalRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(state['telegram_url'])
         self.assertIsNone(state['email'])
         self.assertEqual({row['id'] for row in state['documents']}, {'privacy', 'agreement', 'support', 'tariffs', 'payments'})
-        self.assertTrue(all(not row['ready'] for row in state['documents']))
-        for path in ('privacy', 'agreement', 'support', 'tariffs', 'payments'):
+        # Без реквизитов оператора доступны только те документы, которым они не нужны.
+        ready = {row['id'] for row in state['documents'] if row['ready']}
+        self.assertEqual(ready, {'tariffs'})
+        for path in ('privacy', 'agreement', 'support', 'payments'):
             response = await self.client.get('/app/legal/' + path)
             self.assertEqual(response.status, 503)
             html = await response.text()
@@ -187,6 +189,7 @@ class MiniAppLegalRoutesTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("script-src 'self'", response.headers['Content-Security-Policy'])
             self.assertIn('no-store', response.headers['Cache-Control'])
             self.assertIn('noindex', response.headers['X-Robots-Tag'])
+        self.assertEqual((await self.client.get('/app/legal/tariffs')).status, 200)
         self.assertEqual((await self.client.get('/app/legal/config.py')).status, 404)
         self.assertEqual((await self.client.post('/app/api/support/state', json={})).status, 401)
         self.assertEqual((await self.client.post('/app/api/support/state', json={'init_data': signed_webapp(101), 'ready': True})).status, 400)
@@ -194,7 +197,8 @@ class MiniAppLegalRoutesTests(unittest.IsolatedAsyncioTestCase):
     async def test_canonical_manifest_documents_and_assets_are_in_release_inputs(self):
         root = Path(__file__).resolve().parents[1]
         manifest = json.loads((root / 'docs/legal/manifest.json').read_text(encoding='utf-8'))
-        self.assertTrue(all(row['owner_accepted'] is False for row in manifest['documents']))
+        # Владелец принял редакции 05.10.2026: без этого флага документы не публикуются.
+        self.assertTrue(all(row['owner_accepted'] is True for row in manifest['documents']))
         for row in manifest['documents']:
             path = root / 'docs/legal' / row['filename']
             digest = hashlib.sha256(path.read_text(encoding='utf-8').replace('\r\n','\n').encode()).hexdigest()

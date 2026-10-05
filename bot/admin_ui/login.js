@@ -1,6 +1,15 @@
 "use strict";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Подсказка про домен нужна только если виджет Telegram вообще не отрисовался.
+  const hint = document.getElementById("widget-hint");
+  if (hint) {
+    window.setTimeout(() => {
+      const widget = document.querySelector('iframe[src*="oauth.telegram.org"]');
+      if (!widget) hint.hidden = false;
+    }, 4000);
+  }
+
   const initData = window.Telegram?.WebApp?.initData;
   if (!initData) return;
   try {

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Проверка мобильных ширин</title>
+<style>
+  body{background:#101010;margin:0;font:13px system-ui;color:#B9B6BF}
+  .row{display:flex;gap:24px;padding:24px}
+  .cell{background:#171717;border:1px solid #3B3841;border-radius:12px;overflow:hidden}
+  .cap{padding:8px 12px;font:600 12px/1.4 ui-monospace,monospace;color:#B9B6BF;border-bottom:1px solid #3B3841}
+  iframe{border:0;display:block}
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="cell"><div class="cap">360 px</div><iframe src="prototype.html?probe=1#/campaigns" width="360" height="800"></iframe></div>
+  <div class="cell"><div class="cap">390 px</div><iframe src="prototype.html?probe=1#/overview" width="390" height="800"></iframe></div>
+</div>
+</body>
+</html>

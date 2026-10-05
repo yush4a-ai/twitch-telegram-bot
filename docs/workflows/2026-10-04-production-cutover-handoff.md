@@ -13,6 +13,20 @@
 - Admin snapshot: Telegram ok/polling=true/database error=null. Twitch degraded only by auth-blocked Twitch identity; EventSub running5/6. Native Desktop/iOS/Android owner acceptance remains separate and is not claimed.
 - Full release details: `docs/audits/production-cutover-2026-10-04/RELEASE.md`.
 
+## Independent post-cutover verification — 04.10.2026
+
+**POST-CUTOVER PASS (read-only, отдельная сессия). Deploy/rollback/config/DB writes = 0.**
+
+- Active deployment подтверждён независимо: `44fe69d3-2d89-466c-9202-fcbf56e6c05a` SUCCESS, `stopped=false`, UTC 2026-10-04T15:49:41Z, cliMessage `production cutover retry 1c49330 exact`, image `sha256:3dde1f84e0ed5cacaf50c98c65b8789940cd47d5ae17aa1ce0abe7eee093874e`; staging `b3d8be15…` SUCCESS без изменений. `/healthz`200 `{"status":"ok"}`, `/app`200, `getMe`=@TwitchSignalBot id8707370390.
+- Production env-флаги совпали с контрактом: admission file + SHA `fad64900…`, replica1, writer `exclusive_lock`, queue_policy `lease_fenced_v1`, queue OFF (`PRODUCTION_QUEUE_ENABLED=0`, `NOTIFICATION_QUEUE_ENABLED=0`), payment policy `offline` (`allow_invoice=false`, `allow_external_create=false`), `ADMIN_PANEL_ACCESS_KEY` present length64 (значение не выводилось). `PAYMENT_PROVIDER`/`PLATEGA_MERCHANT_ID` отсутствуют.
+- DB read-only: `integrity_check=ok`, `foreign_key_check` пуст, 28 schema versions, 65 таблиц, journal_mode wal. Сохранены known_private_users67, tracked_channels112, telegram_channels4, twitch_user_tokens6, stream_history1645, report_deliveries1, deferred_reports0. `/data/bot.db` 13 180 928 bytes (+ WAL/SHM, `.twitchsignal-writer.lock`, `backups/`, admission json).
+- HTTP: unsigned `/app/api/bootstrap|viewer/state|streamer/profile|purchase/prepare`→401, `/admin/api/snapshot` GET→401, `/admin`→200, `/payments/platega/callback` POST→404, legal→503 (ожидаемо).
+- Логи 15:50:32–16:00:07: volume mounted, `Starting Container`, `Run polling for bot @TwitchSignalBot`, поллер 60с, EventSub, healthz503→200. ConfigError0 / corruption0 / duplicate writer0 / повторных startup crash нет; исключения только известные `TwitchAuthError` и Telegram Forbidden (blocked/deactivated).
+- Замечание к метаданным (данные не затронуты): Railway перепривязал тот же volume `9afd2204-881d-41af-bfd8-ad395b9c9ca9` (`worker-volume`, `/data`) к новому volume instance `6ea63111-5286-44cc-bbce-fbe8a41f5c60` (serviceId=worker), тогда как env `RAILWAY_VOLUME_INSTANCE_ID`=`eded4a6e-c2c1-44ab-a238-b3c860632cee` (serviceId=null, тот же volume). Admission сверяет переменную, а не фактический instance. Production service source=repo `yush4a-ai/twitch-telegram-bot`, branch null (pinned `main` не подтверждён).
+- System MenuButton: production global=web_app «Приложение»→`https://worker-production-cee5.up.railway.app/app`; per-chat override владельца отсутствует (`default`). Наблюдавшееся «Меню» приходило от старого artifact (`dc9239…` ставил `MenuButtonCommands()`), клиент держал прежнее значение до обновления чата. Владелец подтвердил AFTER: «Приложение» + ReplyKeyboard «Меню». Runtime-код не менялся; добавлен регрессионный тест production-ветки. Разбор: `docs/audits/production-menu-button-2026-10-04/ROOT-CAUSE.md`.
+- Focused tests: 82 passed / 90 subtests passed; 5 падений `test_production_admission.py` (AdmissionTests×3, IdentityTests×2) — ограничение среды: процесс пишет только в рабочую папку, `tempfile.gettempdir()`=repo, из-за чего contract считается «внутри repository». Изменён только `tests/test_mini_app_legacy_compat.py` (+28 строк), новый тест PASSED.
+- Evidence: `docs/audits/production-readiness-2026-10-04/POST-CUTOVER-VERIFICATION.json`, `POST-CUTOVER-DATA.json`, `post_cutover_check.py`, `reports_check.py`; `docs/audits/production-menu-button-2026-10-04/` (+скриншот владельца `desktop-AFTER-menu-button.png`). Rollback-точка не тронута: `cutover-20261004T1540Z\production-precutover-final.db` (13 180 928 bytes).
+
 ## Historical preparation
 
 # Production preparation — compact staging PASS

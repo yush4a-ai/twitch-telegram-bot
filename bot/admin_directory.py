@@ -21,11 +21,16 @@ EXPIRING_WINDOW_SECONDS = 7 * 24 * 60 * 60
 BACKUP_PREFIX = "auto"
 
 _ACTIVE_GRANTS_SQL = (
-    "SELECT grant_id,subject_kind,subject_id,plan,source,starts_at,expires_at,issued_by,"
-    "beneficiary_telegram_user_id "
-    "FROM entitlement_grants "
-    "WHERE revoked_at IS NULL AND starts_at <= ? AND expires_at > ? "
-    "ORDER BY expires_at ASC, grant_id ASC"
+    "SELECT g.grant_id,g.subject_kind,g.subject_id,g.plan,g.source,g.starts_at,g.expires_at,"
+    "g.issued_by,g.beneficiary_telegram_user_id,i.telegram_user_id,"
+    "p.display_name,p.username "
+    "FROM entitlement_grants g "
+    "LEFT JOIN streamer_identities i ON i.broadcaster_id = g.subject_id AND g.subject_kind='streamer' "
+    "LEFT JOIN telegram_user_profiles p ON p.user_id = COALESCE("
+    "g.beneficiary_telegram_user_id, i.telegram_user_id, "
+    "CASE WHEN g.subject_kind='viewer' THEN CAST(g.subject_id AS INTEGER) END) "
+    "WHERE g.revoked_at IS NULL AND g.starts_at <= ? AND g.expires_at > ? "
+    "ORDER BY g.expires_at ASC, g.grant_id ASC"
 )
 
 _HISTORY_SQL = (
@@ -37,14 +42,25 @@ _HISTORY_SQL = (
 )
 
 
+def _as_person(value) -> int | None:
+    """Нечисловое или пустое значение не должно ронять весь блок панели."""
+    try:
+        person = int(value)
+    except (TypeError, ValueError):
+        return None
+    return person if person > 0 else None
+
+
 def _grant_row(row) -> dict:
     (grant_id, subject_kind, subject_id, plan, source, starts_at, expires_at,
-     issued_by, beneficiary) = row
+     issued_by, beneficiary, identity_user_id, display_name, username) = row
     person_id = None
     if subject_kind == "viewer":
-        person_id = int(subject_id)
-    elif beneficiary is not None:
-        person_id = int(beneficiary)
+        person_id = _as_person(subject_id)
+    else:
+        # Легаси-гранты Streamer Plus выдают право без beneficiary: человека
+        # достаём по подтверждённой связи broadcaster → Telegram.
+        person_id = _as_person(beneficiary) or _as_person(identity_user_id)
     return {
         "grant_id": grant_id,
         "subject_kind": subject_kind,
@@ -55,6 +71,9 @@ def _grant_row(row) -> dict:
         "expires_at": expires_at,
         "issued_by": issued_by,
         "person_id": person_id,
+        # Имя нужно панели: сырой ID в списке доступов ничего не говорит владельцу.
+        "display_name": display_name if isinstance(display_name, str) else None,
+        "username": username if isinstance(username, str) else None,
     }
 
 
@@ -118,13 +137,16 @@ class AdminDirectory:
 
     async def backup_status(self) -> dict:
         newest: Path | None = None
+        copies = 0
         if self._backup_dir.is_dir():
-            copies = sorted(self._backup_dir.glob(f"{BACKUP_PREFIX}-*.db"))
-            if copies:
-                newest = max(copies, key=lambda path: path.name)
+            found = sorted(self._backup_dir.glob(f"{BACKUP_PREFIX}-*.db"))
+            copies = len(found)
+            if found:
+                newest = max(found, key=lambda path: path.name)
         return {
             "last_backup_at": newest.stat().st_mtime if newest is not None else None,
             "last_backup_name": newest.name if newest is not None else None,
+            "copies": copies,
             "retention": self._retention,
             # Восстановление из копии нигде не фиксируется, поэтому честное False.
             "restore_verified": False,

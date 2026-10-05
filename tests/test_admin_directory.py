@@ -116,6 +116,30 @@ class AdminDirectoryAccessTests(AdminDirectoryTestCase):
         self.assertEqual([row["grant_id"] for row in rows], ["soon", "mid"])
         self.assertEqual(rows[0]["source"], "test")
 
+    async def test_streamer_grant_without_beneficiary_uses_verified_identity(self):
+        await self.db.conn.execute(
+            "INSERT INTO streamer_identities (broadcaster_id,telegram_user_id,twitch_login,verified_at) "
+            "VALUES ('bc9',777,'gamma',?)", (NOW,),
+        )
+        await self.db.conn.commit()
+        await self.grant("legacy", subject_kind="streamer", subject_id="bc9",
+                         plan="streamer_plus", beneficiary=None)
+
+        overview = await self.directory.access_overview(NOW)
+        rows = await self.directory.active_grants(NOW, limit=5, offset=0)
+
+        self.assertEqual(overview["streamer"], 1)
+        self.assertEqual(overview["active_total"], 1)
+        self.assertEqual(rows[0]["person_id"], 777)
+
+    async def test_non_numeric_viewer_subject_does_not_break_the_block(self):
+        await self.grant("broken", subject_kind="viewer", subject_id="abc")
+
+        overview = await self.directory.access_overview(NOW)
+
+        self.assertEqual(overview["active_total"], 0)
+        self.assertEqual(overview["by_source"], {"test": 1})
+
     async def test_empty_database_returns_zeroes_and_empty_lists(self):
         overview = await self.directory.access_overview(NOW)
 
@@ -146,6 +170,7 @@ class AdminDirectoryOperationsTests(AdminDirectoryTestCase):
         self.assertEqual(status["last_backup_name"], newer.name)
         self.assertIsNotNone(status["last_backup_at"])
         self.assertFalse(status["restore_verified"])
+        self.assertEqual(status["copies"], 2)
 
     async def test_deliveries_24h_counts_done_notifications_and_reports(self):
         await self.db.conn.executemany(

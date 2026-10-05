@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Админ-панель TwitchSignalBot — прототип редизайна</title>
+<style>
+  :root{
+    --canvas:#171717; --surface:#242424; --raised:#2D2B31; --border:#3B3841;
+    --text:#F1F1F1; --muted:#B9B6BF; --good:#7FD8B4; --warn:#F0C674; --danger:#FF7A85;
+    --accent:#C7A5FF; --accent-ink:#21162F;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--canvas);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  a{color:inherit;text-decoration:none}
+  .shell{display:flex;min-height:100vh}
+
+  /* ---------- rail ---------- */
+  .rail{width:88px;flex:0 0 88px;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;position:sticky;top:0;height:100vh}
+  .logo{width:36px;height:36px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:800 13px/1 system-ui;margin-bottom:16px}
+  .rail a{width:64px;padding:8px 0;border-radius:12px;color:var(--muted);text-align:center;font-size:10px;line-height:1.4}
+  .rail a b{display:block;font-size:18px;line-height:1.4;font-weight:400;font-variant-emoji:text}
+  .rail a:hover{color:var(--text)}
+  .rail a[aria-current="page"]{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+  .rail .spacer{flex:1}
+
+  /* ---------- top ---------- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .top{height:60px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 24px;position:sticky;top:0;background:var(--canvas);z-index:5}
+  .env{font:600 11px/1 var(--mono);letter-spacing:.08em;color:var(--warn);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+  .stamp{color:var(--muted);font:12px/1 var(--mono)}
+  .grow{flex:1}
+  .btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:12px;padding:8px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+  .btn:hover{border-color:#4a4752}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:650}
+  .btn.quiet{background:transparent}
+  .btn.danger{color:var(--danger)}
+
+  /* ---------- layout ---------- */
+  .view{display:none;flex:1}
+  .view.on{display:flex}
+  .content{flex:1;min-width:0;padding:24px}
+  .aside{width:340px;flex:0 0 340px;border-left:1px solid var(--border);padding:24px 20px;overflow:auto}
+  h1{font-size:30px;font-weight:650;letter-spacing:-.02em}
+  h2{font-size:15px;font-weight:650}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .section{margin-top:24px;border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden}
+  .section > .hd{display:flex;align-items:center;gap:8px;padding:16px;font-weight:650;font-size:15px}
+  .section > .hd .r{margin-left:auto;color:var(--muted);font:12px/1 var(--mono)}
+  .note{color:var(--muted);font-size:12.5px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* ---------- overview ---------- */
+  .banner{display:flex;align-items:center;gap:12px;margin-top:20px;border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:16px}
+  .banner .big{font-size:17px;font-weight:650;color:var(--warn)}
+  .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+  .metric{border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:16px}
+  .metric .k{color:var(--muted);font-size:12.5px}
+  .metric .v{font:650 32px/1.15 var(--mono);margin-top:8px;font-variant-numeric:tabular-nums}
+  .metric .p{color:var(--muted);font-size:11.5px;margin-top:4px}
+  .metric.wide{grid-column:span 3}
+  .subsystems{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+  .mini{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px 16px}
+  .mini .k{color:var(--muted);font-size:12px}
+  .mini .v{font:600 18px/1.3 var(--mono);margin-top:6px}
+  .ev{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+  .ev:last-child{border-bottom:0}
+  .ev .ic{width:24px;height:24px;flex:0 0 24px;border-radius:8px;background:var(--raised);border:1px solid var(--border);display:grid;place-items:center;font-size:11px}
+  .ev .t{font-size:13.5px}
+  .ev .d{color:var(--muted);font-size:12px;margin-top:2px}
+  .ev .tm{margin-left:auto;color:var(--muted);font:11.5px/1.5 var(--mono);white-space:nowrap}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--muted);font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-bottom:1px solid var(--border)}
+  td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  .tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--border);border-radius:8px;padding:4px 8px;color:var(--muted);white-space:nowrap}
+  .tag.good{color:var(--good)} .tag.warn{color:var(--warn)} .tag.danger{color:var(--danger)}
+  .filters{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .search{flex:1;min-width:240px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--muted);padding:10px 16px;font:inherit;font-size:13.5px}
+  .tabs{display:flex;gap:8px;margin-top:16px}
+
+  /* ---------- chat / campaigns ---------- */
+  .chatwrap{flex:1;display:flex;min-width:0}
+  .threads{width:320px;flex:0 0 320px;border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .threads .hd{padding:16px;font-weight:650;font-size:15px;border-bottom:1px solid var(--border);display:flex;align-items:center}
+  .th{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer}
+  .th.on{background:var(--surface)}
+  .th .r1{display:flex;gap:8px;align-items:center}
+  .th .nm{font-size:14px;font-weight:600}
+  .th .st{margin-left:auto;font-size:11.5px}
+  .th .d{color:var(--muted);font-size:12.5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chat{flex:1;min-width:0;display:flex;flex-direction:column}
+  .chat .hd{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .stream{flex:1;padding:20px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .out{align-self:flex-end;max-width:560px;background:var(--raised);border:1px solid var(--border);border-radius:16px 16px 4px 16px;padding:12px 16px;font-size:13.5px}
+  .in{align-self:flex-start;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:12px 16px;font-size:13.5px}
+  .meta{color:var(--muted);font-size:11.5px;margin-top:8px}
+  .progress{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px 16px;margin:0 20px}
+  .bar{height:8px;border-radius:8px;background:var(--raised);overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .compose{display:flex;gap:12px;align-items:center;padding:16px 20px;border-top:1px solid var(--border)}
+  .compose .box{flex:1;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--muted);padding:12px 16px;font-size:13.5px}
+  .cta{margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;color:var(--accent);background:var(--canvas);font-size:13px}
+
+  /* ---------- system ---------- */
+  .sysrow{display:flex;gap:16px;align-items:center;padding:16px;border-bottom:1px solid var(--border)}
+  .sysrow:last-child{border-bottom:0}
+  .sysrow .nm{width:200px;font-size:14px;font-weight:600}
+  .sysrow .st{width:180px}
+  .sysrow .det{color:var(--muted);font-size:12.5px;flex:1}
+  .sysrow .tm{color:var(--muted);font:11.5px/1.4 var(--mono);white-space:nowrap}
+
+  /* ---------- placeholders ---------- */
+  .empty{border:1px dashed var(--border);border-radius:16px;padding:32px;margin-top:24px;text-align:center}
+  .empty h2{margin-bottom:8px}
+  .empty p{color:var(--muted);font-size:13.5px;max-width:560px;margin:0 auto}
+  .chips{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+  /* ---------- mobile ---------- */
+  .mobnav{display:none}
+  @media (max-width:900px){
+    .rail{display:none}
+    .top{padding:0 16px;gap:8px;flex-wrap:nowrap;justify-content:space-between}
+    .top .stamp{display:none}
+    .top .grow{display:none}
+    .top .btn{padding:8px 10px;font-size:12.5px}
+    .top .logout{display:none}
+    .top .env{flex:0 0 auto}
+    .content{padding:16px}
+    .aside{display:none}
+    .metrics,.subsystems{grid-template-columns:1fr 1fr}
+    .metric.wide{grid-column:span 2}
+    .threads{width:100%;flex:1 0 auto;border-right:0}
+    .chatwrap{flex-direction:column}
+    .chat{display:none}
+    .mobnav{display:flex;position:fixed;left:0;right:0;bottom:0;border-top:1px solid var(--border);background:var(--canvas);z-index:10}
+    .mobnav a{flex:1;padding:10px 0;text-align:center;color:var(--muted);font-size:11px}
+    .mobnav a b{display:block;font-size:17px;font-weight:400}
+    .mobnav a[aria-current="page"]{color:var(--text)}
+    body{padding-bottom:64px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Разделы панели">
+    <span class="logo">TS</span>
+    <a href="#/overview" data-nav="overview"><b>▦</b>Обзор</a>
+    <a href="#/users" data-nav="users"><b>◔</b>Люди</a>
+    <a href="#/access" data-nav="access"><b>⇄</b>Доступы</a>
+    <a href="#/campaigns" data-nav="campaigns"><b>✉</b>Рассылки</a>
+    <a href="#/system" data-nav="system"><b>◎</b>Система</a>
+    <a href="#/growth" data-nav="growth"><b>↗</b>Рост</a>
+    <a href="#/payments" data-nav="payments"><b>₽</b>Оплаты</a>
+    <span class="spacer"></span>
+  </nav>
+
+  <div class="main">
+    <header class="top">
+      <span class="env">STAGING</span>
+      <span class="stamp" id="stamp">обновлено 13:38 МСК</span>
+      <span class="grow"></span>
+      <button class="btn quiet">Обновить</button>
+      <button class="btn quiet logout">Выйти</button>
+    </header>
+
+    <!-- ОБЗОР -->
+    <section class="view" id="view-overview">
+      <div class="content">
+        <h1>Обзор</h1>
+        <div class="sub">Что происходит с ботом прямо сейчас.</div>
+
+        <div class="banner">
+          <span style="color:var(--warn);font-size:18px">▲</span>
+          <div><div class="big">Есть задержки</div><div class="note">EventSub: ошибка соединения · повтор на следующем цикле</div></div>
+          <span class="grow"></span>
+          <button class="btn">Проверить</button>
+        </div>
+
+        <div class="metrics">
+          <div class="metric"><div class="k">Известные пользователи</div><div class="v">67</div><div class="p">всего</div></div>
+          <div class="metric"><div class="k">Активны сегодня</div><div class="v">3</div><div class="p">с 00:00 МСК</div></div>
+          <div class="metric"><div class="k">Отправлено за 24 ч</div><div class="v">4</div><div class="p">уведомления и отчёты</div></div>
+          <div class="metric"><div class="k">Активный Plus</div><div class="v">0</div><div class="p">на сейчас</div></div>
+          <div class="metric" style="grid-column:span 2"><div class="k">Новые за 7 дней</div><div class="v">1</div><div class="p">частичная атрибуция: только сайт и приглашения</div></div>
+        </div>
+
+        <div class="subsystems">
+          <div class="mini"><div class="k">Telegram</div><div class="v" style="color:var(--good)">✓ работает</div></div>
+          <div class="mini"><div class="k">Twitch</div><div class="v" style="color:var(--warn)">▲ 5 из 6</div></div>
+          <div class="mini"><div class="k">База</div><div class="v" style="color:var(--good)">✓ цела</div></div>
+        </div>
+
+        <div class="section">
+          <div class="hd">Что можно сделать <span class="r">быстрые действия</span></div>
+          <div style="display:flex;gap:12px;padding:0 16px 16px;flex-wrap:wrap">
+            <button class="btn primary" onclick="location.hash='#/campaigns'">Написать всем</button>
+            <button class="btn" onclick="location.hash='#/users'">Найти человека</button>
+            <button class="btn" onclick="location.hash='#/access'">Выдать доступ</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="aside">
+        <h2>Требует внимания</h2>
+        <div class="ev"><span class="ic" style="color:var(--warn)">▲</span><div><div class="t">Три чата недоступны</div><div class="d">Выключено 17 подписок</div></div><span class="tm">11:04</span></div>
+        <div class="ev"><span class="ic" style="color:var(--warn)">▲</span><div><div class="t">Копия не проверена</div><div class="d">Восстановление не запускалось</div></div><span class="tm">04.10</span></div>
+        <h2 style="margin-top:24px">Последние события</h2>
+        <div class="ev"><span class="ic" style="color:var(--good)">✓</span><div><div class="t">Пост о старте эфира</div><div class="d">канал · опубликован</div></div><span class="tm">12:04</span></div>
+        <div class="ev"><span class="ic" style="color:var(--good)">✓</span><div><div class="t">Отчёт по стриму</div><div class="d">личка · доставлен</div></div><span class="tm">11:20</span></div>
+        <div class="ev"><span class="ic" style="color:var(--danger)">✕</span><div><div class="t">Напоминание об эфире</div><div class="d">человек заблокировал бота</div></div><span class="tm">10:11</span></div>
+      </aside>
+    </section>
+
+    <!-- ЛЮДИ -->
+    <section class="view" id="view-users">
+      <div class="content">
+        <h1>Люди</h1>
+        <div class="sub">Поиск по имени, @username, числовому ID или Twitch-логину.</div>
+        <div class="filters">
+          <input class="search" value="поиск: имя, @username, ID, Twitch" aria-label="Поиск людей">
+          <span class="tag good">Все</span><span class="tag">Plus</span><span class="tag">Активны сегодня</span><span class="tag">Фильтры</span>
+        </div>
+        <div class="section">
+          <div class="hd">67 человек <span class="r">страница 1 из 3</span></div>
+          <table>
+            <tr><th>Имя</th><th>Telegram</th><th>Тариф</th><th>Активность</th><th>Стримеры</th><th>Twitch</th></tr>
+            <tr><td>Алекс</td><td class="num">@alex_live</td><td><span class="tag good">Viewer Plus</span></td><td class="num">сегодня 12:40</td><td class="num">38 / 200</td><td>✓</td></tr>
+            <tr><td>Мария</td><td class="num">@m_ree</td><td><span class="tag">Free</span></td><td class="num">сегодня 09:02</td><td class="num">12 / 50</td><td>—</td></tr>
+            <tr><td>Дмитрий</td><td class="num">без username</td><td><span class="tag">Free</span></td><td class="num">3 дня назад</td><td class="num">0 / 50</td><td>—</td></tr>
+            <tr><td>Ирина</td><td class="num">@ira_stream</td><td><span class="tag warn">Streamer Plus</span></td><td class="num">вчера 21:15</td><td class="num">204 / 200</td><td>✓</td></tr>
+            <tr><td>Павел</td><td class="num">@pavel_t</td><td><span class="tag danger">✕ недоступен</span></td><td class="num">неизвестно</td><td class="num">3 / 50</td><td>—</td></tr>
+          </table>
+        </div>
+      </div>
+      <aside class="aside">
+        <h2>Алекс</h2>
+        <div class="sub">@alex_live · сегодня 12:40</div>
+        <div class="section" style="margin-top:16px">
+          <table>
+            <tr><td class="note">Тариф</td><td>Viewer Plus до 04.11.2026</td></tr>
+            <tr><td class="note">Источник</td><td>ручная выдача · Компенсация</td></tr>
+            <tr><td class="note">Стримеры</td><td class="num">38 из 200</td></tr>
+            <tr><td class="note">Видеопревью</td><td class="num">5 из 5</td></tr>
+            <tr><td class="note">Каналы</td><td class="num">2 подключено</td></tr>
+          </table>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:16px">
+          <button class="btn primary" style="flex:1">Изменить доступ</button>
+          <button class="btn" onclick="location.hash='#/campaigns'">Написать</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ДОСТУПЫ -->
+    <section class="view" id="view-access">
+      <div class="content">
+        <h1>Доступы</h1>
+        <div class="sub">Действующие права и полная история изменений.</div>
+        <div class="tabs"><span class="tag good">Действующие</span><span class="tag">История</span><span class="tag">Истекающие</span></div>
+        <div class="section">
+          <div class="hd">Действующие <span class="r">1 из 1</span></div>
+          <table>
+            <tr><th>Получатель</th><th>Тариф</th><th>Срок</th><th>Источник</th></tr>
+            <tr><td>Алекс <span class="num note">@alex_live</span></td><td><span class="tag good">Viewer Plus</span></td><td class="num">04.11.2026, 12:00 МСК</td><td>ручная выдача</td></tr>
+          </table>
+        </div>
+        <div class="section">
+          <div class="hd">История <span class="r">8 событий</span></div>
+          <table>
+            <tr><th>Когда</th><th>Что</th><th>Кто</th><th>Было → стало</th><th>Причина</th></tr>
+            <tr><td class="num">05.10 12:10</td><td>выдан</td><td>владелец</td><td class="num">Free → Viewer Plus</td><td>Компенсация</td></tr>
+            <tr><td class="num">04.10 21:02</td><td>отозван</td><td>владелец</td><td class="num">Viewer Plus → Free</td><td>Тестирование</td></tr>
+            <tr><td class="num">04.10 20:55</td><td>выдан</td><td>владелец</td><td class="num">Free → Viewer Plus</td><td>Тестирование</td></tr>
+          </table>
+        </div>
+        <div class="note" style="margin-top:16px">Журнал нельзя редактировать или удалить из панели. Истечение помечается исполнителем «Автоматически».</div>
+      </div>
+      <aside class="aside">
+        <h2>Как это работает</h2>
+        <div class="note" style="margin-top:12px">Выдача, продление и отзыв открываются поверх карточки человека. Перед подтверждением панель показывает итог словами: кому, какой тариф, до какого времени и что будет после отзыва.</div>
+        <div class="section" style="margin-top:16px">
+          <div class="hd">Правила</div>
+          <div style="padding:0 16px 16px" class="note">
+            Платное основание ручной выдачей не заменяется и не сокращается.<br><br>
+            Молчаливое сокращение срока запрещено.<br><br>
+            Возврат оплаты и блокировка — отдельные операции, их в этой версии нет.
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- РАССЫЛКИ -->
+    <section class="view" id="view-campaigns">
+      <div class="chatwrap">
+        <div class="threads">
+          <div class="hd">Рассылки <span class="grow"></span><button class="btn primary" style="padding:6px 10px;font-size:12.5px">Новая</button></div>
+          <div class="th on"><div class="r1"><span class="nm">Новые превью эфиров</span><span class="st tag warn">◐ идёт</span></div><div class="d">Отправлено 41 из 64 · недоступны 3</div></div>
+          <div class="th"><div class="r1"><span class="nm">Набор в бета-тест</span><span class="st" style="color:var(--good)">✓</span></div><div class="d">Завершена · доставлено 59 из 64</div></div>
+          <div class="th"><div class="r1"><span class="nm">Тех. работы 12 октября</span><span class="st" style="color:var(--danger)">■</span></div><div class="d">Остановлена на 30 из 66</div></div>
+          <div class="th"><div class="r1"><span class="nm">Реклама партнёра</span><span class="st tag">черновик</span></div><div class="d">Сохранён 05.10, 12:10</div></div>
+          <div class="th" style="background:transparent"><div class="r1"><span class="nm">Отписавшиеся</span><span class="st note">2</span></div><div class="d">Можно вернуть вручную</div></div>
+        </div>
+
+        <div class="chat">
+          <div class="hd">
+            <div><div style="font-weight:650">Новые превью эфиров</div><div class="note">аудитория: все, кроме недоступных · 64 человека · 2 отписались</div></div>
+            <span class="grow"></span>
+            <span class="tag warn">◐ идёт</span>
+            <button class="btn">Предпросмотр</button>
+          </div>
+          <div class="stream">
+            <div class="out">Открываем набор в бета-тест: первым 20 человекам — ранний доступ к превью эфиров и выбор стримеров.<div class="meta">отправлено 41 человеку · 12:40</div></div>
+            <div class="in">А можно узнать подробнее, что входит?<div class="meta">Алекс · 12:42 · ответ виден в отдельном этапе «диалоги»</div></div>
+            <div class="out">Конечно: превью эфиров, выбор до 5 стримеров и ранние уведомления. Списаний нет.<div class="meta">только этому человеку · 12:43</div></div>
+            <div class="in">Записался, спасибо!<div class="meta">Алекс · 12:44</div></div>
+          </div>
+          <div class="progress">
+            <div class="note" style="display:flex;gap:16px;flex-wrap:wrap">
+              <span>Отправлено <b class="num">41</b> из <b class="num">64</b></span>
+              <span>недоступны <b class="num">3</b></span>
+              <span>ошибок <b class="num">0</b></span>
+              <span>отписались <b class="num">2</b></span>
+              <span>скорость ≈ 25 в секунду</span>
+            </div>
+            <div class="bar"><i style="width:64%"></i></div>
+          </div>
+          <div class="compose">
+            <span class="box">Сообщение… Enter — отправить всем, Ctrl+Enter — только выбранному</span>
+            <button class="btn primary">Отправить 41 → 64</button>
+            <button class="btn danger">Остановить</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- СИСТЕМА -->
+    <section class="view" id="view-system">
+      <div class="content">
+        <h1>Система</h1>
+        <div class="sub">Состояние каждой подсистемы с моментом наблюдения.</div>
+        <div class="section">
+          <div class="sysrow"><span class="nm">Telegram</span><span class="st tag good">✓ работает</span><span class="det">Опрос обновлений идёт, задержек нет</span><span class="tm">13:38</span></div>
+          <div class="sysrow"><span class="nm">Twitch</span><span class="st tag warn">▲ 5 из 6</span><span class="det">Один канал требует повторной авторизации</span><span class="tm">13:38</span></div>
+          <div class="sysrow"><span class="nm">Очередь уведомлений</span><span class="st tag">выключена</span><span class="det">Рассылки о стримах идут прежним путём, очередь не используется</span><span class="tm">13:38</span></div>
+          <div class="sysrow"><span class="nm">Видеопревью</span><span class="st tag good">✓ работает</span><span class="det">Последний ролик собран 12:31</span><span class="tm">12:31</span></div>
+          <div class="sysrow"><span class="nm">База</span><span class="st tag good">✓ цела</span><span class="det">Проверка целостности пройдена, нарушений связей нет</span><span class="tm">13:30</span></div>
+          <div class="sysrow"><span class="nm">Резервная копия</span><span class="st tag warn">▲ не проверена</span><span class="det">Копия от 05.10 03:00 · восстановление не запускалось</span><span class="tm">03:00</span></div>
+        </div>
+        <div class="note" style="margin-top:16px">Успешный ответ «здоровья» не выдаётся за доставку уведомлений или готовность видео. Перезапуска сервисов и деплоя в панели нет.</div>
+      </div>
+      <aside class="aside">
+        <h2>Что требует внимания</h2>
+        <div class="ev"><span class="ic" style="color:var(--warn)">▲</span><div><div class="t">Канал требует авторизации</div><div class="d">Напоминания об эфирах не уходят</div></div></div>
+        <div class="ev"><span class="ic" style="color:var(--warn)">▲</span><div><div class="t">Копия не проверена</div><div class="d">Свежая копия ≠ проверенное восстановление</div></div></div>
+      </aside>
+    </section>
+
+    <!-- РОСТ -->
+    <section class="view" id="view-growth">
+      <div class="content">
+        <h1>Рост</h1>
+        <div class="sub">Откуда приходят люди и что происходит дальше.</div>
+        <div class="empty">
+          <h2>Пока недостаточно данных</h2>
+          <p>Сквозная воронка начнётся с «открыл бота». Сейчас известны только источник с сайта и приглашения — рисовать по ним полную картину было бы вымыслом.</p>
+          <div class="chips"><span class="tag">Открыл бота — нет данных</span><span class="tag">Подключил Twitch — нет данных</span><span class="tag">Остался — нет данных</span></div>
+        </div>
+        <div class="section">
+          <div class="hd">Что уже известно <span class="r">за 7 дней</span></div>
+          <table>
+            <tr><th>Источник</th><th>Пришло</th><th>Дошло до подключения</th></tr>
+            <tr><td>С сайта</td><td class="num">1</td><td class="num">нет данных</td></tr>
+            <tr><td>По приглашению</td><td class="num">0</td><td class="num">нет данных</td></tr>
+          </table>
+        </div>
+      </div>
+      <aside class="aside">
+        <h2>Честность важнее красоты</h2>
+        <div class="note" style="margin-top:12px">Пустая ячейка показывается как «нет данных», а не как ноль. Нарисованных трендов и процентов в панели нет.</div>
+      </aside>
+    </section>
+
+    <!-- ОПЛАТЫ -->
+    <section class="view" id="view-payments">
+      <div class="content">
+        <h1>Оплаты</h1>
+        <div class="sub">Приём платежей не подключён.</div>
+        <div class="empty">
+          <h2>Раздел готов, но выключен</h2>
+          <p>Заказы, проверка платежей и возвраты появятся, когда подключим приём денег. Пока доступ выдаётся вручную в разделе «Доступы», и это не создаёт платёж.</p>
+          <div class="chips"><span class="tag">Заказы — недоступно</span><span class="tag">Проверка — недоступно</span><span class="tag">Возвраты — недоступно</span></div>
+          <div style="margin-top:24px"><button class="btn" onclick="location.hash='#/access'">Выдать доступ вручную</button></div>
+        </div>
+      </div>
+      <aside class="aside">
+        <h2>Списаний нет</h2>
+        <div class="note" style="margin-top:12px">Пока приём платежей выключен, ни одна кнопка в панели не отправляет деньги и не создаёт счёт.</div>
+      </aside>
+    </section>
+
+    <nav class="mobnav" aria-label="Разделы панели (мобильный)">
+      <a href="#/overview" data-nav="overview"><b>▦</b>Обзор</a>
+      <a href="#/users" data-nav="users"><b>◔</b>Люди</a>
+      <a href="#/access" data-nav="access"><b>⇄</b>Доступы</a>
+      <a href="#/campaigns" data-nav="campaigns"><b>✉</b>Рассылки</a>
+      <a href="#/system" data-nav="system"><b>◎</b>Ещё</a>
+    </nav>
+  </div>
+</div>
+
+<script>
+  var VIEWS = ['overview','users','access','campaigns','system','growth','payments'];
+  var TITLES = {overview:'Обзор',users:'Люди',access:'Доступы',campaigns:'Рассылки',system:'Система',growth:'Рост',payments:'Оплаты'};
+  function render(){
+    var raw = (location.hash || '#/overview').replace('#/','');
+    var name = VIEWS.indexOf(raw) >= 0 ? raw : 'overview';
+    VIEWS.forEach(function(v){
+      var el = document.getElementById('view-' + v);
+      if (el) { el.classList.toggle('on', v === name); }
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function(a){
+      if (a.getAttribute('data-nav') === name) { a.setAttribute('aria-current','page'); }
+      else { a.removeAttribute('aria-current'); }
+    });
+    document.title = TITLES[name] + ' · TwitchSignalBot';
+  }
+  window.addEventListener('hashchange', render);
+  render();
+</script>
+</body>
+</html>

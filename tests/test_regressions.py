@@ -7809,7 +7809,10 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await self.db.is_known_private_user(90))
         twitch.channel_exists.assert_not_awaited()
         state.clear.assert_awaited_once()
-        self.assertEqual(message.answer.await_args.args[0], "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал.")
+        from bot.telegram_home import COMMUNITY_LINE
+        self.assertEqual(message.answer.await_args.args[0],
+                         "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+                         "\n\n" + COMMUNITY_LINE)
 
     async def test_private_payload_cannot_target_a_different_user_chat(self) -> None:
         twitch = SimpleNamespace(channel_exists=AsyncMock(return_value=True))
@@ -7838,7 +7841,10 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_channels(101), [])
         twitch.channel_exists.assert_not_awaited()
         state.clear.assert_awaited_once()
-        self.assertEqual(message.answer_photo.await_args.kwargs['caption'], "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал.")
+        from bot.telegram_home import COMMUNITY_LINE
+        self.assertEqual(message.answer_photo.await_args.kwargs['caption'],
+                         "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+                         "\n\n" + COMMUNITY_LINE)
 
     async def test_deep_link_marks_user_as_known_private_user(self) -> None:
         self.assertFalse(await self.db.is_known_private_user(555))

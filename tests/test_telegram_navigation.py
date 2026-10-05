@@ -12,8 +12,10 @@ from aiogram.types import Update, Message, Chat, User
 from datetime import datetime, timezone
 
 from bot.handlers.streams import cmd_start, cb_menu_home, AddChannel, QuietHoursSetup
+from bot.telegram_home import COMMUNITY_LINE
 
-HOME = "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+HOME = ("<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+        "\n\n" + COMMUNITY_LINE)
 LABELS = ["Открыть приложение", "➕ Добавить оповещения", "🎥 Я стример", "Ещё"]
 CONFIG = SimpleNamespace(mini_app_enabled=True, viewer_plus_enabled=True,
                          oauth_public_base_url="https://staging.example.test",
@@ -84,7 +86,7 @@ class NavigationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(rows[-1][0].callback_data,'menu:home')
             actions = {b.callback_data for b in buttons}
             self.assertEqual(actions - {None}, {'menu:list','menu:live','menu:report','menu:quiet_hours',
-                             'menu:manage_group','menu:plus','menu:help','menu:home'})
+                             'menu:manage_group','menu:plus','menu:help','menu:home','help:data'})
             admin = [b for b in buttons if b.text=='🛡 Админ-панель']
             self.assertEqual(len(admin), int(actor==101 and kind=='private'))
             if admin: self.assertEqual(admin[0].web_app.url, CONFIG.oauth_public_base_url+'/admin')

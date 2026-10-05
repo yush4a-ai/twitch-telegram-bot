@@ -25,8 +25,28 @@ from .deep_links import REFERRAL_CODE_RE, parse_growth_start_payload
 from .streamer_template import StreamerTemplate, validate_streamer_template
 from .viewer_filter import ViewerFilter, validate_viewer_filter
 from .viewer_preferences import VideoSelection, validate_video_choices
-from .plan_catalog import FREE_VIEWER_CHANNEL_LIMIT, VIEWER_PLUS_CHANNEL_LIMIT
+from .plan_catalog import (
+    FREE_VIEWER_CHANNEL_LIMIT,
+    VIEWER_PLUS_CHANNEL_LIMIT,
+    VIEWER_PLUS_VIDEO_SLOTS,
+)
 from .entitlements import effective_viewer_predicate, resolve_effective_viewer
+
+
+class AccessConflict(RuntimeError):
+    """Право изменилось между чтением и записью: нужен повторный показ владельцу."""
+
+
+class AccessDenied(PermissionError):
+    """Операция запрещена политикой прав (например, оплаченное основание).
+
+    Код нужен панели, чтобы объяснить владельцу причину, а не показать
+    безликое «действие запрещено».
+    """
+
+    def __init__(self, message: str = "denied", *, code: str = "denied") -> None:
+        super().__init__(message)
+        self.code = code
 
 if TYPE_CHECKING:
     from .oauth import UserTokenResult
@@ -512,6 +532,8 @@ class Database:
         self._path = path
         self._conn: aiosqlite.Connection | None = None
         self._write_lock = asyncio.Lock()
+        # Какие таблицы уже проверены на существование (нужно удалению данных).
+        self._known_tables: set[str] = set()
         try:
             self._token_cipher = Fernet(token_encryption_key) if token_encryption_key else None
         except (ValueError, TypeError) as e:
@@ -693,6 +715,7 @@ class Database:
         await self._migrate_category_delivery_schema()
         await self._migrate_streamer_intents_schema()
         await self._migrate_growth_attribution_schema()
+        await self._migrate_admin_schema()
         await migrate_plus_payments(self.conn, now=time.time())
         await self.conn.execute(
             "CREATE TABLE IF NOT EXISTS telegram_update_inbox ("
@@ -780,6 +803,89 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('r8_001_growth_attribution',?)", (time.time(),)
+        )
+
+    async def _migrate_admin_schema(self) -> None:
+        """Фаза B панели владельца: профили людей, активность и причина в журнале."""
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS telegram_user_profiles ("
+            "user_id INTEGER PRIMARY KEY, username TEXT, display_name TEXT, "
+            "language_code TEXT, first_seen_at REAL NOT NULL, "
+            "profile_seen_at REAL NOT NULL, last_active_at REAL NOT NULL)"
+        )
+        # Панель ищет людей по профилям, а профиль пишется только когда человек
+        # пишет боту уже после обновления. Без этого засева владелец видел бы
+        # одного-двух человек из всех известных и не мог выдать доступ.
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM schema_migrations WHERE version = 'admin_002_known_people'"
+        )
+        if await cursor.fetchone() is None:
+            now = time.time()
+            # last_active_at = 0 значит «неизвестно»: не искажает «активны сегодня»
+            # и в интерфейсе показывается как «Нет данных».
+            await self.conn.execute(
+                "INSERT OR IGNORE INTO telegram_user_profiles "
+                "(user_id, first_seen_at, profile_seen_at, last_active_at) "
+                "SELECT user_id, ?, ?, 0 FROM known_private_users",
+                (now, now),
+            )
+            await self.conn.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) "
+                "VALUES ('admin_002_known_people', ?)", (time.time(),)
+            )
+        # Журнал прав получает причину, комментарий и связь продления с прежним
+        # сроком. CHECK нельзя изменить на месте, поэтому таблица пересобирается
+        # с сохранением id и с проверкой, что число строк не изменилось.
+        cursor = await self.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='entitlement_events'"
+        )
+        row = await cursor.fetchone()
+        definition = (row[0] if row else "") or ""
+        if "'extend'" not in definition:
+            cursor = await self.conn.execute("PRAGMA table_info(entitlement_events)")
+            existing_columns = {row[1] for row in await cursor.fetchall()}
+            new_columns = [
+                "id", "grant_id", "action", "actor_telegram_id", "happened_at",
+                "reason", "reason_note", "comment", "previous_grant_id",
+                "previous_expires_at", "new_expires_at", "request_key",
+            ]
+            # Копируем все колонки, которые уже есть: иначе причина и комментарий,
+            # добавленные другой сборкой, молча потерялись бы при пересборке.
+            shared = [name for name in new_columns if name in existing_columns]
+            column_list = ",".join(shared)
+            before = (await (await self.conn.execute(
+                "SELECT COUNT(*) FROM entitlement_events")).fetchone())[0]
+            await self.conn.execute(
+                "CREATE TABLE entitlement_events_rebuild ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, grant_id TEXT NOT NULL, "
+                "action TEXT NOT NULL CHECK(action IN ('grant', 'revoke', 'extend')), "
+                "actor_telegram_id INTEGER NOT NULL, happened_at REAL NOT NULL, "
+                "reason TEXT, reason_note TEXT, comment TEXT, previous_grant_id TEXT, "
+                "previous_expires_at REAL, new_expires_at REAL, request_key TEXT)"
+            )
+            await self.conn.execute(
+                f"INSERT INTO entitlement_events_rebuild ({column_list}) "
+                f"SELECT {column_list} FROM entitlement_events"
+            )
+            after = (await (await self.conn.execute(
+                "SELECT COUNT(*) FROM entitlement_events_rebuild")).fetchone())[0]
+            if before != after:
+                raise RuntimeError("entitlement_events rebuild lost rows")
+            await self.conn.execute("DROP TABLE entitlement_events")
+            await self.conn.execute(
+                "ALTER TABLE entitlement_events_rebuild RENAME TO entitlement_events"
+            )
+        await self._add_missing_columns(
+            "entitlement_events",
+            {
+                "reason": "TEXT", "reason_note": "TEXT", "comment": "TEXT",
+                "previous_grant_id": "TEXT", "previous_expires_at": "REAL",
+                "new_expires_at": "REAL", "request_key": "TEXT",
+            },
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('admin_001_profiles', ?)", (time.time(),)
         )
 
     async def _migrate_viewer_schema(self) -> None:
@@ -4783,6 +4889,166 @@ class Database:
         )
         await self.conn.commit()
 
+    # Таблицы, где строка принадлежит человеку. Порядок не важен: связей с
+    # каскадным удалением нет, а транзакция одна.
+    _PERSON_BY_USER_ID = (("telegram_user_profiles", "user_id"),
+                          ("known_private_users", "user_id"))
+    _PERSON_BY_CHAT_ID = (
+        ("tracked_channels", "chat_id"), ("follow_event_counts", "chat_id"),
+        ("stream_samples", "chat_id"), ("stream_history", "chat_id"),
+        ("chat_activity_samples", "chat_id"), ("chat_unique_nicks", "chat_id"),
+        ("stream_chat_meta", "chat_id"), ("stream_observation_memberships", "chat_id"),
+        ("notification_jobs", "chat_id"), ("vod_archive", "chat_id"),
+        ("telegram_channels", "chat_id"), ("quiet_hours", "chat_id"),
+        ("quiet_hours_digest_sent", "chat_id"), ("user_timezones", "chat_id"),
+        ("deferred_reports", "chat_id"), ("deferred_reports", "source_chat_id"),
+        ("report_deliveries", "source_chat_id"), ("report_deliveries", "recipient_chat_id"),
+        ("stats_recipients", "chat_id"), ("stats_recipients", "stats_chat_id"),
+        ("streamer_community_intents", "chat_id"),
+    )
+    _PERSON_BY_TELEGRAM_ID = (
+        ("viewer_alert_filters", "telegram_user_id"), ("viewer_event_history", "telegram_user_id"),
+        ("viewer_favorites", "telegram_user_id"), ("viewer_folder_memberships", "telegram_user_id"),
+        ("viewer_folders", "telegram_user_id"), ("viewer_reminders", "telegram_user_id"),
+        ("viewer_test_trials", "telegram_user_id"), ("viewer_unfollow_undo", "telegram_user_id"),
+        ("viewer_video_selection_state", "telegram_user_id"),
+        ("viewer_video_selections", "telegram_user_id"), ("viewer_plan_priority", "telegram_user_id"),
+        ("category_alert_preferences", "telegram_user_id"),
+        ("streamer_community_intents", "telegram_user_id"),
+        ("streamer_connect_intents", "telegram_user_id"),
+        ("streamer_identities", "telegram_user_id"),
+    )
+    # Данные стримера привязаны к его Twitch-аккаунту, а не к Telegram ID.
+    _BROADCASTER_ONLY = ("streamer_communities", "streamer_post_events",
+                         "streamer_post_templates", "streamer_template_presets")
+
+    async def _delete_by(self, table: str, column: str, value, removed: dict) -> None:
+        if not await self._table_exists(table):
+            return
+        cursor = await self.conn.execute(
+            f"DELETE FROM {table} WHERE {column} = ?", (value,)
+        )
+        if cursor.rowcount:
+            removed[f"{table}.{column}"] = removed.get(f"{table}.{column}", 0) + cursor.rowcount
+
+    async def _table_exists(self, table: str) -> bool:
+        if table not in self._known_tables:
+            cursor = await self.conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            )
+            if await cursor.fetchone() is None:
+                return False
+            self._known_tables.add(table)
+        return True
+
+    @_serialized
+    async def delete_person_data(self, telegram_user_id: int) -> dict[str, int]:
+        """Удаляет данные человека по его Telegram ID и возвращает сводку.
+
+        Записи об оплате (source='paid') сохраняются: их хранение требует
+        закон, поэтому такие гранты и их события остаются, а остальные
+        доступы удаляются вместе с человеком. Общие справочники Twitch
+        (существование канала, публичное имя) персональными данными не являются
+        и не трогаются.
+        """
+        if type(telegram_user_id) is not int or telegram_user_id == 0:
+            raise ValueError("invalid telegram user id")
+        await self.conn.execute("BEGIN IMMEDIATE")
+        removed: dict[str, int] = {}
+        try:
+            cursor = await self.conn.execute(
+                "SELECT broadcaster_id, twitch_login FROM streamer_identities "
+                "WHERE telegram_user_id = ?", (telegram_user_id,),
+            )
+            identity = await cursor.fetchone()
+            broadcaster_id, twitch_login = (identity[0], identity[1]) if identity else (None, None)
+
+            for table, column in self._PERSON_BY_USER_ID:
+                await self._delete_by(table, column, telegram_user_id, removed)
+            for table, column in self._PERSON_BY_CHAT_ID:
+                await self._delete_by(table, column, telegram_user_id, removed)
+            for table, column in self._PERSON_BY_TELEGRAM_ID:
+                await self._delete_by(table, column, telegram_user_id, removed)
+
+            if broadcaster_id:
+                for table in self._BROADCASTER_ONLY:
+                    await self._delete_by(table, "broadcaster_id", broadcaster_id, removed)
+                if twitch_login:
+                    await self._delete_by("twitch_user_tokens", "twitch_login", twitch_login, removed)
+
+            # Доступы: платные остаются как основание для расчётов.
+            subject = str(telegram_user_id)
+            if await self._table_exists("entitlement_grants"):
+                doomed = await (
+                    await self.conn.execute(
+                        "SELECT grant_id FROM entitlement_grants WHERE source <> 'paid' AND ("
+                        "(subject_kind = 'viewer' AND subject_id = ?)"
+                        + (" OR (subject_kind = 'streamer' AND subject_id = ?)" if broadcaster_id else "")
+                        + ")", (subject, broadcaster_id) if broadcaster_id else (subject,),
+                    )
+                ).fetchall()
+                grant_ids = [row[0] for row in doomed]
+                for grant_id in grant_ids:
+                    cursor = await self.conn.execute(
+                        "DELETE FROM entitlement_grants WHERE grant_id = ?", (grant_id,)
+                    )
+                    removed["entitlement_grants"] = removed.get("entitlement_grants", 0) + cursor.rowcount
+                if grant_ids and await self._table_exists("entitlement_events"):
+                    marks = ",".join("?" for _ in grant_ids)
+                    cursor = await self.conn.execute(
+                        f"DELETE FROM entitlement_events WHERE grant_id IN ({marks})", tuple(grant_ids)
+                    )
+                    if cursor.rowcount:
+                        removed["entitlement_events"] = cursor.rowcount
+            await self.conn.commit()
+        except BaseException:
+            await self.conn.rollback()
+            raise
+        return removed
+
+    @_serialized
+    async def export_person_data(self, telegram_user_id: int) -> dict:
+        """Выгрузка данных человека для права на доступ и переносимость."""
+        if type(telegram_user_id) is not int or telegram_user_id == 0:
+            raise ValueError("invalid telegram user id")
+        result: dict[str, object] = {"telegram_id": telegram_user_id}
+
+        async def rows(sql: str, params: tuple) -> list[dict]:
+            cursor = await self.conn.execute(sql, params)
+            columns = [description[0] for description in cursor.description or ()]
+            return [dict(zip(columns, row)) for row in await cursor.fetchall()]
+
+        async def safe(key: str, table: str, sql: str, params: tuple) -> None:
+            result[key] = await rows(sql, params) if await self._table_exists(table) else []
+
+        await safe("profile", "telegram_user_profiles",
+                   "SELECT user_id, username, display_name, language_code, first_seen_at,"
+                   " profile_seen_at, last_active_at FROM telegram_user_profiles WHERE user_id = ?",
+                   (telegram_user_id,))
+        await safe("channels", "tracked_channels",
+                   "SELECT twitch_login, notify_enabled, preview_enabled, added_at FROM tracked_channels"
+                   " WHERE chat_id = ? ORDER BY twitch_login", (telegram_user_id,))
+        await safe("timezone", "user_timezones",
+                   "SELECT utc_offset_minutes FROM user_timezones WHERE chat_id = ?", (telegram_user_id,))
+        await safe("quiet_hours", "quiet_hours",
+                   "SELECT start_minute, end_minute, utc_offset_minutes, notify_after_enabled"
+                   " FROM quiet_hours WHERE chat_id = ?", (telegram_user_id,))
+        await safe("stats_recipient", "stats_recipients",
+                   "SELECT stats_chat_id FROM stats_recipients WHERE chat_id = ?", (telegram_user_id,))
+        await safe("telegram_channels", "telegram_channels",
+                   "SELECT chat_id, title FROM telegram_channels WHERE chat_id = ?", (telegram_user_id,))
+        await safe("access", "entitlement_grants",
+                   "SELECT grant_id, plan, source, starts_at, expires_at, revoked_at FROM entitlement_grants"
+                   " WHERE subject_kind = 'viewer' AND subject_id = ?", (str(telegram_user_id),))
+        await safe("twitch_identity", "streamer_identities",
+                   "SELECT broadcaster_id, twitch_login, verified_at FROM streamer_identities"
+                   " WHERE telegram_user_id = ?", (telegram_user_id,))
+        await safe("streams", "stream_history",
+                   "SELECT twitch_login, stream_id, duration_seconds, peak_viewers, avg_viewers, ended_at"
+                   " FROM stream_history WHERE chat_id = ? ORDER BY ended_at DESC LIMIT 200",
+                   (telegram_user_id,))
+        return result
+
     @_serialized
     async def purge_old_report_data(self, older_than_ts: float) -> None:
         """Удаляет raw-данные завершённых сессий после retention от их окончания.
@@ -5186,6 +5452,420 @@ class Database:
             (user_id,),
         )
         return await cursor.fetchone() is not None
+
+    async def remember_profile(
+        self, user_id: int, *, username: str | None, display_name: str | None,
+        language_code: str | None, now: float,
+    ) -> None:
+        """Профиль человека для панели владельца; first_seen_at пишется один раз."""
+        await self.conn.execute(
+            "INSERT INTO telegram_user_profiles "
+            "(user_id,username,display_name,language_code,first_seen_at,profile_seen_at,last_active_at) "
+            "VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET username=excluded.username, "
+            "display_name=excluded.display_name, language_code=excluded.language_code, "
+            "profile_seen_at=excluded.profile_seen_at",
+            (user_id, username, display_name, language_code, now, now, now),
+        )
+        await self.conn.commit()
+
+    async def touch_activity(self, user_id: int, *, now: float) -> None:
+        """Отметка последней активности; профиль при этом не переписывается."""
+        await self.conn.execute(
+            "INSERT INTO telegram_user_profiles "
+            "(user_id,first_seen_at,profile_seen_at,last_active_at) VALUES (?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET last_active_at=excluded.last_active_at",
+            (user_id, now, now, now),
+        )
+        await self.conn.commit()
+
+    @staticmethod
+    def _msk_midnight(now: float) -> float:
+        """Начало суток по Москве: фиксированное смещение +3, как в боте."""
+        offset = 3 * 3600
+        return ((now + offset) // 86400) * 86400 - offset
+
+    # Человек по праву: у Viewer это subject_id, у Streamer — beneficiary или
+    # подтверждённая связь broadcaster → Telegram (легаси-гранты без beneficiary).
+    _PERSON_SQL = (
+        "CASE WHEN g.subject_kind='viewer' THEN CAST(g.subject_id AS INTEGER) "
+        "ELSE COALESCE(g.beneficiary_telegram_user_id, i.telegram_user_id) END"
+    )
+
+    async def _people_grants_cte(self) -> str:
+        return (
+            "WITH people_grants AS (SELECT g.grant_id,g.plan,g.source,g.starts_at,g.expires_at,"
+            "g.subject_kind,g.subject_id," + self._PERSON_SQL + " AS person_id "
+            "FROM entitlement_grants g LEFT JOIN streamer_identities i "
+            "ON i.broadcaster_id = g.subject_id AND g.subject_kind='streamer' "
+            "WHERE g.revoked_at IS NULL AND g.starts_at <= ? AND g.expires_at > ?) "
+        )
+
+    async def search_people(
+        self, query: str, *, filter_kind: str, limit: int, offset: int, now: float,
+    ) -> list[dict]:
+        text = (query or "").strip().lstrip("@").lower()
+        escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like = f"%{escaped}%"
+        midnight = self._msk_midnight(now)
+        cte = await self._people_grants_cte()
+        best_grant = ("(SELECT pg.%s FROM people_grants pg WHERE pg.person_id = p.user_id "
+                      "ORDER BY (pg.plan='streamer_plus') DESC, pg.expires_at DESC LIMIT 1)")
+        sql = (
+            cte +
+            "SELECT p.user_id,p.username,p.display_name,p.last_active_at," +
+            best_grant % "plan" + " AS plan," +
+            best_grant % "expires_at" + " AS expires_at "
+            "FROM telegram_user_profiles p WHERE (? = '' "
+            "OR lower(COALESCE(p.username,'')) LIKE ? ESCAPE '\\' "
+            "OR lower(COALESCE(p.display_name,'')) LIKE ? ESCAPE '\\' "
+            "OR CAST(p.user_id AS TEXT) LIKE ? ESCAPE '\\' "
+            "OR EXISTS (SELECT 1 FROM streamer_identities i WHERE i.telegram_user_id = p.user_id "
+            "AND lower(i.twitch_login) LIKE ? ESCAPE '\\')) "
+            "AND (? != 'plus' OR EXISTS (SELECT 1 FROM people_grants pg WHERE pg.person_id = p.user_id)) "
+            "AND (? != 'active_today' OR p.last_active_at >= ?) "
+            "ORDER BY (CAST(p.user_id AS TEXT) = ?) DESC, p.last_active_at DESC, p.user_id ASC "
+            "LIMIT ? OFFSET ?"
+        )
+        cursor = await self.conn.execute(
+            sql,
+            (now, now, text, like, like, like, like, filter_kind, filter_kind, midnight, text,
+             max(1, min(int(limit), 100)), max(0, int(offset))),
+        )
+        return [
+            {
+                "user_id": row[0],
+                "username": row[1],
+                "display_name": row[2],
+                "last_active_at": row[3],
+                "plan": row[4],
+                "expires_at": row[5],
+            }
+            for row in await cursor.fetchall()
+        ]
+
+    async def person_card(self, telegram_user_id: int, *, now: float) -> dict | None:
+        cursor = await self.conn.execute(
+            "SELECT user_id,username,display_name,language_code,first_seen_at,last_active_at "
+            "FROM telegram_user_profiles WHERE user_id = ?", (telegram_user_id,),
+        )
+        profile = await cursor.fetchone()
+        if profile is None:
+            return None
+        cte = await self._people_grants_cte()
+        cursor = await self.conn.execute(
+            cte + "SELECT grant_id,plan,source,starts_at,expires_at FROM people_grants "
+            "WHERE person_id = ? ORDER BY expires_at DESC", (now, now, telegram_user_id),
+        )
+        grants = [
+            {"grant_id": row[0], "plan": row[1], "source": row[2],
+             "starts_at": row[3], "expires_at": row[4]}
+            for row in await cursor.fetchall()
+        ]
+        cursor = await self.conn.execute(
+            "SELECT twitch_login FROM streamer_identities WHERE telegram_user_id = ?",
+            (telegram_user_id,),
+        )
+        identity = await cursor.fetchone()
+        channels = await self.channel_usage_for(telegram_user_id)
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM viewer_video_selections WHERE telegram_user_id = ?",
+            (telegram_user_id,),
+        )
+        video_used = int((await cursor.fetchone())[0])
+        return {
+            "user_id": profile[0],
+            "username": profile[1],
+            "display_name": profile[2],
+            "language_code": profile[3],
+            "first_seen_at": profile[4],
+            "last_active_at": profile[5],
+            "grants": grants,
+            "twitch_login": identity[0] if identity else None,
+            "limits": {
+                "channels": channels,
+                "video": {"used": video_used, "limit": VIEWER_PLUS_VIDEO_SLOTS},
+            },
+        }
+
+    async def channel_usage_for(self, telegram_user_id: int) -> dict:
+        """Лимит берётся по тому же правилу, что и список действующих прав."""
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM tracked_channels WHERE chat_id = ?", (telegram_user_id,),
+        )
+        used = int((await cursor.fetchone())[0])
+        limit = FREE_VIEWER_CHANNEL_LIMIT
+        now = time.time()
+        cte = await self._people_grants_cte()
+        cursor = await self.conn.execute(
+            cte + "SELECT 1 FROM people_grants WHERE person_id = ? LIMIT 1",
+            (now, now, telegram_user_id),
+        )
+        if await cursor.fetchone() is not None:
+            limit = VIEWER_PLUS_CHANNEL_LIMIT
+        return {"used": used, "limit": limit}
+
+    async def person_history(self, telegram_user_id: int, *, limit: int, offset: int) -> list[dict]:
+        sql = (
+            "SELECT e.action,e.happened_at,e.actor_telegram_id,e.reason,e.reason_note,e.comment,"
+            "e.previous_grant_id,e.previous_expires_at,e.new_expires_at,g.plan,g.source "
+            "FROM entitlement_events e JOIN entitlement_grants g ON g.grant_id = e.grant_id "
+            "LEFT JOIN streamer_identities i ON i.broadcaster_id = g.subject_id "
+            "AND g.subject_kind='streamer' "
+            "WHERE " + self._PERSON_SQL + " = ? "
+            "ORDER BY e.happened_at DESC, e.id DESC LIMIT ? OFFSET ?"
+        )
+        cursor = await self.conn.execute(
+            sql, (telegram_user_id, max(1, min(int(limit), 100)), max(0, int(offset))),
+        )
+        return [
+            {
+                "action": row[0], "happened_at": row[1], "actor_telegram_id": row[2],
+                "reason": row[3], "reason_note": row[4], "comment": row[5],
+                "previous_grant_id": row[6], "previous_expires_at": row[7],
+                "new_expires_at": row[8], "plan": row[9], "source": row[10],
+            }
+            for row in await cursor.fetchall()
+        ]
+
+    async def count_active_since(self, since: float) -> int:
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM telegram_user_profiles WHERE last_active_at >= ?", (since,),
+        )
+        return int((await cursor.fetchone())[0])
+
+    async def count_first_seen_since(self, since: float) -> int:
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM telegram_user_profiles WHERE first_seen_at >= ?", (since,),
+        )
+        return int((await cursor.fetchone())[0])
+
+    async def activity_by_day(self, *, days: int, now: float) -> list[dict]:
+        buckets = []
+        for index in range(days - 1, -1, -1):
+            start = self._msk_midnight(now) - index * 86400
+            cursor = await self.conn.execute(
+                "SELECT COUNT(*) FROM telegram_user_profiles "
+                "WHERE last_active_at >= ? AND last_active_at < ?", (start, start + 86400),
+            )
+            buckets.append({"date": start, "users": int((await cursor.fetchone())[0])})
+        return buckets
+
+    REASON_CODES = frozenset({"compensation", "testing", "partnership", "other"})
+    MAX_MANUAL_GRANT_SECONDS = 366 * 86400
+    _MANUAL_REQUEST_KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+
+    def _validate_manual_request(
+        self, *, reason, reason_note, request_key, issued_by, now, expires_at=None,
+    ) -> None:
+        if not isinstance(request_key, str) or self._MANUAL_REQUEST_KEY.fullmatch(request_key) is None:
+            raise ValueError("invalid request key")
+        if type(issued_by) is not int or issued_by <= 0:
+            raise ValueError("invalid actor")
+        if reason not in self.REASON_CODES:
+            raise ValueError("invalid reason")
+        if reason == "other" and not (reason_note or "").strip():
+            raise ValueError("reason note is required for other")
+        if not isinstance(now, (int, float)) or not math.isfinite(now):
+            raise ValueError("invalid time")
+        if expires_at is None:
+            return
+        if not isinstance(expires_at, (int, float)) or not math.isfinite(expires_at):
+            raise ValueError("invalid expiry")
+        if expires_at <= now:
+            raise ValueError("expiry must be in the future")
+        if expires_at - now > self.MAX_MANUAL_GRANT_SECONDS:
+            raise ValueError("expiry is too far in the future")
+
+    @staticmethod
+    def _manual_result(grant_id: str, plan: str, starts_at: float, expires_at: float,
+                       action: str, request_key: str) -> dict:
+        return {
+            "grant_id": grant_id, "plan": plan, "starts_at": starts_at,
+            "expires_at": expires_at, "source": "manual",
+            "action": action, "request_key": request_key,
+        }
+
+    @_serialized
+    async def grant_manual_access(
+        self, target_user_id: int, plan: str, *, expires_at: float, reason: str,
+        reason_note: str | None = None, comment: str | None = None, issued_by: int,
+        request_key: str, now: float,
+    ) -> dict:
+        """Ручная выдача из панели владельца; повтор с тем же ключом не дублирует право."""
+        if type(target_user_id) is not int or target_user_id <= 0:
+            raise ValueError("invalid target")
+        if plan not in {"viewer_plus", "streamer_plus"}:
+            raise ValueError("invalid plan")
+        self._validate_manual_request(
+            reason=reason, reason_note=reason_note, request_key=request_key,
+            issued_by=issued_by, now=now, expires_at=expires_at,
+        )
+        cursor = await self.conn.execute(
+            "SELECT grant_id,subject_kind,subject_id,plan,expires_at,source,starts_at,"
+            "beneficiary_telegram_user_id FROM entitlement_grants WHERE request_key=?",
+            (request_key,),
+        )
+        existing = await cursor.fetchone()
+        if existing is not None:
+            same_target = (
+                (existing[1] == "viewer" and existing[2] == str(target_user_id))
+                or existing[7] == target_user_id
+            )
+            if (not same_target or existing[3] != plan or existing[4] != expires_at
+                    or existing[5] != "manual"):
+                raise AccessConflict("request key already used with other terms")
+            return self._manual_result(existing[0], existing[3], existing[6], existing[4],
+                                       "grant", request_key)
+        if plan == "streamer_plus":
+            cursor = await self.conn.execute(
+                "SELECT broadcaster_id FROM streamer_identities WHERE telegram_user_id=?",
+                (target_user_id,),
+            )
+            identity = await cursor.fetchone()
+            if identity is None:
+                raise AccessDenied("Twitch account is not linked", code="twitch_required")
+            subject_kind, subject_id = "streamer", identity[0]
+        else:
+            subject_kind, subject_id = "viewer", str(target_user_id)
+        grant_id = uuid.uuid4().hex
+        try:
+            await self.conn.execute(
+                "INSERT INTO entitlement_grants "
+                "(grant_id,request_key,subject_kind,subject_id,plan,source,starts_at,expires_at,"
+                "issued_by,created_at,beneficiary_telegram_user_id) "
+                "VALUES (?,?,?,?,?,'manual',?,?,?,?,?)",
+                (grant_id, request_key, subject_kind, subject_id, plan, now, expires_at,
+                 issued_by, now, target_user_id),
+            )
+        except sqlite3.IntegrityError as error:
+            # Гонка двух вкладок с одним ключом: право уже создано параллельно.
+            raise AccessConflict("request key already used") from error
+        await self.conn.execute(
+            "INSERT INTO entitlement_events "
+            "(grant_id,action,actor_telegram_id,happened_at,reason,reason_note,comment,request_key) "
+            "VALUES (?,'grant',?,?,?,?,?,?)",
+            (grant_id, issued_by, now, reason, reason_note, comment, request_key),
+        )
+        await self.conn.commit()
+        return self._manual_result(grant_id, plan, now, expires_at, "grant", request_key)
+
+    @_serialized
+    async def extend_manual_access(
+        self, grant_id: str, *, expected_expires_at: float, expires_at: float, reason: str,
+        reason_note: str | None = None, comment: str | None = None, issued_by: int,
+        request_key: str, now: float,
+    ) -> dict:
+        """Продление: прежнее право отзывается, новое создаётся со ссылкой на него."""
+        self._validate_manual_request(
+            reason=reason, reason_note=reason_note, request_key=request_key,
+            issued_by=issued_by, now=now, expires_at=expires_at,
+        )
+        cursor = await self.conn.execute(
+            "SELECT grant_id FROM entitlement_events WHERE request_key=? AND action='extend'",
+            (request_key,),
+        )
+        if await cursor.fetchone() is not None:
+            cursor = await self.conn.execute(
+                "SELECT grant_id,plan,starts_at,expires_at FROM entitlement_grants WHERE request_key=?",
+                (request_key,),
+            )
+            row = await cursor.fetchone()
+            if row is None:
+                raise AccessConflict("extended grant is gone")
+            return self._manual_result(row[0], row[1], row[2], row[3], "extend", request_key)
+        cursor = await self.conn.execute(
+            "SELECT subject_kind,subject_id,plan,source,starts_at,expires_at,revoked_at,"
+            "beneficiary_telegram_user_id FROM entitlement_grants WHERE grant_id=?", (grant_id,),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise ValueError("grant not found")
+        if row[3] != "manual":
+            raise AccessDenied("only manual grants can be extended", code="not_manual")
+        if row[6] is not None:
+            raise AccessConflict("grant already revoked")
+        if row[5] != expected_expires_at:
+            raise AccessConflict("grant changed since it was read")
+        if expires_at < row[5]:
+            raise ValueError("expiry cannot shrink")
+        new_id = uuid.uuid4().hex
+        await self.conn.execute(
+            "UPDATE entitlement_grants SET revoked_at=? WHERE grant_id=? AND revoked_at IS NULL",
+            (now, grant_id),
+        )
+        await self.conn.execute(
+            "INSERT INTO entitlement_grants "
+            "(grant_id,request_key,subject_kind,subject_id,plan,source,starts_at,expires_at,"
+            "issued_by,created_at,beneficiary_telegram_user_id) "
+            "VALUES (?,?,?,?,?,'manual',?,?,?,?,?)",
+            (new_id, request_key, row[0], row[1], row[2], row[4], expires_at,
+             issued_by, now, row[7]),
+        )
+        await self.conn.execute(
+            "INSERT INTO entitlement_events "
+            "(grant_id,action,actor_telegram_id,happened_at,reason,reason_note,comment,"
+            "previous_grant_id,previous_expires_at,new_expires_at,request_key) "
+            "VALUES (?,'extend',?,?,?,?,?,?,?,?,?)",
+            (new_id, issued_by, now, reason, reason_note, comment, grant_id, row[5],
+             expires_at, request_key),
+        )
+        await self.conn.commit()
+        return self._manual_result(new_id, row[2], row[4], expires_at, "extend", request_key)
+
+    @_serialized
+    async def revoke_manual_access(
+        self, grant_id: str, *, expected_expires_at: float, reason: str,
+        reason_note: str | None = None, comment: str | None = None, issued_by: int,
+        request_key: str, now: float,
+    ) -> dict:
+        """Отзыв ручного права; оплаченное основание через панель не отзывается."""
+        self._validate_manual_request(
+            reason=reason, reason_note=reason_note, request_key=request_key,
+            issued_by=issued_by, now=now,
+        )
+        cursor = await self.conn.execute(
+            "SELECT grant_id FROM entitlement_events WHERE request_key=? AND action='revoke'",
+            (request_key,),
+        )
+        recorded = await cursor.fetchone()
+        if recorded is not None:
+            if recorded[0] != grant_id:
+                raise AccessConflict("request key already used for another grant")
+            cursor = await self.conn.execute(
+                "SELECT plan,starts_at,expires_at FROM entitlement_grants WHERE grant_id=?",
+                (grant_id,),
+            )
+            row = await cursor.fetchone()
+            plan = row[0] if row else ""
+            starts_at = row[1] if row else now
+            expires = row[2] if row else expected_expires_at
+            return self._manual_result(grant_id, plan, starts_at, expires, "revoke", request_key)
+        cursor = await self.conn.execute(
+            "SELECT plan,source,expires_at,revoked_at,starts_at FROM entitlement_grants WHERE grant_id=?",
+            (grant_id,),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            raise ValueError("grant not found")
+        if row[1] != "manual":
+            raise AccessDenied("only manual grants can be revoked", code="not_manual")
+        if row[3] is not None:
+            raise AccessConflict("grant already revoked")
+        if row[2] != expected_expires_at:
+            raise AccessConflict("grant changed since it was read")
+        await self.conn.execute(
+            "UPDATE entitlement_grants SET revoked_at=? WHERE grant_id=? AND revoked_at IS NULL",
+            (now, grant_id),
+        )
+        await self.conn.execute(
+            "INSERT INTO entitlement_events "
+            "(grant_id,action,actor_telegram_id,happened_at,reason,reason_note,comment,"
+            "previous_expires_at,request_key) VALUES (?,'revoke',?,?,?,?,?,?,?)",
+            (grant_id, issued_by, now, reason, reason_note, comment, row[2], request_key),
+        )
+        await self.conn.commit()
+        return self._manual_result(grant_id, row[0], row[4], row[2], "revoke", request_key)
 
     async def get_display_names_map(self) -> dict[str, str]:
         """Все известные отображаемые имена разом — чтобы не дёргать БД по одному

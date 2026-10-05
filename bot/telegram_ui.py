@@ -36,6 +36,7 @@ def more_keyboard(*, admin_url=None, legacy_viewer_url=None):
     rows = [[InlineKeyboardButton(text=t, callback_data=c) for t,c in pairs[i:i+2]]
             for i in range(0,len(pairs),2)]
     rows.append([InlineKeyboardButton(text="📊 Отчёты",callback_data="menu:report")])
+    rows.append([InlineKeyboardButton(text="🔐 Мои данные",callback_data="help:data")])
     if legacy_viewer_url:
         rows.append([InlineKeyboardButton(text="Мои оповещения", web_app=WebAppInfo(url=legacy_viewer_url))])
     if admin_url:

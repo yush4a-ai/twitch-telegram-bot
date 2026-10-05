@@ -1,10 +1,21 @@
 """Brief public help; contacts and documents come only from canonical config."""
 from ..telegram_home import edit_menu
 import html
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+import json
+from aiogram.types import BufferedInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from ..legal_documents import get_support_state
 from ..telegram_ui import back_keyboard, cancel_ui
 from .streams import _owner_admin_url, ABOUT_TEXT
+
+
+DATA_SCREEN = ('<b>Мои данные</b>\n\n'
+               'Бот хранит то, что нужно для оповещений: профиль Telegram (ID, имя, @username, язык), '
+               'список стримеров, настройки отчётов и тихих часов, а также доступ Plus, если он выдан.\n\n'
+               '<b>Что удаляется по вашему запросу</b>\n'
+               '<blockquote>Профиль, список стримеров, настройки, избранное, история отчётов и наблюдений, '
+               'подключение Twitch вместе с токенами, выданные бесплатные доступы.</blockquote>\n'
+               '<b>Что остаётся</b>\n'
+               '<blockquote>Записи об оплате: их хранение требует закон. Обезличенная статистика без вашего ID.</blockquote>')
 
 
 TOPICS = {
@@ -49,6 +60,7 @@ def help_screen(config=None):
     support=get_support_state(config)
     rows=[[InlineKeyboardButton(text=title,callback_data='help:topic:'+key)] for key,(title,_) in TOPICS.items()]
     rows.append([InlineKeyboardButton(text='Команды бота',callback_data='help:commands')])
+    rows.append([InlineKeyboardButton(text='Мои данные',callback_data='help:data')])
     if support.telegram_url:
         rows.append([InlineKeyboardButton(text='Написать в поддержку',url=support.telegram_url)])
     if support.email: text+='\n\n<b>Поддержка</b>\n'+html.escape(support.email)
@@ -92,3 +104,72 @@ async def cb_help_topic(callback):
     title, text = topic
     await edit_menu(callback.message, '<b>'+html.escape(title)+'</b>\n\n'+text, reply_markup=back_keyboard('menu:help'))
     await callback.answer()
+
+
+def data_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Выгрузить файлом', callback_data='privacy:export')],
+        [InlineKeyboardButton(text='Удалить мои данные', callback_data='privacy:delete')],
+        [InlineKeyboardButton(text='← Назад', callback_data='menu:help')],
+    ])
+
+
+async def cb_help_data(callback, db=None):
+    """Экран данных человека: что хранится, выгрузка и удаление."""
+    if callback.message is None:
+        await callback.answer()
+        return
+    text = DATA_SCREEN
+    if db is not None:
+        try:
+            data = await db.export_person_data(callback.from_user.id)
+        except Exception:
+            data = None
+        if data is not None:
+            channels = len(data.get('channels') or [])
+            text += f'\n\nВаш Telegram ID: <code>{callback.from_user.id}</code> · стримеров в списке: <b>{channels}</b>'
+    await edit_menu(callback.message, text, reply_markup=data_keyboard())
+    await callback.answer()
+
+
+async def cb_privacy_export(callback, db=None):
+    """Право на доступ: отдаём человеку его данные файлом."""
+    if db is None or callback.message is None:
+        await callback.answer('Попробуйте позже.', show_alert=True)
+        return
+    data = await db.export_person_data(callback.from_user.id)
+    payload = json.dumps(data, ensure_ascii=False, indent=2, default=str).encode('utf-8')
+    await callback.message.answer_document(
+        BufferedInputFile(payload, filename='my-twitchsignal-data.json'),
+        caption='Ваши данные из TwitchSignalBot.',
+    )
+    await callback.answer('Файл отправлен')
+
+
+async def cb_privacy_delete(callback):
+    """Перед удалением человек видит, что именно исчезнет."""
+    if callback.message is None:
+        await callback.answer()
+        return
+    text = ('<b>Удалить данные?</b>\n\n'
+            'Профиль, список стримеров, настройки, история отчётов и подключение Twitch будут удалены. '
+            'Вернуть их нельзя.\n\n'
+            'Записи об оплате останутся: этого требует закон.')
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Да, удалить всё', callback_data='privacy:delete:confirm')],
+        [InlineKeyboardButton(text='Отмена', callback_data='help:data')],
+    ])
+    await edit_menu(callback.message, text, reply_markup=keyboard)
+    await callback.answer()
+
+
+async def cb_privacy_delete_confirm(callback, db=None):
+    if db is None or callback.message is None:
+        await callback.answer('Попробуйте позже.', show_alert=True)
+        return
+    removed = await db.delete_person_data(callback.from_user.id)
+    total = sum(removed.values())
+    text = (f'<b>Данные удалены</b>\n\nУдалено записей: <b>{total}</b>.\n'
+            'Если захотите вернуться, нажмите /start: бот начнёт с чистого листа.')
+    await edit_menu(callback.message, text, reply_markup=back_keyboard('menu:more'))
+    await callback.answer('Готово')

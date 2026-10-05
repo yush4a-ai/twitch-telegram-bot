@@ -44,6 +44,10 @@ class FollowEventListener:
         self._running = False
         self._last_error: str | None = None
         self._last_error_at: float | None = None
+        # Логины, у которых последняя попытка закончилась ошибкой. Без этого
+        # «последняя ошибка» висела бы вечно и панель показывала бы тревогу
+        # даже после того, как человек заново авторизовал Twitch.
+        self._failed: set[str] = set()
 
     def is_ready(self, twitch_login: str) -> bool:
         return self._ready.get(twitch_login.lower(), False)
@@ -113,7 +117,8 @@ class FollowEventListener:
             ),
             # Только класс исключения: текст внешней ошибки теоретически может
             # содержать URL или credential и не должен попадать в Telegram.
-            "last_error": self._last_error,
+            "last_error": self._last_error if self._failed else None,
+            "failed_logins": len(self._failed),
             "last_error_age_seconds": (
                 max(0.0, snapshot_at - self._last_error_at)
                 if self._last_error_at is not None
@@ -160,6 +165,7 @@ class FollowEventListener:
             except (TwitchAuthError, OAuthTokenTerminalError) as e:
                 self._last_error = type(e).__name__
                 self._last_error_at = time.time()
+                self._failed.add(login)
                 logger.warning(
                     "EventSub follow требует повторной авторизации: %s", login
                 )
@@ -167,6 +173,7 @@ class FollowEventListener:
             except Exception as e:
                 self._last_error = type(e).__name__
                 self._last_error_at = time.time()
+                self._failed.add(login)
                 logger.exception("EventSub follow: соединение для %s оборвалось", login)
             finally:
                 self._first_attempt.add(login)
@@ -194,6 +201,7 @@ class FollowEventListener:
             )
             await self._subscribe(session_id, broadcaster_id, access_token)
             self._ready[login] = True
+            self._failed.discard(login)
             connected_at = time.time()
             self._ready_since[login] = connected_at
             self._last_message_at[login] = connected_at

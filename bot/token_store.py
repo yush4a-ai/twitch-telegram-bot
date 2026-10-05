@@ -43,6 +43,14 @@ class TokenStore:
         """Только aggregate marker counts; token values наружу не попадают."""
         return {"auth_blocked_logins": len(self._terminal_refresh_tokens)}
 
+    def blocked_logins(self) -> list[str]:
+        """Логины, которым нужна повторная авторизация.
+
+        Отдельный метод, а не health_snapshot: владельцу в панели нужно знать,
+        кого просить переподключить Twitch, но общий health-контракт остаётся
+        агрегированным и значения токенов не раскрываются."""
+        return sorted(self._terminal_refresh_tokens)[:5]
+
     def _is_terminal_token(self, twitch_login: str, refresh_token: str) -> bool:
         rejected = self._terminal_refresh_tokens.get(twitch_login)
         if rejected is None:

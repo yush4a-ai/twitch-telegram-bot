@@ -1,0 +1,123 @@
+{
+  "deployment": "44fe69d3-2d89-466c-9202-fcbf56e6c05a",
+  "read_only_checks": {
+    "env": {
+      "env": {
+        "PRODUCTION_PRODUCT_ENABLED": "1",
+        "PRODUCTION_ADMISSION_FILE": "/data/production-admission-v1.json",
+        "PRODUCTION_ADMISSION_SHA256": "fad64900cf8496197ea837f4b7697a0b13695e44ed8637c18068a960e11cd5dc",
+        "PRODUCTION_REPLICA_COUNT": "1",
+        "PRODUCTION_WRITER_POLICY": "exclusive_lock",
+        "PRODUCTION_PAYMENT_POLICY": "off",
+        "PRODUCTION_QUEUE_POLICY": "lease_fenced_v1",
+        "PRODUCTION_LOGIN_CLIENT_POLICY": "peer_shared_fail_safe",
+        "PRODUCTION_QUEUE_ENABLED": "0",
+        "NOTIFICATION_QUEUE_ENABLED": "0",
+        "ADMIN_TELEGRAM_BOT_USERNAME": "TwitchSignalBot",
+        "PUBLIC_URL": "https://worker-production-cee5.up.railway.app",
+        "PORT": "8765",
+        "RAILWAY_VOLUME_MOUNT_PATH": "/data",
+        "DB_PATH": "/data/bot.db",
+        "RAILWAY_VOLUME_ID": "9afd2204-881d-41af-bfd8-ad395b9c9ca9",
+        "RAILWAY_VOLUME_INSTANCE_ID": "eded4a6e-c2c1-44ab-a238-b3c860632cee",
+        "RAILWAY_ENVIRONMENT_NAME": "production",
+        "PAYMENT_PROVIDER": null,
+        "PLATEGA_MERCHANT_ID": null,
+        "ADMIN_PANEL_ACCESS_KEY": "present:64",
+        "SECRETS_LENGTHS": {
+          "TELEGRAM_BOT_TOKEN": 46,
+          "TWITCH_CLIENT_ID": 30,
+          "TWITCH_CLIENT_SECRET": 30,
+          "TOKEN_ENCRYPTION_KEY": 44,
+          "ADMIN_PANEL_ACCESS_KEY": 64
+        }
+      },
+      "payment_policy": {
+        "mode": "offline",
+        "allow_invoice": false,
+        "allow_external_create": false
+      },
+      "queue_enabled_config": false,
+      "mini_app_enabled": true,
+      "admission_file_present": true,
+      "db_file": {
+        "size": 13180928,
+        "mode": "0o100644"
+      }
+    },
+    "db": {
+      "integrity": "ok",
+      "foreign_key_check": [],
+      "versions": [
+        "mini_001_viewer_preferences",
+        "mini_002_category_alerts",
+        "mini_003_category_delivery",
+        "mini_004_streamer_intents",
+        "mini_005_viewer_reminders",
+        "mini_006_viewer_folders",
+        "mini_007_viewer_history",
+        "mini_008_streamer_presets",
+        "mini_009_viewer_trial",
+        "mini_010_viewer_favorites",
+        "mini_011_viewer_undo",
+        "prep_001_telegram_update_inbox",
+        "r10_001_billing_subjects",
+        "r11_001_plus_payment_orders",
+        "r11_002_plus_payment_events",
+        "r11_003_entitlement_beneficiary",
+        "r11_004_payment_reconciliation",
+        "r11_005_channel_intent_reasons",
+        "r3_001_observations",
+        "r3_002_notification_jobs",
+        "r3_003_live_update_revision",
+        "r4_001_streamer_access",
+        "r4_002_streamer_communities",
+        "r4_003_streamer_templates",
+        "r4_004_streamer_stats",
+        "r5_001_billing_ledger",
+        "r7_001_viewer_filters",
+        "r8_001_growth_attribution"
+      ],
+      "table_count": 65,
+      "counts": {
+        "known_private_users": 67,
+        "tracked_channels": 112,
+        "telegram_channels": 4,
+        "twitch_user_tokens": 6,
+        "stream_history": 1645,
+        "billing_orders": 0
+      },
+      "journal_mode": "wal"
+    },
+    "http": {
+      "healthz": {
+        "http": 200,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "app": {
+        "http": 200,
+        "bytes": 1176,
+        "xfo": null
+      },
+      "unsigned": {
+        "/app/api/bootstrap": 401,
+        "/app/api/viewer/state": 401,
+        "/app/api/streamer/profile": 401,
+        "/app/api/purchase/prepare": 401,
+        "/admin/api/snapshot": 405
+      },
+      "payment_endpoints": {
+        "platega_callback": 404
+      },
+      "legal": {
+        "privacy": 503,
+        "agreement": 503,
+        "support": 503,
+        "tariffs": 503,
+        "payments": 503
+      }
+    }
+  }
+}

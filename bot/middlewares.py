@@ -170,7 +170,100 @@ class ErrorGuardMiddleware(BaseMiddleware):
             await self._recover(event,data)
 
 
-def setup_middlewares(dp) -> None:
+class ProfileMiddleware(BaseMiddleware):
+    """Запоминает профиль человека и последнюю активность для панели владельца.
+
+    Запись троттлится (профиль реже, активность чаще), чтобы горячий путь не
+    упирался в базу на каждом апдейте. Сбой базы логируется и не мешает
+    обработчику: панель не должна ломать работу бота."""
+
+    def __init__(self, db, *, activity_seconds: float = 300.0,
+                 profile_seconds: float = 86400.0, retry_seconds: float = 60.0) -> None:
+        self._db = db
+        self._activity_seconds = activity_seconds
+        self._profile_seconds = profile_seconds
+        self._retry_seconds = retry_seconds
+        self._written: dict[int, tuple[float, float]] = {}
+        self._retry_after: dict[int, float] = {}
+
+    def _forget_stale(self, now: float) -> None:
+        if len(self._written) <= 4096:
+            return
+        cutoff = now - max(self._profile_seconds, self._activity_seconds, 3600.0)
+        for user_id in [key for key, marks in self._written.items() if max(marks) < cutoff]:
+            del self._written[user_id]
+        # Если активных записей всё ещё слишком много, вытесняем самые старые:
+        # словарь не должен расти бесконечно на большом числе людей.
+        while len(self._written) > 8192:
+            oldest = min(self._written, key=lambda key: max(self._written[key]))
+            del self._written[oldest]
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        user = data.get("event_from_user") if isinstance(data, dict) else None
+        if user is None:
+            user = getattr(event, "from_user", None)
+        user_id = getattr(user, "id", None) if user is not None else None
+        if isinstance(user_id, int) and user_id > 0:
+            await self._remember(user, user_id)
+        return await handler(event, data)
+
+    async def _remember(self, user, user_id: int) -> None:
+        now = time.monotonic()
+        if now < self._retry_after.get(user_id, 0.0):
+            return
+        # -inf, а не 0: при малом времени работы процесса monotonic() может быть
+        # меньше суток, и запись профиля иначе откладывалась бы на сутки.
+        profile_at, activity_at = self._written.get(user_id, (float("-inf"), float("-inf")))
+        write_profile = now - profile_at >= self._profile_seconds
+        write_activity = now - activity_at >= self._activity_seconds
+        if not (write_profile or write_activity):
+            return
+        self._forget_stale(now)
+
+        first = getattr(user, "first_name", None)
+        last = getattr(user, "last_name", None)
+        display = " ".join(
+            part.strip() for part in (first, last)
+            if isinstance(part, str) and part.strip()
+        ) or None
+        timestamp = time.time()
+        failed = False
+        if write_profile:
+            try:
+                await self._db.remember_profile(
+                    user_id,
+                    username=getattr(user, "username", None),
+                    display_name=display,
+                    language_code=getattr(user, "language_code", None),
+                    now=timestamp,
+                )
+            except Exception:
+                logger.exception("Не удалось сохранить профиль пользователя")
+                failed = True
+        if write_activity:
+            try:
+                await self._db.touch_activity(user_id, now=timestamp)
+            except Exception:
+                logger.exception("Не удалось отметить активность пользователя")
+                failed = True
+        if failed:
+            # Окно считается пройденным только после успешной записи, иначе один
+            # сбой откладывал бы профиль на сутки. Короткая пауза защищает базу.
+            self._retry_after[user_id] = now + self._retry_seconds
+            return
+        self._written[user_id] = (
+            now if write_profile else profile_at,
+            now if write_activity else activity_at,
+        )
+        self._retry_after.pop(user_id, None)
+
+
+def setup_middlewares(dp, db=None) -> None:
     """Порядок важен: сначала отбраковка мусорных апдейтов, затем троттлинг,
     и только потом — перехват ошибок вокруг самого обработчика."""
     for observer in (dp.message, dp.callback_query):
@@ -181,3 +274,10 @@ def setup_middlewares(dp) -> None:
     throttle = ThrottleMiddleware()
     dp.message.middleware(throttle)
     dp.callback_query.middleware(throttle)
+
+    if db is not None:
+        # Регистрируется после троттлинга: профиль и активность пишутся только
+        # по апдейтам, которые дошли до обработчика.
+        profile = ProfileMiddleware(db)
+        dp.message.middleware(profile)
+        dp.callback_query.middleware(profile)

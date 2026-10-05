@@ -53,6 +53,38 @@ class AdminWebTests(unittest.IsolatedAsyncioTestCase):
             async with session.get(base + path) as response:
                 self.assertEqual(response.status, 404)
 
+    async def test_login_page_keeps_the_emergency_path_quiet(self):
+        access = AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=OWNER_ID,
+                             bot_token=BOT_TOKEN, bot_username="SignalStreamsBot")
+        session, base = await self.start_server(access)
+        async with session.get(base + "/admin") as response:
+            html = await response.text()
+
+        # Работает Telegram-вход, поэтому путь к аварийному ключу не подсказывается.
+        self.assertIn('id="widget-hint"', html)
+        self.assertIn("отправьте команду", html)
+        self.assertNotIn("/admin/emergency", html)
+        self.assertNotIn("access_key", html)
+        self.assertNotIn("тестового контура", html)
+
+    async def test_login_page_points_to_the_emergency_key_without_telegram(self):
+        access = AdminAccess(KEY, enabled=True, secure_cookie=False)
+        session, base = await self.start_server(access)
+        async with session.get(base + "/admin/emergency") as response:
+            html = await response.text()
+
+        self.assertIn('id="access_key"', html)
+        self.assertIn("Аварийный ключ", html)
+
+    async def test_login_page_names_the_real_environment(self):
+        session, base = await self.start_server(AdminAccess(KEY, enabled=True, secure_cookie=False))
+        with patch.dict(os.environ, {"RAILWAY_ENVIRONMENT_NAME": "production"}):
+            async with session.get(base + "/admin") as response:
+                html = await response.text()
+
+        self.assertIn("окружение PRODUCTION", html)
+        self.assertNotIn("· staging", html)
+
     async def test_login_protects_snapshot_and_logout_revokes_session(self):
         session, base = await self.start_server(AdminAccess(KEY, enabled=True, secure_cookie=False))
         async with session.get(base + "/admin/api/snapshot") as response:

@@ -30,6 +30,38 @@ class ConfigError(RuntimeError):
     """Постоянная ошибка конфигурации: повтор запуска без изменения env не поможет."""
 
 
+# Основной бот продукта — @TwitchSignalBot, тестовый контур работает на
+# @TwitchSignalTestbot, а @SignalStreamsBot остаётся резервным. Проверки старта
+# принимают любой из этих трёх и отвергают чужого, чтобы окружение не падало
+# целиком из-за устаревшего ожидания одного имени.
+CONTOUR_BOT_USERNAMES = frozenset({"twitchsignalbot", "twitchsignaltestbot", "signalstreamsbot"})
+# Публичный сайт роста остаётся тестовым контуром: production-боту он запрещён.
+PUBLIC_SITE_BOT_USERNAMES = frozenset({"twitchsignaltestbot", "signalstreamsbot"})
+
+
+def _username_in(username: object, allowed: frozenset[str]) -> bool:
+    if not isinstance(username, str):
+        return False
+    return username.strip().casefold() in allowed
+
+
+def contour_bot_username_allowed(username: object) -> bool:
+    return _username_in(username, CONTOUR_BOT_USERNAMES)
+
+
+def public_site_bot_username_allowed(username: object) -> bool:
+    return _username_in(username, PUBLIC_SITE_BOT_USERNAMES)
+
+
+def environment_label(public_base_url: str | None = None, env: str | None = None) -> str:
+    """Метка окружения для панели: имя Railway, иначе догадка по публичному адресу."""
+    name = (env if env is not None else os.getenv("RAILWAY_ENVIRONMENT_NAME")) or ""
+    name = name.strip()
+    if name:
+        return name
+    return "staging" if (public_base_url or "").startswith("https://") else "local"
+
+
 def _require(name: str) -> str:
     value = os.getenv(name)
     if not value or not value.strip():

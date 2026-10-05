@@ -17,9 +17,20 @@ _SAFE_ERROR = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,79}\Z")
 ATTENTION_LIMIT = 3
 QUEUE_DELAY_SECONDS = 300
 SNAPSHOT_PAGE = 20
+# Общий бюджет на пять срезов каталога панели.
+DIRECTORY_BUDGET_SECONDS = 2.0
+ACTIVITY_BUDGET_SECONDS = 2.0
+WEEK_SECONDS = 7 * 86_400
+MSK_OFFSET_SECONDS = 3 * 3600
 
 
-def _attention(queues: dict | None, errors: dict, preview_state: str | None) -> list[dict]:
+def _msk_midnight(now: float) -> float:
+    """Начало суток по Москве: фиксированное смещение +3, как в боте."""
+    return ((now + MSK_OFFSET_SECONDS) // 86_400) * 86_400 - MSK_OFFSET_SECONDS
+
+
+def _attention(queues: dict | None, errors: dict, preview_state: str | None,
+               eventsub: dict | None = None, blocked_logins: list[str] | None = None) -> list[dict]:
     """До трёх проблем, отсортированных по влиянию на людей."""
     items: list[dict] = []
     if errors.get("database"):
@@ -28,6 +39,20 @@ def _attention(queues: dict | None, errors: dict, preview_state: str | None) -> 
             "severity": "danger",
             "title": "Часть данных базы недоступна",
             "detail": "Показатели за этот сбор неполные. Повторите обновление.",
+        })
+    if errors.get("directory"):
+        items.append({
+            "kind": "directory",
+            "severity": "warn",
+            "title": "Раздел «Доступы» недоступен",
+            "detail": "Права и история за этот сбор не загрузились. Повторите обновление.",
+        })
+    if errors.get("activity"):
+        items.append({
+            "kind": "activity",
+            "severity": "warn",
+            "title": "Показатели активности недоступны",
+            "detail": "Число активных сегодня и новых за неделю не собраны.",
         })
     if queues:
         failed = queues.get("failed_jobs")
@@ -60,9 +85,23 @@ def _attention(queues: dict | None, errors: dict, preview_state: str | None) -> 
                 "kind": subsystem,
                 "severity": "warn",
                 "title": f"{label}: ошибка",
-                "detail": "Повторится на следующем цикле, если причина не исчезнет.",
+                "detail": _subsystem_detail(subsystem, eventsub or {}, blocked_logins or []),
             })
     return items[:ATTENTION_LIMIT]
+
+
+def _subsystem_detail(subsystem: str, eventsub: dict, blocked_logins: list[str]) -> str:
+    """Конкретика вместо «что-то сломалось»: сколько каналов и кого просить."""
+    parts: list[str] = []
+    if subsystem == "eventsub":
+        ready, configured = eventsub.get("ready_logins"), eventsub.get("configured_logins")
+        if isinstance(ready, int) and isinstance(configured, int) and configured:
+            parts.append(f"Подписано {ready} из {configured} каналов.")
+    safe = [name for name in blocked_logins if isinstance(name, str) and name]
+    if safe:
+        parts.append("Нужна повторная авторизация Twitch: " + ", ".join(safe) + ".")
+    parts.append("Повторится на следующем цикле, если причина не исчезнет.")
+    return " ".join(parts)
 
 
 def _error_class(value: object) -> str | None:
@@ -121,15 +160,6 @@ class AdminSnapshot:
         self._directory = directory
         self._previous_cpu: tuple[float, float] | None = None
 
-    async def _directory_value(self, factory, timeout: float = 2.0):
-        """Изолированный сбор одного блока: ошибка не скрывает остальные."""
-        if self._directory is None:
-            return None, False
-        try:
-            return await asyncio.wait_for(factory(), timeout), False
-        except Exception:
-            return None, True
-
     async def collect(self) -> dict:
         now = time.time()
         try:
@@ -144,6 +174,15 @@ class AdminSnapshot:
             tokens = self._tokens.health_snapshot()
         except Exception:
             tokens = None
+        # Логины берём отдельным методом: общий health-контракт токенов остаётся
+        # агрегированным, а конкретику видит только панель владельца.
+        blocked_logins: list[str] = []
+        try:
+            provider = getattr(self._tokens, "blocked_logins", None)
+            if callable(provider):
+                blocked_logins = [name for name in provider() if isinstance(name, str) and name][:5]
+        except Exception:
+            blocked_logins = []
         try:
             # PreviewManager uses a monotonic clock; the wall-clock timestamp
             # used by poller/EventSub would turn a recent capture into decades.
@@ -208,27 +247,44 @@ class AdminSnapshot:
             resources["db_file_bytes"] = None
             resources["wal_file_bytes"] = None
 
-        access, access_failed = await self._directory_value(
-            lambda: self._directory.access_overview(now)
-        )
-        rows, rows_failed = await self._directory_value(
-            lambda: self._directory.active_grants(now, SNAPSHOT_PAGE, 0)
-        )
-        history, history_failed = await self._directory_value(
-            lambda: self._directory.history(SNAPSHOT_PAGE, 0)
-        )
+        access = rows = history = backup = deliveries = None
+        directory_failed = False
+        if self._directory is not None:
+            # Пять срезов идут параллельно под общим бюджетом: последовательные
+            # таймауты по 2 с складывались бы и не оставляли времени на ответ.
+            try:
+                gathered = await asyncio.wait_for(asyncio.gather(
+                    self._directory.access_overview(now),
+                    self._directory.active_grants(now, SNAPSHOT_PAGE, 0),
+                    self._directory.history(SNAPSHOT_PAGE, 0),
+                    self._directory.backup_status(),
+                    self._directory.deliveries_24h(now),
+                    return_exceptions=True,
+                ), DIRECTORY_BUDGET_SECONDS)
+                directory_failed = any(
+                    isinstance(value, BaseException) for value in gathered
+                )
+                access, rows, history, backup, deliveries = [
+                    None if isinstance(value, BaseException) else value for value in gathered
+                ]
+            except Exception:
+                directory_failed = True
         if access is not None:
             access["active_rows"] = rows
             access["history"] = history
-        backup, backup_failed = await self._directory_value(
-            lambda: self._directory.backup_status()
-        )
-        deliveries, deliveries_failed = await self._directory_value(
-            lambda: self._directory.deliveries_24h(now)
-        )
-        directory_failed = any((
-            access_failed, rows_failed, history_failed, backup_failed, deliveries_failed,
-        ))
+
+        activity = None
+        activity_failed = False
+        if callable(getattr(self._db, "count_active_since", None)):
+            try:
+                active_today, new_7d, by_day = await asyncio.wait_for(asyncio.gather(
+                    self._db.count_active_since(_msk_midnight(now)),
+                    self._db.count_first_seen_since(now - WEEK_SECONDS),
+                    self._db.activity_by_day(days=7, now=now),
+                ), ACTIVITY_BUDGET_SECONDS)
+                activity = {"active_today": active_today, "new_7d": new_7d, "by_day": by_day}
+            except Exception:
+                activity_failed = True
 
         errors = {
             "poller": _error_class(poller.get("last_cycle_error")),
@@ -236,6 +292,7 @@ class AdminSnapshot:
             "preview": _error_class(preview.get("last_error")) if preview else None,
             "database": "unavailable" if database_failed else None,
             "directory": "unavailable" if directory_failed else None,
+            "activity": "unavailable" if activity_failed else None,
         }
 
         return {
@@ -254,6 +311,7 @@ class AdminSnapshot:
                 "eventsub_ready": eventsub.get("ready_logins"),
                 "eventsub_configured": eventsub.get("configured_logins"),
                 "auth_blocked_logins": tokens.get("auth_blocked_logins") if tokens else None,
+                "auth_blocked_names": blocked_logins or None,
             },
             "preview": {
                 "state": preview_state,
@@ -270,7 +328,8 @@ class AdminSnapshot:
             "access": access,
             "backup": backup,
             "deliveries": deliveries,
-            "attention": _attention(queues, errors, preview_state),
+            "activity": activity,
+            "attention": _attention(queues, errors, preview_state, eventsub, blocked_logins),
             "errors": errors,
             "resources": resources,
         }

@@ -1,22 +1,22 @@
-"""Production release in one command, fail-closed and message-free.
+"""Release to TwitchSignalBot environments in one command, fail-closed.
 
-Owner-approved procedure, distilled from the manual release of 04.10.2026:
+Owner-approved procedure, distilled from the manual releases of 04.10.2026:
 
 1. pin the exact Railway target and the exact Git commit (no working-tree bytes);
 2. materialize the reviewed runtime package from committed blobs only;
 3. take a *consistent* copy of the live SQLite database (SQLite backup API on the
    server — a plain file download produced a corrupt copy and must never be used);
-4. upload the package and wait for the deployment to turn SUCCESS;
-5. run the post-deploy checks: identity, health, journal without the known noise,
-   database integrity and the fresh automatic backup.
+4. upload the package from inside its own directory and wait for SUCCESS;
+5. run the post-deploy checks: identity, health, unsigned 401s, database
+   integrity and — on production — a journal without the known noise.
 
 The script never sends a Telegram message and never edits application data. It
 only reads the server, uploads code and verifies the result. If any step fails,
 it exits non-zero and leaves the previously running deployment untouched.
 
 Usage:
-    python -m scripts.production_release --commit <sha> [--dry-run]
-    python -m scripts.production_release --commit <sha> --yes
+    python -m scripts.production_release --environment staging --commit <sha> --yes
+    python -m scripts.production_release --environment production --commit <sha> --dry-run
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import zlib
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,12 +40,42 @@ from scripts.runtime_package_manifest import build_runtime_package
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_ROOT = REPO_ROOT / ".release"
 
-PROJECT_ID = "14282646-e318-4b80-b35d-4369270de255"
-ENVIRONMENT = "production"
-SERVICE = "worker"
-VOLUME_ID = "9afd2204-881d-41af-bfd8-ad395b9c9ca9"
-PUBLIC_BASE_URL = "https://worker-production-cee5.up.railway.app"
-EXPECTED_BOT_USERNAME = "TwitchSignalBot"
+TARGETS: dict[str, dict] = {
+    "production": {
+        "project_id": "14282646-e318-4b80-b35d-4369270de255",
+        "environment": "production",
+        "environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+        "service": "worker",
+        "volume_id": "9afd2204-881d-41af-bfd8-ad395b9c9ca9",
+        "base_url": "https://worker-production-cee5.up.railway.app",
+        "expected_bot_username": "TwitchSignalBot",
+        "http": {
+            "/healthz": {200},
+            "/app": {200},
+            "/admin": {200},
+            "/admin/api/snapshot": {401},
+            "/streamer/api/profile": {401},
+            # Документы приняты владельцем 05.10.2026 и публикуются: 503 здесь
+            # означал бы, что реквизиты оператора снова пропали из конфигурации.
+            "/app/legal/privacy": {200},
+        },
+        "require_journal_clean": True,
+    },
+    "staging": {
+        "project_id": "14282646-e318-4b80-b35d-4369270de255",
+        "environment": "staging",
+        "environment_id": "7a873177-8ada-4b78-8732-a0bfdc1d519b",
+        "service": "worker",
+        "volume_id": "3ead0ce7-ed8c-482d-946c-ee768bf909ff",
+        "base_url": "https://worker-staging-2f74.up.railway.app",
+        # Тестовый контур переезжает с @TwitchSignalTestbot на @SignalStreamsBot,
+        # поэтому строгая проверка имени здесь только мешала бы.
+        "expected_bot_username": None,
+        "http": {"/healthz": {200}, "/admin/api/snapshot": {401}},
+        "require_journal_clean": False,
+    },
+}
+
 REQUIRED_PACKAGE_FILES = (
     "main.py",
     "requirements.txt",
@@ -72,18 +103,54 @@ with closing(sqlite3.connect('file:%s?mode=ro' % dest, uri=True)) as check:
     print('BACKUP_BYTES=' + str(os.path.getsize(dest)))
 """
 
-HEALTH_SCRIPT = """
-import json, os, urllib.request
-token = os.environ['TELEGRAM_BOT_TOKEN']
-identity = json.load(urllib.request.urlopen(
-    'https://api.telegram.org/bot' + token + '/getMe', timeout=20))['result']
-print('GETME_USERNAME=' + identity['username'])
-print('GETME_ID=' + str(identity['id']))
+HEALTH_SCRIPT = (
+    "import json, os, urllib.request; "
+    "token = os.environ['TELEGRAM_BOT_TOKEN']; "
+    "identity = json.load(urllib.request.urlopen("
+    "'https://api.telegram.org/bot' + token + '/getMe', timeout=20))['result']; "
+    "print('GETME_USERNAME=' + identity['username']); "
+    "print('GETME_ID=' + str(identity['id']))"
+)
+
+TRANSFER_SCRIPT = """
+import base64, sys
+with open(sys.argv[1], 'rb') as handle:
+    print('BACKUP_B64_START')
+    print(base64.b64encode(handle.read()).decode('ascii'))
+    print('BACKUP_B64_END')
+"""
+
+ARTIFACT_SCRIPT = """
+import base64, hashlib, json, os, zlib
+expected = json.loads(zlib.decompress(base64.b64decode(PAYLOAD)).decode('utf-8'))
+missing, mismatched = [], []
+for path, digest in expected.items():
+    full = os.path.join('/app', path)
+    if not os.path.isfile(full):
+        missing.append(path)
+        continue
+    with open(full, 'rb') as handle:
+        if hashlib.sha256(handle.read()).hexdigest() != digest:
+            mismatched.append(path)
+print('ARTIFACT_TOTAL=' + str(len(expected)))
+print('ARTIFACT_MISSING=' + str(len(missing)))
+print('ARTIFACT_MISMATCHED=' + str(len(mismatched)))
+if missing:
+    print('ARTIFACT_MISSING_FILES=' + ','.join(sorted(missing)[:5]))
+if mismatched:
+    print('ARTIFACT_MISMATCHED_FILES=' + ','.join(sorted(mismatched)[:5]))
 """
 
 
 class ReleaseError(RuntimeError):
-    """Release must stop; nothing was left half-applied by design."""
+    """Release must stop; the previously running deployment stays in place."""
+
+
+def target_for(environment: str) -> dict:
+    try:
+        return TARGETS[environment]
+    except KeyError:
+        raise ReleaseError(f"unknown environment {environment!r}") from None
 
 
 def tool(name: str) -> str:
@@ -96,16 +163,18 @@ def tool(name: str) -> str:
 
 
 def run(cmd: list[str], *, cwd: Path | None = None, check: bool = True,
-        capture: bool = True) -> subprocess.CompletedProcess:
+        capture: bool = True, input_text: str | None = None) -> subprocess.CompletedProcess:
     if cmd and cmd[0] == "railway":
         cmd = [tool("railway"), *cmd[1:]]
     result = subprocess.run(
         cmd, cwd=str(cwd) if cwd else None, text=True, encoding="utf-8",
-        errors="replace", capture_output=capture,
+        errors="replace", capture_output=capture, input=input_text,
     )
     if check and result.returncode:
+        detail = (result.stderr or result.stdout or "").strip().splitlines()
+        tail = " | ".join(detail[-3:])[:400]
         raise ReleaseError(
-            "command failed (%s): %s" % (result.returncode, " ".join(cmd[:4]))
+            "command failed (%s): %s :: %s" % (result.returncode, " ".join(cmd[:4]), tail)
         )
     return result
 
@@ -153,10 +222,10 @@ def build_release_package(repo: Path, commit: str, destination: Path) -> dict:
     return manifest
 
 
-def server_backup() -> dict:
+def server_backup(target: dict) -> dict:
     encoded = base64.b64encode(BACKUP_SCRIPT.encode("utf-8")).decode("ascii")
     out = run([
-        "railway", "ssh", "--environment", ENVIRONMENT, "--service", SERVICE,
+        "railway", "ssh", "--environment", target["environment"], "--service", target["service"],
         f"echo {encoded} | base64 -d | python -",
     ]).stdout
     values = {}
@@ -173,15 +242,35 @@ def server_backup() -> dict:
     return values
 
 
-def download_backup(remote_path: str, destination: Path) -> Path:
+def decode_ssh_payload(output: str) -> bytes:
+    """Достаёт base64-полезную нагрузку между маркерами."""
+    start, end = "BACKUP_B64_START", "BACKUP_B64_END"
+    if start not in output or end not in output:
+        raise ReleaseError("backup transfer did not return a payload")
+    body = output.split(start, 1)[1].split(end, 1)[0]
+    payload = "".join(line.strip() for line in body.splitlines())
+    try:
+        return base64.b64decode(payload, validate=True)
+    except Exception as error:  # binascii.Error и подобные
+        raise ReleaseError(f"backup payload is not valid base64: {error}") from error
+
+
+def download_backup(target: dict, remote_path: str, destination: Path) -> Path:
+    """Забирает копию через ssh.
+
+    `railway volume files` требует, чтобы нужное окружение было выбрано в CLI, а
+    это меняет пользовательский конфиг CLI — из-под агента он недоступен. Передача
+    через ssh работает без переключений, поэтому копия забирается так.
+    """
+    encoded = base64.b64encode(TRANSFER_SCRIPT.encode("utf-8")).decode("ascii")
+    out = run([
+        "railway", "ssh", "--environment", target["environment"], "--service", target["service"],
+        f"echo {encoded} | base64 -d | python - {remote_path}",
+    ]).stdout
+    data = decode_ssh_payload(out)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        destination.unlink()
-    run([
-        "railway", "volume", "files", "-v", VOLUME_ID, "download",
-        remote_path, str(destination),
-    ])
-    if not destination.is_file():
+    destination.write_bytes(data)
+    if not destination.is_file() or destination.stat().st_size == 0:
         raise ReleaseError("backup download produced no file")
     return destination
 
@@ -204,30 +293,31 @@ def verify_backup_file(path: Path) -> dict:
     }
 
 
-def deploy(package_dir: Path) -> None:
+def deploy(target: dict, package_dir: Path) -> None:
     # railway up must run inside the package: passing a path made the builder
     # analyse an unrelated directory and fail (observed on 04.10.2026).
     run([
         "railway", "up", "--detach", "--yes",
-        "--environment", ENVIRONMENT, "--service", SERVICE, "--project", PROJECT_ID,
+        "--environment", target["environment"], "--service", target["service"],
+        "--project", target["project_id"],
     ], cwd=package_dir)
 
 
-def latest_deployment() -> dict:
+def latest_deployment(target: dict) -> dict:
     out = run([
-        "railway", "deployment", "list", "--environment", ENVIRONMENT, "--json",
+        "railway", "deployment", "list", "--environment", target["environment"], "--json",
     ]).stdout
     payload = json.loads(out)
     if not payload:
-        raise ReleaseError("no deployments reported for production")
+        raise ReleaseError(f"no deployments reported for {target['environment']}")
     return payload[0]
 
 
-def wait_for_success(timeout_seconds: int = DEPLOY_TIMEOUT_SECONDS) -> dict:
+def wait_for_success(target: dict, timeout_seconds: int = DEPLOY_TIMEOUT_SECONDS) -> dict:
     deadline = time.time() + timeout_seconds
-    last = {}
+    last: dict = {}
     while time.time() < deadline:
-        last = latest_deployment()
+        last = latest_deployment(target)
         status = str(last.get("status", ""))
         if status == "SUCCESS":
             return last
@@ -237,44 +327,89 @@ def wait_for_success(timeout_seconds: int = DEPLOY_TIMEOUT_SECONDS) -> dict:
     raise ReleaseError(f"deployment did not finish in {timeout_seconds}s: {last.get('status')}")
 
 
-def http_status(path: str) -> int:
+def http_status(target: dict, path: str) -> int:
     out = run([
         "curl", "-s", "-o", os.devnull, "-w", "%{http_code}", "--max-time", "25",
-        PUBLIC_BASE_URL + path,
+        target["base_url"] + path,
     ]).stdout
     return int(out.strip() or 0)
 
 
-def post_checks() -> dict:
-    report = {"http": {}, "identity": None, "menu": None}
-    for path, expected in (
-        ("/healthz", {200}), ("/app", {200}), ("/admin", {200}),
-        ("/admin/api/snapshot", {401}), ("/streamer/api/profile", {401}),
-        ("/app/legal/privacy", {503}),
-    ):
-        code = http_status(path)
-        report["http"][path] = code
-        if code not in expected:
-            raise ReleaseError(f"{path} returned {code}, expected {sorted(expected)}")
-
+def bot_identity(target: dict) -> dict:
+    # `python` из контейнера, а не локальный интерпретатор: railway run выполняет
+    # команду в окружении сервиса, где путь вида `TG-BOT.(TwtichSignal)` не существует.
+    # Скрипт проверки — одной строкой: railway CLI не переносит переводы строк.
     out = run([
-        "railway", "run", "--environment", ENVIRONMENT, "--service", SERVICE,
-        sys.executable, "-c", HEALTH_SCRIPT,
+        "railway", "run", "--environment", target["environment"], "--service", target["service"],
+        "python", "-c", HEALTH_SCRIPT,
     ]).stdout
     identity = {}
     for line in out.splitlines():
         if line.startswith("GETME_"):
             key, _, value = line.partition("=")
             identity[key] = value.strip()
-    if identity.get("GETME_USERNAME") != EXPECTED_BOT_USERNAME:
-        raise ReleaseError(f"production bot identity is {identity.get('GETME_USERNAME')!r}")
-    report["identity"] = identity
-    return report
+    expected = target["expected_bot_username"]
+    if expected is not None and identity.get("GETME_USERNAME") != expected:
+        raise ReleaseError(
+            f"{target['environment']} bot identity is {identity.get('GETME_USERNAME')!r}, expected {expected!r}"
+        )
+    if not identity.get("GETME_ID"):
+        raise ReleaseError("could not read the bot identity")
+    return identity
 
 
-def journal_scan() -> dict:
+def post_checks(target: dict) -> dict:
+    http = {}
+    for path, allowed in target["http"].items():
+        code = http_status(target, path)
+        http[path] = code
+        if code not in allowed:
+            raise ReleaseError(f"{path} returned {code}, expected {sorted(allowed)}")
+    return {"http": http, "identity": bot_identity(target)}
+
+
+def parse_artifact_report(output: str) -> dict:
+    values: dict[str, str] = {}
+    for line in output.splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.startswith("ARTIFACT_"):
+            values[key] = value.strip()
+    return values
+
+
+def verify_artifact(target: dict, manifest: dict) -> dict:
+    """Сверяет файлы в контейнере с собранным пакетом по SHA256.
+
+    Это проверка фактического артефакта, а не намерения: успешный деплой сам по
+    себе не доказывает, что в контейнере лежит именно собранный пакет. Готовый
+    скрипт вместе с ожидаемыми хешами уходит на stdin: длинная команда не
+    помещается в лимит командной строки Windows, а кавычки внутри неё ломают
+    разбор на стороне контейнера.
+    """
+    digests = {row["path"]: row["sha256"] for row in manifest["files"]}
+    packed = base64.b64encode(zlib.compress(json.dumps(digests).encode("utf-8"))).decode("ascii")
+    script = ARTIFACT_SCRIPT.replace("PAYLOAD", repr(packed)) + "\nimport sys\nsys.stdout.flush()\n"
     out = run([
-        "railway", "logs", "--environment", ENVIRONMENT, "--service", SERVICE,
+        "railway", "ssh", "--environment", target["environment"], "--service", target["service"],
+        "python -",
+    ], input_text=script).stdout
+    values = parse_artifact_report(out)
+    if not values.get("ARTIFACT_TOTAL"):
+        raise ReleaseError("artifact verification produced no output")
+    missing = int(values.get("ARTIFACT_MISSING", "1"))
+    mismatched = int(values.get("ARTIFACT_MISMATCHED", "1"))
+    if missing or mismatched:
+        raise ReleaseError(
+            "uploaded artifact differs from the package: missing=%d (%s) mismatched=%d (%s)"
+            % (missing, values.get("ARTIFACT_MISSING_FILES", ""), mismatched,
+               values.get("ARTIFACT_MISMATCHED_FILES", ""))
+        )
+    return {"files": int(values["ARTIFACT_TOTAL"]), "missing": 0, "mismatched": 0}
+
+
+def journal_scan(target: dict) -> dict:
+    out = run([
+        "railway", "logs", "--environment", target["environment"], "--service", target["service"],
         "--lines", "300",
     ], check=False).stdout
     lines = out.splitlines()
@@ -287,26 +422,29 @@ def journal_scan() -> dict:
     return counts
 
 
-def release(commit: str, *, dry_run: bool, skip_backup: bool,
+def release(environment: str, commit: str, *, dry_run: bool, skip_backup: bool,
             allow_dirty: bool = False) -> dict:
+    target = target_for(environment)
     repo = REPO_ROOT
     exact = git_commit(repo, commit)
     assert_release_tree_is_reviewed(repo, exact, allow_dirty=allow_dirty)
 
     stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    package_dir = RELEASE_ROOT / f"package-{exact[:8]}-{stamp}"
+    package_dir = RELEASE_ROOT / f"{environment}-{exact[:8]}-{stamp}"
     manifest = build_release_package(repo, exact, package_dir)
     report = {
-        "commit": exact, "package_files": manifest["file_count"],
+        "environment": environment, "commit": exact,
+        "package_files": manifest["file_count"],
         "package_bytes": manifest["total_bytes"],
         "manifest_sha256": manifest["manifest_sha256"],
         "package_dir": str(package_dir), "dry_run": dry_run,
     }
 
     if not skip_backup:
-        backup = server_backup()
+        backup = server_backup(target)
         local = download_backup(
-            backup["BACKUP_PATH"], RELEASE_ROOT / "backups" / Path(backup["BACKUP_PATH"]).name
+            target, backup["BACKUP_PATH"],
+            RELEASE_ROOT / "backups" / Path(backup["BACKUP_PATH"]).name,
         )
         report["backup"] = {"path": local.name, **verify_backup_file(local)}
 
@@ -314,35 +452,39 @@ def release(commit: str, *, dry_run: bool, skip_backup: bool,
         report["status"] = "DRY_RUN"
         return report
 
-    deploy(package_dir)
-    deployment = wait_for_success()
+    deploy(target, package_dir)
+    deployment = wait_for_success(target)
     report["deployment_id"] = deployment.get("id")
     report["deployment_status"] = deployment.get("status")
-    report["http"] = post_checks()["http"]
-    report["identity"] = post_checks()["identity"]
-    report["journal"] = journal_scan()
+    report["artifact"] = verify_artifact(target, manifest)
+    checks = post_checks(target)
+    report["http"] = checks["http"]
+    report["identity"] = checks["identity"]
+    if target["require_journal_clean"]:
+        report["journal"] = journal_scan(target)
     report["status"] = "SUCCESS"
     return report
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Production release for TwitchSignalBot")
+    parser = argparse.ArgumentParser(description="Release TwitchSignalBot to a pinned environment")
+    parser.add_argument("--environment", default="production", choices=sorted(TARGETS))
     parser.add_argument("--commit", default="HEAD", help="commit or ref to release")
     parser.add_argument("--dry-run", action="store_true", help="package and backup only")
     parser.add_argument("--skip-backup", action="store_true", help="skip the database copy")
     parser.add_argument("--allow-dirty-runtime", action="store_true",
                         help="release the commit even if runtime files are uncommitted")
-    parser.add_argument("--yes", action="store_true", help="confirm the production deploy")
+    parser.add_argument("--yes", action="store_true", help="confirm the deploy")
     args = parser.parse_args(argv)
 
     if not args.dry_run and not args.yes:
-        print("Refusing to deploy without --yes (production release).", file=sys.stderr)
+        print(f"Refusing to deploy to {args.environment} without --yes.", file=sys.stderr)
         return 2
 
     try:
         report = release(
-            args.commit, dry_run=args.dry_run, skip_backup=args.skip_backup,
-            allow_dirty=args.allow_dirty_runtime,
+            args.environment, args.commit, dry_run=args.dry_run,
+            skip_backup=args.skip_backup, allow_dirty=args.allow_dirty_runtime,
         )
     except ReleaseError as error:
         print(f"RELEASE STOPPED: {error}", file=sys.stderr)

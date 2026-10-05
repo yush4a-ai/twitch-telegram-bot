@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Живая панель на узких ширинах</title>
+<style>
+  body{background:#101010;margin:0;font:13px system-ui;color:#B9B6BF}
+  .row{display:flex;gap:24px;padding:24px}
+  .cell{background:#171717;border:1px solid #3B3841;border-radius:12px;overflow:hidden}
+  .cap{padding:8px 12px;font:600 12px/1.4 ui-monospace,monospace;color:#B9B6BF;border-bottom:1px solid #3B3841}
+  iframe{border:0;display:block;background:#171717}
+</style>
+</head>
+<body>
+<!-- Проверка живой панели на узких ширинах: headless Chrome не умеет окно уже 500 px,
+     поэтому смотрим через iframe фиксированной ширины. -->
+<div class="row">
+  <div class="cell"><div class="cap">360 px · обзор</div><iframe id="frame360" width="360" height="820" src="http://127.0.0.1:8793/admin#/overview"></iframe></div>
+  <div class="cell"><div class="cap">390 px · люди</div><iframe id="frame390" width="390" height="820" src="http://127.0.0.1:8793/admin#/users"></iframe></div>
+</div>
+</body>
+</html>

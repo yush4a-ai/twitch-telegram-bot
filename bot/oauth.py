@@ -238,9 +238,14 @@ class OAuthCallbackServer:
         self._growth_bot_username = growth_bot_username
         self._growth_public_base_url = growth_public_base_url
         self._admin_snapshot_provider: SnapshotProvider | None = None
+        self._admin_services: dict | None = None
 
     def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
         self._admin_snapshot_provider = provider
+
+    def set_admin_services(self, *, people=None, directory=None) -> None:
+        """Каталог людей и доступов для read-маршрутов панели владельца."""
+        self._admin_services = {"people": people, "directory": directory}
 
     def set_preview_observer(self, observer) -> None:
         self._preview_observer = observer
@@ -276,7 +281,11 @@ class OAuthCallbackServer:
                     raise RuntimeError("Admin snapshot is not ready")
                 return await provider()
 
-            install_admin_routes(app, self._admin_access, _snapshot)
+            install_admin_routes(
+                app, self._admin_access, _snapshot,
+                people_provider=lambda: (self._admin_services or {}).get("people"),
+                directory_provider=lambda: (self._admin_services or {}).get("directory"),
+            )
         if self._streamer_access is not None and self._streamer_db is not None:
             install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot)
         if self._viewer_db is not None and self._viewer_bot_token is not None:

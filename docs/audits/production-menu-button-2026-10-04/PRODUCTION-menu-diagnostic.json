@@ -1,0 +1,182 @@
+{
+  "status": {
+    "project_id": "14282646-e318-4b80-b35d-4369270de255",
+    "target_mismatches": [
+      "production Volume ID не совпадает или отсутствует",
+      "production branch не совпадает с main"
+    ],
+    "staging": {
+      "environment_id": "7a873177-8ada-4b78-8732-a0bfdc1d519b",
+      "volume_instances": [
+        {
+          "id": "f1e0d4c5-c190-4989-ae34-29a61f9010bb",
+          "mountPath": "/data"
+        }
+      ],
+      "services": [
+        {
+          "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+          "name": "worker",
+          "source": null,
+          "domains": [
+            "worker-staging-2f74.up.railway.app"
+          ],
+          "active_deployments": [
+            {
+              "id": "b3d8be15-0b6a-4b03-a131-b339e7e78917",
+              "status": "SUCCESS",
+              "stopped": false,
+              "createdAt": "2026-10-04T13:58:25.540Z",
+              "commitHash": null,
+              "imageDigest": "sha256:3c654fc642cd4785572c95a418533a6b5581916143734b61b6a1f76c7346e1b4",
+              "cliMessage": "staging 1c49330e773ded22d47a185866dd3921b1e00806",
+              "cliCaller": "codex"
+            }
+          ]
+        }
+      ]
+    },
+    "production": {
+      "environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+      "volume_instances": [
+        {
+          "id": "6ea63111-5286-44cc-bbce-fbe8a41f5c60",
+          "mountPath": "/data"
+        }
+      ],
+      "services": [
+        {
+          "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+          "name": "worker",
+          "source": {
+            "repo": "yush4a-ai/twitch-telegram-bot",
+            "branch": null,
+            "rootDirectory": null
+          },
+          "domains": [
+            "worker-production-cee5.up.railway.app"
+          ],
+          "active_deployments": [
+            {
+              "id": "44fe69d3-2d89-466c-9202-fcbf56e6c05a",
+              "status": "SUCCESS",
+              "stopped": false,
+              "createdAt": "2026-10-04T15:49:41.147Z",
+              "commitHash": null,
+              "imageDigest": "sha256:3dde1f84e0ed5cacaf50c98c65b8789940cd47d5ae17aa1ce0abe7eee093874e",
+              "cliMessage": "production cutover retry 1c49330 exact",
+              "cliCaller": "agent_unknown:node"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "read": {
+    "deployment": "44fe69d3-2d89-466c-9202-fcbf56e6c05a",
+    "bot": {
+      "username": "TwitchSignalBot",
+      "id": 8707370390,
+      "is_bot": true
+    },
+    "menu": {
+      "type": "web_app",
+      "text": "Приложение",
+      "url": "https://worker-production-cee5.up.railway.app/app"
+    },
+    "owner_menu": {
+      "type": "default",
+      "text": null,
+      "url": null
+    },
+    "config_menu": {
+      "type": "commands",
+      "text": null,
+      "url": null
+    },
+    "config": {
+      "mini_app_enabled": true,
+      "pinned_staging": false,
+      "production_admitted": false,
+      "production_contract_present": true,
+      "admin_telegram_bot_username": "TwitchSignalBot",
+      "oauth_public_base_url": "https://worker-production-cee5.up.railway.app",
+      "owner_chat_id_present": true,
+      "owner_chat_id_matches_expected": true
+    },
+    "admin_panel_key_present": true
+  },
+  "status_after": {
+    "project_id": "14282646-e318-4b80-b35d-4369270de255",
+    "target_mismatches": [
+      "production Volume ID не совпадает или отсутствует",
+      "production branch не совпадает с main"
+    ],
+    "staging": {
+      "environment_id": "7a873177-8ada-4b78-8732-a0bfdc1d519b",
+      "volume_instances": [
+        {
+          "id": "f1e0d4c5-c190-4989-ae34-29a61f9010bb",
+          "mountPath": "/data"
+        }
+      ],
+      "services": [
+        {
+          "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+          "name": "worker",
+          "source": null,
+          "domains": [
+            "worker-staging-2f74.up.railway.app"
+          ],
+          "active_deployments": [
+            {
+              "id": "b3d8be15-0b6a-4b03-a131-b339e7e78917",
+              "status": "SUCCESS",
+              "stopped": false,
+              "createdAt": "2026-10-04T13:58:25.540Z",
+              "commitHash": null,
+              "imageDigest": "sha256:3c654fc642cd4785572c95a418533a6b5581916143734b61b6a1f76c7346e1b4",
+              "cliMessage": "staging 1c49330e773ded22d47a185866dd3921b1e00806",
+              "cliCaller": "codex"
+            }
+          ]
+        }
+      ]
+    },
+    "production": {
+      "environment_id": "af6d873b-a2cf-45aa-be42-cd9efbd102a7",
+      "volume_instances": [
+        {
+          "id": "6ea63111-5286-44cc-bbce-fbe8a41f5c60",
+          "mountPath": "/data"
+        }
+      ],
+      "services": [
+        {
+          "service_id": "45e46f2a-dba3-4b18-bc5f-b6fafa260055",
+          "name": "worker",
+          "source": {
+            "repo": "yush4a-ai/twitch-telegram-bot",
+            "branch": null,
+            "rootDirectory": null
+          },
+          "domains": [
+            "worker-production-cee5.up.railway.app"
+          ],
+          "active_deployments": [
+            {
+              "id": "44fe69d3-2d89-466c-9202-fcbf56e6c05a",
+              "status": "SUCCESS",
+              "stopped": false,
+              "createdAt": "2026-10-04T15:49:41.147Z",
+              "commitHash": null,
+              "imageDigest": "sha256:3dde1f84e0ed5cacaf50c98c65b8789940cd47d5ae17aa1ce0abe7eee093874e",
+              "cliMessage": "production cutover retry 1c49330 exact",
+              "cliCaller": "agent_unknown:node"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

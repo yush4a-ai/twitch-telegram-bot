@@ -1,0 +1,122 @@
+{
+  "tokens": {
+    "canvas": "#171717",
+    "surface": "#242424",
+    "raised": "#2D2B31",
+    "border": "#3B3841",
+    "text": "#F1F1F1",
+    "muted": "#B9B6BF",
+    "accent": "#C7A5FF",
+    "accent_ink": "#21162F",
+    "good": "#7FD8B4",
+    "warn": "#F0C674",
+    "danger": "#FF7A85"
+  },
+  "results": [
+    {
+      "what": "основной текст на фоне приложения",
+      "front": "#F1F1F1",
+      "back": "#171717",
+      "ratio": 15.87,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "основной текст на поверхности",
+      "front": "#F1F1F1",
+      "back": "#242424",
+      "ratio": 13.74,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "основной текст на приподнятой поверхности",
+      "front": "#F1F1F1",
+      "back": "#2D2B31",
+      "ratio": 12.38,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "вторичный текст на фоне",
+      "front": "#B9B6BF",
+      "back": "#171717",
+      "ratio": 8.97,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "вторичный текст на поверхности",
+      "front": "#B9B6BF",
+      "back": "#242424",
+      "ratio": 7.77,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "вторичный текст на приподнятой поверхности",
+      "front": "#B9B6BF",
+      "back": "#2D2B31",
+      "ratio": 7.0,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "accent на фоне (ссылки, «Подробнее»)",
+      "front": "#C7A5FF",
+      "back": "#171717",
+      "ratio": 8.75,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "accent на поверхности",
+      "front": "#C7A5FF",
+      "back": "#242424",
+      "ratio": 7.58,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "текст на главной кнопке",
+      "front": "#21162F",
+      "back": "#C7A5FF",
+      "ratio": 8.4,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "успех на поверхности",
+      "front": "#7FD8B4",
+      "back": "#242424",
+      "ratio": 9.15,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "внимание на поверхности",
+      "front": "#F0C674",
+      "back": "#242424",
+      "ratio": 9.64,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "ошибка на поверхности",
+      "front": "#FF7A85",
+      "back": "#242424",
+      "ratio": 6.19,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "разделитель на фоне (элемент интерфейса)",
+      "front": "#3B3841",
+      "back": "#171717",
+      "ratio": 1.56,
+      "limit": 1.0,
+      "pass": true
+    }
+  ],
+  "failures": 0
+}

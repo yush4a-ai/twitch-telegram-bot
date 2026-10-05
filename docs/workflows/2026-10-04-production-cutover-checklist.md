@@ -22,6 +22,18 @@
 
 Rollback point: fresh pre-cutover SHA256 `55e9c12e6e2dd11e55cf7bda4ebc5524e5820f95707a471928d45ef43060a27b`, old artifact `dc9239eb0b82fb80d1788fc657205740cebc49e9`.
 
+## Independent post-cutover verification — 04.10.2026
+
+- [x] Deployment `44fe69d3…` независимо подтверждён SUCCESS/`stopped=false`; staging не менялся.
+- [x] `/healthz`200, `/app`200, `getMe`=@TwitchSignalBot; unsigned API401, `/admin/api/snapshot` GET401, Platega callback404.
+- [x] DB read-only: integrity ok, FK пуст, 28 версий, 65 таблиц, legacy counts сохранены (users67/channels112/tokens6/history1645).
+- [x] Payment OFF и queue OFF подтверждены и в env, и в загруженном config.
+- [x] Логи без ConfigError/corruption/duplicate writer; только известные TwitchAuthError и Telegram Forbidden.
+- [x] System MenuButton = web_app «Приложение»; ReplyKeyboard «Меню» сохранена; root cause — старый artifact `MenuButtonCommands()` + клиентское значение до cutover.
+- [x] Добавлен регрессионный тест production-ветки MenuButton (runtime-код не менялся).
+- [ ] Замечание: env `RAILWAY_VOLUME_INSTANCE_ID` не совпадает с фактическим volume instance (тот же volume, данные целы) — уточнить в контракте отдельно.
+- [ ] Signed Mini App / native Desktop/iOS/Android — NOT TESTED в этой сессии.
+
 ## Historical preparation
 
 ## Compact staging checkpoint — 04.10.2026

@@ -1,0 +1,241 @@
+?<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Админ-панель · вариант A «Консоль»</title>
+<style>
+  :root{
+    --canvas:#171717; --surface:#242424; --raised:#2D2B31; --border:#3B3841;
+    --text:#F1F1F1; --muted:#B9B6BF; --accent:#C7A5FF; --accent-ink:#21162F;
+    --good:#7FD8B4; --warn:#F0C674; --danger:#FF7A85;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#101010;color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .caption{padding:20px 24px 8px;color:var(--muted);font:600 13px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  .screen{width:1440px;height:880px;margin:0 24px 28px;background:var(--canvas);border:1px solid var(--border);display:flex;overflow:hidden}
+  /* sidebar */
+  .side{width:200px;flex:0 0 200px;border-right:1px solid var(--border);padding:16px 0}
+  .brand{display:flex;align-items:center;gap:8px;padding:0 16px 20px;font-weight:650;font-size:15px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .nav{display:block;padding:12px 16px;color:var(--muted);font-size:14px}
+  .nav.on{color:var(--text);background:var(--surface);border-left:2px solid var(--accent)}
+  .side .group{padding:16px 16px 8px;color:#7d7a85;font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  /* main */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .top{height:54px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px}
+  .env{font:600 12px/1 var(--mono);letter-spacing:.08em;color:var(--warn);border:1px solid var(--border);border-radius:6px;padding:4px 8px}
+  .top .spacer{flex:1}
+  .stamp{color:var(--muted);font:12px/1 var(--mono)}
+  .btn{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+  .body{padding:20px 20px;overflow:hidden}
+  h1{font-size:26px;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .row{display:flex;gap:12px;align-items:stretch}
+  .stats{display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:16px}
+  .stat{flex:1;padding:12px 16px;border-right:1px solid var(--border)}
+  .stat:last-child{border-right:0}
+  .stat .k{color:var(--muted);font-size:12px}
+  .stat .v{font:600 24px/1.2 var(--mono);margin-top:8px}
+  .stat .p{color:#7d7a85;font-size:11px;margin-top:4px}
+  .sec{margin-top:20px;border:1px solid var(--border);border-radius:12px}
+  .sec .hd{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px}
+  .sec .hd .count{margin-left:auto;color:var(--muted);font:12px/1 var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--muted);font:600 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-bottom:1px solid var(--border)}
+  td{padding:12px 16px;border-bottom:1px solid #2c2a30}
+  tr:last-child td{border-bottom:0}
+  .num{font-family:var(--mono)}
+  .tag{display:inline-flex;align-items:center;gap:8px;font-size:12px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--muted)}
+  .tag.good{color:var(--good)} .tag.warn{color:var(--warn)} .tag.danger{color:var(--danger)}
+  .sign{font-weight:700}
+  .alert{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid #2c2a30}
+  .alert:last-child{border-bottom:0}
+  .alert .t{font-size:13.5px}
+  .alert .d{color:var(--muted);font-size:12.5px;margin-top:4px}
+  .alert .go{margin-left:auto;color:var(--accent);font-size:12.5px;white-space:nowrap}
+  .split{display:flex;gap:16px;margin-top:20px}
+  .split .left{flex:1;min-width:0}
+  .preview{width:360px;flex:0 0 360px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+  .preview .hd{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+  .bubble{margin:16px;background:var(--raised);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-size:13.5px}
+  .bubble .meta{color:var(--muted);font-size:11.5px;margin-top:8px}
+  .bubble .cta{margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;color:var(--accent);font-size:13px}
+  .fieldrow{display:flex;gap:8px;margin-top:16px}
+  .chip{border:4px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
+  .chip.on{border-color:var(--accent);color:var(--text)}
+  .bar{height:6px;border-radius:4px;background:#33313a;overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .note{margin:0 24px 28px;color:#7d7a85;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="caption">Вариант A · «Консоль» · Обзор</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot"></span>TwitchSignalBot</div>
+    <a class="nav on">Обзор</a>
+    <a class="nav">Люди</a>
+    <a class="nav">Доступы</a>
+    <a class="nav">Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav">Система</a>
+    <a class="nav">Рост</a>
+    <a class="nav">Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <span class="env">STAGING</span>
+      <span class="stamp">обновлено 13:38 МСК</span>
+      <span class="spacer"></span>
+      <button class="btn">Обновить</button>
+      <button class="btn">Выйти</button>
+    </div>
+    <div class="body">
+      <h1>Обзор</h1>
+      <div class="sub">Данные за последние сутки, если не указано иное.</div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">Известные пользователи</div><div class="v">67</div><div class="p">всего</div></div>
+        <div class="stat"><div class="k">Активны сегодня</div><div class="v">3</div><div class="p">с 00:00 МСК</div></div>
+        <div class="stat"><div class="k">Новые за 7 дней</div><div class="v">1</div><div class="p">7 дней</div></div>
+        <div class="stat"><div class="k">Активный Plus</div><div class="v">0</div><div class="p">на сейчас</div></div>
+        <div class="stat"><div class="k">Отправлено за 24 ч</div><div class="v">4</div><div class="p">доставки</div></div>
+      </div>
+
+      <div class="sec">
+        <div class="hd"><span class="sign" style="color:var(--good)">●</span> Требует внимания <span class="count">2 из 3</span></div>
+        <div class="alert"><span class="sign" style="color:var(--warn)">▲</span>
+          <div><div class="t">EventSub: ошибка соединения</div><div class="d">Касается 5 стримеров · повтор на следующем цикле</div></div>
+          <span class="go">Подробнее →</span></div>
+        <div class="alert"><span class="sign" style="color:var(--warn)">▲</span>
+          <div><div class="t">Три чата недоступны</div><div class="d">Уведомления выключены · 17 подписок</div></div>
+          <span class="go">К списку →</span></div>
+      </div>
+
+      <div class="sec">
+        <div class="hd">Последние доставки <span class="count">4 за 24 ч</span></div>
+        <table>
+          <tr><th>Событие</th><th>Получатель</th><th>Время</th><th>Итог</th></tr>
+          <tr><td>Пост о старте эфира</td><td class="num">канал · 1</td><td class="num">12:04</td><td><span class="tag good">✓ доставлено</span></td></tr>
+          <tr><td>Отчёт по стриму</td><td class="num">личка · 1</td><td class="num">11:20</td><td><span class="tag good">✓ доставлено</span></td></tr>
+          <tr><td>Напоминание об эфире</td><td class="num">личка · 2</td><td class="num">10:11</td><td><span class="tag danger">✕ заблокировал</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="caption">Вариант A · «Консоль» · Люди</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot"></span>TwitchSignalBot</div>
+    <a class="nav">Обзор</a>
+    <a class="nav on">Люди</a>
+    <a class="nav">Доступы</a>
+    <a class="nav">Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav">Система</a>
+    <a class="nav">Рост</a>
+    <a class="nav">Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <span class="env">STAGING</span><span class="stamp">обновлено 13:38 МСК</span><span class="spacer"></span>
+      <button class="btn">Обновить</button><button class="btn">Выйти</button>
+    </div>
+    <div class="body">
+      <h1>Люди</h1>
+      <div class="fieldrow">
+        <input class="chip on" style="width:320px;background:transparent;color:var(--text)" value="поиск: имя, @username, ID, Twitch">
+        <span class="chip on">Все</span><span class="chip">Plus</span><span class="chip">Активны сегодня</span><span class="chip">Фильтры</span>
+      </div>
+      <div class="sec" style="margin-top:16px">
+        <div class="hd">67 человек <span class="count">страница 1 из 3</span></div>
+        <table>
+          <tr><th>Имя</th><th>Telegram</th><th>Тариф</th><th>Активность</th><th>Стримеры</th></tr>
+          <tr><td>Алекс</td><td class="num">@alex_live</td><td><span class="tag good">Viewer Plus</span></td><td class="num">сегодня 12:40</td><td class="num">38 / 200</td></tr>
+          <tr><td>Мария</td><td class="num">@m_ree</td><td><span class="tag">Free</span></td><td class="num">сегодня 09:02</td><td class="num">12 / 50</td></tr>
+          <tr><td>Дмитрий</td><td class="num">без username</td><td><span class="tag">Free</span></td><td class="num">3 дня назад</td><td class="num">0 / 50</td></tr>
+          <tr><td>Ирина</td><td class="num">@ira_stream</td><td><span class="tag warn">Streamer Plus</span></td><td class="num">вчера 21:15</td><td class="num">204 / 200</td></tr>
+        </table>
+      </div>
+      <div class="note" style="margin:12px 0 0">Владелец в списке не показывается. Недоступные помечаются словом, а не только цветом.</div>
+    </div>
+  </div>
+</div>
+
+<div class="caption">Вариант A · «Консоль» · Рассылки</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot"></span>TwitchSignalBot</div>
+    <a class="nav">Обзор</a><a class="nav">Люди</a><a class="nav">Доступы</a>
+    <a class="nav on">Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav">Система</a><a class="nav">Рост</a><a class="nav">Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <span class="env">STAGING</span><span class="stamp">обновлено 13:38 МСК</span><span class="spacer"></span>
+      <button class="btn">Обновить</button><button class="btn">Выйти</button>
+    </div>
+    <div class="body">
+      <div class="row">
+        <div><h1>Рассылки</h1><div class="sub">Сообщения уходят только после подтверждения. Отправка идёт постепенно.</div></div>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn primary" style="align-self:flex-start;margin-left:auto">Новая рассылка</button>
+      </div>
+
+      <div class="split">
+        <div class="left">
+          <div class="sec" style="margin-top:16px">
+            <div class="hd">Кампании <span class="count">4</span></div>
+            <table>
+              <tr><th>Название</th><th>Получатели</th><th>Отправлено</th><th>Статус</th></tr>
+              <tr><td>Набор в бета-тест</td><td class="num">64</td><td class="num">64 / 64</td><td><span class="tag good">✓ завершена</span></td></tr>
+              <tr><td>Новые превью эфиров</td><td class="num">64</td><td class="num">41 / 64</td><td><span class="tag warn">◐ идёт · 25/сек</span></td></tr>
+              <tr><td>Черновик: реклама партнёра</td><td class="num">—</td><td class="num">0 / 0</td><td><span class="tag">черновик</span></td></tr>
+              <tr><td>Тех. работы 12 октября</td><td class="num">66</td><td class="num">30 / 66</td><td><span class="tag danger">■ остановлена</span></td></tr>
+            </table>
+          </div>
+
+          <div class="sec">
+            <div class="hd">Кому уйдёт <span class="count">пересчитано 13:38</span></div>
+            <table>
+              <tr><th>Аудитория</th><th>Человек</th><th>Что исключено</th></tr>
+              <tr><td>Все, кроме недоступных</td><td class="num">64</td><td class="num">3 недоступны · 2 отписались · 1 владелец</td></tr>
+            </table>
+          </div>
+
+          <div class="fieldrow">
+            <span class="chip on">Только текст</span><span class="chip">С картинкой</span><span class="chip">С кнопкой</span>
+          </div>
+        </div>
+
+        <div class="preview">
+          <div class="hd">Предпросмотр · как увидят люди</div>
+          <div class="bubble">
+            Открываем набор в бета-тест: первым 20 человекам — ранний доступ к превью эфиров и выбор стримеров.
+            <div class="cta">Записаться</div>
+            <div class="meta">Получит 64 человека · списаний не будет</div>
+          </div>
+          <div class="bubble" style="border-style:dashed">
+            <span style="color:var(--muted);font-size:12.5px">Кнопка «Больше не присылать» добавляется автоматически</span>
+          </div>
+          <div class="bubble" style="background:transparent">
+            <div style="font-size:12.5px;color:var(--muted)">Прогресс последней отправки</div>
+            <div class="bar"><i style="width:64%"></i></div>
+            <div class="num" style="font-size:12.5px;margin-top:6px">41 из 64 · недоступны 3 · ошибок 0</div>
+            <div class="cta" style="color:var(--danger)">Остановить отправку</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">Макет-образец: числа примерные, реальная панель подтянет фактические данные. Только тёмная тема, цвет всегда сопровождается словом или знаком.</div>
+</body>
+</html>

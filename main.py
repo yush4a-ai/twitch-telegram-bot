@@ -33,6 +33,8 @@ from bot.config import (
     ConfigError,
     PreviewCaptureConfig,
     PreviewRuntimeConfig,
+    contour_bot_username_allowed,
+    environment_label,
     is_railway_environment,
     load_config,
 )
@@ -159,8 +161,8 @@ async def _verify_staging_bot_identity(bot: Bot, config) -> None:
             and getattr(config, "pinned_staging", False)):
         return
     identity = await bot.get_me()
-    if str(getattr(identity, "username", "") or "").casefold() != "signalstreamsbot":
-        raise ConfigError("Mini App staging token должен принадлежать SignalStreamsBot")
+    if not contour_bot_username_allowed(getattr(identity, "username", "")):
+        raise ConfigError("Mini App staging token должен принадлежать тестовому боту")
 
 
 async def _with_startup_retry(coro_factory, description: str) -> None:
@@ -513,9 +515,9 @@ async def main() -> None:
     if (
         is_railway_environment()
         and getattr(config, "growth_enabled", False)
-        and config.admin_telegram_bot_username.casefold() != "signalstreamsbot"
+        and not contour_bot_username_allowed(config.admin_telegram_bot_username)
     ):
-        raise ConfigError("R8 staging требует username SignalStreamsBot")
+        raise ConfigError("R8 staging требует тестового бота")
 
     contract = getattr(config, 'production_contract', None)
     if contract is not None:
@@ -564,7 +566,7 @@ async def main() -> None:
         billing_service = BillingService(db, runtime_policy=first_release_payment_policy())
         dp["billing_service"] = billing_service
         dp["channel_username_cache"] = channel_username_cache
-        setup_middlewares(dp)
+        setup_middlewares(dp, db=db)
         register_all_handlers(dp)
 
         if config.owner_chat_id is None:
@@ -802,20 +804,22 @@ async def main() -> None:
                 oauth_server.set_health_provider(_runtime_health)
 
                 if getattr(config, "admin_panel_access_key", None):
+                    admin_directory = AdminDirectory(
+                        db,
+                        backup_dir=backup_dir,
+                        retention=getattr(config, "backup_retention", 5),
+                    )
                     admin_snapshot = AdminSnapshot(
                         db, poller, follow_listener, token_store, preview_manager,
                         db_path=config.db_path,
                         telegram_polling_provider=lambda: (
                             None if polling_task is None else not polling_task.done()
                         ),
-                        environment="staging" if config.oauth_public_base_url.startswith("https://") else "local",
-                        directory=AdminDirectory(
-                            db,
-                            backup_dir=backup_dir,
-                            retention=getattr(config, "backup_retention", 5),
-                        ),
+                        environment=environment_label(config.oauth_public_base_url),
+                        directory=admin_directory,
                     )
                     oauth_server.set_admin_snapshot_provider(admin_snapshot.collect)
+                    oauth_server.set_admin_services(people=db, directory=admin_directory)
 
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=False), "Удаление webhook"

@@ -39,7 +39,9 @@ class TelegramCompatibilityTests(unittest.IsolatedAsyncioTestCase):
         call=cb.message.edit_text.await_args
         self.assertIn('Помощь',call.args[0])
         self.assertNotIn('support@',call.args[0])
-        self.assertFalse(any(b.url and '/legal/' in b.url for row in call.kwargs['reply_markup'].inline_keyboard for b in row))
+        # Без реквизитов оператора показываются только документы, которым они не нужны.
+        links={b.url for row in call.kwargs['reply_markup'].inline_keyboard for b in row if b.url and '/legal/' in b.url}
+        self.assertEqual(links,{CONFIG.oauth_public_base_url+'/app/legal/tariffs'})
         configured=SimpleNamespace(**vars(CONFIG),support_username='signal_support',support_email='help@example.test')
         await cb_help(cb,configured)
         call=cb.message.edit_text.await_args

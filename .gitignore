@@ -12,3 +12,11 @@ graphify-out/
 logs/
 bot_log.txt
 test_chat_report.html
+# Временные файлы прогонов и локальных проверок: каталоги tmp*, файлы tmph*,
+# каталоги pytest-of-*, локальные базы-стенды и любые логи.
+tmp*
+pytest-of-*/
+forbidden-load-harness.db
+*.log
+# Профили headless-браузера: служебный мусор снимков, в репозиторий не попадает.
+*-profile/

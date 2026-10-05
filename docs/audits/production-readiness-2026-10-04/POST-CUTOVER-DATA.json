@@ -1,0 +1,76 @@
+{
+  "data_entries": [
+    {
+      "name": ".twitchsignal-writer.lock",
+      "size": 0,
+      "is_dir": false
+    },
+    {
+      "name": "backups",
+      "size": 4096,
+      "is_dir": true
+    },
+    {
+      "name": "bot.db",
+      "size": 13180928,
+      "is_dir": false
+    },
+    {
+      "name": "bot.db-shm",
+      "size": 32768,
+      "is_dir": false
+    },
+    {
+      "name": "bot.db-wal",
+      "size": 4120032,
+      "is_dir": false
+    },
+    {
+      "name": "lost+found",
+      "size": 16384,
+      "is_dir": true
+    },
+    {
+      "name": "production-admission-v1.json",
+      "size": 759,
+      "is_dir": false
+    },
+    {
+      "name": "production-admission.json",
+      "size": 759,
+      "is_dir": false
+    }
+  ],
+  "admin_snapshot_get": 401,
+  "admin_root_get": 200,
+  "app_get": 200,
+  "legacy_html_reports": "unavailable:OperationalError",
+  "reports": {
+    "report_tables": [
+      "deferred_reports",
+      "report_deliveries"
+    ],
+    "stream_history_columns": [
+      "chat_id",
+      "twitch_login",
+      "stream_id",
+      "ended_at",
+      "duration_seconds",
+      "peak_viewers",
+      "avg_viewers",
+      "new_followers",
+      "started_at",
+      "title",
+      "new_followers_text",
+      "unique_chatters",
+      "join_reliable",
+      "top_chatters_json",
+      "raid_events_json",
+      "collab_json"
+    ],
+    "counts": {
+      "deferred_reports": 0,
+      "report_deliveries": 1
+    }
+  }
+}

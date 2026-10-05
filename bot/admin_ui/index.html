@@ -12,23 +12,22 @@
 <body>
   <a class="skip-link" href="#main-content">К содержанию</a>
   <div class="shell">
-    <aside class="sidebar" id="app-nav" aria-label="Разделы панели">
-      <div class="brand" aria-label="TwitchSignalBot">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>TwitchSignal<span class="brand-bot">Bot</span></span>
+    <aside class="rail" id="app-nav" aria-label="Разделы панели">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">TS</span>
+        <span class="brand-text">TwitchSignal<span class="brand-bot">Bot</span></span>
       </div>
       <nav class="nav">
-        <a class="nav-link" href="#/overview" data-view-link="overview">Обзор</a>
-        <a class="nav-link" href="#/users" data-view-link="users">Пользователи</a>
-        <a class="nav-link" href="#/access" data-view-link="access">Доступы</a>
+        <a class="rail-link" href="#/overview" data-view-link="overview" title="Обзор"><b aria-hidden="true">▦</b><span>Обзор</span></a>
+        <a class="rail-link" href="#/users" data-view-link="users" title="Люди"><b aria-hidden="true">◔</b><span>Люди</span></a>
+        <a class="rail-link" href="#/access" data-view-link="access" title="Доступы"><b aria-hidden="true">⇄</b><span>Доступы</span></a>
         <div class="nav-separator" role="presentation"></div>
-        <a class="nav-link" href="#/system" data-view-link="system">Система<span class="nav-badge" id="nav-system-badge" hidden>0</span></a>
-        <a class="nav-link" href="#/growth" data-view-link="growth">Рост</a>
-        <a class="nav-link" href="#/payments" data-view-link="payments">Оплаты<span class="nav-note">Выключены</span></a>
+        <a class="rail-link" href="#/system" data-view-link="system" title="Система"><b aria-hidden="true">◎</b><span>Система</span><span class="nav-badge" id="nav-system-badge" hidden>0</span></a>
+        <a class="rail-link" href="#/growth" data-view-link="growth" title="Рост"><b aria-hidden="true">↗</b><span>Рост</span></a>
+        <a class="rail-link" href="#/payments" data-view-link="payments" title="Оплаты"><b aria-hidden="true">₽</b><span>Оплаты</span></a>
       </nav>
-      <div class="sidebar-foot">
-        <span class="owner">Владелец</span>
-        <form method="post" action="/admin/logout"><button class="button button-quiet" type="submit">Выйти</button></form>
+      <div class="rail-foot">
+        <form method="post" action="/admin/logout"><button class="rail-link" type="submit" title="Выйти"><b aria-hidden="true">⏻</b><span>Выйти</span></button></form>
       </div>
     </aside>
 
@@ -59,38 +58,59 @@
 
           <div class="metric-grid">
             <div class="metric"><span class="metric-label">Всего пользователей</span><strong id="stat-users">Нет данных</strong><span class="metric-note">Известные личные пользователи</span></div>
-            <div class="metric"><span class="metric-label">Активный Plus</span><strong id="stat-plus">Нет данных</strong><span class="metric-note" id="stat-plus-note">Действующие права</span></div>
+            <div class="metric"><span class="metric-label">Активны сегодня</span><strong id="stat-active-today">Нет данных</strong><span class="metric-note" id="stat-active-today-note">Считается по отметкам действий</span></div>
             <div class="metric"><span class="metric-label">Доставки за 24 ч</span><strong id="stat-deliveries">Нет данных</strong><span class="metric-note">Уведомления и отчёты</span></div>
-            <div class="metric"><span class="metric-label">Активны сегодня</span><strong id="stat-active-today">Нет данных</strong><span class="metric-note">Появится после обновления</span></div>
-            <div class="metric"><span class="metric-label">Новые за 7 дней</span><strong id="stat-new-7d">Нет данных</strong><span class="metric-note">Появится после обновления</span></div>
+            <div class="metric"><span class="metric-label">Активный Plus</span><strong id="stat-plus">Нет данных</strong><span class="metric-note" id="stat-plus-note">Действующие права</span></div>
+            <div class="metric metric-wide"><span class="metric-label">Новые за 7 дней</span><strong id="stat-new-7d">Нет данных</strong><span class="metric-note" id="stat-new-7d-note">Первое появление в боте</span></div>
           </div>
 
-          <section class="panel" aria-labelledby="attention-heading">
-            <div class="panel-head">
-              <h2 id="attention-heading">Требует внимания</h2>
-              <span class="panel-note" id="attention-note">Проверяется при каждом обновлении</span>
-            </div>
-            <ul class="attention-list" id="attention-list">
-              <li class="empty-line">Нет открытых проблем</li>
-            </ul>
-          </section>
+          <div class="overview">
+            <div class="overview-main">
+              <section class="panel" aria-labelledby="activity-heading">
+                <div class="panel-head"><h2 id="activity-heading">Активность за 7 дней</h2><span class="panel-note">Уникальные люди с действием, МСК</span></div>
+                <ul class="activity-series" id="activity-series"><li class="empty-line">Недостаточно данных</li></ul>
+              </section>
 
-          <div class="split">
-            <section class="panel" aria-labelledby="live-heading">
-              <div class="panel-head"><h2 id="live-heading">Сейчас в эфире</h2><span class="panel-note">По последнему опросу</span></div>
-              <table class="data-table">
-                <thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead>
-                <tbody id="live-body"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
-              </table>
-            </section>
-            <section class="panel" aria-labelledby="subsystems-heading">
-              <div class="panel-head"><h2 id="subsystems-heading">Подсистемы</h2><span class="panel-note">Состояния считаются отдельно</span></div>
-              <ul class="state-list">
-                <li><span class="state-name">Telegram</span><span class="state" id="telegram-state" data-state="unknown">Нет данных</span></li>
-                <li><span class="state-name">Twitch</span><span class="state" id="twitch-state" data-state="unknown">Нет данных</span></li>
-                <li><span class="state-name">Видеопревью</span><span class="state" id="preview-state" data-state="unknown">Нет данных</span></li>
-              </ul>
-            </section>
+              <section class="panel" aria-labelledby="live-heading">
+                <div class="panel-head"><h2 id="live-heading">Сейчас в эфире</h2><span class="panel-note">По последнему опросу</span></div>
+                <table class="data-table" aria-labelledby="live-heading">
+                  <thead><tr><th scope="col">Канал</th><th scope="col">Назначений</th><th scope="col">Зрителей</th><th scope="col">Наблюдение</th></tr></thead>
+                  <tbody id="live-body"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
+                </table>
+              </section>
+
+              <section class="panel" aria-labelledby="subsystems-heading">
+                <div class="panel-head"><h2 id="subsystems-heading">Подсистемы</h2><span class="panel-note">Состояния считаются отдельно</span></div>
+                <ul class="state-list" id="subsystem-list">
+                  <li><span class="state-name">Telegram</span><span class="state" id="telegram-state" data-state="unknown">Нет данных</span></li>
+                  <li><span class="state-name">Twitch</span><span class="state" id="twitch-state" data-state="unknown">Нет данных</span></li>
+                  <li><span class="state-name">Видеопревью</span><span class="state" id="preview-state" data-state="unknown">Нет данных</span></li>
+                </ul>
+              </section>
+
+              <div class="quick-actions" id="quick-actions">
+                <a class="button" href="#/users">Найти человека</a>
+                <a class="button" href="#/access">Выдать доступ</a>
+                <a class="button" href="#/system">Проверить систему</a>
+              </div>
+            </div>
+
+            <aside class="aside">
+              <section class="panel" aria-labelledby="attention-heading">
+                <div class="panel-head">
+                  <h2 id="attention-heading">Требует внимания</h2>
+                  <span class="panel-note" id="attention-note">Проверяется при каждом обновлении</span>
+                </div>
+                <ul class="attention-list" id="attention-list">
+                  <li class="empty-line">Нет открытых проблем</li>
+                </ul>
+              </section>
+
+              <section class="panel" aria-labelledby="events-heading">
+                <div class="panel-head"><h2 id="events-heading">Последние события</h2><span class="panel-note">По последнему опросу</span></div>
+                <ul class="event-list" id="event-list"><li class="empty-line">Событий пока нет</li></ul>
+              </section>
+            </aside>
           </div>
         </section>
 
@@ -98,27 +118,63 @@
           <div class="page-head">
             <div>
               <h1 id="users-heading">Пользователи</h1>
-              <p class="page-sub">Поиск человека по числовому Telegram ID</p>
+              <p class="page-sub">Поиск по имени, @username, Telegram ID и Twitch</p>
             </div>
           </div>
+          <div class="people-split">
           <section class="panel">
-            <div class="panel-head"><h2>Профили появятся позже</h2></div>
-            <p class="panel-text">Имена и <span class="mono">@username</span> начнут сохраняться вместе со следующей версией панели: сейчас база знает только числовой идентификатор. До этого поиск идёт по ID, а карточка показывает права и сроки.</p>
-            <form class="search-row" id="user-search" method="get" action="#/users">
-              <label class="field-label" for="user-id">Telegram ID</label>
-              <input id="user-id" name="id" inputmode="numeric" autocomplete="off" placeholder="Например, 425785231">
-              <button class="button button-primary" type="submit">Открыть</button>
+            <div id="people-filters">
+            <form class="search-row" id="people-form">
+              <div>
+                <label class="field-label" for="people-query">Поиск</label>
+                <input id="people-query" autocomplete="off" placeholder="Имя, @username, ID или Twitch">
+              </div>
+              <div>
+                <label class="field-label" for="people-filter">Фильтр</label>
+                <select id="people-filter">
+                  <option value="all">Все</option>
+                  <option value="plus">Plus</option>
+                  <option value="active_today">Активны сегодня</option>
+                </select>
+              </div>
+              <button class="button button-primary" type="submit">Найти</button>
+              <button class="button" type="button" id="grant-by-id-open">Выдать по ID</button>
             </form>
-            <p class="panel-text" id="user-search-hint">Карточка человека в этой версии показывает только действующие права и историю.</p>
+            </div>
+            <p class="panel-text" id="people-note" hidden></p>
+            <p class="receipt" id="card-receipt" role="status" aria-live="polite" hidden></p>
+            <table class="data-table" aria-labelledby="users-heading">
+              <thead><tr><th scope="col">Человек</th><th scope="col">Тариф</th><th scope="col">Срок</th><th scope="col">Активность</th></tr></thead>
+              <tbody id="people-list"><tr class="empty-row"><td colspan="4">Введите запрос или откройте список Enter</td></tr></tbody>
+            </table>
           </section>
-          <section class="panel" aria-labelledby="user-card-heading">
-            <div class="panel-head"><h2 id="user-card-heading">Карточка</h2><span class="panel-note" id="user-card-id">ID не выбран</span></div>
-            <dl class="detail-list" id="user-card">
-              <div><dt>Действующие права</dt><dd id="user-card-plans">Нет данных</dd></div>
-              <div><dt>Срок</dt><dd id="user-card-expiry">Нет данных</dd></div>
-              <div><dt>Источник</dt><dd id="user-card-source">Нет данных</dd></div>
-            </dl>
+          <aside class="aside">
+          <section class="panel person-card" aria-labelledby="person-card-heading">
+            <div class="panel-head"><h2 id="person-card-heading">Карточка</h2><span class="panel-note" id="person-card-id">ID не выбран</span></div>
+            <p class="panel-text" id="person-empty">Выберите человека из списка или найдите его по имени, ID либо Twitch.</p>
+            <div id="person-card" hidden>
+              <dl class="detail-list">
+                <div><dt>Имя</dt><dd id="person-name">Нет данных</dd></div>
+                <div><dt>Telegram</dt><dd id="person-username">Нет данных</dd></div>
+                <div><dt>Twitch</dt><dd id="person-twitch">Не подключён</dd></div>
+                <div><dt>Действующие права</dt><dd id="person-grants">Нет данных</dd></div>
+                <div><dt>Срок</dt><dd id="person-expiry">Нет данных</dd></div>
+                <div><dt>Последняя активность</dt><dd id="person-activity">Нет данных</dd></div>
+              </dl>
+              <div class="metric-grid compact" id="card-limits">
+                <div class="metric"><span class="metric-label">Отслеживаемые стримеры</span><strong id="limit-channels">Нет данных</strong></div>
+                <div class="metric"><span class="metric-label">Видеопревью</span><strong id="limit-video">Нет данных</strong></div>
+              </div>
+              <div class="card-actions">
+                <button class="button button-primary" id="grant-open" type="button">Изменить доступ</button>
+                <button class="button button-danger" id="revoke-open" type="button">Отозвать доступ</button>
+              </div>
+              <h3 class="subheading">История</h3>
+              <ul class="history-list" id="person-history"><li class="empty-line">Нет данных</li></ul>
+            </div>
           </section>
+          </aside>
+          </div>
         </section>
 
         <section class="view" id="view-access" data-view="access" aria-labelledby="access-heading" hidden>
@@ -132,19 +188,27 @@
             <div class="tabs" role="tablist" aria-label="Доступы">
               <button class="tab" id="tab-active" role="tab" aria-selected="true" aria-controls="access-active" type="button">Действующие</button>
               <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="access-history" type="button">История</button>
+              <button class="tab" id="tab-expiring" role="tab" aria-selected="false" aria-controls="access-expiring" type="button">Истекающие</button>
             </div>
             <div id="access-active" role="tabpanel" aria-labelledby="tab-active">
-              <table class="data-table">
+              <table class="data-table" aria-labelledby="tab-active">
                 <thead><tr><th scope="col">Получатель</th><th scope="col">План</th><th scope="col">Источник</th><th scope="col">Срок</th></tr></thead>
                 <tbody id="access-active-body"><tr class="empty-row"><td colspan="4">Ничего не найдено</td></tr></tbody>
               </table>
             </div>
             <div id="access-history" role="tabpanel" aria-labelledby="tab-history" hidden>
-              <table class="data-table">
+              <table class="data-table" aria-labelledby="tab-history">
                 <thead><tr><th scope="col">Когда</th><th scope="col">Кто</th><th scope="col">Действие</th><th scope="col">План</th></tr></thead>
                 <tbody id="access-history-body"><tr class="empty-row"><td colspan="4">Ничего не найдено</td></tr></tbody>
               </table>
             </div>
+            <div id="access-expiring" role="tabpanel" aria-labelledby="tab-expiring" hidden>
+              <table class="data-table" aria-labelledby="tab-expiring">
+                <thead><tr><th scope="col">Получатель</th><th scope="col">План</th><th scope="col">Источник</th><th scope="col">Истекает</th></tr></thead>
+                <tbody id="access-expiring-body"><tr class="empty-row"><td colspan="4">Ничего не найдено</td></tr></tbody>
+              </table>
+            </div>
+            <p class="panel-text" id="access-note" hidden></p>
           </section>
         </section>
 
@@ -156,14 +220,17 @@
             </div>
           </div>
           <section class="panel">
-            <div class="panel-head"><h2>Подсистемы</h2><span class="panel-note">Цвет всегда сопровождается словом</span></div>
+            <div class="panel-head"><h2>Подсистемы</h2><span class="panel-note" id="system-observed">Время наблюдения неизвестно</span></div>
+            <div id="system-rows">
             <ul class="state-list" id="system-states">
-              <li><span class="state-name">Telegram</span><span class="state" id="system-telegram" data-state="unknown">Нет данных</span></li>
-              <li><span class="state-name">Twitch</span><span class="state" id="system-twitch" data-state="unknown">Нет данных</span></li>
-              <li><span class="state-name">Видеопревью</span><span class="state" id="system-preview" data-state="unknown">Нет данных</span></li>
-              <li><span class="state-name">Очередь уведомлений</span><span class="state" id="system-queue" data-state="unknown">Нет данных</span></li>
-              <li><span class="state-name">База данных</span><span class="state" id="system-database" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">Telegram</span><span class="state" id="system-telegram" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">Twitch</span><span class="state-note" id="system-twitch-note" hidden></span><span class="state" id="system-twitch" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">Видеопревью</span><span class="state" id="system-preview" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">Очередь уведомлений</span><span class="state" id="system-queue" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">База данных</span><span class="state" id="system-database" data-state="unknown">Нет данных</span></li>
+              <li class="sysrow"><span class="state-name">Резервная копия</span><span class="state" id="system-backup" data-state="unknown">Нет данных</span></li>
             </ul>
+            </div>
           </section>
           <div class="split">
             <section class="panel" aria-labelledby="queue-heading">
@@ -217,16 +284,16 @@
               <p class="page-sub">Путь нового пользователя</p>
             </div>
           </div>
-          <section class="panel">
-            <div class="panel-head"><h2>Нет сквозных данных</h2></div>
-            <p class="panel-text">Сейчас бот надёжно различает только источник перехода <span class="mono">site</span> и приглашения. Пока не собираются шаги внутри Mini App и просмотр тарифа, воронка показывала бы выдуманные числа, поэтому мы её не рисуем.</p>
+          <section class="empty">
+            <h2>Недостаточно данных</h2>
+            <p class="panel-text">Нет сквозных данных: сейчас бот надёжно различает только источник перехода <span class="mono">site</span> и приглашения. Пока не собираются шаги внутри Mini App и просмотр тарифа, воронка показывала бы выдуманные числа, поэтому мы её не рисуем.</p>
             <p class="panel-text">Измеримая часть уже видна в таблице источников ниже: сколько людей пришло, открыли бота и добавили канал.</p>
           </section>
           <section class="panel" aria-labelledby="sources-heading">
             <div class="panel-head"><h2 id="sources-heading">Источники</h2><span class="panel-note">Строго по атрибуции</span></div>
-            <table class="data-table">
+            <table class="data-table" aria-labelledby="sources-heading">
               <thead><tr><th scope="col">Источник</th><th scope="col">Пришли</th><th scope="col">Добавили канал</th><th scope="col">Получали тестовый Plus</th></tr></thead>
-              <tbody id="growth-body"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
+              <tbody id="growth-list"><tr class="empty-row"><td colspan="4">Загрузка…</td></tr></tbody>
             </table>
             <p class="panel-text">Plus: люди с тестовым доступом после добавления канала, включая истёкший и отозванный. Это не оплаты.</p>
           </section>
@@ -239,8 +306,8 @@
               <p class="page-sub">Раздел готовится, приём денег выключен</p>
             </div>
           </div>
-          <section class="panel">
-            <div class="panel-head"><h2>Приём платежей не подключён</h2></div>
+          <section class="empty">
+            <h2>Приём платежей не подключён</h2>
             <p class="panel-text">Кнопки оформления, счёта и возврата появятся только после согласованного подключения провайдера. До этого никакие списания невозможны, а ручной доступ выдаётся отдельно.</p>
             <div class="tabs" aria-hidden="true">
               <span class="tab tab-disabled">Заказы</span>
@@ -248,13 +315,75 @@
               <span class="tab tab-disabled">Возвраты</span>
             </div>
             <p class="panel-text">Будущая строка заказа: номер, пользователь, тариф, сумма, способ, дата и статус. Провайдер и способ оплаты показываются раздельно.</p>
+            <div class="empty-actions"><a class="button" href="#/access">Выдать доступ вручную</a></div>
           </section>
         </section>
       </main>
 
-      <footer class="foot">TwitchSignalBot · панель владельца · данные тестового контура staging</footer>
+      <footer class="foot">TwitchSignalBot · панель владельца · <span id="foot-environment">данные бота</span></footer>
     </div>
   </div>
+
+  <dialog class="admin-dialog" id="grant-dialog" aria-labelledby="grant-dialog-title">
+    <form id="grant-form">
+      <h2 id="grant-dialog-title">Изменить доступ</h2>
+      <p class="panel-text" id="grant-target">Получатель не выбран</p>
+      <div id="grant-target-id-row" hidden>
+        <label class="field-label" for="grant-target-id">Telegram ID получателя</label>
+        <input id="grant-target-id" inputmode="numeric" autocomplete="off" placeholder="Например 123456789">
+      </div>
+      <label class="field-label" for="grant-target-grant" id="grant-target-grant-label">Право</label>
+      <select id="grant-target-grant"></select>
+      <label class="field-label" for="grant-plan">Тариф</label>
+      <select id="grant-plan">
+        <option value="viewer_plus">Viewer Plus</option>
+        <option value="streamer_plus">Streamer Plus · включает Viewer Plus</option>
+      </select>
+      <label class="field-label" for="grant-expiry">Срок до (МСК)</label>
+      <input id="grant-expiry" type="datetime-local" required>
+      <label class="field-label" for="grant-reason">Причина</label>
+      <select id="grant-reason">
+        <option value="compensation">Компенсация</option>
+        <option value="testing">Тестирование</option>
+        <option value="partnership">Партнёрство</option>
+        <option value="other">Другое</option>
+      </select>
+      <label class="field-label" for="grant-note" id="grant-note-label">Пояснение для «Другое»</label>
+      <input id="grant-note" autocomplete="off">
+      <label class="field-label" for="grant-comment">Комментарий команде</label>
+      <input id="grant-comment" autocomplete="off">
+      <p class="grant-summary" id="grant-summary">Итог появится перед подтверждением</p>
+      <p class="grant-error" id="grant-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button" type="button" id="grant-cancel">Отмена</button>
+        <button class="button button-primary" type="submit" id="grant-submit">Выдать</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="admin-dialog" id="revoke-dialog" aria-labelledby="revoke-dialog-title">
+    <form id="revoke-form">
+      <h2 id="revoke-dialog-title">Отозвать доступ</h2>
+      <p class="panel-text" id="revoke-target">Получатель не выбран</p>
+      <p class="grant-summary" id="revoke-summary">Права после отзыва появятся здесь</p>
+      <label class="field-label" for="revoke-target-grant" id="revoke-target-grant-label">Право</label>
+      <select id="revoke-target-grant"></select>
+      <label class="field-label" for="revoke-reason">Причина отзыва</label>
+      <select id="revoke-reason">
+        <option value="testing">Завершение теста</option>
+        <option value="compensation">Ошибочная выдача</option>
+        <option value="partnership">Завершение партнёрства</option>
+        <option value="other">Другое</option>
+      </select>
+      <label class="field-label" for="revoke-note" id="revoke-note-label">Пояснение для «Другое»</label>
+      <input id="revoke-note" autocomplete="off">
+      <p class="grant-error" id="revoke-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button" type="button" id="revoke-cancel">Отмена</button>
+        <button class="button button-danger-solid" type="submit" id="revoke-submit">Отозвать</button>
+      </div>
+    </form>
+  </dialog>
 
   <nav class="mobile-nav" aria-label="Разделы панели на телефоне">
     <a class="mobile-link" href="#/overview" data-view-link="overview">Обзор</a>
@@ -266,6 +395,7 @@
         <a href="#/system" data-view-link="system">Система</a>
         <a href="#/growth" data-view-link="growth">Рост</a>
         <a href="#/payments" data-view-link="payments">Оплаты</a>
+        <form method="post" action="/admin/logout"><button class="button button-quiet" type="submit">Выйти</button></form>
       </div>
     </details>
   </nav>

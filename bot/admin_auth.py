@@ -37,6 +37,8 @@ class AdminAccess:
         self._bot_token = bot_token
         self._sessions: dict[str, float] = {}
         self._failures: dict[str, list[float]] = {}
+        self._csrf: dict[str, list[tuple[str, float]]] = {}
+        self.csrf_ttl = 15 * 60
         self._login_states = LoginStates(32)
 
     def login(self, candidate: str, remote: str) -> tuple[str | None, bool]:
@@ -102,7 +104,48 @@ class AdminAccess:
 
     def logout(self, token: str | None) -> None:
         if token:
-            self._sessions.pop(self._digest(token), None)
+            digest = self._digest(token)
+            self._sessions.pop(digest, None)
+            self._csrf.pop(digest, None)
+
+    def issue_csrf(self, token: str | None) -> str | None:
+        """Метка для write-запросов панели: до четырёх активных на сессию."""
+        if not self.authenticated(token):
+            return None
+        digest = self._digest(token)
+        now = time.monotonic()
+        active = [(value, expires) for value, expires in self._csrf.get(digest, [])
+                  if expires > now][-3:]
+        value = secrets.token_urlsafe(24)
+        active.append((value, now + self.csrf_ttl))
+        self._csrf[digest] = active
+        return value
+
+    def check_csrf(self, token: str | None, value: str | None) -> bool:
+        """Проверка без потребления: метка не сгорает на отказе валидации."""
+        if not self.authenticated(token) or not value:
+            return False
+        now = time.monotonic()
+        return any(
+            expires > now and hmac.compare_digest(item, value)
+            for item, expires in self._csrf.get(self._digest(token), [])
+        )
+
+    def consume_csrf(self, token: str | None, value: str | None) -> bool:
+        """Метка одноразовая: успешная проверка удаляет её."""
+        if not self.authenticated(token) or not value:
+            return False
+        digest = self._digest(token)
+        now = time.monotonic()
+        active = [(item, expires) for item, expires in self._csrf.get(digest, [])
+                  if expires > now]
+        for index, (item, expires) in enumerate(active):
+            if hmac.compare_digest(item, value):
+                active.pop(index)
+                self._csrf[digest] = active
+                return True
+        self._csrf[digest] = active
+        return False
 
     def _prune(self, now: float) -> None:
         for digest, expires in list(self._sessions.items()):

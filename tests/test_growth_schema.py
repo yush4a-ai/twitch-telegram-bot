@@ -24,6 +24,8 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(
                         versions,
                         [
+                            "admin_001_profiles",
+                            "admin_002_known_people",
                             "mini_001_viewer_preferences",
                             "mini_002_category_alerts",
                             "mini_003_category_delivery",

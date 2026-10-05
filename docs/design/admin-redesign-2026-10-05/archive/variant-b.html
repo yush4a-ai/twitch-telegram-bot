@@ -1,0 +1,264 @@
+?<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Админ-панель · вариант B «Мягкий графит»</title>
+<style>
+  :root{
+    --canvas:#171717; --surface:#242424; --raised:#2D2B31; --border:#3B3841;
+    --text:#F1F1F1; --muted:#B9B6BF; --accent:#C7A5FF; --accent-ink:#21162F;
+    --good:#7FD8B4; --warn:#F0C674; --danger:#FF7A85;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#101010;color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .caption{padding:20px 24px 8px;color:var(--muted);font:600 13px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  .screen{width:1440px;height:900px;margin:0 24px 28px;background:var(--canvas);border:1px solid var(--border);border-radius:20px;display:flex;overflow:hidden}
+  .side{width:236px;flex:0 0 236px;padding:20px 16px;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:center;gap:12px;padding:4px 12px 20px;font-weight:650;font-size:16px}
+  .dot{width:26px;height:26px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:13px;font-weight:800}
+  .nav{display:flex;align-items:center;gap:12px;padding:12px 12px;border-radius:12px;color:var(--muted);font-size:14.5px}
+  .nav .ic{width:20px;text-align:center;opacity:.85}
+  .nav.on{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+  .group{padding:16px 12px 8px;color:#7d7a85;font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  .main{flex:1;min-width:0;padding:24px 28px;overflow:hidden}
+  .head{display:flex;align-items:center;gap:12px}
+  h1{font-size:32px;font-weight:650;letter-spacing:-.015em}
+  .sub{color:var(--muted);font-size:13.5px;margin-top:8px}
+  .pills{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .env{font:600 11px/1 var(--mono);letter-spacing:.08em;color:var(--warn);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+  .btn{border:4px solid var(--border);background:var(--surface);color:var(--text);border-radius:12px;padding:12px 16px;font-size:13.5px}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:650}
+  .health{display:flex;align-items:center;gap:12px;margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 16px}
+  .health .b{font-weight:700;color:var(--warn)}
+  .health .d{color:var(--muted);font-size:13px}
+  .health .btn{margin-left:auto}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:16px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 16px}
+  .card .k{color:var(--muted);font-size:12.5px}
+  .card .v{font:650 30px/1.15 var(--mono);margin-top:8px}
+  .card .p{color:#7d7a85;font-size:11.5px;margin-top:4px}
+  .two{display:flex;gap:16px;margin-top:16px}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .panel .hd{display:flex;align-items:center;gap:8px;padding:16px 16px;font-weight:600;font-size:15px}
+  .panel .hd .r{margin-left:auto;color:var(--muted);font:12px/1 var(--mono)}
+  .att{display:flex;gap:12px;padding:16px 16px;border-top:1px solid var(--border)}
+  .att .bar{width:4px;border-radius:3px;background:var(--warn)}
+  .att .t{font-size:14px} .att .d{color:var(--muted);font-size:12.5px;margin-top:4px}
+  .att .go{margin-left:auto;color:var(--accent);font-size:12.5px;white-space:nowrap;align-self:center}
+  .chart{display:flex;align-items:flex-end;gap:12px;padding:16px;border-top:1px solid var(--border);height:118px}
+  .chart .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;align-items:center}
+  .chart .col i{display:block;width:100%;background:var(--raised);border:1px solid var(--border);border-radius:8px 8px 4px 4px}
+  .chart .col span{color:#7d7a85;font:11px/1 var(--mono)}
+  .list{display:flex;flex-direction:column;padding:8px 8px 12px}
+  .person{display:flex;align-items:center;gap:12px;padding:12px 12px;border-radius:12px}
+  .person.on{background:var(--canvas);border:1px solid var(--border)}
+  .av{width:36px;height:36px;border-radius:12px;background:var(--raised);border:1px solid var(--border);display:grid;place-items:center;font-weight:650;font-size:14px}
+  .person .nm{font-size:14.5px} .person .un{color:var(--muted);font-size:12.5px}
+  .person .rt{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .tag{display:inline-flex;align-items:center;gap:8px;font-size:12px;border:1px solid var(--border);border-radius:8px;padding:4px 12px;color:var(--muted);background:var(--canvas)}
+  .tag.good{color:var(--good)} .tag.warn{color:var(--warn)} .tag.danger{color:var(--danger)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;padding:0 16px 16px;font-size:13.5px}
+  .kv .k{color:var(--muted)}
+  .num{font-family:var(--mono)}
+  .camp{display:flex;flex-direction:column;gap:12px;padding:16px 16px}
+  .cmp{background:var(--canvas);border:1px solid var(--border);border-radius:16px;padding:16px 16px}
+  .cmp .r1{display:flex;align-items:center;gap:12px}
+  .cmp .nm{font-size:16px;font-weight:600}
+  .cmp .m{margin-left:auto;color:var(--muted);font:12px/1 var(--mono)}
+  .progress{height:8px;border-radius:6px;background:var(--raised);overflow:hidden;margin-top:12px}
+  .progress i{display:block;height:100%;background:var(--accent)}
+  .cmp .foot{display:flex;gap:12px;color:var(--muted);font-size:12.5px;margin-top:12px}
+  .phone{width:360px;flex:0 0 360px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .phone .hd{padding:16px 16px;font-weight:600;font-size:14px;border-bottom:1px solid var(--border)}
+  .msg{margin:16px;background:var(--raised);border:1px solid var(--border);border-radius:16px;padding:16px;font-size:13.5px}
+  .msg .cta{margin-top:12px;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;color:var(--accent);background:var(--canvas)}
+  .msg .meta{color:var(--muted);font-size:11.5px;margin-top:12px}
+  .note{margin:0 24px 28px;color:#7d7a85;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="caption">Вариант B · «Мягкий графит» · Обзор</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot">TS</span>TwitchSignalBot</div>
+    <a class="nav on"><span class="ic">▦</span>Обзор</a>
+    <a class="nav"><span class="ic">◔</span>Люди</a>
+    <a class="nav"><span class="ic">⇄</span>Доступы</a>
+    <a class="nav"><span class="ic">✉</span>Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav"><span class="ic">◎</span>Система</a>
+    <a class="nav"><span class="ic">↗</span>Рост</a>
+    <a class="nav"><span class="ic">₽</span>Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="head">
+      <div><h1>Обзор</h1><div class="sub">Обновлено 13:38 МСК · данные за сутки</div></div>
+      <div class="pills"><span class="env">STAGING</span><button class="btn">Обновить</button><button class="btn">Выйти</button></div>
+    </div>
+
+    <div class="health"><span class="b">▲ Есть задержки</span><span class="d">EventSub: ошибка соединения, повтор на следующем цикле</span><button class="btn">Проверить</button></div>
+
+    <div class="cards">
+      <div class="card"><div class="k">Пользователи</div><div class="v">67</div><div class="p">всего известных</div></div>
+      <div class="card"><div class="k">Активны сегодня</div><div class="v">3</div><div class="p">с 00:00 МСК</div></div>
+      <div class="card"><div class="k">Новые за 7 дней</div><div class="v">1</div><div class="p">7 дней</div></div>
+      <div class="card"><div class="k">Активный Plus</div><div class="v">0</div><div class="p">на сейчас</div></div>
+      <div class="card"><div class="k">Отправлено за 24 ч</div><div class="v">4</div><div class="p">доставки</div></div>
+    </div>
+
+    <div class="two">
+      <div class="panel" style="flex:1">
+        <div class="hd">Требует внимания <span class="r">2 из 3</span></div>
+        <div class="att"><span class="bar"></span><div><div class="t">Три чата недоступны</div><div class="d">Уведомления выключены · затронуто 17 подписок</div></div><span class="go">К списку →</span></div>
+        <div class="att"><span class="bar"></span><div><div class="t">Резервная копия не проверялась</div><div class="d">Копия от 04.10, восстановление не проверялось</div></div><span class="go">Подробнее →</span></div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="hd">Активность за 7 дней <span class="r">по людям</span></div>
+        <div class="chart">
+          <div class="col"><i style="height:14px"></i><span>29</span></div>
+          <div class="col"><i style="height:26px"></i><span>30</span></div>
+          <div class="col"><i style="height:34px"></i><span>01</span></div>
+          <div class="col"><i style="height:18px"></i><span>02</span></div>
+          <div class="col"><i style="height:22px"></i><span>03</span></div>
+          <div class="col"><i style="height:30px"></i><span>04</span></div>
+          <div class="col"><i style="height:44px;background:var(--accent);border-color:var(--accent)"></i><span>05</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="caption">Вариант B · «Мягкий графит» · Люди</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot">TS</span>TwitchSignalBot</div>
+    <a class="nav"><span class="ic">▦</span>Обзор</a>
+    <a class="nav on"><span class="ic">◔</span>Люди</a>
+    <a class="nav"><span class="ic">⇄</span>Доступы</a>
+    <a class="nav"><span class="ic">✉</span>Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav"><span class="ic">◎</span>Система</a>
+    <a class="nav"><span class="ic">↗</span>Рост</a>
+    <a class="nav"><span class="ic">₽</span>Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="head">
+      <div><h1>Люди</h1><div class="sub">67 человек · поиск по имени, @username, ID и Twitch</div></div>
+      <div class="pills"><span class="env">STAGING</span><button class="btn">Обновить</button><button class="btn">Выйти</button></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <span class="tag" style="padding:8px 12px">поиск…</span>
+      <span class="tag good" style="padding:8px 12px">Все</span>
+      <span class="tag" style="padding:8px 12px">Plus</span>
+      <span class="tag" style="padding:8px 12px">Активны сегодня</span>
+      <span class="tag" style="padding:8px 12px">Фильтры</span>
+    </div>
+
+    <div class="two">
+      <div class="panel" style="flex:1">
+        <div class="hd">Список <span class="r">страница 1 из 3</span></div>
+        <div class="list">
+          <div class="person on"><span class="av">А</span><div><div class="nm">Алекс</div><div class="un">@alex_live · сегодня 12:40</div></div>
+            <div class="rt"><span class="tag good">Viewer Plus</span><span class="num" style="color:var(--muted);font-size:12.5px">38 / 200</span></div></div>
+          <div class="person"><span class="av">М</span><div><div class="nm">Мария</div><div class="un">@m_ree · сегодня 09:02</div></div>
+            <div class="rt"><span class="tag">Free</span><span class="num" style="color:var(--muted);font-size:12.5px">12 / 50</span></div></div>
+          <div class="person"><span class="av">Д</span><div><div class="nm">Дмитрий</div><div class="un">без username · 3 дня назад</div></div>
+            <div class="rt"><span class="tag">Free</span><span class="num" style="color:var(--muted);font-size:12.5px">0 / 50</span></div></div>
+          <div class="person"><span class="av">И</span><div><div class="nm">Ирина</div><div class="un">@ira_stream · вчера 21:15</div></div>
+            <div class="rt"><span class="tag warn">Streamer Plus</span><span class="num" style="color:var(--muted);font-size:12.5px">204 / 200</span></div></div>
+        </div>
+      </div>
+      <div class="panel" style="width:420px;flex:0 0 420px">
+        <div class="hd">Алекс · карточка <span class="r">ID скрыт в макете</span></div>
+        <div class="kv">
+          <span class="k">Тариф</span><span>Viewer Plus · до 04.11.2026, 12:00 МСК</span>
+          <span class="k">Источник</span><span>ручная выдача · Компенсация</span>
+          <span class="k">Стримеры</span><span class="num">38 из 200</span>
+          <span class="k">Видеопревью</span><span class="num">5 из 5</span>
+          <span class="k">Каналы</span><span class="num">2 подключено</span>
+          <span class="k">Twitch</span><span>подключён · alex_live</span>
+        </div>
+        <div style="display:flex;gap:8px;padding:0 16px 20px">
+          <button class="btn primary">Изменить доступ</button>
+          <button class="btn">История</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="caption">Вариант B · «Мягкий графит» · Рассылки</div>
+<div class="screen">
+  <aside class="side">
+    <div class="brand"><span class="dot">TS</span>TwitchSignalBot</div>
+    <a class="nav"><span class="ic">▦</span>Обзор</a>
+    <a class="nav"><span class="ic">◔</span>Люди</a>
+    <a class="nav"><span class="ic">⇄</span>Доступы</a>
+    <a class="nav on"><span class="ic">✉</span>Рассылки</a>
+    <div class="group">Наблюдение</div>
+    <a class="nav"><span class="ic">◎</span>Система</a>
+    <a class="nav"><span class="ic">↗</span>Рост</a>
+    <a class="nav"><span class="ic">₽</span>Оплаты</a>
+  </aside>
+  <div class="main">
+    <div class="head">
+      <div><h1>Рассылки</h1><div class="sub">Уходит только после подтверждения · постепенно, чтобы Telegram не заблокировал бота</div></div>
+      <div class="pills"><span class="env">STAGING</span><button class="btn primary">Новая рассылка</button></div>
+    </div>
+
+    <div class="two" style="margin-top:20px">
+      <div class="panel" style="flex:1">
+        <div class="hd">Кампании <span class="r">4</span></div>
+        <div class="camp">
+          <div class="cmp">
+            <div class="r1"><span class="nm">Новые превью эфиров</span><span class="tag warn">◐ идёт</span><span class="m">41 / 64</span></div>
+            <div class="progress"><i style="width:64%"></i></div>
+            <div class="foot"><span>недоступны 3</span><span>ошибок 0</span><span>≈ 25 в секунду</span></div>
+          </div>
+          <div class="cmp">
+            <div class="r1"><span class="nm">Набор в бета-тест</span><span class="tag good">✓ завершена</span><span class="m">64 / 64</span></div>
+            <div class="progress"><i style="width:100%"></i></div>
+            <div class="foot"><span>доставлено 59</span><span>заблокировали 3</span><span>отписались 2</span></div>
+          </div>
+          <div class="cmp">
+            <div class="r1"><span class="nm">Реклама партнёра</span><span class="tag">черновик</span><span class="m">— / —</span></div>
+            <div class="foot"><span>сохранён 05.10, 12:10</span><span>аудитория не выбрана</span></div>
+          </div>
+          <div class="cmp">
+            <div class="r1"><span class="nm">Тех. работы 12 октября</span><span class="tag danger">■ остановлена</span><span class="m">30 / 66</span></div>
+            <div class="progress"><i style="width:45%;background:var(--danger)"></i></div>
+            <div class="foot"><span>остановил владелец 11:04</span><span>остаток не отправлен</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;padding:0 16px 16px">
+          <span class="tag">Кому: все, кроме недоступных</span>
+          <span class="tag">Получат 64</span>
+          <span class="tag">Отписались 2</span>
+          <span class="tag">Недоступны 3</span>
+        </div>
+      </div>
+
+      <div class="phone">
+        <div class="hd">Предпросмотр · как увидят люди</div>
+        <div class="msg">
+          Открываем набор в бета-тест: первым 20 человекам — ранний доступ к превью эфиров и выбор стримеров.
+          <div class="cta">Записаться</div>
+          <div class="meta">Получит 64 человека · никаких списаний</div>
+        </div>
+        <div class="msg" style="background:transparent;border-style:dashed">
+          <span style="color:var(--muted);font-size:12.5px">Кнопка «Больше не присылать» добавляется к каждому сообщению</span>
+        </div>
+        <div style="padding:0 16px 16px">
+          <button class="btn primary" style="width:100%">Отправить 64 людям</button>
+          <div style="color:var(--muted);font-size:12px;margin-top:12px;text-align:center">Перед отправкой покажем итог словами и попросим подтверждение</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">Макет-образец: числа примерные. График активности — реальный источник (посещения по дням), без нарисованных трендов.</div>
+</body>
+</html>

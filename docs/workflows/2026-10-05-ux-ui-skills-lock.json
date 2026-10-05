@@ -1,0 +1,49 @@
+{
+  "pack": "ux-ui-skills",
+  "role": "dashboard and product-UI craft set for the owner admin panel (owner decision 05.10.2026)",
+  "scope": "project-local installation in .agents/skills; global skill installations unchanged",
+  "origin": {
+    "repository": "https://github.com/aditya-ariosity/ux-ui-skills",
+    "commit": "74308ad0beac6d880d87aaf5660b5eaf3bd8afdd",
+    "pack_version_file": "2.1.0-rc2",
+    "license": "MIT"
+  },
+  "installed_utc": "2026-10-05T14:10:00Z",
+  "installed_skills": {
+    "dashboard-redesign": {
+      "files": 7,
+      "SKILL.md_sha256": "b947fd051fd8cf979e76192ccdeebb07cdd83450e9ba87571fb3fc028d5b4721"
+    },
+    "ux-ui-audit": {
+      "files": 11,
+      "SKILL.md_sha256": "03080d0503944ab79d939a8f95eb7dbdcbd2e0a1a8769b922c61503025280a5b"
+    },
+    "design-system-review": {
+      "files": 7,
+      "SKILL.md_sha256": "7c6fd07ace54a07700d936c061b9bd4ff21577f97ff73beac2fdbb52099132fa"
+    }
+  },
+  "not_installed": {
+    "reason": "not requested",
+    "skills": ["ai-product-design", "case-study-writer", "handoff-to-dev", "product-design"]
+  },
+  "inspection": {
+    "result": "safe to adopt",
+    "notes": [
+      "The three installed skills contain only SKILL.md, references/*.md, agents/openai.yaml and assets/icon.svg.",
+      "No executable scripts were copied: the only Python scripts in the upstream pack live in the experimental product-design skill, which was not installed.",
+      "Nothing from the download was executed."
+    ]
+  },
+  "role_map_for_admin_panel": {
+    "leading": "impeccable",
+    "structure": "dashboard-redesign",
+    "critique": "ux-ui-audit",
+    "system_audit": "design-system-review",
+    "style_lookups": "ui-ux-pro-max",
+    "guidelines_review": "web-design-guidelines",
+    "browser_qa": "playwright-skill",
+    "copy": "stop-slop (mandatory for every human-facing text)",
+    "removed_from_panel_scope": "design-system (owner decision 05.10.2026; the skill stays installed globally and is simply not used for the panel)"
+  }
+}
