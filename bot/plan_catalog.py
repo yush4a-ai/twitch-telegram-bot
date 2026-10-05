@@ -10,6 +10,15 @@ VIEWER_PLUS_CHANNEL_LIMIT = 200
 VIEWER_PLUS_VIDEO_SLOTS = 5
 CATALOG_VERSION = "2026-10-02-role-plus-300-v1"
 PAYMENT_UNAVAILABLE_MESSAGE = "Оплата временно недоступна. Мы заканчиваем подключение платёжной системы."
+# Утверждённые условия подписки: один месяц, без автопродления, возврат 14 дней.
+# Версия срока должна совпадать у каталога и у платёжного сервиса.
+PLUS_PERIOD_RULE = "30_days"
+PLUS_PERIOD_VERSION = "2026-10-05-plus-30-days-v1"
+PLUS_TERMS_VERSION = "2026-10-05-plus-terms-v1"
+# Цена в звёздах Telegram. Предложение к утверждению владельцем: одна звезда
+# примерно 1,5 ₽, поэтому 150 ₽ ≈ 100 звёзд и 300 ₽ ≈ 200 звёзд.
+VIEWER_PLUS_XTR = 100
+STREAMER_PLUS_XTR = 200
 
 
 @dataclass(frozen=True)
@@ -52,10 +61,10 @@ _FEATURES = MappingProxyType({
 _VIEWER_IDS = tuple(key for key in _FEATURES if key.startswith("viewer_"))
 _STREAMER_IDS = tuple(key for key in _FEATURES if key.startswith("streamer_"))
 _PRODUCTS = (
-    ProductSnapshot("viewer_plus", CATALOG_VERSION, Money(15000, "RUB"), None,
-                    "one_month", "unapproved", None, False, (), _VIEWER_IDS),
-    ProductSnapshot("streamer_plus", CATALOG_VERSION, Money(30000, "RUB"), None,
-                    "one_month", "unapproved", None, False, ("viewer_plus",), _STREAMER_IDS),
+    ProductSnapshot("viewer_plus", CATALOG_VERSION, Money(15000, "RUB"), Money(VIEWER_PLUS_XTR, "XTR"),
+                    "one_month", PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION, False, (), _VIEWER_IDS),
+    ProductSnapshot("streamer_plus", CATALOG_VERSION, Money(30000, "RUB"), Money(STREAMER_PLUS_XTR, "XTR"),
+                    "one_month", PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION, False, ("viewer_plus",), _STREAMER_IDS),
 )
 _METHODS = (
     ("stars", "Telegram Stars", "telegram_stars"),

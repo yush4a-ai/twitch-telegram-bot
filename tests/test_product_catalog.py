@@ -11,7 +11,7 @@ from tests.test_admin_telegram_auth import signed_webapp
 
 
 class ProductCatalogTests(unittest.TestCase):
-    def test_catalog_has_two_products_exact_prices_inheritance_and_unapproved_period(self):
+    def test_catalog_has_two_products_exact_prices_inheritance_and_approved_period(self):
         get_product = getattr(plan_catalog, "get_product", None)
         self.assertTrue(callable(get_product), "server products are required")
         viewer, streamer = get_product("viewer_plus"), get_product("streamer_plus")
@@ -21,28 +21,45 @@ class ProductCatalogTests(unittest.TestCase):
         self.assertEqual({p.product_id for p in plan_catalog.list_products()}, {"viewer_plus", "streamer_plus"})
         for product in (viewer, streamer):
             self.assertEqual(product.period_code, "one_month")
-            self.assertEqual(product.period_rule, "unapproved")
-            self.assertIsNone(product.period_rule_version)
+            # Владелец утвердил один месяц без автопродления и цену в звёздах.
+            self.assertEqual(product.period_rule, plan_catalog.PLUS_PERIOD_RULE)
+            self.assertEqual(product.period_rule_version, plan_catalog.PLUS_PERIOD_VERSION)
             self.assertFalse(product.auto_renew)
-            self.assertIsNone(product.xtr)
+            self.assertIsNotNone(product.xtr)
+            self.assertEqual(product.xtr.currency, "XTR")
+            self.assertGreater(product.xtr.amount_minor, 0)
             with self.assertRaises(FrozenInstanceError):
                 product.auto_renew = True
+        self.assertLess(viewer.xtr.amount_minor, streamer.xtr.amount_minor)
         for invalid in ("stars_plus", "free", "both", None):
             with self.subTest(product=invalid), self.assertRaises(ValueError):
                 get_product(invalid)
 
-    def test_offline_readiness_never_exposes_enabled_money_even_with_credentials_flags(self):
+    def test_money_stays_off_until_every_required_flag_is_set(self):
         policy_type = getattr(plan_catalog, "BillingRuntimePolicy", None)
         self.assertTrue(callable(policy_type))
         for product in ("viewer_plus", "streamer_plus"):
             for method in ("stars", "sbp", "bank_card"):
-                result = plan_catalog.checkout_readiness(product, method, policy_type())
+                offline = plan_catalog.checkout_readiness(product, method, policy_type())
+                self.assertFalse(offline.enabled)
+                self.assertEqual(offline.reason_code, "payments_unavailable")
+        ready = policy_type(mode="sandbox", target_verified=True, allow_invoice=True,
+                            period_approved=True, refund_policy_approved=True)
+        self.assertTrue(plan_catalog.checkout_readiness("viewer_plus", "stars", ready).enabled)
+        # Внешние способы (СБП, карта) включаются отдельным флагом провайдера.
+        self.assertFalse(plan_catalog.checkout_readiness("viewer_plus", "sbp", ready).enabled)
+        # Ни одного флага недостаточно, чтобы оплата открылась.
+        for missing, reason in (("target_verified", "target_unverified"),
+                                ("period_approved", "period_unapproved"),
+                                ("refund_policy_approved", "policy_unapproved"),
+                                ("allow_invoice", "stars_unavailable")):
+            values = {"mode": "sandbox", "target_verified": True, "allow_invoice": True,
+                      "period_approved": True, "refund_policy_approved": True}
+            values[missing] = False
+            with self.subTest(missing=missing):
+                result = plan_catalog.checkout_readiness("viewer_plus", "stars", policy_type(**values))
                 self.assertFalse(result.enabled)
-                self.assertEqual(result.reason_code, "payments_unavailable")
-                sandbox = policy_type(mode="sandbox", target_verified=True, allow_external_create=True,
-                                      allow_invoice=True, period_approved=True, refund_policy_approved=True)
-                self.assertFalse(plan_catalog.checkout_readiness(product, method, sandbox).enabled,
-                                 "unapproved catalog period/XTR cannot be overridden by a generic runtime flag")
+                self.assertEqual(result.reason_code, reason)
         with self.assertRaises(ValueError):
             plan_catalog.checkout_readiness("viewer_plus", "crypto", policy_type())
 

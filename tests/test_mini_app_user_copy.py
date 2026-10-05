@@ -64,10 +64,15 @@ class MiniAppCopyTests(unittest.TestCase):
         for row in catalog['products']:
             self.assertEqual(row['period_code'],'one_month')
             self.assertEqual(row['period_label'],'1 месяц')
-            self.assertEqual(row['period_rule'],'unapproved')
-            self.assertIsNone(row['period_rule_version'])
+            # Владелец утвердил один месяц без автопродления и цену в звёздах.
+            self.assertEqual(row['period_rule'],'30_days')
+            self.assertEqual(row['period_rule_version'],'2026-10-05-plus-30-days-v1')
             self.assertFalse(row['auto_renew'])
-            self.assertIsNone(row['xtr'])
+            self.assertIsNotNone(row['xtr'])
+            self.assertEqual(row['xtr']['currency'],'XTR')
+            self.assertGreater(row['xtr']['amount_minor'],0)
+        self.assertLess(catalog['products'][0]['xtr']['amount_minor'],
+                        catalog['products'][1]['xtr']['amount_minor'])
         self.assertEqual(PAYMENT_UNAVAILABLE_MESSAGE,'Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.')
         for path in (ROOT/'bot/mini_app_ui').glob('*'):
             if path.is_file() and path.suffix in {'.js','.css','.html'}:

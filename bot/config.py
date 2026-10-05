@@ -14,9 +14,28 @@ logger = logging.getLogger(__name__)
 
 
 def first_release_payment_policy():
-    """Money stays OFF regardless of credentials or unrelated environment flags."""
+    """Платёжная политика из переменных окружения.
+
+    По умолчанию всё выключено: без явных флагов денежные операции невозможны,
+    даже если ключи провайдера заданы. Включение — осознанное действие владельца
+    через переменные, а не побочный эффект окружения.
+    """
     from .plan_catalog import BillingRuntimePolicy
-    return BillingRuntimePolicy()
+
+    def flag(name: str) -> bool:
+        return os.getenv(name, "0").strip().lower() in {"1", "true", "yes", "on"}
+
+    mode = os.getenv("BILLING_MODE", "offline").strip().lower()
+    if mode not in {"offline", "sandbox"}:
+        raise ConfigError("BILLING_MODE должен быть offline или sandbox")
+    return BillingRuntimePolicy(
+        mode=mode,
+        target_verified=flag("BILLING_TARGET_VERIFIED"),
+        allow_external_create=flag("BILLING_ALLOW_EXTERNAL"),
+        allow_invoice=flag("BILLING_ALLOW_INVOICE"),
+        period_approved=flag("BILLING_PERIOD_APPROVED"),
+        refund_policy_approved=flag("BILLING_REFUND_APPROVED"),
+    )
 
 PREVIEW_INITIAL_DELAY_SECONDS = 75
 PREVIEW_INTERVAL_SECONDS = 300

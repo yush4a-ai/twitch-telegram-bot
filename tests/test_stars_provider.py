@@ -265,9 +265,26 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         await throttle(delegate,payment_message(payload,refund=True),{"event_from_user":user})
         self.assertEqual(delegate.await_count,3)
 
-    async def test_credentials_and_environment_flags_cannot_enable_first_release_money(self):
+    async def test_credentials_and_unrelated_environment_flags_cannot_enable_money(self):
+        """Ключи провайдера и посторонние флаги не открывают оплату.
+
+        Деньги включаются только полным набором явных флагов владельца, поэтому
+        тест проверяет результат (готовность способов), а не вид политики.
+        """
+        from bot.plan_catalog import checkout_readiness
         with patch.dict("os.environ",{"PLATEGA_SECRET":"fixture", "STARS_ENABLED":"1", "BILLING_MODE":"sandbox"}):
-            self.assertEqual(first_release_payment_policy(),BillingRuntimePolicy())
+            policy = first_release_payment_policy()
+        for product in ("viewer_plus", "streamer_plus"):
+            for method in ("stars", "sbp", "bank_card"):
+                with self.subTest(product=product, method=method):
+                    self.assertFalse(checkout_readiness(product, method, policy).enabled)
+        with patch.dict("os.environ",{"BILLING_MODE":"sandbox", "BILLING_TARGET_VERIFIED":"1",
+                                      "BILLING_ALLOW_INVOICE":"1", "BILLING_PERIOD_APPROVED":"1",
+                                      "BILLING_REFUND_APPROVED":"1"}):
+            enabled = first_release_payment_policy()
+        self.assertTrue(checkout_readiness("viewer_plus", "stars", enabled).enabled)
+        # Внешние способы остаются выключенными: их включает отдельный флаг провайдера.
+        self.assertFalse(checkout_readiness("viewer_plus", "sbp", enabled).enabled)
 
     async def test_ingress_crash_replay_keeps_one_real_ledger_grant_and_refund(self):
         from bot.telegram_replay import ReplayDispatcher
