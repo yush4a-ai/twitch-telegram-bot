@@ -2221,6 +2221,7 @@ async def _run_import_follows(
         await db.save_user_token(
             result.login, result.broadcaster_id, result.access_token,
             result.refresh_token, result.expires_at,
+            telegram_user_id=actor_id or message.chat.id,
         )
 
         twitch_client = TwitchClient(config.twitch_client_id, config.twitch_client_secret, session)

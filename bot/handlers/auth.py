@@ -94,6 +94,7 @@ async def _run_auth_flow(
         await db.save_user_token(
             result.login, result.broadcaster_id, result.access_token,
             result.refresh_token, result.expires_at,
+            telegram_user_id=streamer_user_id or message.chat.id,
         )
         await message.answer(f"Готово! Twitch-аккаунт «{result.login}» авторизован для подсчёта фолловеров.")
         return

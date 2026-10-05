@@ -307,7 +307,8 @@ CREATE TABLE IF NOT EXISTS twitch_user_tokens (
     broadcaster_id TEXT NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT NOT NULL,
-    expires_at REAL NOT NULL
+    expires_at REAL NOT NULL,
+    telegram_user_id INTEGER
 );
 
 -- Точный счётчик подписок за стрим. EventSub доставляет события как минимум один
@@ -592,6 +593,12 @@ class Database:
     async def _migrate(self) -> None:
         """Добавляет колонки, появившиеся в схеме уже после первого релиза
         (CREATE TABLE IF NOT EXISTS не меняет существующие таблицы)."""
+        # Владелец токена Twitch: без этой колонки удаление данных не могло найти
+        # токены зрителя (у стримера связь шла через streamer_identities).
+        await self._add_missing_columns(
+            "twitch_user_tokens",
+            {"telegram_user_id": "INTEGER"},
+        )
         cursor = await self.conn.execute("PRAGMA table_info(tracked_channels)")
         tracked_columns = {row[1] for row in await cursor.fetchall()}
         first_auto_report_migration = "auto_report_enabled" not in tracked_columns
@@ -2475,15 +2482,17 @@ class Database:
             )
             await self.conn.execute(
                 "INSERT INTO twitch_user_tokens "
-                "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at) "
-                "VALUES (?, ?, ?, ?, ?) ON CONFLICT(twitch_login) DO UPDATE SET "
+                "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at, telegram_user_id) "
+                "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(twitch_login) DO UPDATE SET "
                 "broadcaster_id=excluded.broadcaster_id, "
                 "access_token=excluded.access_token, "
-                "refresh_token=excluded.refresh_token, expires_at=excluded.expires_at",
+                "refresh_token=excluded.refresh_token, expires_at=excluded.expires_at, "
+                "telegram_user_id=excluded.telegram_user_id",
                 (
                     twitch_login.lower(), broadcaster_id,
                     self._encrypt_token(result.access_token),
                     self._encrypt_token(result.refresh_token), result.expires_at,
+                    telegram_user_id,
                 ),
             )
             if intent_id is not None:
@@ -4914,6 +4923,10 @@ class Database:
         ("viewer_video_selection_state", "telegram_user_id"),
         ("viewer_video_selections", "telegram_user_id"), ("viewer_plan_priority", "telegram_user_id"),
         ("category_alert_preferences", "telegram_user_id"),
+        ("category_alert_delivery_state", "telegram_user_id"),
+        ("growth_attributions", "telegram_user_id"),
+        ("growth_referral_codes", "owner_user_id"),
+        ("twitch_user_tokens", "telegram_user_id"),
         ("streamer_community_intents", "telegram_user_id"),
         ("streamer_connect_intents", "telegram_user_id"),
         ("streamer_identities", "telegram_user_id"),
@@ -4973,8 +4986,10 @@ class Database:
             if broadcaster_id:
                 for table in self._BROADCASTER_ONLY:
                     await self._delete_by(table, "broadcaster_id", broadcaster_id, removed)
-                if twitch_login:
-                    await self._delete_by("twitch_user_tokens", "twitch_login", twitch_login, removed)
+            if twitch_login:
+                # Токен подтверждённого Twitch-аккаунта: у строки может не быть
+                # telegram_user_id, если она создана до появления колонки.
+                await self._delete_by("twitch_user_tokens", "twitch_login", twitch_login, removed)
 
             # Доступы: платные остаются как основание для расчётов.
             subject = str(telegram_user_id)
@@ -5269,21 +5284,27 @@ class Database:
         access_token: str,
         refresh_token: str,
         expires_at: float,
+        telegram_user_id: int | None = None,
     ) -> None:
+        """Сохраняет токен Twitch вместе с владельцем: без владельца удаление
+        данных не может найти и убрать токен."""
         await self.conn.execute(
-            "INSERT INTO twitch_user_tokens (twitch_login, broadcaster_id, access_token, refresh_token, expires_at) "
-            "VALUES (?, ?, ?, ?, ?) "
+            "INSERT INTO twitch_user_tokens "
+            "(twitch_login, broadcaster_id, access_token, refresh_token, expires_at, telegram_user_id) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(twitch_login) DO UPDATE SET "
             "broadcaster_id = excluded.broadcaster_id, "
             "access_token = excluded.access_token, "
             "refresh_token = excluded.refresh_token, "
-            "expires_at = excluded.expires_at",
+            "expires_at = excluded.expires_at, "
+            "telegram_user_id = COALESCE(excluded.telegram_user_id, twitch_user_tokens.telegram_user_id)",
             (
                 twitch_login,
                 broadcaster_id,
                 self._encrypt_token(access_token),
                 self._encrypt_token(refresh_token),
                 expires_at,
+                telegram_user_id,
             ),
         )
         await self.conn.commit()
@@ -5453,6 +5474,7 @@ class Database:
         )
         return await cursor.fetchone() is not None
 
+    @_serialized
     async def remember_profile(
         self, user_id: int, *, username: str | None, display_name: str | None,
         language_code: str | None, now: float,
@@ -5469,6 +5491,7 @@ class Database:
         )
         await self.conn.commit()
 
+    @_serialized
     async def touch_activity(self, user_id: int, *, now: float) -> None:
         """Отметка последней активности; профиль при этом не переписывается."""
         await self.conn.execute(

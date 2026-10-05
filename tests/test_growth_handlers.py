@@ -53,7 +53,9 @@ class GrowthHandlersTests(unittest.IsolatedAsyncioTestCase):
         await streams.cmd_start_link(
             own, SimpleNamespace(args="src_site"), self.state, self.db, self.twitch, STAGE,
         )
-        self.assertEqual(own.answer_photo.await_args.kwargs['caption'],streams.MENU_TEXT)
+        from bot.telegram_home import COMMUNITY_LINE
+        self.assertEqual(own.answer_photo.await_args.kwargs['caption'],
+                         streams.MENU_TEXT + "\n\n" + COMMUNITY_LINE)
         self.assertEqual(len(own.answer_photo.await_args.kwargs["reply_markup"].inline_keyboard),4)
         self.assertNotIn("Админ-панель", str(own.answer_photo.await_args.kwargs["reply_markup"]))
         for denied in (
