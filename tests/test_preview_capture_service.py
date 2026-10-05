@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import AsyncMock, patch
 
 from bot import preview_capture as capture
+from bot.preview_capture import service as capture_service
 from bot.config import ConfigError, load_config
 
 
@@ -453,8 +454,10 @@ class CaptureServiceTests(unittest.IsolatedAsyncioTestCase):
             await unavailable.close()
             await available.close()
 
-    async def test_max_two_sessions_and_failure_a_does_not_affect_b(self) -> None:
-        with TemporaryDirectory() as parent:
+    async def test_limit_rejects_the_next_session_and_failure_a_does_not_affect_b(self) -> None:
+        # РџСЂРѕРІРµСЂСЏРµРј СЃР°Рј РјРµС…Р°РЅРёР·Рј Р»РёРјРёС‚Р° РЅР° РёР·РІРµСЃС‚РЅРѕРј Р·РЅР°С‡РµРЅРёРё, Р° РЅРµ С‚РµРєСѓС‰РёР№
+        # РґРµС„РѕР»С‚: РѕРЅ РЅР°СЃС‚СЂР°РёРІР°РµС‚СЃСЏ РѕРєСЂСѓР¶РµРЅРёРµРј Рё РјРѕР¶РµС‚ РјРµРЅСЏС‚СЊСЃСЏ.
+        with patch.object(capture_service, "MAX_CONCURRENT_CAPTURES", 2), TemporaryDirectory() as parent:
             first, second = FakeProcess(), FakeProcess()
             runner = FakeProcessRunner(first, second)
             service = capture.CaptureService(
@@ -673,8 +676,8 @@ class CaptureServiceTests(unittest.IsolatedAsyncioTestCase):
             await b.close()
             await service.close()
 
-    async def test_concurrent_start_never_exceeds_two_reserved_slots(self) -> None:
-        with TemporaryDirectory() as parent:
+    async def test_concurrent_start_never_exceeds_the_reserved_slots(self) -> None:
+        with patch.object(capture_service, "MAX_CONCURRENT_CAPTURES", 2), TemporaryDirectory() as parent:
             processes = (FakeProcess(), FakeProcess(), FakeProcess())
             runner = BlockingProcessRunner(*processes)
             service = capture.CaptureService(

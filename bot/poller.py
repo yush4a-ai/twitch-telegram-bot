@@ -2903,8 +2903,12 @@ class StreamPoller:
             )
         ):
             observer = self._preview_observer
+            # Нехватка места в захвате не должна подменять уже показанное видео
+            # фото: человек видит это как поломку. Фото возвращаем только тогда,
+            # когда анимации по этому стриму ещё не было.
             capacity_fallback = bool(
-                observer is not None
+                state.message_kind != "animation"
+                and observer is not None
                 and hasattr(observer, "photo_fallback_needed")
                 and observer.photo_fallback_needed(login)
             )
@@ -2935,6 +2939,9 @@ class StreamPoller:
         destination = await self._db.get_preview_destination_state(chat_id, login)
         if destination is None or not destination.preview_enabled or not destination.notify_enabled:
             return True
+        if state.message_kind == "animation":
+            # Видео уже показано: из-за нехватки места назад к фото не откатываем.
+            return False
         observer = self._preview_observer
         return bool(
             observer is not None

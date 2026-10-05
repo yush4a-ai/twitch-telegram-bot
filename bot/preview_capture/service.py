@@ -43,7 +43,18 @@ LOGGER = logging.getLogger("bot.preview_capture")
 ROOT_MARKER_NAME = ".signalbot-preview-root-v1"
 SESSION_MARKER_NAME = ".session.json"
 ORPHAN_TTL_SECONDS = 30 * 60
-MAX_CONCURRENT_CAPTURES = 2
+def _bounded_positive_env(name: str, default: int) -> int:
+    """Читает положительное целое из окружения, иначе берёт значение по умолчанию."""
+    try:
+        value = int(os.environ.get(name, ""))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+# Захват держит ffmpeg-процессы, поэтому лимит упирается в ресурсы. Слишком
+# маленький лимит давал «capacity» и подмену уже показанного видео на фото.
+MAX_CONCURRENT_CAPTURES = _bounded_positive_env("PREVIEW_MAX_CONCURRENT_CAPTURES", 4)
 DEFAULT_ROOT = Path(tempfile.gettempdir()) / "signalbot-preview"
 _APPLICATION = "twitch-signalbot-preview"
 _SCHEMA = 1

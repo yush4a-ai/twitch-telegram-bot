@@ -252,7 +252,13 @@ class ViewerVideoDeliveryTests(unittest.IsolatedAsyncioTestCase):
         bot.send_message.assert_not_awaited()
         bot.delete_message.assert_not_awaited()
 
-    async def test_capacity_fallback_restores_photo_even_while_plus_is_active(self):
+    async def test_capacity_backpressure_keeps_the_shown_video(self):
+        """Нехватка места не подменяет уже показанное видео на фото.
+
+        Раньше при нехватке слота захвата пост откатывался к фото, и для
+        зрителя это выглядело как сломавшаяся функция. Теперь фото возвращается
+        только тогда, когда видео по этому стриму ещё не показывали.
+        """
         now = time.time()
         await self.db.issue_test_viewer_plus(
             101, "capacity-photo", starts_at=now - 5, expires_at=now + 600,
@@ -271,8 +277,31 @@ class ViewerVideoDeliveryTests(unittest.IsolatedAsyncioTestCase):
             101, 700, "alpha", "live-1", "Title", 10, "Game", None,
             "https://example.test/alpha.jpg",
         )
+        self.assertEqual(result.status, LivePostMediaStatus.SKIPPED_DISABLED)
+        self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "animation")
+        bot.edit_message_media.assert_not_awaited()
+
+    async def test_photo_still_applies_while_no_video_was_shown(self):
+        """Пока видео не показывали, фото остаётся рабочим превью."""
+        now = time.time()
+        await self.db.issue_test_viewer_plus(
+            101, "capacity-photo", starts_at=now - 5, expires_at=now + 600,
+            issued_by=425785231, now=now,
+        )
+        await self.db.replace_video_selection(101, [("1001", "alpha")], expected_version=0)
+        await self.db.set_live_message_kind_if_current(101, "alpha", "live-1", 700, "photo", False)
+        bot = SimpleNamespace(edit_message_media=AsyncMock(), send_message=AsyncMock(), delete_message=AsyncMock())
+        poller = StreamPoller(
+            bot, self.db, SimpleNamespace(), 60,
+            live_post_updater=LivePostUpdater(bot, self.db),
+            preview_observer=SimpleNamespace(photo_fallback_needed=lambda login: login == "alpha"),
+        )
+        poller._live_post_content = AsyncMock(return_value=LivePostContent("Live", None))
+        result = await poller._refresh_thumbnail(
+            101, 700, "alpha", "live-1", "Title", 10, "Game", None,
+            "https://example.test/alpha.jpg",
+        )
         self.assertEqual(result.status, LivePostMediaStatus.APPLIED)
-        self.assertEqual((await self.db.get_live_post_state(101, "alpha")).message_kind, "photo")
         bot.edit_message_media.assert_awaited_once()
 
     async def test_unknown_animation_result_then_revocation_still_restores_photo(self):
