@@ -383,10 +383,14 @@ def setup_middlewares(dp, db=None, media_dir=None) -> None:
     if db is not None:
         # Telegram шлёт сообщения разными обновлениями (обычные, бизнес- и
         # гостевые): без этого часть людей выглядела молчащей.
+        # Регистрируется именно внешним слоем: внутренние библиотека вызывает
+        # только когда сообщение подошло под обработчик, а обычный текст ни под
+        # один не подходит — и переписка молчала.
         for observer_name in ("message", "business_message", "guest_message"):
             observer = getattr(dp, observer_name, None)
             if observer is not None:
-                observer.middleware(DialogueMiddleware(db, media_dir=media_dir))
+                observer.outer_middleware(
+                    DialogueMiddleware(db, media_dir=media_dir))
 
     for observer in (dp.message, dp.callback_query):
         observer.middleware(ErrorGuardMiddleware())

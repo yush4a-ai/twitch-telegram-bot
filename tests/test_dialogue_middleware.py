@@ -162,15 +162,23 @@ class DialogueMiddlewareTests(unittest.IsolatedAsyncioTestCase):
 
 class RegistrationTests(unittest.IsolatedAsyncioTestCase):
     async def test_conversation_listens_to_every_kind_of_message(self):
-        """Telegram шлёт сообщения разными обновлениями: слушаем все."""
+        """Telegram шлёт сообщения разными обновлениями: слушаем все.
+
+        Слой обязан быть внешним: внутренние библиотека вызывает только при
+        совпадении с обработчиком, и обычный текст в переписку не попадал.
+        """
         from bot.middlewares import setup_middlewares
 
         class Observer:
             def __init__(self):
-                self.items = []
+                self.outer = []
+                self.inner = []
+
+            def outer_middleware(self, mw):
+                self.outer.append(mw)
 
             def middleware(self, mw):
-                self.items.append(mw)
+                self.inner.append(mw)
 
         class FakeDispatcher:
             def __init__(self):
@@ -181,11 +189,17 @@ class RegistrationTests(unittest.IsolatedAsyncioTestCase):
         dp = FakeDispatcher()
         setup_middlewares(dp, db=SimpleNamespace(), media_dir=None)
         for name in ("message", "business_message", "guest_message"):
-            kinds = [type(mw).__name__ for mw in getattr(dp, name).items]
+            observer = getattr(dp, name)
+            kinds = [type(mw).__name__ for mw in observer.outer]
             with self.subTest(observer=name):
                 self.assertIn("DialogueMiddleware", kinds)
-                # Переписка идёт первой: внутренние слои не должны её отменять.
+                # Переписка идёт первой и именно снаружи: внутренние слои
+                # библиотека вызывает только при совпадении с обработчиком.
                 self.assertEqual(kinds[0], "DialogueMiddleware")
+                self.assertNotIn(
+                    "DialogueMiddleware",
+                    [type(mw).__name__ for mw in observer.inner],
+                )
 
 
 if __name__ == "__main__":
