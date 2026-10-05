@@ -186,6 +186,22 @@ class DialogueTests(BroadcastDatabaseCase):
         history = await self.db.dialogue_history(10)
         self.assertEqual([row["body"] for row in history], ["Новое"])
 
+    async def test_history_keeps_the_attachment_kind(self):
+        await self.db.record_dialogue_message(
+            9001, "in", None, now=NOW, attachment="sticker")
+        history = await self.db.dialogue_history(9001)
+        self.assertEqual(history[0]["attachment"], "sticker")
+
+    async def test_list_shows_people_who_never_wrote(self):
+        await self.db.remember_profile(
+            9101, username="quiet", display_name="Тихий", language_code="ru", now=NOW)
+        rows = await self.db.list_dialogues(limit=40)
+        quiet = [row for row in rows if row["user_id"] == 9101]
+        self.assertEqual(len(quiet), 1)
+        # Переписки нет, но человек виден: владелец может написать первым.
+        self.assertEqual(quiet[0]["has_history"], 0)
+        self.assertIsNone(quiet[0]["last_attachment"])
+
     async def test_search_finds_person_by_name_and_id(self):
         await self.db.remember_profile(
             10, username="alex", display_name="Алекс", language_code="ru", now=NOW)

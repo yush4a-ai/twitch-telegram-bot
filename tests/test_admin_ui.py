@@ -615,6 +615,18 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(".bubble-image", css)
         # Незаданный владелец объясняется причиной, а не общим запретом.
         self.assertIn("owner_not_configured", script)
+        # Мастер видит, какое оформление доступно и в какие лимиты укладываться.
+        self.assertIn("field-hint", html)
+        self.assertIn("&lt;b&gt;", html)
+        # Переписка показывает, что человек прислал, даже если это не текст.
+        self.assertIn("bubble-chip", css)
+        self.assertIn("Стикер", script)
+        self.assertIn("Голосовое", script)
+        self.assertIn("Сообщений пока нет", script)
+        # Диалог живой: новые сообщения подтягиваются сами, Enter отправляет.
+        self.assertIn("startChatRefresh", script)
+        self.assertIn("CHAT_REFRESH_MS", script)
+        self.assertIn("requestSubmit()", script)
         # Чат открывается прямой ссылкой #/campaigns/chat и сам выбирает диалог.
         self.assertIn("param === 'chat'", script)
         self.assertIn("const first = rows.find", script)

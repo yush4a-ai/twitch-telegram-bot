@@ -52,9 +52,9 @@ class HomeCopyTests(unittest.TestCase):
         live = (('derzko69', 'Just Chatting'), ('dmitry_lixxx', 'Counter-Strike'),
                 ('hesoyamof1974', 'Delta Force'), *[(f'other{i}', None) for i in range(4)])
         caption = Caption(build_home(HomeState(41, live, True, 26, True, 1)).text)
-        self.assertEqual(caption.bold, ['Твои оповещения', '41', '26 из 41', 'В эфире: 7',
+        self.assertEqual(caption.bold, ['Ваши оповещения', '41', '26 из 41', 'В эфире: 7',
                                        'derzko69', 'dmitry_lixxx', 'hesoyamof1974',
-                                       'Твой Twitch подключён', '1'])
+                                       'Ваш Twitch подключён', '1'])
         self.assertEqual(caption.quotes, 1)
         self.assertEqual(caption.links, ['https://www.twitch.tv/derzko69',
                                         'https://www.twitch.tv/dmitry_lixxx',
@@ -93,7 +93,7 @@ class HomeCopyTests(unittest.TestCase):
         caption = Caption(build_home(HomeState(verified=True, communities=0)).text)
         text = ''.join(caption.plain)
         self.assertNotIn('TwitchSignalBot', text)
-        self.assertIn('Пока никого не отслеживаешь.', text)
+        self.assertIn('Пока никого не отслеживаете.', text)
         self.assertIn('Telegram-канал пока не выбран', text)
         self.assertNotIn('публикации включены', text)
 

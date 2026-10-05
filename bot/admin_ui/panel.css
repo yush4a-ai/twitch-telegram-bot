@@ -55,7 +55,7 @@ a { color: var(--accent); }
 /* Рельс навигации: иконка и подпись, 88 px */
 .rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 0; border-right: 1px solid var(--border); }
 .brand { display: flex; flex-direction: column; align-items: center; margin-bottom: 16px; }
-.brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: linear-gradient(150deg, #E4D2FF, #8F5CE8 60%, #5B32A8); color: #180C2B; font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.02em; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 26px rgba(140, 92, 232, 0.3); }
+.brand-mark { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: linear-gradient(150deg, #E4D2FF, #8F5CE8 60%, #5B32A8); object-fit: contain; padding: 3px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 10px 26px rgba(140, 92, 232, 0.3); }
 .brand-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .brand-bot { color: var(--accent); }
 .nav { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -192,6 +192,8 @@ h1 { margin: 0; font-size: clamp(30px, 3vw, 36px); font-weight: 700; letter-spac
 
 .search-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-top: 16px; }
 .field-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 0.8125rem; }
+.field-hint { margin: 6px 0 0; color: var(--muted); font-size: 0.75rem; line-height: 1.5; }
+.field-hint code { padding: 1px 4px; border-radius: 4px; background: var(--surface-2); color: var(--text); font-family: var(--font-mono); font-size: 0.7rem; }
 .search-row input, .search-row select, .admin-dialog input, .admin-dialog select {
   min-height: 44px; padding: 0 12px; border: 1px solid var(--border);
   border-radius: var(--radius-control); background: var(--canvas); color: var(--text);
@@ -257,6 +259,7 @@ h1 { margin: 0; font-size: clamp(30px, 3vw, 36px); font-weight: 700; letter-spac
 .bubble.in { align-self: flex-start; background: var(--raised); }
 .bubble.out { align-self: flex-end; background: linear-gradient(180deg, #C9A6FF, #A97CF0); color: var(--accent-ink); }
 .bubble-text { margin: 0; overflow-wrap: anywhere; }
+.bubble-chip { margin: 0; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 0.8125rem; }
 .bubble-image { display: block; max-inline-size: 100%; margin-bottom: 6px; border-radius: 12px; background: var(--surface); }
 .bubble-time { display: block; margin-top: 4px; font-size: 0.6875rem; font-variant-numeric: tabular-nums; opacity: 0.75; }
 #optout-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

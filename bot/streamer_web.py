@@ -83,7 +83,7 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             )
         state = access.new_login_state(request.remote or '', request.cookies.get('ts_streamer_state'))
         if state is None:
-            return web.Response(status=429, text='Слишком много попыток входа. Попробуй через 5 минут.')
+            return web.Response(status=429, text='Слишком много попыток входа. Попробуйте через 5 минут.')
         callback_url = (
             f"{access.public_base_url or str(request.url.origin())}"
             f"/streamer/telegram-login?state={state}"

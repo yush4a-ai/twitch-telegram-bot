@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from bot.handlers.streams import cmd_start, cb_menu_home, AddChannel, QuietHoursSetup
 from bot.telegram_home import COMMUNITY_LINE
 
-HOME = ("<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+HOME = ("<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал."
         "\n\n" + COMMUNITY_LINE)
 LABELS = ["Открыть приложение", "➕ Добавить оповещения", "🎥 Я стример", "Ещё"]
 CONFIG = SimpleNamespace(mini_app_enabled=True, viewer_plus_enabled=True,

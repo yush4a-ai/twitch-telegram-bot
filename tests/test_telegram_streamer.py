@@ -28,7 +28,7 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         from bot.handlers.telegram_streamer import cb_streamer
         await cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
         call=self.msg.edit_text.await_args
-        self.assertEqual(call.args[0],'<b>Твой Twitch-канал</b>\n\n<blockquote>Подключи Twitch, чтобы бот мог создавать публикации о твоих эфирах.</blockquote>\n\nЗатем выбери свой Telegram-канал.')
+        self.assertEqual(call.args[0],'<b>Ваш Twitch-канал</b>\n\n<blockquote>Подключите Twitch, чтобы бот мог создавать публикации о ваших эфирах.</blockquote>\n\nЗатем выберите свой Telegram-канал.')
         self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Подключить Twitch','Что получит стример?','Назад'])
         await self.db.save_user_token('alpha','11','access','refresh',time.time()+300)
         await cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
@@ -36,7 +36,7 @@ class TelegramStreamerTests(unittest.IsolatedAsyncioTestCase):
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
         await cb_streamer(self.cb('menu:streamer'),self.db,CONFIG)
         call=self.msg.edit_text.await_args
-        self.assertEqual(call.args[0],'<b>Твой Twitch-канал</b>\n\n<blockquote>Twitch подключён: <b>alpha</b></blockquote>\n\n<b>Следующий шаг</b>\nВыбери Telegram-канал, затем настрой публикации.')
+        self.assertEqual(call.args[0],'<b>Ваш Twitch-канал</b>\n\n<blockquote>Twitch подключён: <b>alpha</b></blockquote>\n\n<b>Следующий шаг</b>\nВыберите Telegram-канал, затем настройте публикации.')
         self.assertEqual([r[0].text for r in call.kwargs['reply_markup'].inline_keyboard],['Telegram-канал','Настройки публикаций','Проверить готовность','Тариф для стримера','Назад'])
         self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[1][0].callback_data,'streamer:posts')
 

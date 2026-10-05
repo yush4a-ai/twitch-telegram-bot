@@ -345,6 +345,8 @@ class Config:
     production_admitted: bool = False
     support_username: str | None = None
     support_email: str | None = None
+    # Публичный сайт продукта: показывается в справке только если задан.
+    public_site_url: str | None = None
     legal_operator: str | None = None
     legal_operator_address: str | None = None
     legal_retention: str | None = None
@@ -388,6 +390,11 @@ def load_config() -> Config:
         contacts[field] = validate(raw) if raw else None
         if raw and contacts[field] is None:
             raise ConfigError(f"Переменная {field.upper()} содержит некорректный контакт")
+    site_raw = (os.getenv("PUBLIC_SITE_URL") or "").strip()
+    if site_raw:
+        if not site_raw.startswith("https://") or any(ch in site_raw for ch in " \t\n<>\""):
+            raise ConfigError("Переменная PUBLIC_SITE_URL должна быть адресом https")
+        contacts["public_site_url"] = site_raw.rstrip("/")
     railway = is_railway_environment()
     oauth_port = _positive_int("PORT", "8765")
     # PUBLIC_URL — публичный адрес, на который Twitch должен слать редирект после

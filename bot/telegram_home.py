@@ -63,12 +63,12 @@ async def load_home_state(db, user_id: int) -> HomeState:
 
 def build_home(state: HomeState) -> HomeView:
     if state.tracked:
-        lines = ['<b>Твои оповещения</b>', f'В списке: <b>{state.tracked}</b>']
+        lines = ['<b>Ваши оповещения</b>', f'В списке: <b>{state.tracked}</b>']
         if state.notifications is not None:
             lines.append(f'Оповещения о старте: <b>{state.notifications} из {state.tracked}</b>')
             if not state.notifications: lines.append('Оповещения о старте выключены.')
         if not state.live_known:
-            lines += ['', 'Статус эфиров пока недоступен. Попробуй позже.']
+            lines += ['', 'Статус эфиров пока недоступен. Попробуйте позже.']
         elif state.live:
             lines += ['', f'<b>В эфире: {len(state.live)}</b>']
             entries = []
@@ -84,15 +84,15 @@ def build_home(state: HomeState) -> HomeView:
             lines += ['', 'По последней проверке эфиров нет.']
         text = '\n'.join(lines)
     elif state.verified:
-        text = '<b>Твои стримеры</b>\nПока никого не отслеживаешь.'
+        text = '<b>Ваши стримеры</b>\nПока никого не отслеживаете.'
     else:
         text = HOME_TEXT
     if state.verified:
         # Identity is verified. Publishing permissions require a fresh Telegram check,
         # so Home never asserts that publishing is enabled from a stored toggle.
-        text += '\n\n<b>Твой Twitch подключён</b>'
+        text += '\n\n<b>Ваш Twitch подключён</b>'
         if state.communities == 0:
-            text += '\nTelegram-канал пока не выбран. Продолжи в «Я стример».'
+            text += '\nTelegram-канал пока не выбран. Продолжите в «Я стример».'
         elif state.communities:
             text += f' · Telegram-подключений: <b>{state.communities}</b>\nПрава и публикации: «Я стример».'
     return HomeView(text + '\n\n' + COMMUNITY_LINE, not state.tracked and not state.verified)
@@ -243,7 +243,7 @@ async def send_channel_keyboard(message, state, row, keyboard):
     async def send():
         if (await state.get_data()).get('telegram_community_intent')!=row[0] or row[4]<=time.time(): return
         if store: store.keyboard_unknown(message.chat.id)
-        result=await message.answer('<b>Выбери Telegram-канал</b>\nНажми кнопку ниже. Бот должен быть администратором с правом публикации сообщений.',
+        result=await message.answer('<b>Выберите Telegram-канал</b>\nНажмите кнопку ниже. Бот должен быть администратором с правом публикации сообщений.',
                                     reply_markup=keyboard)
         if store: store.keyboard_sent(message.chat.id,'selector',row[0],row[4])
         return result

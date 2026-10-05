@@ -136,7 +136,7 @@ class ReviewRegressionTests(unittest.IsolatedAsyncioTestCase):
         await cb_plus(self.cb('menu:plus'),self.state,self.db)
         text=self.msg.edit_text.await_args.args[0]
         self.assertIn('В Стример Plus включены все возможности Зритель Plus.',text)
-        self.assertNotIn('уже включён для твоего',text)
+        self.assertNotIn('уже включён для вашего',text)
         self.assertFalse(await self.db.has_viewer_plus(101))
 
     async def test_short_mock_does_not_mislabel_long_paid_grant(self):

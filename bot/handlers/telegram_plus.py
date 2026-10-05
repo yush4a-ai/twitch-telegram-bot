@@ -102,7 +102,7 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
             product_id,source=product_route(callback.data,'show') if callback.data.startswith('plus:show:') else (primary,'more')
             product=product_view(product_id)
         except (StopIteration,ValueError):
-            await callback.answer('Тариф недоступен. Открой тариф заново.',show_alert=True);return
+            await callback.answer('Тариф недоступен. Откройте тариф заново.',show_alert=True);return
         text=f"<b>{html.escape(product['title'])}</b>\n" \
              f"<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n" \
              "<b>Что включено</b>\n"
@@ -120,14 +120,14 @@ async def cb_buy(callback,state,db,oauth_server=None):
         product_id,source=product_route(callback.data,'buy')
         product=product_view(product_id)
     except (StopIteration,ValueError):
-        await callback.answer('Тариф недоступен. Открой тариф заново.',show_alert=True);return
+        await callback.answer('Тариф недоступен. Откройте тариф заново.',show_alert=True);return
     await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
     nonce=secrets.token_hex(8)
     await state.update_data(purchase_product=product_id,purchase_source=source,purchase_nonce=nonce,purchase_expires_at=time.time()+600)
     rows=[[InlineKeyboardButton(text=m['title'],callback_data=f"plus:pay:{nonce}:{m['id']}")] for m in catalog_payload()['methods']]
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
-        "<b>Выбери способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
+        "<b>Выберите способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
         +PAYMENT_UNAVAILABLE_MESSAGE+"\n\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
@@ -138,7 +138,7 @@ async def cb_payment_method(callback,state,billing_service):
     parts=(callback.data or '').split(':');data=await state.get_data()
     if (len(parts)!=4 or parts[2]!=data.get('purchase_nonce') or data.get('purchase_expires_at',0)<=time.time()
         or parts[3] not in {m['id'] for m in catalog_payload()['methods']}):
-        await callback.answer('Выбор оплаты устарел. Открой тариф заново.',show_alert=True);return
+        await callback.answer('Выбор оплаты устарел. Откройте тариф заново.',show_alert=True);return
     result=billing_service.public_purchase(data['purchase_product'],parts[3])
     await state.clear()
     back=f"plus:show:{data['purchase_product']}:{data.get('purchase_source','more')}"

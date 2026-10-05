@@ -164,6 +164,15 @@ def install_admin_routes(
         content_type = "application/javascript" if name.endswith(".js") else "text/css"
         return web.Response(text=(_UI_DIR / name).read_text(encoding="utf-8"), content_type=content_type)
 
+    async def admin_mark(request: web.Request) -> web.Response:
+        """Знак панели: тот же маскот, что в боте и приложении, только авторизованным."""
+        if not _authorized(request):
+            return web.Response(status=401)
+        path = _UI_DIR / "mark.png"
+        if not path.is_file():
+            return web.Response(status=404)
+        return web.FileResponse(path, headers={"Content-Type": "image/png", "Cache-Control": "no-store"})
+
     async def admin_font(request: web.Request) -> web.Response:
         """Локальные файлы шрифтов панели: только своё имя, только авторизованным."""
         if not _authorized(request):
@@ -216,7 +225,8 @@ def install_admin_routes(
             init_data = form.get("init_data", "")
         except Exception:
             return web.Response(status=400)
-        token = access.login_webapp(init_data) if isinstance(init_data, str) else None
+        token = (access.login_webapp(init_data, request.remote)
+                 if isinstance(init_data, str) else None)
         if token is None:
             return web.Response(status=403)
         return _session_response(token)
@@ -230,7 +240,7 @@ def install_admin_routes(
         if (access.verified_widget_user(values) is None
                 or not access.consume_login_state(state, request.cookies.get("ts_admin_state"))):
             return web.Response(status=403)
-        token = access.login_telegram_widget(values)
+        token = access.login_telegram_widget(values, request.remote)
         if token is None:
             return web.Response(status=403)
         response = _session_response(token)
@@ -890,6 +900,7 @@ def install_admin_routes(
 
     app.router.add_get("/admin", index)
     app.router.add_get("/admin/{name:login\\.css|login\\.js|panel\\.css|panel\\.js|fonts\\.css}", asset)
+    app.router.add_get("/admin/mark.png", admin_mark)
     app.router.add_get("/admin/fonts/{name}", admin_font)
     app.router.add_get("/admin/api/media/{name}", admin_media)
     app.router.add_get("/admin/emergency", emergency_page)

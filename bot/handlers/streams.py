@@ -396,7 +396,7 @@ async def _added_channel_summary(
             "<b>Начало эфира</b>\n<blockquote>🔴 Live-уведомление будет публиковаться в Telegram-канале.</blockquote>\n\n"
             "<b>После эфира</b>\n"
             "📊 Итоговый отчёт в канал по умолчанию выключен. При необходимости "
-            "включи его отдельно в карточке этого Twitch-канала."
+            "включите его отдельно в карточке этого Twitch-канала."
         )
     if is_first_channel:
         return (
@@ -432,7 +432,7 @@ async def _ensure_stats_recipient(message: Message, db: Database) -> str | None:
 
     return (
         "Чтобы получать итоговые отчёты о завершённых стримах себе в личку "
-        "(живые посты о начале стрима всегда остаются в этом чате), нажми кнопку ниже."
+        "(живые посты о начале стрима всегда остаются в этом чате), нажмите кнопку ниже."
     )
 
 
@@ -500,7 +500,7 @@ async def cmd_start_link(
         login = parse_track_start_payload(payload)
         if login is None:
             await message.answer(
-                "Не удалось прочитать ссылку подключения. Открой актуальную ссылку "
+                "Не удалось прочитать ссылку подключения. Откройте актуальную ссылку "
                 "из live-поста ещё раз.",
                 reply_markup=_main_menu_keyboard(
                     message.chat.type, viewer_url=_viewer_url(message, config)
@@ -512,15 +512,15 @@ async def cmd_start_link(
         if result == _TRACK_CREATED:
             text = (
                 f"✅ Уведомления о стримах {login} подключены.\n\n"
-                "Теперь я сообщу тебе, когда он выйдет в эфир."
+                "Теперь я сообщу вам, когда он выйдет в эфир."
             )
         elif result == _TRACK_ALREADY:
             text = f"🔔 Уведомления о {login} уже подключены."
         elif result == _TRACK_LIMIT:
             text = (
                 f"В личном чате уже отслеживается максимум каналов "
-                f"({await _tracking_limit(db, message.chat.id)}). Удали ненужный через «Мои каналы» "
-                "и открой ссылку снова."
+                f"({await _tracking_limit(db, message.chat.id)}). Удалите ненужный через «Мои каналы» "
+                "и откройте ссылку снова."
             )
         elif result == _TRACK_NOT_FOUND:
             text = (
@@ -529,7 +529,7 @@ async def cmd_start_link(
             )
         else:
             text = (
-                "Twitch временно не отвечает. Ничего не добавлено. Попробуй "
+                "Twitch временно не отвечает. Ничего не добавлено. Попробуйте "
                 "открыть ссылку чуть позже."
             )
         await message.answer(
@@ -571,8 +571,8 @@ async def cmd_start_link(
         status = await _chat_member_status(message.bot, source_chat_id, message.from_user.id)
         if status not in MEMBER_STATUSES:
             await message.answer(
-                "Эта ссылка привязывает отчёты чата, в котором ты не состоишь, "
-                "поэтому я её не приму. Открой бота из нужной группы и нажми "
+                "Эта ссылка привязывает отчёты чата, в котором вы не состоите, "
+                "поэтому я её не приму. Откройте бота из нужной группы и нажмите "
                 "«🔗 Привязать отчёты к личке» там."
             )
             return
@@ -586,7 +586,7 @@ async def cmd_start_link(
             await message.answer(
                 "Итоговые отчёты этого чата уже приходят другому участнику. "
                 "Переключить их на себя может только администратор чата. "
-                "Попроси его или обратись к тому, кто их сейчас получает."
+                "Попросите его или обратитесь к тому, кто их сейчас получает."
             )
             return
 
@@ -642,7 +642,7 @@ async def cmd_invite(message: Message, db: Database, config: Config) -> None:
     code = await db.get_or_create_growth_referral_code(message.chat.id)
     link = build_growth_deep_link("SignalStreamsBot", f"ref_{code}")
     await message.answer(
-        "Пригласи друга в тестовый бот: " + link + "\n\n"
+        "Пригласите друга в тестовый бот: " + link + "\n\n"
         "Ссылка не даёт платных прав или наград."
     )
 
@@ -926,7 +926,7 @@ async def cb_menu_home(callback: CallbackQuery, state: FSMContext, config: Confi
                        db: Database | None = None, oauth_server: OAuthCallbackServer | None = None) -> None:
     if callback.message is None or (callback.message.chat.type == ChatType.PRIVATE
         and not own_private(callback.message,callback.from_user.id)):
-        await callback.answer('Открой свой личный чат с ботом.',show_alert=True)
+        await callback.answer('Откройте свой личный чат с ботом.',show_alert=True)
         return
     await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server,message=callback.message)
     home_state = (await load_home_state(db,callback.from_user.id)
@@ -967,8 +967,8 @@ async def cb_menu_link_stats(callback: CallbackQuery, db: Database) -> None:
         )
     await edit_menu(callback.message,
         "Чтобы получать итоговые отчёты о завершённых стримах себе в личку "
-        "(живые посты о начале стрима всегда остаются в этом чате), нажми кнопку ниже "
-        f"и в открывшемся диалоге с ботом нажми «Start».{status}",
+        "(живые посты о начале стрима всегда остаются в этом чате), нажмите кнопку ниже "
+        f"и в открывшемся диалоге с ботом нажмите «Start».{status}",
         reply_markup=await _start_link_keyboard(callback.bot, chat_id,back_callback="menu:report"),
     )
     await callback.answer()
@@ -1024,9 +1024,9 @@ async def _add_to_group_button(bot: Bot) -> InlineKeyboardButton:
 ADD_TO_CHANNEL_HINT = (
     "Telegram не даёт добавлять ботов в каналы напрямую по ссылке, как в группы. "
     "Добавить можно только вручную:\n\n"
-    "1. Открой свой канал → «Управление каналом» → «Администраторы»\n"
-    "2. «Добавить администратора» → найди бота по имени и добавь его\n"
-    "3. Дай ему право «Публикация сообщений»\n\n"
+    "1. Откройте свой канал → «Управление каналом» → «Администраторы»\n"
+    "2. «Добавить администратора» → найдите бота по имени и добавьте его\n"
+    "3. Дайте ему право «Публикация сообщений»\n\n"
     "После этого канал появится в списке ниже."
 )
 
@@ -1035,7 +1035,7 @@ ADD_TO_CHANNEL_HINT = (
 async def cb_menu_manage_group(callback: CallbackQuery, db: Database, state: FSMContext | None = None,
                                oauth_server: OAuthCallbackServer | None = None) -> None:
     if not own_private(callback.message,callback.from_user.id):
-        await callback.answer('Открой свой личный чат с ботом.',show_alert=True)
+        await callback.answer('Откройте свой личный чат с ботом.',show_alert=True)
         return
     if state is not None:
         await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server, message=callback.message)
@@ -1044,8 +1044,8 @@ async def cb_menu_manage_group(callback: CallbackQuery, db: Database, state: FSM
     rows = [[InlineKeyboardButton(text=title,callback_data=f'managegroup:{gid}')] for gid,title in chats]
     rows.append([InlineKeyboardButton(text='Подключить Telegram-канал',callback_data='streamer:channel')])
     rows.append([InlineKeyboardButton(text='← Назад',callback_data='menu:more')])
-    await edit_menu(callback.message,'Мои подключения\n\nВыбери канал или существующую группу.' if chats
-                                    else 'Подключений пока нет. Добавь свой Telegram-канал через «Я стример».',
+    await edit_menu(callback.message,'Мои подключения\n\nВыберите канал или существующую группу.' if chats
+                                    else 'Подключений пока нет. Добавьте свой Telegram-канал через «Я стример».',
                                     reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
 
 
@@ -1109,12 +1109,12 @@ async def _quiet_hours_screen_text_and_keyboard(
         )
         active = _is_within_quiet_hours(start_minute, end_minute, now_utc)
         text = ("🌙 <b>Тихие часы</b>\n\n"
-                f"<blockquote>Включены: {local_start} – {local_end}.\nСейчас у тебя {now_local}.\n"
+                f"<blockquote>Включены: {local_start} – {local_end}.\nСейчас у вас {now_local}.\n"
                 f"{'Тихие часы идут.' if active else 'Сейчас тихие часы не действуют.'}</blockquote>\n\n"
                 "<b>Отчёты и сводка</b>\nОтчёты за эти часы соберутся в сводку.\n"
                 "«Сводка после» включает вопрос о пропущенных эфирах.")
     else:
-        text = ("🌙 <b>Тихие часы</b>\n\n<blockquote>Сейчас выключены.</blockquote>\n\nВыбери интервал по своему местному времени.\n"
+        text = ("🌙 <b>Тихие часы</b>\n\n<blockquote>Сейчас выключены.</blockquote>\n\nВыберите интервал по своему местному времени.\n"
                 "Отчёты за эти часы соберутся в сводку.")
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:more")])
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
@@ -1124,7 +1124,7 @@ async def _quiet_hours_screen_text_and_keyboard(
 async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Database,
                               oauth_server: OAuthCallbackServer | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True)
         return
     await cancel_ui(state, actor_id=callback.from_user.id, db=db,
                     oauth_server=oauth_server, message=callback.message)
@@ -1132,7 +1132,7 @@ async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Da
     if await db.get_utc_offset(chat_id) is None:
         await state.set_state(QuietHoursSetup.waiting_for_offset)
         await edit_menu(callback.message,
-            "<b>Твой часовой пояс</b>\n\nВыбери город или укажи смещение относительно UTC.\n\n"
+            "<b>Ваш часовой пояс</b>\n\nВыберите город или укажите смещение относительно UTC.\n\n"
             "<blockquote>МСК: <code>+3</code>\nКалининград: <code>+2</code></blockquote>\n\n"
             "По этому времени бот настроит тихие часы.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
@@ -1154,7 +1154,7 @@ async def cb_menu_quiet_hours(callback: CallbackQuery, state: FSMContext, db: Da
 async def cb_quiet_hours_offset(callback: CallbackQuery,state: FSMContext,db: Database) -> None:
     chat_id=_callback_chat_id(callback)
     if chat_id is None or not await _check_manage_permission(callback,chat_id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True);return
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True);return
     if await state.get_state()!=QuietHoursSetup.waiting_for_offset.state:
         await callback.answer('Выбор часового пояса устарел.',show_alert=True);return
     try: offset=int((callback.data or '').removeprefix('qh:offset:'))
@@ -1173,21 +1173,21 @@ async def cb_quiet_hours_offset(callback: CallbackQuery,state: FSMContext,db: Da
 async def process_utc_offset_input(message: Message, state: FSMContext, db: Database) -> None:
     if not await _message_can_manage_chat(message):
         await state.clear()
-        await message.answer('Настройки этого чата тебе недоступны.')
+        await message.answer('Настройки этого чата вам недоступны.')
         return
     raw = (message.text or "").strip().replace(" ", "")
     try:
         offset_hours = int(raw)
     except ValueError:
         await message.answer(
-            "Не похоже на смещение. Напиши целое число часов относительно UTC, "
+            "Не похоже на смещение. Напишите целое число часов относительно UTC, "
             "например <code>+3</code> или <code>-5</code>.",
             reply_markup=_back_keyboard(),
         )
         return
     if abs(offset_hours) > 14:
         await message.answer(
-            "Смещение вне разумного диапазона (-14..+14). Попробуй ещё раз.",
+            "Смещение вне разумного диапазона (-14..+14). Попробуйте ещё раз.",
             reply_markup=_back_keyboard(),
         )
         return
@@ -1201,7 +1201,7 @@ async def process_utc_offset_input(message: Message, state: FSMContext, db: Data
 @router.callback_query(lambda c: c.data and c.data.startswith("qhpreset:"))
 async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database, state: FSMContext | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True)
         return
     parts = callback.data.split(":", 2)
     chat_id = _callback_chat_id(callback)
@@ -1224,7 +1224,7 @@ async def cb_quiet_hours_preset(callback: CallbackQuery, db: Database, state: FS
     end_utc = _local_minute_to_utc(end_local_minute, utc_offset)
 
     if state is None:
-        await callback.answer('Открой настройки тихих часов заново.',show_alert=True);return
+        await callback.answer('Откройте настройки тихих часов заново.',show_alert=True);return
     await cancel_ui(state,actor_id=callback.from_user.id,db=db,message=callback.message)
     await _preview_quiet_hours(callback.message,state,callback.from_user.id,start_local_minute,end_local_minute,utc_offset,edit=True)
     await callback.answer()
@@ -1236,7 +1236,7 @@ async def _preview_quiet_hours(message,state,actor,start_local,end_local,offset,
     await state.update_data(quiet_draft={'token':token,'actor':actor,'chat':message.chat.id,
         'start':start_local,'end':end_local,'offset':offset,'expires':time.time()+600})
     text=(f'<b>Сохранить тихие часы?</b>\n\n<blockquote>Тихие часы: {_format_minute(start_local)} – {_format_minute(end_local)}\n'
-          f'Твой часовой пояс: UTC{offset/60:+g}.</blockquote>\n\n'
+          f'Ваш часовой пояс: UTC{offset/60:+g}.</blockquote>\n\n'
           '<b>Оповещения</b>\nЛичные оповещения о старте, рейдах, категории и напоминания приостановятся, кроме стримеров с исключением.\n\n'
           '<b>Отчёты</b>\nОтчёты соберутся в сводку после этого интервала.')
     keyboard=InlineKeyboardMarkup(inline_keyboard=[
@@ -1250,14 +1250,14 @@ async def _preview_quiet_hours(message,state,actor,start_local,end_local,offset,
 async def cb_quiet_hours_confirm(callback: CallbackQuery,state: FSMContext,db: Database) -> None:
     chat_id=_callback_chat_id(callback)
     if chat_id is None or not await _check_manage_permission(callback,chat_id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True);return
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True);return
     draft=(await state.get_data()).get('quiet_draft')
     if (not draft or draft.get('token')!=(callback.data or '').removeprefix('qh:confirm:')
         or draft.get('actor')!=callback.from_user.id or draft.get('chat')!=chat_id or draft.get('expires',0)<=time.time()):
-        await callback.answer('Подтверждение устарело. Выбери интервал заново.',show_alert=True);return
+        await callback.answer('Подтверждение устарело. Выберите интервал заново.',show_alert=True);return
     await state.clear()
     if await db.get_utc_offset(chat_id)!=draft['offset']:
-        await callback.answer('Часовой пояс изменился. Выбери интервал заново.',show_alert=True);return
+        await callback.answer('Часовой пояс изменился. Выберите интервал заново.',show_alert=True);return
     await db.set_quiet_hours(chat_id,_local_minute_to_utc(draft['start'],draft['offset']),
                              _local_minute_to_utc(draft['end'],draft['offset']),draft['offset'])
     text,keyboard=await _quiet_hours_screen_text_and_keyboard(chat_id,db)
@@ -1269,13 +1269,13 @@ async def cb_quiet_hours_confirm(callback: CallbackQuery,state: FSMContext,db: D
 async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext, db: Database | None = None,
                                 oauth_server: OAuthCallbackServer | None = None) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True)
         return
     await cancel_ui(state, actor_id=callback.from_user.id, db=db,
                     oauth_server=oauth_server, message=callback.message)
     await state.set_state(QuietHoursSetup.waiting_for_custom_time)
     await edit_menu(callback.message,
-        "<b>Свой интервал</b>\n\nНапиши время начала и завершения по своим часам.\n\n"
+        "<b>Свой интервал</b>\n\nНапишите время начала и завершения по своим часам.\n\n"
         "<blockquote>Например: <code>23:00-08:00</code></blockquote>",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:quiet_hours")]]
@@ -1288,7 +1288,7 @@ async def cb_quiet_hours_custom(callback: CallbackQuery, state: FSMContext, db: 
 async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Database) -> None:
     if not await _message_can_manage_chat(message):
         await state.clear()
-        await message.answer('Настройки этого чата тебе недоступны.')
+        await message.answer('Настройки этого чата вам недоступны.')
         return
     match = _TIME_RANGE_RE.match((message.text or "").strip())
     back_keyboard = InlineKeyboardMarkup(
@@ -1302,7 +1302,7 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
 
     start_hour, start_min, end_hour, end_min = (int(g) for g in match.groups())
     if not (0 <= start_hour <= 23 and 0 <= start_min <= 59 and 0 <= end_hour <= 23 and 0 <= end_min <= 59):
-        await message.answer("Часы или минуты вне диапазона. Попробуй ещё раз.", reply_markup=back_keyboard)
+        await message.answer("Часы или минуты вне диапазона. Попробуйте ещё раз.", reply_markup=back_keyboard)
         return
 
     chat_id = message.chat.id
@@ -1311,7 +1311,7 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
     end_local = end_hour * 60 + end_min
     if start_local == end_local:
         await message.answer(
-            "Начало и конец совпадают. Тихие часы не будут действовать. Попробуй другой интервал.",
+            "Начало и конец совпадают. Тихие часы не будут действовать. Попробуйте другой интервал.",
             reply_markup=back_keyboard,
         )
         return
@@ -1322,7 +1322,7 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
 @router.callback_query(lambda c: c.data == "qh:disable")
 async def cb_quiet_hours_disable(callback: CallbackQuery, db: Database) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True)
         return
     chat_id = callback.message.chat.id
     await db.clear_quiet_hours(chat_id)
@@ -1335,7 +1335,7 @@ async def cb_quiet_hours_disable(callback: CallbackQuery, db: Database) -> None:
 @router.callback_query(lambda c: c.data == "qh:togglenotifyafter")
 async def cb_quiet_hours_toggle_notify_after(callback: CallbackQuery, db: Database) -> None:
     if not await _check_manage_permission(callback,callback.message.chat.id):
-        await callback.answer('Настройки этого чата тебе недоступны.',show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.',show_alert=True)
         return
     chat_id = callback.message.chat.id
     quiet_hours = await db.get_quiet_hours(chat_id)
@@ -1455,11 +1455,11 @@ async def cb_quiet_digest_response(callback: CallbackQuery, db: Database) -> Non
 async def cb_manage_group(callback: CallbackQuery, db: Database) -> None:
     try: target_chat_id = int(callback.data.split(":", 1)[1])
     except (ValueError,IndexError):
-        await callback.answer('Действие устарело. Нажми «Меню».',show_alert=True)
+        await callback.answer('Действие устарело. Нажмите «Меню».',show_alert=True)
         return
 
     if not await _check_manage_permission(callback, target_chat_id):
-        await callback.answer("Ты больше не админ этой группы/канала.", show_alert=True)
+        await callback.answer("Вы больше не админ этой группы/канала.", show_alert=True)
         return
 
     from ..telegram_lists import new_context, show_context
@@ -1468,14 +1468,14 @@ async def cb_manage_group(callback: CallbackQuery, db: Database) -> None:
 
 _CHANNELS_HINT = (
     "📡 <b>Мои стримеры</b>\n"
-    "Нажми на стримера, чтобы открыть настройки."
+    "Нажмите на стримера, чтобы открыть настройки."
 )
 
 _CHANNELS_HINT_PRIVATE = _CHANNELS_HINT
 
 _CHANNELS_HINT_TG_CHANNEL = (
     "📡 <b>Мои стримеры</b>\n"
-    "Нажми на стримера, чтобы открыть настройки.\n\n"
+    "Нажмите на стримера, чтобы открыть настройки.\n\n"
     "Live-уведомление и итоговый отчёт в канал настраиваются отдельно для каждого "
     "Twitch-канала. Итоговый отчёт по умолчанию выключен."
 )
@@ -1498,7 +1498,7 @@ async def _render_channels_list(
         hint = _CHANNELS_HINT_TG_CHANNEL
     else:
         hint = _CHANNELS_HINT_PRIVATE if is_private else _CHANNELS_HINT
-    text = title_prefix + (hint if channels else "Стримеров пока нет. Добавь первого кнопкой ниже.")
+    text = title_prefix + (hint if channels else "Стримеров пока нет. Добавьте первого кнопкой ниже.")
     chat_default_recipient = await db.get_stats_recipient(target_chat_id)
     keyboard = _channels_keyboard(
         target_chat_id, channels, chat_default_recipient,
@@ -1829,7 +1829,7 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
 
     if callback.from_user is None or not await db.is_known_private_user(callback.from_user.id):
         await callback.answer(
-            "Сначала напиши боту в личке хотя бы раз (например, /start), "
+            "Сначала напишите боту в личке хотя бы раз (например, /start), "
             "чтобы он мог присылать туда посты.",
             show_alert=True,
         )
@@ -1849,7 +1849,7 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         return
 
     await db.set_post_recipient(target_chat_id, login, callback.from_user.id)
-    answer_text = "Отчёт по этому каналу теперь идёт тебе в личку"
+    answer_text = "Отчёт по этому каналу теперь идёт вам в личку"
 
     await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(answer_text)
@@ -1907,7 +1907,7 @@ async def cb_toggle_auto_report(callback: CallbackQuery, db: Database) -> None:
         return
     if await db.is_telegram_channel(target_chat_id):
         await callback.answer(
-            "Для Telegram-канала используй отдельную настройку публичного отчёта.",
+            "Для Telegram-канала используйте отдельную настройку публичного отчёта.",
             show_alert=True,
         )
         return
@@ -2034,7 +2034,7 @@ async def cb_menu_add(callback: CallbackQuery, state: FSMContext, db: Database |
     rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback)])
 
     await edit_menu(callback.message,
-        "<b>Добавить оповещения</b>\n\nПришли ник или ссылку Twitch.\n\n"
+        "<b>Добавить оповещения</b>\n\nПришлите ник или ссылку Twitch.\n\n"
         "<blockquote>Бот найдёт стримера и попросит подтвердить добавление.</blockquote>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
@@ -2072,7 +2072,7 @@ async def _offer_search_results(
     ввода не сбрасываем — если ничего не подошло, можно сразу написать другое имя."""
     if len(query) < 3:
         await message.answer(
-            "Слишком короткий запрос. Напиши хотя бы три символа "
+            "Слишком короткий запрос. Напишите хотя бы три символа "
             "(логин канала или его имя на Twitch).",
             reply_markup=back_keyboard,
         )
@@ -2083,8 +2083,8 @@ async def _offer_search_results(
     except Exception:
         logger.exception("Не удалось выполнить поиск каналов по запросу %r", query)
         await message.answer(
-            "Не получилось выполнить поиск на Twitch. Попробуй ещё раз чуть позже "
-            "или введи точный логин канала.",
+            "Не получилось выполнить поиск на Twitch. Попробуйте ещё раз чуть позже "
+            "или введите точный логин канала.",
             reply_markup=back_keyboard,
         )
         return
@@ -2092,7 +2092,7 @@ async def _offer_search_results(
     if not results:
         await message.answer(
             f"По запросу «{html.escape(query)}» ничего не нашлось. "
-            "Попробуй другое имя или точный логин канала.",
+            "Попробуйте другое имя или точный логин канала.",
             reply_markup=back_keyboard,
         )
         return
@@ -2108,7 +2108,7 @@ async def _offer_search_results(
     ]
     rows.extend(back_keyboard.inline_keyboard)
     await message.answer(
-        "Вот что нашлось на Twitch. Выбери нужный канал:",
+        "Вот что нашлось на Twitch. Выберите нужный канал:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
 
@@ -2193,8 +2193,8 @@ async def _run_import_follows(
         oauth_state=parse_qs(urlsplit(url).query).get('state',[None])[0]
         await state.update_data(legacy_oauth_state=oauth_state)
         await message.answer(
-            "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ. "
-            f"После этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
+            "Откройте ссылку, войдите в свой Twitch-аккаунт и разрешите доступ. "
+            f"После этого я покажу, на кого вы подписаны (ссылка активна 5 минут):\n{url}"
             ,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='Подключить Twitch',url=url)],
                 [InlineKeyboardButton(text='Отменить',callback_data='menu:home')]])
@@ -2214,7 +2214,7 @@ async def _run_import_follows(
             return
         except Exception:
             logger.exception("Ошибка при авторизации Twitch для импорта подписок")
-            await message.answer("Что-то пошло не так при авторизации. Попробуй ещё раз.")
+            await message.answer("Что-то пошло не так при авторизации. Попробуйте ещё раз.")
             return
 
         if not await legacy_oauth_current(state,generation): return
@@ -2240,20 +2240,20 @@ async def _run_import_follows(
                 "Twitch import требует повторной авторизации для %s", result.login
             )
             await message.answer(
-                "Twitch отклонил авторизацию. Запусти импорт ещё раз и заново разреши доступ."
+                "Twitch отклонил авторизацию. Запустите импорт ещё раз и заново разрешите доступ."
             )
             return
         except (TwitchUserTokenError, OAuthTokenTemporaryError):
             logger.exception("Временная ошибка Twitch import для %s", result.login)
             await message.answer(
                 "Twitch временно не отдал полный список подписок. Ничего не импортировано. "
-                "Попробуй ещё раз чуть позже."
+                "Попробуйте ещё раз чуть позже."
             )
             return
         except Exception:
             logger.exception("Не удалось получить подписки Twitch для %s", result.login)
             await message.answer(
-                "Не получилось получить список подписок с Twitch. Попробуй ещё раз чуть позже."
+                "Не получилось получить список подписок с Twitch. Попробуйте ещё раз чуть позже."
             )
             return
 
@@ -2279,7 +2279,7 @@ async def _run_import_follows(
     if free_slots <= 0:
         await message.answer(
             f"В этом чате уже максимум каналов ({limit}). "
-            "Освободи место, прежде чем импортировать.",
+            "Освободите место, прежде чем импортировать.",
             reply_markup=_back_keyboard(),
         )
         return
@@ -2332,7 +2332,7 @@ async def cb_menu_import_follows(
     if callback.message is None:
         return
     if not own_private(callback.message,callback.from_user.id):
-        await callback.answer('Открой свой личный чат с ботом.',show_alert=True);return
+        await callback.answer('Откройте свой личный чат с ботом.',show_alert=True);return
     await _run_import_follows(callback.message, state, db, config, oauth_server,actor_id=callback.from_user.id)
 
 
@@ -2352,7 +2352,7 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
                     oauth_server=oauth_server, message=callback.message)
 
     if not logins:
-        await callback.answer("Список подписок устарел. Запусти импорт заново.", show_alert=True)
+        await callback.answer("Список подписок устарел. Запустите импорт заново.", show_alert=True)
         return
 
     added = 0
@@ -2442,7 +2442,7 @@ async def process_login_input(
 
     if not await authorize():
         await state.clear()
-        await message.answer("Добавление устарело или права изменились. Открой добавление заново.")
+        await message.answer("Добавление устарело или права изменились. Откройте добавление заново.")
         return
     back_keyboard = _back_keyboard() if target_chat_id == message.chat.id else InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(
@@ -2464,7 +2464,7 @@ async def process_login_input(
     )
     if result == "forbidden":
         await state.clear()
-        await message.answer("Добавление устарело или права изменились. Открой добавление заново.")
+        await message.answer("Добавление устарело или права изменились. Откройте добавление заново.")
         return
     if result == _TRACK_NOT_FOUND:
         await _offer_search_results(message, query, target_chat_id, twitch, back_keyboard)
@@ -2472,7 +2472,7 @@ async def process_login_input(
     if result == _TRACK_TEMPORARY_ERROR:
         await message.answer(
             "Не получилось проверить канал на Twitch. Ничего не добавлено. "
-            "Попробуй ещё раз чуть позже.",
+            "Попробуйте ещё раз чуть позже.",
             reply_markup=back_keyboard,
         )
         return
@@ -2480,7 +2480,7 @@ async def process_login_input(
         await state.clear()
         await message.answer(
             f"В этом чате уже отслеживается максимум каналов ({await _tracking_limit(db, target_chat_id)}). "
-            "Удали ненужный через «Мои каналы», прежде чем добавлять новый.",
+            "Удалите ненужный через «Мои каналы», прежде чем добавлять новый.",
             reply_markup=back_keyboard,
         )
         return
@@ -2537,13 +2537,13 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
     if result == _TRACK_TEMPORARY_ERROR:
         await message.answer(
             "Не получилось проверить канал на Twitch. Ничего не добавлено. "
-            "Попробуй ещё раз чуть позже."
+            "Попробуйте ещё раз чуть позже."
         )
         return
     if result == _TRACK_LIMIT:
         await message.answer(
             f"В этом чате уже отслеживается максимум каналов ({await _tracking_limit(db, message.chat.id)}). "
-            "Удали ненужный через /untrack или кнопку «Мои каналы», прежде чем добавлять новый."
+            "Удалите ненужный через /untrack или кнопку «Мои каналы», прежде чем добавлять новый."
         )
         return
 
@@ -2587,7 +2587,7 @@ async def cmd_untrack(message: Message, command: CommandObject, db: Database) ->
 async def cmd_list(message: Message, db: Database) -> None:
     channels = await db.list_channels_with_notify(message.chat.id)
     if not channels:
-        await message.answer("Список пуст. Добавь канал через /track [twitch_логин].")
+        await message.answer("Список пуст. Добавьте канал через /track [twitch_логин].")
         return
 
     text = "Мои стримеры:\n" + "\n".join(
@@ -2602,7 +2602,7 @@ async def _build_live_list(
 ) -> tuple[str, InlineKeyboardMarkup]:
     live_channels = await db.list_live_channels(chat_id)
     if not live_channels:
-        return "Сейчас никто из твоих стримеров не в эфире.", _back_keyboard()
+        return "Сейчас никто из ваших стримеров не в эфире.", _back_keyboard()
 
     # Самые крупные эфиры показываем первыми; каналы без первого замера — внизу.
     live_channels.sort(
@@ -2931,8 +2931,8 @@ async def cmd_report(message: Message, command: CommandObject, db: Database) -> 
     if recipient_chat_id <= 0:
         if message.from_user is None or not await db.is_known_private_user(message.from_user.id):
             await message.answer(
-                "Итоговые отчёты отправляются только в личку. Сначала открой бота "
-                "лично и нажми /start."
+                "Итоговые отчёты отправляются только в личку. Сначала откройте бота "
+                "лично и нажмите /start."
             )
             return
         recipient_chat_id = message.from_user.id
@@ -2945,8 +2945,8 @@ async def cmd_report(message: Message, command: CommandObject, db: Database) -> 
 async def cb_menu_report(callback: CallbackQuery, db: Database) -> None:
     logins = await db.list_channels(callback.message.chat.id)
     keyboard=_report_channels_keyboard(logins,link_stats=callback.message.chat.type!=ChatType.PRIVATE)
-    await edit_menu(callback.message,'Выбери стримера для отчёта. HTML-формат можно выбрать в его настройках.' if logins
-                                    else 'Стримеров пока нет. Добавь одного, чтобы получать отчёты.',reply_markup=keyboard)
+    await edit_menu(callback.message,'Выберите стримера для отчёта. HTML-формат можно выбрать в его настройках.' if logins
+                                    else 'Стримеров пока нет. Добавьте одного, чтобы получать отчёты.',reply_markup=keyboard)
     await callback.answer()
 
 
@@ -2961,7 +2961,7 @@ async def cb_report_channel(callback: CallbackQuery, db: Database) -> None:
     if recipient_chat_id <= 0:
         if callback.from_user is None or not await db.is_known_private_user(callback.from_user.id):
             await callback.answer(
-                "Сначала открой бота в личке и нажми /start.", show_alert=True
+                "Сначала откройте бота в личке и нажмите /start.", show_alert=True
             )
             return
         recipient_chat_id = callback.from_user.id

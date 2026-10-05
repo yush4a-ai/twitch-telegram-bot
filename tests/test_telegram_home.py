@@ -91,7 +91,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         await cmd_start(self.incoming(),self.state,self.db,CONFIG)
         self.assertEqual([m.__api_method__ for m in self.transport.calls],['sendMessage','sendPhoto'])
         sent=self.transport.calls[-1]
-        self.assertEqual(sent.caption,'<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал.\n\n'+COMMUNITY_LINE)
+        self.assertEqual(sent.caption,'<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал.\n\n'+COMMUNITY_LINE)
         buttons=[r[0] for r in sent.reply_markup.inline_keyboard]
         self.assertEqual([b.text for b in buttons],['Открыть приложение','➕ Добавить оповещения','🎥 Я стример','Ещё'])
         self.assertEqual([b.style for b in buttons],['primary','success',None,None])
@@ -115,7 +115,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         for i in range(6): await self.db.add_channel(101,f'live{i}')
         view=await self.state_for()
         self.assertFalse(view.banner)
-        self.assertEqual(view.text,'<b>Твои оповещения</b>\nВ списке: <b>6</b>\nОповещения о старте: <b>6 из 6</b>\n\nПо последней проверке эфиров нет.\n\n'+COMMUNITY_LINE)
+        self.assertEqual(view.text,'<b>Ваши оповещения</b>\nВ списке: <b>6</b>\nОповещения о старте: <b>6 из 6</b>\n\nПо последней проверке эфиров нет.\n\n'+COMMUNITY_LINE)
         await self.db.conn.execute("UPDATE tracked_channels SET is_live=1 WHERE chat_id=101 AND twitch_login='live0'")
         await self.db.conn.commit()
         view=await self.state_for();self.assertIn('<b>В эфире: 1</b>',view.text);self.assertIn('<i>По последней проверке</i>',view.text);self.assertEqual(view.text.count('<b>live0</b>'),1)
@@ -131,7 +131,7 @@ class SmartHomeTests(unittest.IsolatedAsyncioTestCase):
         await self.db.save_user_token('alpha','11','access','refresh',time.time()+300)
         self.assertTrue((await self.state_for()).banner)
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
-        view=await self.state_for();self.assertFalse(view.banner);self.assertIn('Твой Twitch подключён',view.text)
+        view=await self.state_for();self.assertFalse(view.banner);self.assertIn('Ваш Twitch подключён',view.text)
         self.assertNotIn('публикации включены',view.text)
 
     async def test_cross_user_state_and_forged_private_callback_are_denied(self):

@@ -92,7 +92,7 @@ class ThrottleMiddleware(BaseMiddleware):
             if isinstance(event, CallbackQuery):
                 # без ответа на callback у пользователя вечно крутится «часики»
                 try:
-                    await event.answer("Слишком часто. Подожди пару секунд.")
+                    await event.answer("Слишком часто. Подождите пару секунд.")
                 except Exception:
                     pass
             logger.debug("Действие пользователя отброшено троттлингом (heavy=%s)", heavy)
@@ -129,7 +129,7 @@ class CallbackGuardMiddleware(BaseMiddleware):
             if message is None or isinstance(message, InaccessibleMessage):
                 try:
                     await event.answer(
-                        "Сообщение недоступно. Нажми «Меню» в личном чате с ботом.",
+                        "Сообщение недоступно. Нажмите «Меню» в личном чате с ботом.",
                         show_alert=True,
                     )
                 except Exception:
@@ -180,7 +180,7 @@ class ErrorGuardMiddleware(BaseMiddleware):
             logger.exception("Необработанная ошибка в обработчике %s", type(event).__name__)
             if isinstance(event, CallbackQuery):
                 try:
-                    await event.answer("Что-то пошло не так. Попробуй ещё раз.", show_alert=True)
+                    await event.answer("Что-то пошло не так. Попробуйте ещё раз.", show_alert=True)
                 except Exception:
                     pass
             return None
@@ -333,22 +333,35 @@ class DialogueMiddleware(BaseMiddleware):
             logger.warning("Фото в переписке не принято: неподдерживаемый формат или размер")
             return None
 
+    # Виды вложений, которые человек может прислать в личку боту.
+    ATTACHMENTS = (
+        "photo", "sticker", "animation", "video", "video_note", "voice",
+        "audio", "document", "contact", "location", "venue", "poll", "dice",
+    )
+
+    def _attachment_of(self, event: TelegramObject) -> str | None:
+        for kind in self.ATTACHMENTS:
+            if getattr(event, kind, None):
+                return kind
+        return None
+
     async def _remember(self, event: TelegramObject, data: dict[str, Any]) -> None:
         chat = getattr(event, "chat", None)
         user = getattr(event, "from_user", None)
         if user is None or getattr(chat, "type", None) != "private":
             return
         text = ((getattr(event, "text", None) or getattr(event, "caption", None)) or "").strip()
-        has_photo = bool(getattr(event, "photo", None))
-        if not text and not has_photo:
+        attachment = self._attachment_of(event)
+        if not text and not attachment:
             return
-        if text.startswith("/"):
+        # Команда без вложения — это не переписка, а нажатие в меню.
+        if text.startswith("/") and not attachment:
             return
-        image_path = await self._download_photo(event, data)
+        image_path = await self._download_photo(event, data) if attachment == "photo" else None
         await self._db.record_dialogue_message(
             int(user.id), "in", text[: self._max_length] or None,
             now=time.time(), telegram_message_id=getattr(event, "message_id", None),
-            image_path=image_path,
+            image_path=image_path, attachment=attachment,
         )
 
 

@@ -725,6 +725,7 @@ class Database:
         await self._migrate_admin_schema()
         await self._migrate_broadcast_schema()
         await self._migrate_broadcast_leases()
+        await self._migrate_dialogue_attachments()
         await migrate_plus_payments(self.conn, now=time.time())
         await self.conn.execute(
             "CREATE TABLE IF NOT EXISTS telegram_update_inbox ("
@@ -977,6 +978,22 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('admin_004_broadcast_leases', ?)", (time.time(),)
+        )
+
+    async def _migrate_dialogue_attachments(self) -> None:
+        """Вид вложения в переписке: стикер, гифка, видео, голос и прочее.
+
+        Без этого панель показывала пустое место там, где человек прислал
+        стикер или кружок, и казалось, что он ничего не писал.
+        """
+        cursor = await self.conn.execute("PRAGMA table_info(dialogue_messages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "attachment" not in columns:
+            await self.conn.execute(
+                "ALTER TABLE dialogue_messages ADD COLUMN attachment TEXT")
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('admin_005_dialogue_attachments', ?)", (time.time(),)
         )
 
     async def _migrate_viewer_schema(self) -> None:
@@ -6146,6 +6163,7 @@ class Database:
         self, user_id: int, direction: str, body: str | None, *, now: float,
         image_path: str | None = None, telegram_message_id: int | None = None,
         delivery: str = "received", request_key: str | None = None,
+        attachment: str | None = None,
     ) -> int | None:
         """Пишет сообщение переписки. Повтор с тем же ключом ничего не добавляет."""
         if direction not in ("in", "out"):
@@ -6158,10 +6176,10 @@ class Database:
         try:
             cursor = await self.conn.execute(
                 "INSERT INTO dialogue_messages(user_id, direction, body, image_path, "
-                "telegram_message_id, delivery, created_at, request_key) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "telegram_message_id, delivery, created_at, request_key, attachment) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (int(user_id), direction, body, image_path, telegram_message_id,
-                 delivery, float(now), request_key),
+                 delivery, float(now), request_key, attachment),
             )
         except aiosqlite.IntegrityError:
             return None
@@ -6193,40 +6211,69 @@ class Database:
     async def list_dialogues(
         self, *, limit: int = 40, query: str | None = None,
     ) -> list[dict]:
+        """Диалоги и люди, которые писали боту, но в переписке ещё не появились."""
         text = (query or "").strip()
         pattern = f"%{text}%"
-        where = ""
-        params: list[object] = []
-        if text:
-            where = (
-                "WHERE p.username LIKE ? OR p.display_name LIKE ? "
-                "OR CAST(s.user_id AS TEXT) LIKE ?"
-            )
-            params = [pattern, pattern, pattern]
-        params.append(int(limit))
+        keys = ("user_id", "last_message_at", "unread_count", "username",
+                "display_name", "last_body", "last_direction", "last_attachment",
+                "opted_out", "has_history")
+        conversations: list[dict] = []
         cursor = await self.conn.execute(
             "SELECT s.user_id, s.last_message_at, s.unread_count, p.username, p.display_name, "
             "(SELECT body FROM dialogue_messages m WHERE m.user_id = s.user_id "
             "ORDER BY m.id DESC LIMIT 1), "
             "(SELECT direction FROM dialogue_messages m WHERE m.user_id = s.user_id "
             "ORDER BY m.id DESC LIMIT 1), "
+            "(SELECT attachment FROM dialogue_messages m WHERE m.user_id = s.user_id "
+            "ORDER BY m.id DESC LIMIT 1), "
             "(SELECT 1 FROM broadcast_optouts o WHERE o.user_id = s.user_id) "
             "FROM dialogue_state s "
             "LEFT JOIN telegram_user_profiles p ON p.user_id = s.user_id "
-            f"{where} ORDER BY s.last_message_at DESC LIMIT ?",
-            tuple(params),
+            "ORDER BY s.last_message_at DESC",
         )
-        keys = ("user_id", "last_message_at", "unread_count", "username",
-                "display_name", "last_body", "last_direction", "opted_out")
-        return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
+        for row in await cursor.fetchall():
+            item = dict(zip(keys, (*row, 1), strict=True))
+            if text and not self._dialogue_matches(item, text, pattern):
+                continue
+            conversations.append(item)
+        if len(conversations) >= int(limit):
+            return conversations[: int(limit)]
+        # Люди, которые запускали бота, но ещё ничего не написали: владелец
+        # должен видеть их и мочь написать первым, как в списке чатов Telegram.
+        cursor = await self.conn.execute(
+            "SELECT p.user_id, COALESCE(p.last_active_at, p.first_seen_at, 0), 0, "
+            "p.username, p.display_name, NULL, NULL, NULL, "
+            "(SELECT 1 FROM broadcast_optouts o WHERE o.user_id = p.user_id) "
+            "FROM telegram_user_profiles p "
+            "WHERE NOT EXISTS (SELECT 1 FROM dialogue_state s WHERE s.user_id = p.user_id) "
+            "ORDER BY COALESCE(p.last_active_at, p.first_seen_at, 0) DESC",
+        )
+        for row in await cursor.fetchall():
+            item = dict(zip(keys, (*row, 0), strict=True))
+            if text and not self._dialogue_matches(item, text, pattern):
+                continue
+            conversations.append(item)
+        conversations.sort(key=lambda item: float(item["last_message_at"] or 0), reverse=True)
+        return conversations[: int(limit)]
+
+    @staticmethod
+    def _dialogue_matches(item: dict, text: str, pattern: str) -> bool:
+        """Поиск по нику, имени и номеру: как поиск по чатам в Telegram."""
+        haystack = [
+            str(item.get("username") or ""), str(item.get("display_name") or ""),
+            str(item.get("user_id") or ""), str(item.get("last_body") or ""),
+        ]
+        needle = text.lstrip("@").lower()
+        return any(needle in value.lower() for value in haystack)
 
     async def dialogue_history(self, user_id: int, *, limit: int = 200) -> list[dict]:
         cursor = await self.conn.execute(
-            "SELECT id, direction, body, image_path, delivery, created_at "
+            "SELECT id, direction, body, image_path, delivery, created_at, attachment "
             "FROM dialogue_messages WHERE user_id = ? ORDER BY id ASC LIMIT ?",
             (int(user_id), int(limit)),
         )
-        keys = ("id", "direction", "body", "image_path", "delivery", "created_at")
+        keys = ("id", "direction", "body", "image_path", "delivery", "created_at",
+                "attachment")
         return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
 
     async def mark_dialogue_read(self, user_id: int, *, now: float) -> None:

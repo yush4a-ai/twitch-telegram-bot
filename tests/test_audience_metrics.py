@@ -45,25 +45,31 @@ class AudienceMetricsTests(unittest.IsolatedAsyncioTestCase):
         await self.profile(202, first_seen=self.now - 2 * DAY_SECONDS, last_active=self.now - 2 * DAY_SECONDS)
         await self.db.add_channel(101, "alpha")
         await self.db.add_channel(202, "beta")
+        # Эфир по каналу человека: это измеримый шаг воронки.
+        await self.db.add_stream_history(
+            101, "alpha", "stream-1", self.now - 60, 3600, 10, 5, 0,
+            started_at=self.now - 3660, title="Тест",
+        )
+        # Подтверждённая доставка: история событий зрителя пишется при Plus.
         await self.db.conn.execute(
-            "INSERT INTO notification_jobs (kind, chat_id, twitch_login, logical_stream_id,"
-            " payload_version, due_at, status, created_at, updated_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
-            ("live", 101, "alpha", "stream-1", 1, self.now - 60, "done",
-             self.now - 60, self.now - 60),
+            "INSERT INTO viewer_event_history (telegram_user_id, event_key, kind, twitch_login,"
+            " logical_stream_id, category_name, outcome, happened_at) VALUES (?,?,?,?,?,?,?,?)",
+            (101, "go_live:alpha:stream-1", "go_live", "alpha", "stream-1", None, "sent",
+             self.now - 60),
         )
         await self.db.conn.commit()
 
         metrics = await collect_audience(self.db, now=self.now)
         self.assertEqual(metrics.with_streamers, 2)
+        self.assertEqual(metrics.reached_live, 1)
         self.assertEqual(metrics.with_delivery, 1)
 
         steps = {row["title"]: row for row in funnel(metrics)}
         self.assertEqual(steps["Открыли бота"]["value"], 2)
         self.assertEqual(steps["Добавили стримера"]["value"], 2)
-        self.assertEqual(steps["Получили уведомление"]["value"], 1)
+        self.assertEqual(steps["Дождались эфира"]["value"], 1)
         self.assertIsNone(steps["Открыли бота"]["share_of_previous"])
-        self.assertEqual(steps["Получили уведомление"]["share_of_previous"], 0.5)
+        self.assertEqual(steps["Дождались эфира"]["share_of_previous"], 0.5)
 
     async def test_empty_database_reports_zero_without_inventing_share(self):
         metrics = await collect_audience(self.db, now=self.now)

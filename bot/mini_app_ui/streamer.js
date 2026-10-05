@@ -79,7 +79,7 @@ export function createStreamerFeature(api, getRouter, telegram) {
         error = cause instanceof ApiError && (cause.status === 401 || cause.status === 403)
           ? 'Время входа истекло. Откройте приложение из чата бота.'
           : data ? 'Нет связи. Показываем последние загруженные данные.'
-            : 'Не удалось загрузить данные. Проверь подключение и повтори попытку.';
+            : 'Не удалось загрузить данные. Проверьте подключение и повторите попытку.';
       } finally {
         clearTimeout(timeout);
         if (!disposed && generation === profileGeneration) { loading = false; refresh(); }

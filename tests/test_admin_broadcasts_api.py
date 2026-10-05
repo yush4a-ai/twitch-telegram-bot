@@ -340,6 +340,26 @@ class AdminBroadcastsApiTests(unittest.IsolatedAsyncioTestCase):
         ) as response:
             self.assertEqual(response.status, 400)
 
+    async def test_history_shows_what_kind_of_attachment_it_was(self):
+        await self.db.record_dialogue_message(
+            777010, "in", None, now=1_700_000_000.0, attachment="sticker")
+        await self.login()
+        async with self.session.get(self.base + "/admin/api/dialogues/777010") as response:
+            messages = (await response.json())["messages"]
+        self.assertEqual(messages[-1]["attachment"], "sticker")
+        self.assertIsNone(messages[-1]["image_name"])
+
+    async def test_dialogues_list_marks_people_without_a_conversation(self):
+        await self.db.remember_profile(
+            777011, username="silent", display_name="Молчун", language_code="ru",
+            now=1_700_000_000.0)
+        await self.login()
+        async with self.session.get(self.base + "/admin/api/dialogues") as response:
+            dialogues = (await response.json())["dialogues"]
+        silent = [row for row in dialogues if row["user_id"] == 777011]
+        self.assertEqual(len(silent), 1)
+        self.assertEqual(silent[0]["has_history"], 0)
+
     async def test_dialogue_history_hides_disk_paths(self):
         await self.db.record_dialogue_message(
             777010, "out", "С картинкой", now=1_700_000_000.0,

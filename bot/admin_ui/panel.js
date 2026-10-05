@@ -92,6 +92,9 @@ function navigate() {
     if (!campaignsLoaded) loadCampaigns();
     loadDialogues($('dialogues-query').value.trim());
   }
+  // Живой чат обновляем только пока открыт раздел с перепиской.
+  if (view === 'campaigns' && !$('chat-panel').hidden) startChatRefresh();
+  else stopChatRefresh();
   document.querySelector('main').scrollIntoView({ block: 'start' });
 }
 
@@ -125,6 +128,52 @@ function renderActivitySeries(byDay) {
   }
 }
 
+function renderPeoplePath(steps, confirmedDelivery) {
+  const list = $('people-path');
+  if (!list) return;
+  list.replaceChildren();
+  if (!Array.isArray(steps) || !steps.length) {
+    const li = document.createElement('li');
+    li.className = 'empty-line';
+    li.textContent = 'Недостаточно данных';
+    list.append(li);
+    return;
+  }
+  for (const step of steps) {
+    const li = document.createElement('li');
+    const label = document.createElement('span');
+    label.className = 'activity-day';
+    label.textContent = String(step.title || '');
+    const users = document.createElement('span');
+    users.className = 'activity-users';
+    users.textContent = value(step.value);
+    const note = document.createElement('span');
+    note.className = 'series-note';
+    const share = step.share_of_previous;
+    note.textContent = share === null || share === undefined
+      ? 'Первый шаг'
+      : `${Math.round(share * 100)}% от прошлого шага`;
+    li.append(label, users, note);
+    list.append(li);
+  }
+  if (confirmedDelivery !== null && confirmedDelivery !== undefined) {
+    const li = document.createElement('li');
+    const label = document.createElement('span');
+    label.className = 'activity-day';
+    label.textContent = 'Подтверждённая доставка';
+    const users = document.createElement('span');
+    users.className = 'activity-users';
+    users.textContent = value(confirmedDelivery);
+    const note = document.createElement('span');
+    note.className = 'series-note';
+    // Честно про источник: журнал ведётся только при действующем Plus,
+    // поэтому число ниже реального и в воронку не подставляется.
+    note.textContent = 'Ведётся только для платных, поэтому ниже реального';
+    li.append(label, users, note);
+    list.append(li);
+  }
+}
+
 /* Экраны */
 function renderMetrics(data) {
   const audience = data.audience || {};
@@ -141,6 +190,10 @@ function renderMetrics(data) {
   // Заметка под числом не должна противоречить самому числу.
   put('stat-active-today-note', activity ? 'Отметки действий за сегодня, МСК' : 'Считается по отметкам действий');
   put('stat-new-7d-note', activity ? 'Первое появление за неделю' : 'Первое появление в боте');
+  const people = data.people || {};
+  put('stat-returned', people.returned === undefined || people.returned === null
+    ? 'Нет данных' : value(people.returned));
+  renderPeoplePath(people.funnel, people.with_delivery);
   renderActivitySeries(activity ? activity.by_day : null);
 
   const attention = data.attention || [];
@@ -930,6 +983,10 @@ function render(data) {
 
 /* Раздел «Рассылки»: кампании и переписка */
 let currentDialogue = null;
+// Живой диалог: панель сама подтягивает новые сообщения, без обновления страницы.
+let chatTimer = null;
+let lastThreadMessageId = 0;
+const CHAT_REFRESH_MS = 3000;
 let campaignsLoaded = false;
 
 const CAMPAIGN_STATES = {
@@ -1158,6 +1215,29 @@ async function loadDialogues(query) {
   }
 }
 
+const ATTACHMENT_LABELS = {
+  photo: 'Картинка', sticker: 'Стикер', animation: 'Гифка', video: 'Видео',
+  video_note: 'Видеокружок', voice: 'Голосовое', audio: 'Аудио',
+  document: 'Файл', contact: 'Контакт', location: 'Геолокация',
+  venue: 'Место', poll: 'Опрос', dice: 'Кубик',
+};
+const ATTACHMENT_ICONS = {
+  photo: '📷', sticker: '🩵', animation: '🎞', video: '📹', video_note: '⭕️',
+  voice: '🎤', audio: '🎵', document: '📎', contact: '👤', location: '📍',
+  venue: '📍', poll: '📊', dice: '🎲',
+};
+
+function attachmentLabel(kind) {
+  return ATTACHMENT_LABELS[kind] || 'Вложение';
+}
+
+function attachmentChip(kind) {
+  const chip = document.createElement('p');
+  chip.className = 'bubble-chip';
+  chip.textContent = `${ATTACHMENT_ICONS[kind] || '📎'} ${attachmentLabel(kind)}`;
+  return chip;
+}
+
 function renderDialogues(rows) {
   const list = $('dialogue-list');
   list.replaceChildren();
@@ -1168,7 +1248,8 @@ function renderDialogues(rows) {
     list.append(li);
     return;
   }
-  for (const dialogue of rows) {    const li = document.createElement('li');
+  for (const dialogue of rows) {
+    const li = document.createElement('li');
     const link = document.createElement('button');
     link.type = 'button';
     link.className = 'dialogue-link';
@@ -1179,11 +1260,17 @@ function renderDialogues(rows) {
       || (dialogue.username ? `@${dialogue.username}` : `ID ${dialogue.user_id}`);
     const preview = document.createElement('span');
     preview.className = 'dialogue-preview';
-    preview.textContent = `${dialogue.last_direction === 'out' ? 'Вы: ' : ''}${dialogue.last_body || 'Вложение'}`;
+    const fromOwner = dialogue.last_direction === 'out' ? 'Вы: ' : '';
+    const last = dialogue.last_body
+      || (dialogue.last_attachment ? attachmentLabel(dialogue.last_attachment)
+        : Number(dialogue.has_history) ? 'Вложение' : 'Сообщений пока нет');
+    preview.textContent = `${fromOwner}${last}`;
     const meta = document.createElement('span');
     meta.className = 'dialogue-meta';
     const unread = Number(dialogue.unread_count || 0);
-    meta.textContent = unread ? `${unread} новых` : stamp(dialogue.last_message_at);
+    if (unread) meta.textContent = `${unread} новых`;
+    else if (Number(dialogue.has_history)) meta.textContent = stamp(dialogue.last_message_at);
+    else meta.textContent = 'не писали';
     link.append(name, preview, meta);
     link.addEventListener('click', () => openDialogue(dialogue.user_id));
     li.append(link);
@@ -1213,6 +1300,40 @@ async function openDialogue(userId) {
   }
 }
 
+function chatIsOpen() {
+  const panel = $('chat-panel');
+  const view = $('view-campaigns');
+  return Boolean(panel && view && !panel.hidden && !view.hidden && !document.hidden);
+}
+
+async function refreshChat() {
+  if (!chatIsOpen()) return;
+  await loadDialogues($('dialogues-query').value.trim());
+  if (!currentDialogue) return;
+  const response = await api(`/admin/api/dialogues/${currentDialogue}`);
+  if (!response.ok) return;
+  const messages = (await response.json()).messages || [];
+  const newest = messages.length ? Number(messages[messages.length - 1].id) : 0;
+  if (newest === lastThreadMessageId) return;
+  // Перерисовываем только когда правда пришло новое: иначе мигает ввод.
+  renderThread(messages);
+  await postWrite(`/admin/api/dialogues/${currentDialogue}/read`, {});
+  setChatBadge(0);
+}
+
+function startChatRefresh() {
+  if (chatTimer) return;
+  chatTimer = setInterval(() => {
+    refreshChat().catch(() => {});
+  }, CHAT_REFRESH_MS);
+}
+
+function stopChatRefresh() {
+  if (!chatTimer) return;
+  clearInterval(chatTimer);
+  chatTimer = null;
+}
+
 function renderThread(messages) {
   const list = $('thread');
   list.replaceChildren();
@@ -1226,16 +1347,20 @@ function renderThread(messages) {
   for (const message of messages) {
     const li = document.createElement('li');
     li.className = message.direction === 'out' ? 'bubble out' : 'bubble in';
-    if (message.image_name) {
+    const kind = message.attachment;
+    const hasImage = Boolean(message.image_name);
+    if (hasImage) {
       const image = document.createElement('img');
       image.className = 'bubble-image';
       image.loading = 'lazy';
       image.alt = 'Картинка из переписки';
       image.src = `/admin/api/media/${encodeURIComponent(message.image_name)}`;
       li.append(image);
+    } else if (kind && kind !== 'photo') {
+      // Стикер, гифку или голосовое показать нечем, но человек их прислал.
+      li.append(attachmentChip(kind));
     }
-    // Если есть картинка и нет текста, подпись «Вложение» только мешает.
-    if (message.body || !message.image_name) {
+    if (message.body || (!hasImage && !kind)) {
       const text = document.createElement('p');
       text.className = 'bubble-text';
       text.textContent = message.body || 'Вложение';
@@ -1248,7 +1373,10 @@ function renderThread(messages) {
     li.append(time);
     list.append(li);
   }
-  list.lastElementChild.scrollIntoView({ block: 'nearest' });
+  lastThreadMessageId = Number(messages[messages.length - 1].id) || 0;
+  // Как в мессенджере: диалог открывается на последнем сообщении.
+  const box = $('thread');
+  if (box) box.scrollTop = box.scrollHeight;
 }
 
 async function sendReply(event) {
@@ -1385,6 +1513,9 @@ for (const [tabId, panelId] of CAMPAIGN_TABS) {
       $(otherTab).setAttribute('tabindex', selected ? '0' : '-1');
       $(otherPanel).hidden = !selected;
     }
+    // Переписка живёт, пока её видно: иначе панель зря дёргает сервер.
+    if (tabId === 'tab-chat') startChatRefresh();
+    else stopChatRefresh();
   };
   $(tabId).addEventListener('click', activate);
   $(tabId).addEventListener('keydown', (event) => {
@@ -1414,6 +1545,12 @@ $('dialogues-form').addEventListener('submit', (event) => {
   loadDialogues($('dialogues-query').value.trim());
 });
 $('reply-form').addEventListener('submit', sendReply);
+// Как в мессенджере: Enter отправляет, Shift+Enter переносит строку.
+$('reply-body').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  $('reply-form').requestSubmit();
+});
 $('thread-delete').addEventListener('click', deleteThread);
 
 $('people-form').addEventListener('submit', (event) => {

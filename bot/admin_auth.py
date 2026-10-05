@@ -40,6 +40,9 @@ class AdminAccess:
         self._csrf: dict[str, list[tuple[str, float]]] = {}
         self.csrf_ttl = 15 * 60
         self._login_states = LoginStates(32)
+        # Адреса, с которых владелец уже успешно входил: им разрешено получить
+        # состояние входа даже при полностью занятом чужом пуле.
+        self._owner_clients: dict[str, float] = {}
 
     def login(self, candidate: str, remote: str) -> tuple[str | None, bool]:
         now = time.monotonic()
@@ -54,19 +57,19 @@ class AdminAccess:
             self._failures[remote] = failures
             return None, False
         self._failures.pop(remote, None)
-        return self._new_session(now), False
+        return self._new_session(now, remote), False
 
-    def login_webapp(self, init_data: str) -> str | None:
+    def login_webapp(self, init_data: str, remote: str | None = None) -> str | None:
         if not self.enabled or self.owner_id is None:
             return None
         if verify_webapp_user(init_data, self._bot_token) != self.owner_id:
             return None
-        return self._new_session(time.monotonic())
+        return self._new_session(time.monotonic(), remote)
 
-    def login_telegram_widget(self, values: Mapping[str, str]) -> str | None:
+    def login_telegram_widget(self, values: Mapping[str, str], remote: str | None = None) -> str | None:
         if self.verified_widget_user(values) is None:
             return None
-        return self._new_session(time.monotonic())
+        return self._new_session(time.monotonic(), remote)
 
     def verified_widget_user(self, values: Mapping[str, str]) -> int | None:
         if not self.enabled or self.owner_id is None:
@@ -76,13 +79,30 @@ class AdminAccess:
         return self.owner_id
 
     def new_login_state(self, client: str = '', existing: str | None = None) -> str | None:
-        return self._login_states.new(client, existing)
+        return self._login_states.new(client, existing, trusted=self._is_owner_client(client))
+
+    def _remember_owner_client(self, remote: str | None, now: float) -> None:
+        if not remote:
+            return
+        digest = self._login_states.digest(remote)
+        self._owner_clients[digest] = now + 86400
+        if len(self._owner_clients) > 16:
+            oldest = min(self._owner_clients, key=self._owner_clients.__getitem__)
+            self._owner_clients.pop(oldest, None)
+
+    def _is_owner_client(self, client: str) -> bool:
+        if not client:
+            return False
+        stamp = self._owner_clients.get(self._login_states.digest(client))
+        return stamp is not None and stamp > time.monotonic()
 
     def consume_login_state(self, candidate: str, cookie: str | None) -> bool:
         return self._login_states.consume(candidate, cookie)
 
-    def _new_session(self, now: float) -> str:
+    def _new_session(self, now: float, remote: str | None = None) -> str:
         self._prune(now)
+        # Успешный вход запоминает адрес: следующий раз он получит резерв в пуле.
+        self._remember_owner_client(remote, now)
         if len(self._sessions) >= 32:
             oldest = min(self._sessions, key=self._sessions.__getitem__)
             self._sessions.pop(oldest, None)

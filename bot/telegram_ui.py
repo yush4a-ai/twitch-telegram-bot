@@ -6,7 +6,7 @@ import secrets
 from aiogram.enums import ChatType
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
-HOME_TEXT = "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+HOME_TEXT = "<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал."
 
 
 def own_private(message, actor_id=None):

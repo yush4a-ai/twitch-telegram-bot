@@ -9,6 +9,8 @@ import shutil
 import time
 from collections.abc import Callable
 
+from .audience_metrics import collect_audience, funnel as audience_funnel
+
 
 _SAFE_ERROR = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,79}\Z")
 
@@ -221,11 +223,18 @@ class AdminSnapshot:
             preview_state = "ok"
 
         audience = live = queues = growth = None
+        people = None
         database_failed = False
         try:
             audience = await asyncio.wait_for(self._db.get_bot_stats(), 2.0)
         except Exception:
             database_failed = True
+        try:
+            # Сколько людей приходит, возвращается и где останавливается.
+            collected = await asyncio.wait_for(collect_audience(self._db), 2.0)
+            people = {**collected.as_dict(), "funnel": list(audience_funnel(collected))}
+        except Exception:
+            people = None
         try:
             live = await asyncio.wait_for(self._db.get_admin_live_streams(), 2.0)
         except Exception:
@@ -327,6 +336,7 @@ class AdminSnapshot:
                 "disabled_reason": _error_class(preview.get("disabled_reason")) if preview else None,
             },
             "audience": audience,
+            "people": people,
             "live": live,
             "queues": queues,
             "growth": growth,

@@ -29,7 +29,7 @@ class TelegramAddTests(unittest.IsolatedAsyncioTestCase):
 
     async def begin(self):
         await cb_menu_add(self.callback('menu:add'),self.state)
-        self.assertEqual(self.msg.edit_text.await_args.args[0],'<b>Добавить оповещения</b>\n\nПришли ник или ссылку Twitch.\n\n<blockquote>Бот найдёт стримера и попросит подтвердить добавление.</blockquote>')
+        self.assertEqual(self.msg.edit_text.await_args.args[0],'<b>Добавить оповещения</b>\n\nПришлите ник или ссылку Twitch.\n\n<blockquote>Бот найдёт стримера и попросит подтвердить добавление.</blockquote>')
 
     async def prepare(self):
         await self.begin()
@@ -77,7 +77,7 @@ class TelegramAddTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self.db.list_channels(101),[])
         from bot.telegram_home import COMMUNITY_LINE
         self.assertEqual(self.msg.answer_photo.await_args.kwargs['caption'],
-                         '<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал.'
+                         '<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал.'
                          '\n\n' + COMMUNITY_LINE)
 
     async def test_confirm_checks_atomic_current_limit_50_and_200(self):

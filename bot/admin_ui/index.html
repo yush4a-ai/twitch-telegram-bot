@@ -16,7 +16,7 @@
   <div class="shell">
     <aside class="rail" id="app-nav" aria-label="Разделы панели">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">TS</span>
+        <img class="brand-mark" src="mark.png" width="40" height="40" alt="">
         <span class="brand-text">TwitchSignal<span class="brand-bot">Bot</span></span>
       </div>
       <nav class="nav">
@@ -68,6 +68,7 @@
             <div class="metric"><span class="metric-label">Доставки за 24 ч</span><strong id="stat-deliveries">Нет данных</strong><span class="metric-note">Уведомления и отчёты</span></div>
             <div class="metric"><span class="metric-label">Активный Plus</span><strong id="stat-plus">Нет данных</strong><span class="metric-note" id="stat-plus-note">Действующие права</span></div>
             <div class="metric metric-wide"><span class="metric-label">Новые за 7 дней</span><strong id="stat-new-7d">Нет данных</strong><span class="metric-note" id="stat-new-7d-note">Первое появление в боте</span></div>
+            <div class="metric metric-wide"><span class="metric-label">Вернулись</span><strong id="stat-returned">Нет данных</strong><span class="metric-note">Заходили больше одного дня</span></div>
           </div>
 
           <div class="overview">
@@ -75,6 +76,11 @@
               <section class="panel" aria-labelledby="activity-heading">
                 <div class="panel-head"><h2 id="activity-heading">Активность за 7 дней</h2><span class="panel-note">Уникальные люди с действием, МСК</span></div>
                 <ul class="activity-series" id="activity-series"><li class="empty-line">Недостаточно данных</li></ul>
+              </section>
+
+              <section class="panel" aria-labelledby="path-heading">
+                <div class="panel-head"><h2 id="path-heading">Путь человека</h2><span class="panel-note">От первого захода до недели с ботом</span></div>
+                <ul class="activity-series" id="people-path"><li class="empty-line">Недостаточно данных</li></ul>
               </section>
 
               <section class="panel" aria-labelledby="live-heading">
@@ -241,6 +247,7 @@
                   <input id="compose-title" maxlength="120" autocomplete="off" placeholder="Например: обновление бота">
                   <label class="field-label" for="compose-body">Текст сообщения</label>
                   <textarea id="compose-body" rows="6" maxlength="4096" placeholder="Что увидят люди"></textarea>
+                  <p class="field-hint">Оформление: <code>&lt;b&gt;жирный&lt;/b&gt;</code>, <code>&lt;i&gt;курсив&lt;/i&gt;</code>, <code>&lt;u&gt;подчёркнутый&lt;/u&gt;</code>. Если разметка сломана, текст уйдёт как есть, сообщение не потеряется. Без картинки помещается до 4096 знаков, с картинкой подпись короче: до 1024.</p>
                   <label class="check-line"><input type="checkbox" id="compose-button-on"> Добавить кнопку</label>
                   <div id="compose-button-fields" hidden>
                     <label class="field-label" for="compose-button-text">Текст кнопки</label>

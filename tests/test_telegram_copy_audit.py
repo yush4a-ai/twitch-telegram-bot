@@ -53,7 +53,7 @@ class CopyAuditTests(unittest.TestCase):
             await cb_streamer(callback,db)
             caption=Caption(msg.edit_text.await_args.args[0])
             self.assertEqual(caption.quotes,1)
-            self.assertIn('Твой Twitch-канал',caption.bold)
+            self.assertIn('Ваш Twitch-канал',caption.bold)
             self.assertIn('<alpha>',caption.bold)
             self.assertIn('Telegram-подключения',caption.bold)
             self.assertIn('<channel>',''.join(caption.plain))
@@ -94,7 +94,7 @@ class CopyAuditTests(unittest.TestCase):
             text,_=await _quiet_hours_screen_text_and_keyboard(101,db)
             caption=Caption(text)
             self.assertEqual(caption.quotes,1)
-            self.assertIn('Сейчас у тебя',''.join(caption.plain))
+            self.assertIn('Сейчас у вас',''.join(caption.plain))
         asyncio.run(check())
 
     def test_welcome_does_not_repeat_banner_brand_and_has_heading(self):

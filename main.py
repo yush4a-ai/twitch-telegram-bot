@@ -520,6 +520,18 @@ def _broadcast_keyboard(campaign: dict) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+async def _send_with_markup(send) -> None:
+    """Сначала разметка мастера, а при отказе Telegram — тот же текст простым.
+
+    Разметка не должна ронять рассылку: «<3» или незакрытый тег отвергли бы
+    сообщение на каждом получателе, поэтому второй попыткой текст уходит как есть.
+    """
+    try:
+        await send(ParseMode.HTML)
+    except TelegramBadRequest:
+        await send(None)
+
+
 def _make_broadcast_sender(bot: Bot):
     async def send(user_id: int, campaign: dict) -> None:
         keyboard = _broadcast_keyboard(campaign)
@@ -527,19 +539,19 @@ def _make_broadcast_sender(bot: Bot):
         image_path = campaign.get("image_path")
         if image_path and Path(image_path).is_file():
             if len(body) <= TELEGRAM_CAPTION_LIMIT:
-                await bot.send_photo(
+                await _send_with_markup(lambda mode: bot.send_photo(
                     chat_id=user_id, photo=FSInputFile(image_path),
-                    caption=body, reply_markup=keyboard, parse_mode=None,
-                )
+                    caption=body, reply_markup=keyboard, parse_mode=mode,
+                ))
                 return
             # Подпись к фото ограничена 1024 символами, а текст рассылки — 4096.
             # Длинный текст отправляем отдельным сообщением, иначе Telegram откажет.
             await bot.send_photo(
                 chat_id=user_id, photo=FSInputFile(image_path), parse_mode=None)
-        await bot.send_message(
-            chat_id=user_id, text=body, parse_mode=None,
+        await _send_with_markup(lambda mode: bot.send_message(
+            chat_id=user_id, text=body, parse_mode=mode,
             reply_markup=keyboard, disable_web_page_preview=True,
-        )
+        ))
     return send
 
 
@@ -549,15 +561,16 @@ def _make_chat_sender(bot: Bot):
         try:
             if image_path and Path(image_path).is_file():
                 if len(text or "") <= TELEGRAM_CAPTION_LIMIT:
-                    await bot.send_photo(
+                    await _send_with_markup(lambda mode: bot.send_photo(
                         chat_id=user_id, photo=FSInputFile(image_path),
-                        caption=text or None, parse_mode=None)
+                        caption=text or None, parse_mode=mode))
                     return True
                 # Длинный ответ не влезает в подпись: фото отдельно, текст отдельно.
                 await bot.send_photo(
                     chat_id=user_id, photo=FSInputFile(image_path), parse_mode=None)
-            await bot.send_message(
-                chat_id=user_id, text=text, parse_mode=None, disable_web_page_preview=True)
+            await _send_with_markup(lambda mode: bot.send_message(
+                chat_id=user_id, text=text, parse_mode=mode,
+                disable_web_page_preview=True))
             return True
         except (TelegramForbiddenError, TelegramBadRequest):
             return False

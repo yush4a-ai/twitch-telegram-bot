@@ -16,7 +16,7 @@ async def on_menu(message, state, db, config=None, oauth_server=None):
 
 async def cb_more(callback, config=None, state=None, db=None, oauth_server=None):
     if callback.message is None:
-        await callback.answer("Сообщение недоступно. Нажми «Меню».",show_alert=True)
+        await callback.answer("Сообщение недоступно. Нажмите «Меню».",show_alert=True)
         return
     if state is not None:
         await cancel_ui(state,actor_id=callback.from_user.id,db=db,oauth_server=oauth_server,message=callback.message)
@@ -36,9 +36,9 @@ async def cb_open_app(callback, config=None, state=None, db=None, oauth_server=N
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Открыть приложение",web_app=WebAppInfo(url=url))],
             [InlineKeyboardButton(text="← На главную",callback_data="menu:home")]])
-        await edit_menu(msg,"<b>Приложение</b>\n\nОткрывай настройки в приложении.",reply_markup=keyboard)
+        await edit_menu(msg,"<b>Приложение</b>\n\nОткрывайте настройки в приложении.",reply_markup=keyboard)
     elif msg is not None:
-        await msg.answer("Открой личный чат с ботом. Приложение доступно через кнопку «Приложение».",
+        await msg.answer("Откройте личный чат с ботом. Приложение доступно через кнопку «Приложение».",
                          reply_markup=back_keyboard('menu:home'))
     await callback.answer()
 

@@ -48,7 +48,7 @@ async function loadTemplate(community) {
     templateMessage.textContent = value.version ? "Сохранённое оформление загружено." : "Оформление пока не задано.";
   } catch (_) {
     templateCard.hidden = true;
-    templateMessage.textContent = "Не удалось загрузить оформление. Проверь права и попробуй снова.";
+    templateMessage.textContent = "Не удалось загрузить оформление. Проверьте права и попробуйте снова.";
   }
 }
 
@@ -74,9 +74,9 @@ async function refreshCommunities() {
     }
     communityMessage.textContent = payload.communities.length
       ? "Сообщества с подтверждёнными правами:"
-      : "Нет доступных сообществ. Если они были подключены, проверь права администратора у себя и бота.";
+      : "Нет доступных сообществ. Если они были подключены, проверьте права администратора у себя и бота.";
   } catch (_) {
-    communityMessage.textContent = "Не удалось проверить права сообществ. Попробуй обновить.";
+    communityMessage.textContent = "Не удалось проверить права сообществ. Попробуйте обновить.";
   }
 }
 
@@ -101,7 +101,7 @@ async function refreshProfile() {
     document.getElementById("stats-card").hidden = !profile.plus_active;
     if (profile.plus_active) await refreshStats();
   } catch (_) {
-    message.textContent = "Данные временно недоступны. Попробуй обновить.";
+    message.textContent = "Данные временно недоступны. Попробуйте обновить.";
   }
 }
 
@@ -111,7 +111,7 @@ document.getElementById("community-form").addEventListener("submit", async (even
   const raw = document.getElementById("chat-id").value.trim().replace(/^−/, "-");
   const chatId = Number(raw);
   if (!/^-[0-9]+$/.test(raw) || !Number.isSafeInteger(chatId)) {
-    communityMessage.textContent = "Укажи числовой ID группы или канала с минусом в начале.";
+    communityMessage.textContent = "Укажите числовой ID группы или канала с минусом в начале.";
     return;
   }
   communityMessage.textContent = "Проверяем права…";
@@ -122,14 +122,14 @@ document.getElementById("community-form").addEventListener("submit", async (even
     });
     if (!response.ok) {
       communityMessage.textContent = response.status === 403
-        ? "Нужен активный Plus и права администратора у тебя и бота."
-        : "Не удалось подключить. Проверь ID и попробуй снова.";
+        ? "Нужен активный Plus и права администратора у вас и бота."
+        : "Не удалось подключить. Проверьте ID и попробуйте снова.";
       return;
     }
     document.getElementById("chat-id").value = "";
     await refreshCommunities();
   } catch (_) {
-    communityMessage.textContent = "Сеть недоступна. Попробуй позже.";
+    communityMessage.textContent = "Сеть недоступна. Попробуйте позже.";
   }
 });
 document.getElementById("template-form").addEventListener("submit", async (event) => {
@@ -141,7 +141,7 @@ document.getElementById("template-form").addEventListener("submit", async (event
     const url = document.getElementById(`template-button-${index}-url`).value.trim();
     if (label || url) {
       if (!label || !url) {
-        templateMessage.textContent = "Для каждой кнопки заполни название и ссылку.";
+        templateMessage.textContent = "Для каждой кнопки заполните название и ссылку.";
         return;
       }
       buttons.push({label, url});
@@ -160,19 +160,19 @@ document.getElementById("template-form").addEventListener("submit", async (event
       }),
     });
     if (response.status === 409) {
-      templateMessage.textContent = "Оформление изменилось в другой вкладке. Открой его заново перед сохранением.";
+      templateMessage.textContent = "Оформление изменилось в другой вкладке. Откройте его заново перед сохранением.";
       return;
     }
     if (!response.ok) {
       templateMessage.textContent = response.status === 403
-        ? "Нужен активный Plus и права администратора у тебя и бота."
-        : "Не удалось сохранить. Проверь текст и HTTPS-ссылки.";
+        ? "Нужен активный Plus и права администратора у вас и бота."
+        : "Не удалось сохранить. Проверьте текст и HTTPS-ссылки.";
       return;
     }
     templateVersion = (await response.json()).version;
     templateMessage.textContent = "Оформление сохранено.";
   } catch (_) {
-    templateMessage.textContent = "Сеть недоступна. Попробуй позже.";
+    templateMessage.textContent = "Сеть недоступна. Попробуйте позже.";
   }
 });
 refreshProfile();

@@ -9,6 +9,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramBadRequest
+
 from main import (
     TELEGRAM_CAPTION_LIMIT,
     _make_broadcast_sender,
@@ -75,18 +78,42 @@ class BroadcastSenderTests(unittest.IsolatedAsyncioTestCase):
         self.bot.send_photo.assert_not_awaited()
         self.bot.send_message.assert_awaited_once()
 
-    async def test_text_is_sent_without_html_parsing(self):
-        # «<3» не должно ломать рассылку: иначе все получатели получат «ошибку».
+    async def test_text_keeps_the_owner_markup(self):
+        # Владелец оформляет рассылку жирным и курсивом: разметка должна дойти.
+        await _make_broadcast_sender(self.bot)(
+            777010, self.campaign("Спасибо <b>вам</b>", None))
+        self.assertEqual(
+            self.bot.send_message.await_args.kwargs.get("parse_mode"),
+            ParseMode.HTML,
+        )
+
+    async def test_answer_keeps_the_owner_markup(self):
+        await _make_chat_sender(self.bot)(777010, "Смотри <i>вот</i>", None)
+        self.assertEqual(
+            self.bot.send_message.await_args.kwargs.get("parse_mode"),
+            ParseMode.HTML,
+        )
+
+    async def test_broken_markup_still_reaches_the_person(self):
+        # «<3» ломает разметку: второй попыткой текст уходит как есть.
+        self.bot.send_message.side_effect = [
+            TelegramBadRequest(method=None, message="can't parse entities"),
+            None,
+        ]
         await _make_broadcast_sender(self.bot)(
             777010, self.campaign("Спасибо <3", None))
-        self.assertIsNone(self.bot.send_message.await_args.kwargs.get("parse_mode"))
+        self.assertEqual(self.bot.send_message.await_count, 2)
+        self.assertIsNone(
+            self.bot.send_message.await_args.kwargs.get("parse_mode"))
 
-    async def test_answer_is_sent_without_html_parsing(self):
-        await _make_chat_sender(self.bot)(777010, "Смотри <b>вот</b>", None)
-        self.assertIsNone(self.bot.send_message.await_args.kwargs.get("parse_mode"))
-
-    async def test_photo_caption_is_plain_text_too(self):
-        await _make_chat_sender(self.bot)(777010, "<3", str(self.image))
+    async def test_broken_markup_in_a_photo_caption_also_falls_back(self):
+        self.bot.send_photo.side_effect = [
+            TelegramBadRequest(method=None, message="can't parse entities"),
+            None,
+        ]
+        await _make_broadcast_sender(self.bot)(
+            777010, self.campaign("Спасибо <3", str(self.image)))
+        self.assertEqual(self.bot.send_photo.await_count, 2)
         self.assertIsNone(self.bot.send_photo.await_args.kwargs.get("parse_mode"))
 
 

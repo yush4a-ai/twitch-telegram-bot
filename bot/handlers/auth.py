@@ -53,7 +53,7 @@ async def on_streamer_community_shared(message: Message, db: Database, state: FS
         await recover_menu_keyboard(message,state)
     else:
         await send_menu_keyboard(message,'Telegram-канал подключён. Настройки публикаций доступны в приложении.' if saved
-                                 else 'Канал не подключён. Выбери его заново и проверь права бота.',force=True,state=state)
+                                 else 'Канал не подключён. Выберите его заново и проверьте права бота.',force=True,state=state)
 
 
 async def _run_auth_flow(
@@ -68,7 +68,7 @@ async def _run_auth_flow(
             oauth_state=parse_qs(urlsplit(url).query).get('state',[None])[0]
             await state.update_data(legacy_oauth_state=oauth_state)
         await message.answer(
-            "Перейди по ссылке, войди в свой Twitch-аккаунт и разреши доступ. После этого "
+            "Перейдите по ссылке, войдите в свой Twitch-аккаунт и разрешите доступ. После этого "
             f"бот сможет считать число новых фолловеров (ссылка активна 5 минут):\n{url}"
         )
 
@@ -86,7 +86,7 @@ async def _run_auth_flow(
             return
         except Exception:
             logger.exception("Ошибка при авторизации Twitch")
-            await message.answer("Что-то пошло не так при авторизации. Попробуй ещё раз.")
+            await message.answer("Что-то пошло не так при авторизации. Попробуйте ещё раз.")
             return
 
     if not await legacy_oauth_current(state,generation): return
@@ -101,9 +101,9 @@ async def _run_auth_flow(
     if not await db.save_verified_streamer_connection(
         streamer_user_id, result, verified_at=time.time(),
     ):
-        await message.answer("Этот Twitch-аккаунт или твой Telegram уже связан с другим аккаунтом. Настройки не изменены.")
+        await message.answer("Этот Twitch-аккаунт или ваш Telegram уже связан с другим аккаунтом. Настройки не изменены.")
         return
-    await message.answer(f"Готово! Twitch-аккаунт «{result.login}» подключён к твоему кабинету стримера.")
+    await message.answer(f"Готово! Twitch-аккаунт «{result.login}» подключён к вашему кабинету стримера.")
 
 
 @router.message(Command("auth_twitch"))
@@ -122,7 +122,7 @@ async def cmd_streamer_connect(
         or message.from_user is None
         or message.from_user.id != message.chat.id
     ):
-        await message.answer("Подключи кабинет стримера в личном чате с ботом.")
+        await message.answer("Подключите кабинет стримера в личном чате с ботом.")
         return
     telegram_user_id = message.from_user.id
     await _run_auth_flow(

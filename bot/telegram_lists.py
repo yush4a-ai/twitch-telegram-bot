@@ -113,9 +113,9 @@ async def render_context(ctx, db, *, allow_add=False):
     if ctx.live_only:
         text += '\nПоказаны эфиры по последней проверке.'
     if not rows:
-        text += '\n\nСтримеров пока нет. Добавь первого.' if not channels else '\n\nСовпадений нет. Измени поиск или выбери «Все».'
+        text += '\n\nСтримеров пока нет. Добавьте первого.' if not channels else '\n\nСовпадений нет. Измените поиск или выберите «Все».'
     else:
-        text += '\n\nВыбери стримера, чтобы настроить оповещения.'
+        text += '\n\nВыберите стримера, чтобы настроить оповещения.'
     keyboard = []
     for row in rows[ctx.page*PAGE_SIZE:(ctx.page+1)*PAGE_SIZE]:
         login, enabled, *rest = row
@@ -171,7 +171,7 @@ async def callback_context(callback):
     except (ValueError, IndexError, AttributeError):
         ctx = None
     if ctx is None:
-        await callback.answer('Список устарел. Открой «Мои стримеры» заново.', show_alert=True)
+        await callback.answer('Список устарел. Откройте «Мои стримеры» заново.', show_alert=True)
     return ctx, parts
 
 
@@ -218,7 +218,7 @@ async def cb_list_search(callback, state, db, oauth_server=None):
     await cancel_ui(state, actor_id=callback.from_user.id, db=db, oauth_server=oauth_server, message=callback.message)
     await state.set_state(ListSearch.waiting)
     await state.update_data(list_token=ctx.token, list_target=ctx.target)
-    await edit_menu(callback.message, '<b>Поиск в списке</b>\n\nПришли ник или его часть.\n\n<blockquote>Поиск только по этому списку, без добавления стримеров.</blockquote>',
+    await edit_menu(callback.message, '<b>Поиск в списке</b>\n\nПришлите ник или его часть.\n\n<blockquote>Поиск только по этому списку, без добавления стримеров.</blockquote>',
                     reply_markup=Keyboard(inline_keyboard=[[Button(text='Отменить', callback_data=ctx.page_callback())]]))
     await callback.answer()
 
@@ -229,7 +229,7 @@ async def process_list_search(message, state, db):
     ctx = get_context(message, actor, data.get('list_token'), data.get('list_target'))
     if ctx is None:
         await state.clear()
-        await message.answer('Поиск отменён. Открой «Мои стримеры» заново.')
+        await message.answer('Поиск отменён. Откройте «Мои стримеры» заново.')
         return
     proxy = SimpleNamespace(message=message, from_user=message.from_user, bot=message.bot)
     if not await can_read(proxy, ctx.target):
@@ -237,7 +237,7 @@ async def process_list_search(message, state, db):
         return
     query = (message.text or '').strip()
     if not 1 <= len(query) <= 25 or not all(c.isascii() and (c.isalnum() or c == '_') for c in query):
-        await message.answer('Пришли до 25 букв, цифр или подчёркиваний из Twitch-ника.')
+        await message.answer('Пришлите до 25 букв, цифр или подчёркиваний из Twitch-ника.')
         return
     ctx.query, ctx.page = query, 0
     await state.clear()
@@ -263,15 +263,15 @@ async def cb_delete_confirm(callback, db):
     token = (callback.data or '').removeprefix('untrackconfirm:')
     intent = _deletes.get(token)
     if not intent or callback.message is None or intent[0] != actor_key(callback.message, callback.from_user.id) or intent[4] <= time.monotonic():
-        await callback.answer('Подтверждение устарело. Открой список заново.', show_alert=True)
+        await callback.answer('Подтверждение устарело. Откройте список заново.', show_alert=True)
         return
     if not await _check_manage_permission(callback, intent[1]):
-        await callback.answer('Настройки этого чата тебе недоступны.', show_alert=True)
+        await callback.answer('Настройки этого чата вам недоступны.', show_alert=True)
         return
     # Permission lookup yields: Cancel/Menu or another confirmation may claim it.
     claimed = _deletes.pop(token, None)
     if claimed is not intent or intent[4] <= time.monotonic():
-        await callback.answer('Подтверждение устарело. Открой список заново.', show_alert=True)
+        await callback.answer('Подтверждение устарело. Откройте список заново.', show_alert=True)
         return
     await db.remove_channel(intent[1], intent[2])
     ctx = get_context(callback.message, callback.from_user.id, intent[3], intent[1]) or new_context(callback, intent[1])

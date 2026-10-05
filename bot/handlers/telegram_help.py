@@ -23,24 +23,24 @@ TOPICS = {
               '<b>Без покупки</b>\n<blockquote>В Free: до 50 стримеров и фото эфира.\n'
               'Подключение своего Telegram-канала и существующие отчёты доступны без покупки.</blockquote>'),
     'import': ('Добавление и импорт', '<b>По нику или ссылке</b>\n'
-               'Добавь стримера по нику или ссылке Twitch и подтверди выбор.\n\n'
+               'Добавьте стримера по нику или ссылке Twitch и подтвердите выбор.\n\n'
                '<b>Из своего Twitch</b>\nМожно добавлять по одному или импортировать подписки своего Twitch-аккаунта.\n'
-               'Для импорта разреши чтение своих подписок в Twitch. Ссылка действует <b>5 минут</b>.\n\n'
+               'Для импорта разрешите чтение своих подписок в Twitch. Ссылка действует <b>5 минут</b>.\n\n'
                '<blockquote>Бот покажет найденные подписки, повторы и свободные места.\n'
                'Список изменится только после подтверждения. Повторы не добавляются.\n'
                'В Free до 50, в Зритель Plus до 200 стримеров.</blockquote>\n\n'
                '<b>Отмена и доступ</b>\n«Отменить» или «Меню» прекращает незавершённый импорт.\n'
                'Подключение своего Twitch не открывает число фолловеров чужих стримеров.'),
     'quiet': ('Тихие часы', '<b>Как настроить</b>\n'
-              'Открой «Ещё» → «Настройки», укажи свой UTC и выбери интервал.\n'
-              'Перед сохранением проверь местное время на экране подтверждения.\n\n'
+              'Откройте «Ещё» → «Настройки», укажите свой UTC и выберите интервал.\n'
+              'Перед сохранением проверьте местное время на экране подтверждения.\n\n'
               '<b>Что приостанавливается</b>\n<blockquote>Личные оповещения о начале эфира, рейдах, категории и напоминания.\n'
               'Для отдельных стримеров можно включить исключение.\n'
               'Отчёты о завершённых эфирах попадут в сводку после тихих часов.</blockquote>\n\n'
               'Рейды также учитывают тихие часы и выбранные исключения.\n\n'
               '<b>Что работает отдельно</b>\n'
               'Публикации в Telegram-каналах идут по настройкам канала.'),
-    'reports': ('Отчёты и HTML', '<b>Где открыть</b>\nВ «Ещё» → «Отчёты» выбери стримера.\n\n'
+    'reports': ('Отчёты и HTML', '<b>Где открыть</b>\nВ «Ещё» → «Отчёты» выберите стримера.\n\n'
                 '<b>Данные эфира</b>\nНачало и завершение в UTC, длительность, пик и среднее число зрителей.\n'
                 'Если часть данных чата потеряна после перезапуска, это отмечено в тексте.\n\n'
                 '<b>Два формата</b>\n<blockquote>Краткий: сводка в сообщении.\n'
@@ -54,13 +54,19 @@ TOPICS = {
 
 
 def help_screen(config=None):
-    text=('<b>Помощь</b>\n\n<b>Следить за стримером</b>\nНажми «➕ Добавить оповещения» и пришли ник или ссылку Twitch.\n\n'
-          '<b>Подключить свой канал</b>\nОткрой «Я стример», подключи Twitch и выбери Telegram-канал.\n\n'
+    text=('<b>Помощь</b>\n\n<b>Следить за стримером</b>\nНажмите «➕ Добавить оповещения» и пришлите ник или ссылку Twitch.\n\n'
+          '<b>Подключить свой канал</b>\nОткройте «Я стример», подключите Twitch и выберите Telegram-канал.\n\n'
           '<b>Настройки и отчёты</b>\nВ приложении и разделе «Ещё».')
     support=get_support_state(config)
+    # Сайт продукта: адрес приходит из настроек, поэтому в коде его нет.
+    site=getattr(config,'public_site_url',None)
+    if site:
+        text+='\n\n<b>Подробные инструкции</b>\n'+html.escape(site)
     rows=[[InlineKeyboardButton(text=title,callback_data='help:topic:'+key)] for key,(title,_) in TOPICS.items()]
     rows.append([InlineKeyboardButton(text='Команды бота',callback_data='help:commands')])
     rows.append([InlineKeyboardButton(text='Мои данные',callback_data='help:data')])
+    if site:
+        rows.append([InlineKeyboardButton(text='Открыть сайт',url=site)])
     if support.telegram_url:
         rows.append([InlineKeyboardButton(text='Написать в поддержку',url=support.telegram_url)])
     if support.email: text+='\n\n<b>Поддержка</b>\n'+html.escape(support.email)
@@ -99,7 +105,7 @@ async def cb_commands(callback,config=None):
 async def cb_help_topic(callback):
     topic = TOPICS.get((callback.data or '').removeprefix('help:topic:'))
     if topic is None or callback.message is None:
-        await callback.answer('Открой помощь заново.', show_alert=True)
+        await callback.answer('Откройте помощь заново.', show_alert=True)
         return
     title, text = topic
     await edit_menu(callback.message, '<b>'+html.escape(title)+'</b>\n\n'+text, reply_markup=back_keyboard('menu:help'))

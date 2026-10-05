@@ -7811,7 +7811,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         state.clear.assert_awaited_once()
         from bot.telegram_home import COMMUNITY_LINE
         self.assertEqual(message.answer.await_args.args[0],
-                         "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+                         "<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал."
                          "\n\n" + COMMUNITY_LINE)
 
     async def test_private_payload_cannot_target_a_different_user_chat(self) -> None:
@@ -7843,7 +7843,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
         state.clear.assert_awaited_once()
         from bot.telegram_home import COMMUNITY_LINE
         self.assertEqual(message.answer_photo.await_args.kwargs['caption'],
-                         "<b>Оповещения о Twitch</b>\n\nСледи за стримерами или подключи свой канал."
+                         "<b>Оповещения о Twitch</b>\n\nСледите за стримерами или подключите свой канал."
                          "\n\n" + COMMUNITY_LINE)
 
     async def test_deep_link_marks_user_as_known_private_user(self) -> None:
