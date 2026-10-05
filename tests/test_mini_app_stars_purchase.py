@@ -128,6 +128,39 @@ class MiniAppStarsPurchaseTests(unittest.IsolatedAsyncioTestCase):
         )).fetchone())[0]
         return order, self.provider.invoice_payload(order.order_id, attempt_id)
 
+    async def test_catalog_reports_stars_ready_when_policy_is_on(self):
+        """Каталог считает готовность по действующей политике.
+
+        Раньше он вызывал каталог без политики, поэтому всегда показывал
+        «оплата недоступна» даже при включённых деньгах.
+        """
+        base = await self.server()
+        async with self.session.post(
+            base + "/app/api/subscription/catalog", json={"init_data": signed_webapp(BUYER_ID)}
+        ) as response:
+            self.assertEqual(response.status, 200)
+            catalog = await response.json()
+        for product in catalog["products"]:
+            readiness = product["method_readiness"]
+            self.assertTrue(readiness["stars"]["enabled"], product["product_id"])
+            self.assertIsNone(readiness["stars"]["reason_code"])
+            # СБП и карта остаются выключенными: их открывает отдельный флаг провайдера.
+            self.assertFalse(readiness["sbp"]["enabled"])
+            self.assertFalse(readiness["bank_card"]["enabled"])
+            self.assertEqual(product["xtr"]["currency"], "XTR")
+
+    async def test_catalog_without_live_service_reports_unavailable(self):
+        base = await self.server(service=None)
+        async with self.session.post(
+            base + "/app/api/subscription/catalog", json={"init_data": signed_webapp(BUYER_ID)}
+        ) as response:
+            self.assertEqual(response.status, 200)
+            catalog = await response.json()
+        for product in catalog["products"]:
+            for state in product["method_readiness"].values():
+                self.assertFalse(state["enabled"])
+                self.assertEqual(state["reason_code"], "payments_unavailable")
+
     async def test_successful_preparation_returns_pending_order_and_invoice_link(self):
         base = await self.server()
         status, body = await self.prepare(base, request_key="stars-buy-1")

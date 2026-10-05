@@ -14,7 +14,7 @@ from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
 from .mini_app_auth import verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
-from .plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE
+from .plan_catalog import catalog_payload, BillingRuntimePolicy, PAYMENT_UNAVAILABLE_MESSAGE
 from .subscription_state import SubscriptionService
 
 
@@ -65,7 +65,7 @@ def install_mini_app_billing_routes(
             or not isinstance(values.get("request_key"), str)
             or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", values["request_key"]) is None):
             return web.json_response({"error": "invalid_purchase_request"}, status=400)
-        if public_service is None:
+        if not public_service:
             # Денежная политика выключена: покупка недоступна, заказ не создаётся.
             return web.json_response(
                 BillingService.public_purchase(values["product"], values["method"]), status=503,
@@ -119,7 +119,12 @@ def install_mini_app_billing_routes(
             return error
         if set(values) != {"init_data"}:
             return web.json_response({"error": "invalid_catalog_request"}, status=400)
-        return web.json_response(catalog_payload())
+        # Готовность способов считается по действующей политике: без этого каталог
+        # всегда показывал бы «оплата недоступна», даже когда она включена.
+        policy = (
+            public_service.runtime_policy if public_service is not None else BillingRuntimePolicy()
+        )
+        return web.json_response(catalog_payload(policy))
 
     async def test_checkout(request: web.Request) -> web.Response:
         user_id, values, error = await read(request)

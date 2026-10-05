@@ -68,6 +68,11 @@ class BillingService:
         if type(now) not in (int, float) or not math.isfinite(now) or now < 0:
             raise ValueError("invalid billing time")
 
+    @property
+    def runtime_policy(self) -> BillingRuntimePolicy:
+        """Действующая денежная политика: интерфейс показывает по ней готовность способов."""
+        return self._runtime_policy
+
     def _local_runtime(self) -> bool:
         return (self._provider is not None and self._provider.provider_id in {"platega", "telegram_stars"}
                 and getattr(self._provider, "network_free", False) is True
