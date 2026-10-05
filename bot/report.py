@@ -83,7 +83,7 @@ def _build_change_timeline(
 def _event_label(event: dict) -> str:
     if event["type"] == "start":
         return (
-            f'Начало стрима — <b>{html.escape(event["title"])}</b> '
+            f'Начало стрима: <b>{html.escape(event["title"])}</b> '
             f'<span class="event-game">{html.escape(event["game"])}</span>'
         )
     if event["type"] == "title":
@@ -91,13 +91,13 @@ def _event_label(event: dict) -> str:
     if event["type"] == "raid":
         if event.get("raider_name"):
             return (
-                f'⚡ Рейд от <b>{html.escape(event["raider_name"])}</b> — '
+                f'⚡ Рейд от <b>{html.escape(event["raider_name"])}</b>: '
                 f'{event["join_count"]} зрителей'
             )
-        return f'⚡ Вероятный рейд — <b>{event["join_count"]}</b> новых зрителей за 30 сек'
+        return f'⚡ Вероятный рейд: <b>{event["join_count"]}</b> новых зрителей за 30 сек'
     if event["type"] == "spike":
         return (
-            f'🚩 Подозрительный всплеск — <b>{event["viewer_count"]}</b> зрителей '
+            f'🚩 Подозрительный всплеск: <b>{event["viewer_count"]}</b> зрителей '
             f'(резкий взлёт и спад, похоже на накрутку, не учтён в статистике)'
         )
     return f'Смена категории → <b>{html.escape(event["game"])}</b>'
@@ -117,7 +117,7 @@ def _chatters_note(unique_chatters: int | None, reliable: bool) -> str:
     if unique_chatters is None:
         return ""
     base = (
-        "Считаются те, кто написал в чат хотя бы одно сообщение — молчаливые "
+        "Считаются те, кто написал в чат хотя бы одно сообщение: молчаливые "
         "зрители сюда не попадают, поэтому число меньше реальной аудитории."
     )
     if reliable:
@@ -260,7 +260,7 @@ def build_report_html(
         </div>
         <div class="clip-info">
           <div class="clip-title">{html.escape(clip.title or "(без названия)")}</div>
-          <div class="clip-meta">👁 {views} · {html.escape(clip.creator_name or "—")}</div>
+          <div class="clip-meta">👁 {views} · {html.escape(clip.creator_name or "н/д")}</div>
         </div>
       </a>"""
 
@@ -299,7 +299,7 @@ def build_report_html(
   <section class="panel">
     <header class="panel-head">
       <h2>Писали в чат <span class="count">{unique_chatters or len(chatter_entries)}</span></h2>
-      <p class="panel-sub">Время — первое сообщение от начала стрима{
+      <p class="panel-sub">Время: первое сообщение от начала стрима{
         f" · показаны первые {len(chatter_entries)}, ещё {chatters_truncated} не поместились"
         if chatters_truncated else ""
       }</p>
@@ -318,7 +318,7 @@ def build_report_html(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Стрим {login_esc} — отчёт</title>
+<title>Стрим {login_esc}: отчёт</title>
 <style>
   :root {{
     color-scheme: dark;

@@ -401,14 +401,14 @@ async def _added_channel_summary(
     if is_first_channel:
         return (
             f"<b>Готово, слежу за каналом «{html.escape(login)}».</b>\n\n<b>Начало эфира</b>\n<blockquote>"
-            "🔴 Как только стрим начнётся — здесь появится живой пост со счётчиком "
+            "🔴 Как только стрим начнётся, здесь появится живой пост со счётчиком "
             "зрителей. Он всегда остаётся в этом чате.</blockquote>\n\n<b>После эфира</b>\n"
             "📊 После окончания стрима отчёт придёт только в привязанную личку. "
             "В общий чат итоговая статистика не публикуется."
         )
     return (
         f"<b>Готово, слежу за каналом «{html.escape(login)}».</b>\n\n"
-        "🔴 Live-пост — в этот чат. 📊 Итоговый отчёт — только в привязанную личку."
+        "🔴 Live-пост: в этот чат. 📊 Итоговый отчёт: только в привязанную личку."
     )
 
 
@@ -529,7 +529,7 @@ async def cmd_start_link(
             )
         else:
             text = (
-                "Twitch временно не отвечает. Ничего не добавлено — попробуй "
+                "Twitch временно не отвечает. Ничего не добавлено. Попробуй "
                 "открыть ссылку чуть позже."
             )
         await message.answer(
@@ -571,7 +571,7 @@ async def cmd_start_link(
         status = await _chat_member_status(message.bot, source_chat_id, message.from_user.id)
         if status not in MEMBER_STATUSES:
             await message.answer(
-                "Эта ссылка привязывает отчёты чата, в котором ты не состоишь, — "
+                "Эта ссылка привязывает отчёты чата, в котором ты не состоишь, "
                 "поэтому я её не приму. Открой бота из нужной группы и нажми "
                 "«🔗 Привязать отчёты к личке» там."
             )
@@ -585,8 +585,8 @@ async def cmd_start_link(
         ):
             await message.answer(
                 "Итоговые отчёты этого чата уже приходят другому участнику. "
-                "Переключить их на себя может только администратор чата — "
-                "попроси его или обратись к тому, кто их сейчас получает."
+                "Переключить их на себя может только администратор чата. "
+                "Попроси его или обратись к тому, кто их сейчас получает."
             )
             return
 
@@ -716,7 +716,7 @@ async def cmd_health(
     )
 
 
-def _health_age(value: object, *, empty: str = "—") -> str:
+def _health_age(value: object, *, empty: str = "н/д") -> str:
     if not isinstance(value, (int, float)):
         return empty
     seconds = max(0, int(value))
@@ -816,7 +816,7 @@ def _build_health_text(
     duration_text = (
         f"{float(duration):.2f} сек."
         if isinstance(duration, (int, float))
-        else "—"
+        else "н/д"
     )
     poller_error = _health_error(poller.get("last_cycle_error"))
     eventsub_error = _health_error(eventsub.get("last_error"))
@@ -1022,8 +1022,8 @@ async def _add_to_group_button(bot: Bot) -> InlineKeyboardButton:
 
 
 ADD_TO_CHANNEL_HINT = (
-    "Telegram не даёт добавлять ботов в каналы напрямую по ссылке, как в группы — "
-    "только вручную:\n\n"
+    "Telegram не даёт добавлять ботов в каналы напрямую по ссылке, как в группы. "
+    "Добавить можно только вручную:\n\n"
     "1. Открой свой канал → «Управление каналом» → «Администраторы»\n"
     "2. «Добавить администратора» → найди бота по имени и добавь его\n"
     "3. Дай ему право «Публикация сообщений»\n\n"
@@ -1311,7 +1311,7 @@ async def process_custom_quiet_hours(message: Message, state: FSMContext, db: Da
     end_local = end_hour * 60 + end_min
     if start_local == end_local:
         await message.answer(
-            "Начало и конец совпадают — тихие часы не будут действовать. Попробуй другой интервал.",
+            "Начало и конец совпадают. Тихие часы не будут действовать. Попробуй другой интервал.",
             reply_markup=back_keyboard,
         )
         return
@@ -1665,27 +1665,27 @@ async def _render_channel_card(
             "Публичный итог выключен по умолчанию и появится в канале только после "
             "ручного включения для этого Twitch-канала.</blockquote>\n\n"
             "<b>Публикации</b>\n"
-            "🔔/🔕 — публиковать ли live-уведомление\n"
-            "✅/❌ — публиковать ли итоговый отчёт в канал\n"
-            "\n<b>Формат отчёта</b>\n📑/📄 — развёрнутый (текст + HTML) или краткий (только текст) итог"
+            "🔔/🔕: публиковать ли live-уведомление\n"
+            "✅/❌: публиковать ли итоговый отчёт в канал\n"
+            "\n<b>Формат отчёта</b>\n📑/📄: развёрнутый (текст + HTML) или краткий (только текст) итог"
         )
     else:
         lines = [
             f"📡 <b>{html.escape(login)}</b>\n",
             "<blockquote>Уведомление о начале и автоматический итоговый отчёт управляются независимо.</blockquote>\n",
             "<b>Оповещения</b>",
-            "🔔/🔕 — оповещение о начале стрима",
+            "🔔/🔕: оповещение о начале стрима",
         ]
-        lines.append("⚡ — детектор рейдов: слать ли уведомление, когда канал начинают рейдить")
+        lines.append("⚡. Детектор рейдов: слать ли уведомление, когда канал начинают рейдить")
         if show_quiet_hours_toggle:
-            lines.append("🌙 — действуют ли тихие часы получателя на этот канал (можно сделать исключение)")
-        lines += ['', '<b>Отчёты</b>', '📊 — автоматический итог после стрима']
+            lines.append("🌙: действуют ли тихие часы получателя на этот канал (можно сделать исключение)")
+        lines += ['', '<b>Отчёты</b>', '📊: автоматический итог после стрима']
         if not is_private:
-            lines.append("📩 — итоговый отчёт отправляется только в привязанную личку")
-        lines.append("📑/📄 — формат итогового отчёта: развёрнутый (текст + HTML с графиком) или краткий (только текст)")
+            lines.append("📩: итоговый отчёт отправляется только в привязанную личку")
+        lines.append("📑/📄: формат итогового отчёта, развёрнутый (текст + HTML с графиком) или краткий (только текст)")
         if await db.get_user_token(login) is None:
             lines.append(
-                "\n<b>Фолловеры</b>\n⚠️ Число фолловеров недоступно — стример не подключил свой Twitch-аккаунт "
+                "\n<b>Фолловеры</b>\n⚠️ Число фолловеров недоступно: стример не подключил свой Twitch-аккаунт "
                 "к боту (/auth_twitch)."
             )
         text = "\n".join(lines)
@@ -1842,8 +1842,8 @@ async def cb_toggle_recipient(callback: CallbackQuery, db: Database) -> None:
         callback.bot, target_chat_id, callback.from_user.id, current_effective
     ):
         await callback.answer(
-            "Отчёты по этому каналу получает другой участник — "
-            "переключить их может только администратор чата.",
+            "Отчёты по этому каналу получает другой участник. "
+            "Переключить их может только администратор чата.",
             show_alert=True,
         )
         return
@@ -1987,7 +1987,7 @@ async def cb_toggle_quiet_hours_exempt(callback: CallbackQuery, db: Database) ->
     await _refresh_channel_card(callback, db, target_chat_id, login)
     await callback.answer(
         "Тихие часы снова действуют на этот канал" if currently_exempt
-        else "Этот канал теперь исключён из тихих часов — отчёт придёт сразу"
+        else "Этот канал теперь исключён из тихих часов, отчёт придёт сразу"
     )
 
 
@@ -2072,7 +2072,7 @@ async def _offer_search_results(
     ввода не сбрасываем — если ничего не подошло, можно сразу написать другое имя."""
     if len(query) < 3:
         await message.answer(
-            "Слишком короткий запрос — напиши хотя бы три символа "
+            "Слишком короткий запрос. Напиши хотя бы три символа "
             "(логин канала или его имя на Twitch).",
             reply_markup=back_keyboard,
         )
@@ -2108,7 +2108,7 @@ async def _offer_search_results(
     ]
     rows.extend(back_keyboard.inline_keyboard)
     await message.answer(
-        "Вот что нашлось на Twitch — выбери нужный канал:",
+        "Вот что нашлось на Twitch. Выбери нужный канал:",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
     )
 
@@ -2177,7 +2177,7 @@ async def _run_import_follows(
     у токенов, выданных до появления scope user:read:follows, нужного доступа нет."""
     if not own_private(message,actor_id):
         await message.answer(
-            "Импорт подписок работает только в личном чате с ботом — "
+            "Импорт подписок работает только в личном чате с ботом: "
             "там я вижу, от чьего имени добавлять каналы."
         )
         return
@@ -2193,8 +2193,8 @@ async def _run_import_follows(
         oauth_state=parse_qs(urlsplit(url).query).get('state',[None])[0]
         await state.update_data(legacy_oauth_state=oauth_state)
         await message.answer(
-            "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ — "
-            f"после этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
+            "Открой ссылку, войди в свой Twitch-аккаунт и разреши доступ. "
+            f"После этого я покажу, на кого ты подписан (ссылка активна 5 минут):\n{url}"
             ,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='Подключить Twitch',url=url)],
                 [InlineKeyboardButton(text='Отменить',callback_data='menu:home')]])
@@ -2246,8 +2246,8 @@ async def _run_import_follows(
         except (TwitchUserTokenError, OAuthTokenTemporaryError):
             logger.exception("Временная ошибка Twitch import для %s", result.login)
             await message.answer(
-                "Twitch временно не отдал полный список подписок. Ничего не импортировано — "
-                "попробуй ещё раз чуть позже."
+                "Twitch временно не отдал полный список подписок. Ничего не импортировано. "
+                "Попробуй ещё раз чуть позже."
             )
             return
         except Exception:
@@ -2263,7 +2263,7 @@ async def _run_import_follows(
 
     if not follows:
         await message.answer(
-            f"У аккаунта «{result.login}» нет подписок на Twitch — импортировать нечего.",
+            f"У аккаунта «{result.login}» нет подписок на Twitch. Импортировать нечего.",
             reply_markup=_back_keyboard(),
         )
         return
@@ -2278,8 +2278,8 @@ async def _run_import_follows(
     free_slots = limit - await db.count_channels(message.chat.id)
     if free_slots <= 0:
         await message.answer(
-            f"В этом чате уже максимум каналов ({limit}) — "
-            "освободи место, прежде чем импортировать.",
+            f"В этом чате уже максимум каналов ({limit}). "
+            "Освободи место, прежде чем импортировать.",
             reply_markup=_back_keyboard(),
         )
         return
@@ -2352,7 +2352,7 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
                     oauth_server=oauth_server, message=callback.message)
 
     if not logins:
-        await callback.answer("Список подписок устарел — запусти импорт заново.", show_alert=True)
+        await callback.answer("Список подписок устарел. Запусти импорт заново.", show_alert=True)
         return
 
     added = 0
@@ -2369,7 +2369,7 @@ async def cb_import_follows_add(callback: CallbackQuery, state: FSMContext, db: 
                                                 actor_id=callback.from_user.id)
     await edit_menu(callback.message,
         f"Готово, добавил каналов: {added}.\n\n"
-        "Как только кто-то из них выйдет в эфир — пришлю уведомление.",
+        "Как только кто-то из них выйдет в эфир, пришлю уведомление.",
         reply_markup=keyboard,
     )
     await callback.answer()
@@ -2471,8 +2471,8 @@ async def process_login_input(
         return
     if result == _TRACK_TEMPORARY_ERROR:
         await message.answer(
-            "Не получилось проверить канал на Twitch. Ничего не добавлено — "
-            "попробуй ещё раз чуть позже.",
+            "Не получилось проверить канал на Twitch. Ничего не добавлено. "
+            "Попробуй ещё раз чуть позже.",
             reply_markup=back_keyboard,
         )
         return
@@ -2536,8 +2536,8 @@ async def cmd_track(message: Message, command: CommandObject, db: Database, twit
         return
     if result == _TRACK_TEMPORARY_ERROR:
         await message.answer(
-            "Не получилось проверить канал на Twitch. Ничего не добавлено — "
-            "попробуй ещё раз чуть позже."
+            "Не получилось проверить канал на Twitch. Ничего не добавлено. "
+            "Попробуй ещё раз чуть позже."
         )
         return
     if result == _TRACK_LIMIT:
@@ -2618,7 +2618,7 @@ async def _build_live_list(
         if custom_emoji
         else "🔴"
     )
-    lines = [f"{live_icon} <b>В эфире — {len(live_channels)}</b>"]
+    lines = [f"{live_icon} <b>В эфире: {len(live_channels)}</b>"]
     link_rows = []
     for login, title, viewer_count, game_name in live_channels:
         safe_login = html.escape(login)
@@ -2760,7 +2760,7 @@ def _build_report_summary(
     text += '</blockquote>'
     if top_chatters:
         lines = "\n".join(
-            f"{i}. {html.escape(str(nick))} — {count}"
+            f"{i}. {html.escape(str(nick))}: {count}"
             for i, (nick, count) in enumerate(top_chatters, 1)
         )
         text += f"\n\n💬 <b>Топ чатеров</b>\n{lines}"
@@ -2815,8 +2815,8 @@ async def _send_report(
     if age > REPORT_RETENTION_SECONDS:
         await message.bot.send_message(
             recipient_chat_id,
-            f"Последний стрим «{login}» завершился более 24 часов назад — "
-            "полный отчёт с графиком и списком чатеров больше недоступен.",
+            f"Последний стрим «{login}» завершился более 24 часов назад. "
+            "Полный отчёт с графиком и списком чатеров больше недоступен.",
         )
         return True
 

@@ -238,6 +238,11 @@ class AdminSnapshot:
             growth = await asyncio.wait_for(self._db.growth_funnel_snapshot(), 2.0)
         except Exception:
             database_failed = True
+        try:
+            funnel = await asyncio.wait_for(self._db.growth_funnel_report(now=now), 2.0)
+        except Exception:
+            funnel = None
+            database_failed = True
 
         resources, self._previous_cpu = _resources(self._db_path, self._previous_cpu)
         if queues is not None:
@@ -325,6 +330,7 @@ class AdminSnapshot:
             "live": live,
             "queues": queues,
             "growth": growth,
+            "funnel": funnel,
             "access": access,
             "backup": backup,
             "deliveries": deliveries,

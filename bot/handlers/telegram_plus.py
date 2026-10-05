@@ -45,8 +45,8 @@ def offer_keyboard(product,source='more'):
     viewer=product['product_id']=='viewer_plus'
     secondary=product_view('streamer_plus' if viewer else 'viewer_plus')
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Оформить {product['title']} — {product['price_label']}",callback_data=f"plus:buy:{product['product_id']}:{source}")],
-        [InlineKeyboardButton(text='Тариф для стримера' if viewer else f"Тариф для зрителя — {secondary['price_label']}",
+        [InlineKeyboardButton(text=f"Оформить {product['title']}: {product['price_label']}",callback_data=f"plus:buy:{product['product_id']}:{source}")],
+        [InlineKeyboardButton(text='Тариф для стримера' if viewer else f"Тариф для зрителя: {secondary['price_label']}",
                               callback_data=f"plus:show:{secondary['product_id']}:{source}")],
         [InlineKeyboardButton(text='← Назад',callback_data=return_route(source))]])
 
@@ -127,7 +127,7 @@ async def cb_buy(callback,state,db,oauth_server=None):
     rows=[[InlineKeyboardButton(text=m['title'],callback_data=f"plus:pay:{nonce}:{m['id']}")] for m in catalog_payload()['methods']]
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
-        "<b>Выбери способ оплаты</b>\n<blockquote>Telegram Stars — через Telegram.\nСБП и банковская карта — через Platega.</blockquote>\n\n"
+        "<b>Выбери способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
         +PAYMENT_UNAVAILABLE_MESSAGE+"\n\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()

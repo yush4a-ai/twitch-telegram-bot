@@ -45,8 +45,8 @@ class CheckoutReadiness:
 
 
 _FEATURES = MappingProxyType({
-    "viewer_channels": ("До 200 стримеров", "В Free — до 50", "people"),
-    "viewer_video": ("5 видеопревью", "Выберите до пяти стримеров, включая тех, кто сейчас не в эфире. В Free — фото.", "video"),
+    "viewer_channels": ("До 200 стримеров", "В Free: до 50", "people"),
+    "viewer_video": ("5 видеопревью", "Выберите до пяти стримеров, включая тех, кто сейчас не в эфире. В Free: фото.", "video"),
     "viewer_filters": ("Фильтры уведомлений", "По игре и словам в названии, с исключениями", "filter"),
     "viewer_categories": ("Категории", "Нужная категория и уведомления о смене категории", "notification"),
     "viewer_reminders": ("Напоминания", "Через 15 или 30 минут после выбора текущего эфира", "clock"),
@@ -73,8 +73,8 @@ _METHODS = (
 )
 _BLOCKS = MappingProxyType({
     "viewer_plus": (
-        ("До 200 стримеров", "Free — до 50", "people", ("viewer_channels",)),
-        ("5 видеопревью", "Free — фото", "video", ("viewer_video",)),
+        ("До 200 стримеров", "Free: до 50", "people", ("viewer_channels",)),
+        ("5 видеопревью", "Free: фото", "video", ("viewer_video",)),
         ("Точные уведомления", "Фильтры, категории, напоминания", "notification", ("viewer_filters", "viewer_categories", "viewer_reminders")),
         ("Папки и история", "Подписки и события в одном месте", "folder", ("viewer_folders", "viewer_history")),
     ),

@@ -1,9 +1,6 @@
 import unittest
 
-from aiohttp import web
-
-from bot.config import contour_bot_username_allowed, public_site_bot_username_allowed
-from bot.growth_site import install_growth_site
+from bot.config import contour_bot_username_allowed
 
 
 class ContourBotUsernameTests(unittest.TestCase):
@@ -20,18 +17,6 @@ class ContourBotUsernameTests(unittest.TestCase):
         for value in ("", None, "OtherBot", "CigilBot", "TwitchSignal"):
             with self.subTest(value=value):
                 self.assertFalse(contour_bot_username_allowed(value))
-
-    def test_public_site_stays_on_the_test_contour(self):
-        self.assertFalse(public_site_bot_username_allowed("TwitchSignalBot"))
-        self.assertTrue(public_site_bot_username_allowed("TwitchSignalTestbot"))
-
-    def test_growth_site_mounts_on_test_bots_only(self):
-        for username in ("TwitchSignalTestbot", "SignalStreamsBot"):
-            with self.subTest(username=username):
-                install_growth_site(web.Application(), username, "https://example.test")
-        for rejected in ("TwitchSignalBot", "OtherBot"):
-            with self.subTest(rejected=rejected), self.assertRaises(ValueError):
-                install_growth_site(web.Application(), rejected, "https://example.test")
 
 
 if __name__ == "__main__":

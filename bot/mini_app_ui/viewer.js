@@ -97,7 +97,7 @@ export function createViewerFeature(api, getRouter, telegram) {
     const live = tracked.filter((row) => row.status === 'live').sort((a,b)=>Number(Boolean(b.is_favorite))-Number(Boolean(a.is_favorite)));
     const stale = tracked.some((row) => row.status === 'stale');
 
-    const head=element('section','home-live-heading'),copy=element('div','home-hero-copy');copy.append(element('h2','','Кто сейчас в эфире'),element('p','','Ваши стримеры — рядом'));head.append(copy);const mascot=element('img','home-mascot');mascot.src='/app/mascot-cutout.png';mascot.alt='';mascot.width=168;mascot.height=168;head.append(mascot);const note=element('p','home-delivery-note');note.append(icon('notification'),element('span','','Оповещения в личном чате'));head.append(note);target.append(head);
+    const head=element('section','home-live-heading'),copy=element('div','home-hero-copy');copy.append(element('h2','','Кто сейчас в эфире'),element('p','','Ваши стримеры рядом'));head.append(copy);const mascot=element('img','home-mascot');mascot.src='/app/mascot-cutout.png';mascot.alt='';mascot.width=168;mascot.height=168;head.append(mascot);const note=element('p','home-delivery-note');note.append(icon('notification'),element('span','','Оповещения в личном чате'));head.append(note);target.append(head);
 
     if (!tracked.length) {
       target.append(panel('Ваш первый стример','Добавьте Twitch-канал. Бот пришлёт оповещение в личный чат, когда начнётся эфир.'));
@@ -348,7 +348,7 @@ export function createViewerFeature(api, getRouter, telegram) {
   function renderVideoPicker(target){
     target.append(element('h1','','Видеопревью'));
     if(!data.viewer_plus_active){target.append(panel('Фото остаётся доступно','Выбор видео сохранён. Для его использования нужен Зритель Plus.'),action('Посмотреть тариф',()=>getRouter().openDetail('subscription'),true));return;}
-    const status=element('p','video-count',`Выбрано ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`);status.setAttribute('role','status');target.append(status,element('p','lead','Пять мест, включая стримеров вне эфира и на паузе. Статус доставки — под именем.'));
+    const status=element('p','video-count',`Выбрано ${data.video_selection.selected_logins.length} из ${data.video_selection.limit}`);status.setAttribute('role','status');target.append(status,element('p','lead','Пять мест, включая стримеров вне эфира и на паузе. Статус доставки: под именем.'));
     const query=element('input','input');query.type='search';query.maxLength=200;query.value=videoQuery;query.setAttribute('aria-label','Найти стримера для видео');query.placeholder='Найти стримера';
     const list=element('div','video-list');query.addEventListener('input',()=>{videoQuery=query.value;api.storage.setItem('ts-viewer-video-search',videoQuery);renderChoices(list);});target.append(query);
     if(videoFeedback){const note=element('p','notice',videoFeedback);note.setAttribute('role','status');target.append(note);}
@@ -725,7 +725,7 @@ export function createViewerFeature(api, getRouter, telegram) {
       return 'Дополнительных условий нет. Вы получите обычное оповещение.';
     }
     const conditions = [];
-    if (rule.games.length) conditions.push(`категория — ${rule.games.join(' или ')}`);
+    if (rule.games.length) conditions.push(`категория: ${rule.games.join(' или ')}`);
     if (rule.title_keywords.length) conditions.push(`название содержит ${rule.title_keywords.join(' или ')}`);
     const start = conditions.length
       ? `Бот пришлёт оповещение, когда ${conditions.join(' и ')}.`

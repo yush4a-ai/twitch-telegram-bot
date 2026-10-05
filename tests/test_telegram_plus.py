@@ -28,14 +28,14 @@ class TelegramPlusTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('<b>Зритель Plus</b>\n<b>150 ₽ / месяц</b>',call.args[0])
         for feature in ('200','5 видеопревью','Фильтры','Напоминания','Папки','История'): self.assertIn(feature,call.args[0])
         rows=call.kwargs['reply_markup'].inline_keyboard
-        self.assertEqual(rows[0][0].text,'Оформить Зритель Plus — 150 ₽')
+        self.assertEqual(rows[0][0].text,'Оформить Зритель Plus: 150 ₽')
         self.assertEqual(rows[1][0].text,'Тариф для стримера')
         await self.db.link_streamer_identity(101,'11','alpha',verified_at=time.time())
         await cb_plus(self.cb('menu:plus'),self.state,self.db,CONFIG)
         call=self.msg.edit_text.await_args
         self.assertIn('<b>Стример Plus</b>\n<b>300 ₽ / месяц</b>',call.args[0]);self.assertIn('В Стример Plus включены все возможности Зритель Plus.',call.args[0])
-        self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[0][0].text,'Оформить Стример Plus — 300 ₽')
-        self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[1][0].text,'Тариф для зрителя — 150 ₽')
+        self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[0][0].text,'Оформить Стример Plus: 300 ₽')
+        self.assertEqual(call.kwargs['reply_markup'].inline_keyboard[1][0].text,'Тариф для зрителя: 150 ₽')
 
     async def test_active_trial_test_and_frozen_streamer_show_real_expiry_without_paid_claim(self):
         from bot.handlers.telegram_plus import cb_plus

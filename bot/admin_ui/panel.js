@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const number = new Intl.NumberFormat('ru-RU');
-const VIEWS = ['overview', 'users', 'access', 'system', 'growth', 'payments'];
+const VIEWS = ['overview', 'users', 'access', 'campaigns', 'system', 'growth', 'payments'];
 const STATE_LABELS = { ok: 'Работает', degraded: 'Сбой', disabled: 'Отключён', unverified: 'Не проверена', unknown: 'Нет данных' };
 const SOURCE_LABELS = { test: 'тестовый доступ', manual: 'ручная выдача', paid: 'оплата', mock: 'проверка оплаты' };
 const ACTION_LABELS = { grant: 'Выдан', revoke: 'Отозван', extend: 'Продлён' };
@@ -85,6 +85,12 @@ function navigate() {
     showPerson('');
     // Пустой экран заставляет угадывать: сразу показываем людей, которых знает бот.
     if (!$('people-list').querySelector('a')) loadPeople();
+  } else if (view === 'campaigns') {
+    // Раздел открывается сразу с данными: кампании и непрочитанные диалоги.
+    // #/campaigns/chat — прямая ссылка на переписку.
+    if (param === 'chat') $('tab-chat').click();
+    if (!campaignsLoaded) loadCampaigns();
+    loadDialogues($('dialogues-query').value.trim());
   }
   document.querySelector('main').scrollIntoView({ block: 'start' });
 }
@@ -188,11 +194,14 @@ function renderMetrics(data) {
   if (badge) {
     badge.textContent = String(attention.length);
     badge.hidden = attention.length === 0;
+    // Голое число в имени ссылки ничего не говорит: подписываем словами.
+    badge.setAttribute('aria-label', attention.length ? `открытых проблем: ${attention.length}` : '');
   }
 }
 
 function renderSkeleton(containerId, rows) {
-  const node = $(containerId);
+  // Принимаем и id, и сам элемент: вызовы бывают оба, иначе скелетон не рисуется.
+  const node = typeof containerId === 'string' ? $(containerId) : containerId;
   if (!node) return;
   const count = Math.max(1, rows || 3);
   node.replaceChildren();
@@ -213,7 +222,15 @@ function renderEvents(rows) {
   const list = $('event-list');
   if (!list) return;
   list.replaceChildren();
-  const items = (rows || []).slice(0, 3);
+  // Недоступные данные и пустой список — разные вещи.
+  if (rows === null || rows === undefined) {
+    const li = document.createElement('li');
+    li.className = 'empty-line';
+    li.textContent = 'События временно недоступны';
+    list.append(li);
+    return;
+  }
+  const items = rows.slice(0, 3);
   if (!items.length) {
     const li = document.createElement('li');
     li.className = 'empty-line';
@@ -421,6 +438,45 @@ function renderSystem(data) {
   put('resource-db', `${bytes(resources.db_file_bytes)} / ${bytes(resources.wal_file_bytes)}`);
 }
 
+function renderFunnel(funnel) {
+  const list = $('funnel-list');
+  if (!list) return;
+  const totals = $('funnel-totals');
+  if (!funnel || !Array.isArray(funnel.steps)) {
+    emptyRow(list, 1, 'Данных пока нет');
+    if (totals) totals.textContent = '';
+    return;
+  }
+  list.replaceChildren();
+  const top = funnel.steps[0] ? funnel.steps[0].users : 0;
+  funnel.steps.forEach((step, index) => {
+    const li = document.createElement('li');
+    li.className = 'funnel-step';
+    const title = document.createElement('span');
+    title.className = 'funnel-title';
+    title.textContent = step.title;
+    const bar = document.createElement('span');
+    bar.className = 'funnel-bar';
+    const fill = document.createElement('span');
+    fill.style.inlineSize = top ? `${Math.round((step.users / top) * 100)}%` : '0%';
+    bar.append(fill);
+    const numbers = document.createElement('span');
+    numbers.className = 'funnel-numbers';
+    // У первого шага доля всегда 100% — она ничего не сообщает.
+    numbers.textContent = index === 0 || step.share === null || step.share === undefined
+      ? `${value(step.users)}`
+      : `${value(step.users)} · ${step.share}%`;
+    li.append(title, bar, numbers);
+    list.append(li);
+  });
+  if (totals) {
+    const data = funnel.totals || {};
+    totals.textContent = 'Всего бот знает '
+      + `${value(data.users)} · добавили канал ${value(data.with_channel)}`
+      + ` · с Plus ${value(data.with_plus)}`;
+  }
+}
+
 function renderGrowth(rows) {
   const body = $('growth-list');
   if (rows === null || rows === undefined) return emptyRow(body, 4, 'Данные временно недоступны');
@@ -571,7 +627,11 @@ async function showPerson(rawId) {
   showReceipt('');
   put('person-card-id', id ? `ID ${id}` : 'ID не выбран');
   put('person-empty', id ? 'Загрузка…' : 'Выберите человека из списка или найдите его по имени, ID либо Twitch.');
-  if (!/^\d+$/.test(id)) return;
+  if (!/^\d+$/.test(id)) {
+    // Иначе карточка навсегда осталась бы в «Загрузка…».
+    if (id) put('person-empty', 'Пользователь не найден. Проверьте Telegram ID или имя');
+    return;
+  }
   try {
     const [cardResponse, historyResponse] = await Promise.all([
       api(`/admin/api/users/${id}`), api(`/admin/api/users/${id}/history`),
@@ -595,7 +655,11 @@ async function showPerson(rawId) {
 function showError(id, text) {
   const node = $(id);
   if (!node) return;
-  node.textContent = text;
+  // В «notice» есть отдельный текст и кнопка повтора — их не затираем.
+  const target = node.querySelector('.notice-text') || node;
+  target.textContent = text;
+  const retry = node.querySelector('#notice-retry');
+  if (retry) retry.hidden = !text;
   node.hidden = !text;
 }
 
@@ -747,10 +811,14 @@ const WRITE_ERRORS = {
   not_manual: 'Это право выдано не вручную (оплата или тестовый доступ) — из панели его изменить нельзя.',
   conflict: 'Права изменились. Обновите карточку и подтвердите заново.',
   owner_required: 'Действие доступно только подтверждённому владельцу.',
+  owner_not_configured: 'Владелец не настроен: на сервере не задан OWNER_CHAT_ID, поэтому запись недоступна.',
   csrf_denied: 'Сессия устарела. Обновите страницу и повторите.',
   invalid_request: 'Проверьте срок и причину: для «Другое» нужно пояснение.',
   origin_denied: 'Запрос пришёл с чужого адреса — обновите страницу панели.',
   denied: 'Действие запрещено политикой прав.',
+  unauthorized: 'Сессия закончилась. Войдите заново через Telegram.',
+  unavailable: 'Сервер не смог выполнить действие. Повторите позже.',
+  invalid_content_type: 'Сервер не принял формат запроса. Обновите страницу панели.',
 };
 
 async function handleWriteResult(response, errorId, successText) {
@@ -830,8 +898,10 @@ async function submitRevoke(event) {
 function render(data) {
   snapshot = data;
   csrfToken = data.csrf || csrfToken;
-  put('environment', (data.environment || 'staging').toUpperCase());
-  put('foot-environment', `окружение ${(data.environment || 'staging').toUpperCase()}`);
+  // Без данных окружение не называется: прежний запасной «staging» вводил в заблуждение.
+  const environment = String(data.environment || '').trim();
+  put('environment', environment ? environment.toUpperCase() : 'ОКРУЖЕНИЕ НЕИЗВЕСТНО');
+  put('foot-environment', environment ? `окружение ${environment.toUpperCase()}` : 'окружение неизвестно');
   setState('telegram-state', (data.telegram || {}).state);
   setState('twitch-state', (data.twitch || {}).state);
   setState('preview-state', (data.preview || {}).state);
@@ -841,6 +911,7 @@ function render(data) {
   renderAccess(data.access);
   renderSystem(data);
   renderGrowth(data.growth);
+  renderFunnel(data.funnel);
   put('updated-at', `Обновлено ${new Date(data.generated_at * 1000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
   lastSuccess = Date.now();
   updateFreshness();
@@ -855,6 +926,388 @@ function render(data) {
   }
   const { view, param } = currentRoute();
   if (view === 'users') showPerson(param);
+}
+
+/* Раздел «Рассылки»: кампании и переписка */
+let currentDialogue = null;
+let campaignsLoaded = false;
+
+const CAMPAIGN_STATES = {
+  draft: 'Черновик', sending: 'Отправляется', sent: 'Отправлена',
+  stopped: 'Остановлена', failed: 'Сбой',
+};
+
+function showComposeError(text) {
+  const node = $('compose-error');
+  node.textContent = text || '';
+  node.hidden = !text;
+}
+
+function setChatBadge(count) {
+  for (const id of ['nav-chat-badge', 'chat-tab-badge']) {
+    const badge = $(id);
+    if (!badge) continue;
+    badge.textContent = String(count);
+    badge.hidden = !count;
+    badge.setAttribute('aria-label', count ? `непрочитанных сообщений: ${count}` : '');
+  }
+}
+
+async function loadCampaigns() {
+  const audience = $('campaigns-audience');
+  try {
+    const response = await api('/admin/api/broadcasts');
+    if (!response.ok) throw new Error('broadcasts');
+    renderCampaigns(await response.json());
+    campaignsLoaded = true;
+  } catch (error) {
+    if (String(error) === 'Error: unauthorized') return;
+    audience.textContent = 'Расчёт аудитории недоступен';
+    audience.dataset.state = 'unknown';
+    emptyRow($('campaign-list'), 5, 'Не удалось загрузить кампании');
+    emptyRow($('optout-list'), 1, 'Список отписавшихся недоступен');
+  }
+}
+
+function renderCampaigns(data) {
+  const audience = data.audience || {};
+  const summary = $('campaigns-audience');
+  summary.textContent = `Получат ${value(audience.total)} · недоступны ${value(audience.unreachable)}`
+    + ` · отписались ${value(audience.opted_out)} · владелец ${value(audience.owner)}`;
+  summary.dataset.state = audience.total ? 'ok' : 'warn';
+
+  const body = $('campaign-list');
+  const rows = data.campaigns || [];
+  if (!rows.length) {
+    emptyRow(body, 5, 'Кампаний пока нет');
+  } else {
+    body.replaceChildren();
+    for (const campaign of rows) {
+      const name = document.createElement('td');
+      name.dataset.label = 'Название';
+      name.textContent = campaign.title;
+      const action = document.createElement('td');
+      action.dataset.label = 'Действие';
+      if (campaign.state === 'draft') {
+        const send = document.createElement('button');
+        send.className = 'button';
+        send.type = 'button';
+        send.textContent = 'Отправить';
+        send.addEventListener('click', () => sendCampaign(campaign));
+        action.append(send);
+      } else if (campaign.state === 'sending') {
+        const stop = document.createElement('button');
+        stop.className = 'button button-quiet';
+        stop.type = 'button';
+        stop.textContent = 'Остановить';
+        stop.addEventListener('click', () => stopCampaign(campaign.id));
+        action.append(stop);
+      } else {
+        action.textContent = '—';
+      }
+      body.append(wrapRow([
+        name,
+        cell('Состояние', CAMPAIGN_STATES[campaign.state] || campaign.state),
+        cell('Отправлено', `${value(campaign.sent_count)} из ${value(campaign.audience_total)}`),
+        cell('Не дошли', `${value(campaign.unreachable_count)} недоступны · ${value(campaign.failed_count)} ошибок`),
+        action,
+      ]));
+    }
+  }
+  renderOptouts(data.optouts || []);
+  setChatBadge(Number(data.unread || 0));
+}
+
+function renderOptouts(rows) {
+  const list = $('optout-list');
+  list.replaceChildren();
+  if (!rows.length) {
+    const li = document.createElement('li');
+    li.className = 'empty-line';
+    li.textContent = 'Пока никто не отписывался';
+    list.append(li);
+    return;
+  }
+  for (const person of rows) {
+    const li = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = person.display_name
+      || (person.username ? `@${person.username}` : `ID ${person.user_id}`);
+    const restore = document.createElement('button');
+    restore.className = 'button button-quiet';
+    restore.type = 'button';
+    restore.textContent = 'Вернуть';
+    restore.addEventListener('click', () => restoreOptout(person.user_id));
+    li.append(label, restore);
+    list.append(li);
+  }
+}
+
+async function saveDraft(event) {
+  event.preventDefault();
+  showComposeError('');
+  const title = $('compose-title').value.trim();
+  const body = $('compose-body').value.trim();
+  if (!title || !body) {
+    showComposeError('Нужны название и текст сообщения.');
+    return;
+  }
+  const buttonOn = $('compose-button-on').checked;
+  const buttonText = buttonOn ? $('compose-button-text').value.trim() : '';
+  const buttonUrl = buttonOn ? $('compose-button-url').value.trim() : '';
+  if (buttonOn && (!buttonText || !buttonUrl.startsWith('https://'))) {
+    showComposeError('Для кнопки нужны текст и ссылка, начинающаяся с https://');
+    return;
+  }
+  const response = await postWrite('/admin/api/broadcasts', {
+    request_key: `draft-${Date.now()}`,
+    title, body,
+    button_text: buttonText || null,
+    button_url: buttonUrl || null,
+  });
+  if (!response.ok) {
+    showComposeError('Не удалось сохранить черновик. Обновите страницу и повторите.');
+    return;
+  }
+  const saved = await response.json();
+  const file = $('compose-image').files[0];
+  if (file) {
+    const uploaded = await uploadCampaignImage(saved.campaign_id, file);
+    if (!uploaded) {
+      showComposeError('Черновик сохранён, но картинку принять не удалось: нужен JPEG или PNG до 5 МБ.');
+      await loadCampaigns();
+      return;
+    }
+  }
+  $('compose-form').reset();
+  $('compose-button-fields').hidden = true;
+  showReceipt('Черновик сохранён. Отправка — только по кнопке «Отправить».');
+  await loadCampaigns();
+}
+
+async function uploadCampaignImage(campaignId, file) {
+  // Метка одноразовая: берём свежую прямо перед загрузкой файла.
+  let token = csrfToken || '';
+  try {
+    const snapshot = await fetch('/admin/api/snapshot', { credentials: 'same-origin', cache: 'no-store' });
+    if (snapshot.ok) {
+      const data = await snapshot.json();
+      if (typeof data.csrf === 'string' && data.csrf) { token = data.csrf; csrfToken = data.csrf; }
+    }
+  } catch (_) {
+    // Пробуем с прежней меткой.
+  }
+  const form = new FormData();
+  form.append('image', file);
+  const response = await fetch(`/admin/api/broadcasts/${campaignId}/image`, {
+    method: 'POST', credentials: 'same-origin', cache: 'no-store',
+    headers: { 'X-Admin-CSRF': token }, body: form,
+  });
+  return response.ok;
+}
+
+async function sendCampaign(campaign) {
+  const summary = $('campaigns-audience').textContent;
+  // Массовая отправка — действие с последствиями, поэтому подтверждение словами.
+  const confirmed = window.confirm(
+    `Отправить «${campaign.title}»?\n\n${summary}\n\nСообщение уйдёт живым людям, отменить отправленное нельзя.`,
+  );
+  if (!confirmed) return;
+  const response = await postWrite(
+    `/admin/api/broadcasts/${campaign.id}/send`,
+    { request_key: `send-${campaign.id}-${Date.now()}` },
+  );
+  if (!response.ok) {
+    showComposeError('Не удалось начать отправку. Обновите страницу и повторите.');
+    return;
+  }
+  showReceipt('Отправка началась. Прогресс виден в списке кампаний.');
+  await loadCampaigns();
+}
+
+async function stopCampaign(campaignId) {
+  if (!window.confirm('Остановить отправку? Уже отправленное останется у людей.')) return;
+  const response = await postWrite(`/admin/api/broadcasts/${campaignId}/stop`, {});
+  if (!response.ok) {
+    showComposeError('Не удалось остановить. Обновите страницу и повторите.');
+    return;
+  }
+  showReceipt('Остаток остановлен.');
+  await loadCampaigns();
+}
+
+async function restoreOptout(userId) {
+  const response = await postWrite(`/admin/api/optouts/${userId}/restore`, {});
+  if (response.ok) {
+    showReceipt('Человек снова получает рассылки.');
+    await loadCampaigns();
+  }
+}
+
+async function loadDialogues(query) {
+  const list = $('dialogue-list');
+  try {
+    const response = await api(`/admin/api/dialogues?q=${encodeURIComponent(query || '')}`);
+    if (!response.ok) throw new Error('dialogues');
+    const data = await response.json();
+    renderDialogues(data.dialogues || []);
+    setChatBadge(Number(data.unread || 0));
+  } catch (error) {
+    if (String(error) === 'Error: unauthorized') return;
+    emptyRow(list, 1, 'Не удалось загрузить переписку');
+  }
+}
+
+function renderDialogues(rows) {
+  const list = $('dialogue-list');
+  list.replaceChildren();
+  if (!rows.length) {
+    const li = document.createElement('li');
+    li.className = 'empty-line';
+    li.textContent = 'Переписки пока нет';
+    list.append(li);
+    return;
+  }
+  for (const dialogue of rows) {    const li = document.createElement('li');
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'dialogue-link';
+    if (currentDialogue === dialogue.user_id) link.setAttribute('aria-current', 'true');
+    const name = document.createElement('span');
+    name.className = 'dialogue-name';
+    name.textContent = dialogue.display_name
+      || (dialogue.username ? `@${dialogue.username}` : `ID ${dialogue.user_id}`);
+    const preview = document.createElement('span');
+    preview.className = 'dialogue-preview';
+    preview.textContent = `${dialogue.last_direction === 'out' ? 'Вы: ' : ''}${dialogue.last_body || 'Вложение'}`;
+    const meta = document.createElement('span');
+    meta.className = 'dialogue-meta';
+    const unread = Number(dialogue.unread_count || 0);
+    meta.textContent = unread ? `${unread} новых` : stamp(dialogue.last_message_at);
+    link.append(name, preview, meta);
+    link.addEventListener('click', () => openDialogue(dialogue.user_id));
+    li.append(link);
+    list.append(li);
+  }
+  // Диалог открываем сами: пустая правая половина заставляет гадать, куда нажать.
+  if (!currentDialogue) {
+    const first = rows.find((row) => Number(row.unread_count || 0) > 0) || rows[0];
+    openDialogue(first.user_id);
+  }
+}
+
+async function openDialogue(userId) {
+  currentDialogue = userId;
+  const note = $('thread-note');
+  try {
+    const response = await api(`/admin/api/dialogues/${userId}`);
+    if (!response.ok) throw new Error('dialogue');
+    const data = await response.json();
+    renderThread(data.messages || []);
+    // Прочитанное отмечаем после показа: счётчик не должен врать.
+    await postWrite(`/admin/api/dialogues/${userId}/read`, {});
+    await loadDialogues($('dialogues-query').value.trim());
+  } catch (error) {
+    if (String(error) === 'Error: unauthorized') return;
+    note.textContent = 'Переписка недоступна';
+  }
+}
+
+function renderThread(messages) {
+  const list = $('thread');
+  list.replaceChildren();
+  if (!messages.length) {
+    const li = document.createElement('li');
+    li.className = 'empty-line';
+    li.textContent = 'Сообщений нет';
+    list.append(li);
+    return;
+  }
+  for (const message of messages) {
+    const li = document.createElement('li');
+    li.className = message.direction === 'out' ? 'bubble out' : 'bubble in';
+    if (message.image_name) {
+      const image = document.createElement('img');
+      image.className = 'bubble-image';
+      image.loading = 'lazy';
+      image.alt = 'Картинка из переписки';
+      image.src = `/admin/api/media/${encodeURIComponent(message.image_name)}`;
+      li.append(image);
+    }
+    // Если есть картинка и нет текста, подпись «Вложение» только мешает.
+    if (message.body || !message.image_name) {
+      const text = document.createElement('p');
+      text.className = 'bubble-text';
+      text.textContent = message.body || 'Вложение';
+      li.append(text);
+    }
+    const time = document.createElement('span');
+    time.className = 'bubble-time';
+    const failed = message.direction === 'out' && message.delivery !== 'sent';
+    time.textContent = `${stamp(message.created_at)}${failed ? ' · не доставлено' : ''}`;
+    li.append(time);
+    list.append(li);
+  }
+  list.lastElementChild.scrollIntoView({ block: 'nearest' });
+}
+
+async function sendReply(event) {
+  event.preventDefault();
+  const error = $('reply-error');
+  error.hidden = true;
+  const text = $('reply-body').value.trim();
+  const file = $('reply-image').files[0];
+  if (!text && !file) {
+    error.textContent = 'Нужен текст или картинка.';
+    error.hidden = false;
+    return;
+  }
+  if (!currentDialogue) { error.textContent = 'Сначала выберите диалог.'; error.hidden = false; return; }
+  const requestKey = `reply-${currentDialogue}-${Date.now()}`;
+  let response;
+  if (file) {
+    // Картинка уходит вместе с текстом, поэтому это multipart, а не JSON.
+    let token = csrfToken || '';
+    try {
+      const snapshot = await fetch('/admin/api/snapshot', { credentials: 'same-origin', cache: 'no-store' });
+      if (snapshot.ok) {
+        const data = await snapshot.json();
+        if (typeof data.csrf === 'string' && data.csrf) { token = data.csrf; csrfToken = data.csrf; }
+      }
+    } catch (_) {
+      // Пробуем с прежней меткой.
+    }
+    const form = new FormData();
+    form.append('request_key', requestKey);
+    form.append('body', text);
+    form.append('image', file);
+    response = await fetch(`/admin/api/dialogues/${currentDialogue}/reply`, {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'X-Admin-CSRF': token }, body: form,
+    });
+  } else {
+    response = await postWrite(`/admin/api/dialogues/${currentDialogue}/reply`, {
+      request_key: requestKey, body: text,
+    });
+  }
+  if (!response.ok) {
+    error.textContent = 'Не удалось отправить. Проверьте соединение и повторите.';
+    error.hidden = false;
+    return;
+  }
+  $('reply-form').reset();
+  await openDialogue(currentDialogue);
+}
+
+async function deleteThread() {
+  if (!currentDialogue) return;
+  if (!window.confirm('Удалить переписку? Сообщения исчезнут без возможности вернуть.')) return;
+  const response = await postWrite(`/admin/api/dialogues/${currentDialogue}/delete`, {});
+  if (!response.ok) return;
+  currentDialogue = null;
+  renderThread([]);
+  put('thread-note', 'Переписка удалена');
+  await loadDialogues($('dialogues-query').value.trim());
 }
 
 function updateFreshness() {
@@ -872,18 +1325,24 @@ async function refresh() {
   try {
     const response = await fetch('/admin/api/snapshot', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
     if (response.status === 401) { window.location.assign('/admin'); return; }
+    if (response.status === 503) throw new Error('snapshot_offline');
     if (!response.ok) throw new Error('snapshot');
     render(await response.json());
     $('notice').hidden = true;
-  } catch (_) {
-    $('notice').textContent = 'Не удалось обновить данные. Проверьте соединение и нажмите «Обновить».';
-    $('notice').hidden = false;
+  } catch (error) {
+    // Совет должен соответствовать причине: отказ сервера — не «проверьте соединение».
+    const offline = String(error) === 'Error: snapshot_offline';
+    showError('notice', offline
+      ? 'Сервер не смог собрать данные. Попробуйте обновить через минуту.'
+      : 'Не удалось получить данные. Проверьте соединение и нажмите «Обновить».');
     updateFreshness();
   } finally {
     clearTimeout(timeout);
     button.disabled = false;
   }
 }
+
+$('notice-retry').addEventListener('click', () => { refresh(); });
 
 /* Переключение вкладок «Доступы» */
 const ACCESS_TABS = [
@@ -901,18 +1360,61 @@ for (const [tabId, panelId] of ACCESS_TABS) {
     }
   };
   $(tabId).addEventListener('click', activate);
-  // Вкладки должны переключаться стрелками: мышью это делает не каждый.
+  // Вкладки должны переключаться стрелками, Home и End: мышью это делает не каждый.
   $(tabId).addEventListener('keydown', (event) => {
-    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
     const order = ACCESS_TABS.map(([tab]) => tab);
     const step = event.key === 'ArrowRight' ? 1 : -1;
-    const next = order[(order.indexOf(tabId) + step + order.length) % order.length];
+    const next = event.key === 'Home' ? order[0]
+      : event.key === 'End' ? order[order.length - 1]
+        : order[(order.indexOf(tabId) + step + order.length) % order.length];
     const target = $(next);
     target.click();
     target.focus();
   });
 }
+
+/* Раздел «Рассылки»: вкладки, формы и кнопки */
+const CAMPAIGN_TABS = [['tab-campaigns', 'campaigns-panel'], ['tab-chat', 'chat-panel']];
+for (const [tabId, panelId] of CAMPAIGN_TABS) {
+  const activate = () => {
+    for (const [otherTab, otherPanel] of CAMPAIGN_TABS) {
+      const selected = otherTab === tabId;
+      $(otherTab).setAttribute('aria-selected', selected ? 'true' : 'false');
+      $(otherTab).setAttribute('tabindex', selected ? '0' : '-1');
+      $(otherPanel).hidden = !selected;
+    }
+  };
+  $(tabId).addEventListener('click', activate);
+  $(tabId).addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const order = CAMPAIGN_TABS.map(([tab]) => tab);
+    const step = event.key === 'ArrowRight' ? 1 : -1;
+    const next = event.key === 'Home' ? order[0]
+      : event.key === 'End' ? order[order.length - 1]
+        : order[(order.indexOf(tabId) + step + order.length) % order.length];
+    $(next).click();
+    $(next).focus();
+  });
+}
+
+$('compose-form').addEventListener('submit', saveDraft);
+$('compose-reset').addEventListener('click', () => {
+  $('compose-form').reset();
+  $('compose-button-fields').hidden = true;
+  showComposeError('');
+});
+$('compose-button-on').addEventListener('change', (event) => {
+  $('compose-button-fields').hidden = !event.target.checked;
+});
+$('dialogues-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  loadDialogues($('dialogues-query').value.trim());
+});
+$('reply-form').addEventListener('submit', sendReply);
+$('thread-delete').addEventListener('click', deleteThread);
 
 $('people-form').addEventListener('submit', (event) => {
   event.preventDefault();

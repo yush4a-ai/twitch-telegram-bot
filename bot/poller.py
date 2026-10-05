@@ -349,7 +349,7 @@ def _build_vod_chapters(samples: list[tuple[float, int, str, str]], start_ts: fl
     for sampled_at, viewer_count, _title, game_name in samples:
         offset = max(0, int(sampled_at - start_ts))
         if last_game is None:
-            chapters.append({"offset": offset, "label": f"Начало — {game_name}"})
+            chapters.append({"offset": offset, "label": f"Начало: {game_name}"})
         elif game_name != last_game:
             chapters.append({"offset": offset, "label": f"Смена игры → {game_name}"})
         last_game = game_name
@@ -359,7 +359,7 @@ def _build_vod_chapters(samples: list[tuple[float, int, str, str]], start_ts: fl
             peak_offset = offset
 
     if peak_viewer_count >= 0:
-        chapters.append({"offset": peak_offset, "label": f"Пик зрителей — {peak_viewer_count}"})
+        chapters.append({"offset": peak_offset, "label": f"Пик зрителей: {peak_viewer_count}"})
 
     chapters.sort(key=lambda c: c["offset"])
     return chapters
@@ -659,8 +659,8 @@ class StreamPoller:
 
     async def _notify_channel_banned(self, login: str) -> None:
         text = (
-            f"🚨 Канал <b>{html.escape(login)}</b> больше не существует на Twitch — "
-            "возможно, аккаунт забанен, приостановлен или удалён."
+            f"🚨 Канал <b>{html.escape(login)}</b> больше не существует на Twitch. "
+            "Возможно, аккаунт забанен, приостановлен или удалён."
         )
         await self._tg_call(
             lambda: self._bot.send_message(self._owner_chat_id, text),
@@ -949,7 +949,7 @@ class StreamPoller:
             for logical_stream_id, sampled_chats in list(by_logical_stream.items()):
                 await self._db.record_stream_observation(
                     login, logical_stream_id, sampled_at, stream.viewer_count,
-                    stream.title or "(без названия)", stream.game_name or "—",
+                    stream.title or "(без названия)", stream.game_name or "н/д",
                     sampled_chats,
                 )
                 if (
@@ -2061,7 +2061,7 @@ class StreamPoller:
             text += "\n\n" + "\n".join(comparison_lines)
         if top_chatters:
             top_lines = "\n".join(
-                f"{i}. {html.escape(nick)} — {count}" for i, (nick, count) in enumerate(top_chatters, 1)
+                f"{i}. {html.escape(nick)}: {count}" for i, (nick, count) in enumerate(top_chatters, 1)
             )
             text += f"\n\n💬 <b>Топ чатеров</b>\n{top_lines}"
         if raid_events:
@@ -2075,7 +2075,7 @@ class StreamPoller:
         if viewer_spikes:
             text += (
                 f"\n\n🚩 Обнаружен резкий всплеск и такой же резкий спад зрителей "
-                f"({len(viewer_spikes)} момент(ов), похоже на накрутку) — не учтён в пике и среднем."
+                f"({len(viewer_spikes)} момент(ов), похоже на накрутку). Не учтён в пике и среднем."
             )
         if vod_url is not None:
             text += f"\n\n🎬 Запись: {html.escape(vod_url)}"
@@ -2230,9 +2230,9 @@ class StreamPoller:
             sign = "+" if diff_pct >= 0 else ""
             lines.append(f"Пик зрителей {sign}{diff_pct}% от среднего по прошлым {count} стримам")
         if peak > best_peak:
-            lines.append(f"🏆 Новый рекорд по пику: {peak} (прошлый — {best_peak})")
+            lines.append(f"🏆 Новый рекорд по пику: {peak} (прошлый: {best_peak})")
         if avg_viewers > best_avg:
-            lines.append(f"🏆 Новый рекорд по среднему: {avg_viewers} (прошлый — {best_avg})")
+            lines.append(f"🏆 Новый рекорд по среднему: {avg_viewers} (прошлый: {best_avg})")
         return lines
 
     @staticmethod

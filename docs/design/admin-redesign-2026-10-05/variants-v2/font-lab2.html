@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Подбор гарнитур для панели</title>
+<link rel="stylesheet" href="lab.css">
+<style>
+  :root {
+    --bg: #08070B; --core: #100F15; --core-2: #16141C;
+    --hair: rgba(255,255,255,.07); --text: #F4F2F8; --dim: #9C97A8;
+    --violet: #B98CFF; --lime: #A8F06B; --amber: #FFC46B; --rose: #FF8A9B;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 26px; background: #0A0A0C; color: var(--dim); font: 13px/1.5 "Onest", system-ui, sans-serif; }
+  .lead { max-width: 780px; margin-bottom: 22px; }
+  .lead h1 { margin: 0 0 6px; color: var(--text); font-family: "Unbounded", sans-serif; font-size: 19px; font-weight: 500; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+  .v { }
+  .cap { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .cap b { color: var(--text); font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 500; letter-spacing: .08em; }
+  .cap span { font-family: "JetBrains Mono", monospace; font-size: 10px; color: #6E6979; }
+  .screen { padding: 5px; border: 1px solid var(--hair); border-radius: 24px; background: rgba(255,255,255,.025); position: relative; overflow: hidden; }
+  .screen::before { content: ""; position: absolute; inset: -40% -20% auto -20%; height: 70%; pointer-events: none;
+    background: radial-gradient(420px 220px at 20% 0%, rgba(185,140,255,.18), transparent 65%); }
+  .core { position: relative; padding: 18px; border-radius: 19px; background: linear-gradient(180deg, var(--core-2), var(--core)); box-shadow: inset 0 1px 0 rgba(255,255,255,.07); }
+  .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: var(--violet); }
+  .h { margin: 9px 0 0; color: var(--text); font-size: 27px; line-height: 1.05; letter-spacing: -.01em; }
+  .sub { margin: 8px 0 14px; font-size: 12.5px; }
+  .num { color: var(--text); font-size: 36px; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .numlab { margin-top: 6px; font-size: 11px; color: #77727F; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hair); font-size: 12.5px; }
+  .row em { font-style: normal; color: var(--text); }
+  .st { display: inline-flex; align-items: center; gap: 7px; color: var(--lime); font-size: 11.5px; }
+  .st i { width: 7px; height: 7px; border-radius: 999px; background: var(--lime); box-shadow: 0 0 10px rgba(168,240,107,.5); }
+  .st.bad { color: var(--rose); } .st.bad i { background: var(--rose); box-shadow: 0 0 10px rgba(255,138,155,.5); }
+
+  .v1 .h { font-family: "Unbounded", sans-serif; font-weight: 500; }
+  .v1 .core, .v1 .sub, .v1 .numlab, .v1 .row { font-family: "Onest", sans-serif; }
+  .v1 .num { font-family: "JetBrains Mono", monospace; font-weight: 500; }
+
+  .v2 .h { font-family: "Rubik", sans-serif; font-weight: 700; }
+  .v2 .core, .v2 .sub, .v2 .numlab, .v2 .row { font-family: "Rubik", sans-serif; }
+  .v2 .num { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+
+  .v3 .h { font-family: "Play", sans-serif; font-weight: 700; }
+  .v3 .core, .v3 .sub, .v3 .numlab, .v3 .row { font-family: "Onest", sans-serif; }
+  .v3 .num { font-family: "JetBrains Mono", monospace; font-weight: 500; }
+
+  .v4 .h { font-family: "Wix Madefor Display", sans-serif; font-weight: 700; }
+  .v4 .core, .v4 .sub, .v4 .numlab, .v4 .row { font-family: "Wix Madefor Text", sans-serif; }
+  .v4 .num { font-family: "Martian Mono", monospace; font-weight: 500; }
+
+  .v5 .h { font-family: "Golos Text", sans-serif; font-weight: 700; }
+  .v5 .core, .v5 .sub, .v5 .numlab, .v5 .row { font-family: "Golos Text", sans-serif; }
+  .v5 .num { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+
+  .v6 .h { font-family: "Montserrat", sans-serif; font-weight: 700; }
+  .v6 .core, .v6 .sub, .v6 .numlab, .v6 .row { font-family: "Inter Tight", sans-serif; }
+  .v6 .num { font-family: "JetBrains Mono", monospace; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="lead">
+  <h1>Шесть троек гарнитур</h1>
+  <p style="margin:0">В каждой: заголовок · текст · цифры. Всё в стиле «Сигнала», только буквы разные. Кириллица есть у всех.</p>
+</div>
+<div class="grid">
+  <div class="v v1">
+    <div class="cap"><b>1</b><span>Unbounded · Onest · JetBrains Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+
+  <div class="v v2">
+    <div class="cap"><b>2</b><span>Rubik · Rubik · IBM Plex Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+
+  <div class="v v3">
+    <div class="cap"><b>3</b><span>Play · Onest · JetBrains Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+
+  <div class="v v4">
+    <div class="cap"><b>4</b><span>Wix Madefor · Martian Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+
+  <div class="v v5">
+    <div class="cap"><b>5</b><span>Golos Text · IBM Plex Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+
+  <div class="v v6">
+    <div class="cap"><b>6</b><span>Montserrat · Inter Tight · JetBrains Mono</span></div>
+    <div class="screen"><div class="core">
+      <div class="eyebrow">Пульт наблюдения</div>
+      <div class="h">Обзор</div>
+      <div class="sub">Сигнал, доставка и люди</div>
+      <div class="num">1267</div><div class="numlab">Известные личные пользователи</div>
+      <div class="row"><em>Telegram</em><span class="st"><i></i>Работает</span></div>
+    </div></div>
+  </div>
+</div>
+</body>
+</html>

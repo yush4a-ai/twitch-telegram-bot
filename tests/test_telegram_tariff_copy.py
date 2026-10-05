@@ -22,7 +22,7 @@ class TariffCopyTests(unittest.IsolatedAsyncioTestCase):
         await cb_plus(cb,state,db)
         call=msg.edit_text.await_args;self.assertIn('<b>Зритель Plus</b>\n<b>150 ₽ / месяц</b>',call.args[0])
         buttons=[b for row in call.kwargs['reply_markup'].inline_keyboard for b in row]
-        self.assertEqual(buttons[0].text,'Оформить Зритель Plus — 150 ₽')
+        self.assertEqual(buttons[0].text,'Оформить Зритель Plus: 150 ₽')
         self.assertEqual(buttons[1].text,'Тариф для стримера')
         await db.link_streamer_identity(101,'11','alpha',verified_at=1)
         cb.data='menu:streamer';await cb_streamer(cb,db)

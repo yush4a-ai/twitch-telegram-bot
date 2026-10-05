@@ -56,7 +56,9 @@ export function applyThemeTokens(tokens, {choice, colorScheme}) {
 }
 
 export function createThemeController({storage, telegram, applyTokens=applyThemeTokens}) {
-  let choice='light',disposed=false;
+  // По умолчанию следуем теме Telegram: человек с тёмным клиентом не должен
+  // получать светлый экран на весь экран. Явный выбор сохраняется и имеет приоритет.
+  let choice='telegram',disposed=false;
   try { const saved=storage?.getItem(KEY);if(CHOICES.has(saved))choice=saved; }catch{}
   function refresh() {
     if(disposed)return;

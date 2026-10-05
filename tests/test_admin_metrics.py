@@ -60,6 +60,13 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
             {"source": "site", "touched": 0, "activated": 0, "ever_test_plus": 0},
             {"source": "referral", "touched": 0, "activated": 0, "ever_test_plus": 0},
         ])
+        self.db.growth_funnel_report = AsyncMock(return_value={
+            "steps": [
+                {"key": "attributed", "title": "Пришли", "users": 2, "share": 2.0},
+                {"key": "opened", "title": "Открыли бота", "users": 1, "share": 50.0},
+            ],
+            "totals": {"users": 3, "with_channel": 1, "with_plus": 0},
+        })
         self.db.count_active_since = AsyncMock(return_value=7)
         self.db.count_first_seen_since = AsyncMock(return_value=3)
         self.db.activity_by_day = AsyncMock(return_value=[{"date": 0.0, "users": 2}])
@@ -250,6 +257,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
             get_admin_live_streams=AsyncMock(return_value=[]),
             health_snapshot=AsyncMock(return_value={}),
             growth_funnel_snapshot=AsyncMock(return_value=[]),
+            growth_funnel_report=AsyncMock(return_value={"steps": [], "totals": {}}),
         )
 
         result = await self.build().collect()

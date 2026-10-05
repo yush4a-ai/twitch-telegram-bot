@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сравнение шрифтов панели</title>
+<style>
+  @font-face {
+    font-family: "InterVar";
+    src: url("fonts/InterVariable.woff2") format("woff2-variations");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --canvas: #171717; --surface: #1D1C20; --raised: #242424; --border: #3B3841;
+    --text: #F1F1F1; --muted: #B9B6BF; --accent: #C7A5FF; --ink: #21162F;
+    --good: #7FD8B4; --warn: #F0C674; --danger: #FF7A85;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #101010; color: var(--muted); font: 14px/1.5 "Segoe UI", sans-serif; }
+  .lead { max-width: 900px; margin: 0 0 24px; }
+  .lead h1 { margin: 0 0 8px; color: var(--text); font-size: 20px; letter-spacing: -0.02em; }
+  .row { display: grid; grid-template-columns: repeat(3, 420px); gap: 20px; align-items: start; }
+  .col > .cap { margin-bottom: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); font: 600 12px/1.4 ui-monospace, Consolas, monospace; }
+  .col > .cap span { color: var(--muted); font-weight: 400; }
+  .screen { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--canvas); color: var(--text); }
+  .screen.a { font-family: "InterVar", "Segoe UI", system-ui, sans-serif; }
+  .screen.b { font-family: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  .screen.c { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  .bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+  .bar .name { font-size: 13px; }
+  .bar .badge { padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+  .body { padding: 18px; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+  h1.t { margin: 0; font-size: 30px; font-weight: 640; letter-spacing: -0.028em; line-height: 1.08; }
+  .sub { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  .pill { padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .card { padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .card .label { color: var(--muted); font-size: 12.5px; }
+  .card .num { margin: 6px 0 4px; font-size: 30px; font-weight: 660; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .card .note { color: var(--muted); font-size: 12px; }
+
+  .list { margin-top: 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); overflow: hidden; }
+  .list .h { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 15px; font-weight: 620; letter-spacing: -0.015em; }
+  .li { display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .li:last-child { border-bottom: 0; }
+  .li .meta { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--good); }
+  .bad { color: var(--danger); }
+  .btn { display: inline-flex; align-items: center; min-height: 40px; margin-top: 14px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--accent); color: var(--ink); font: inherit; font-weight: 620; }
+  .note-line { margin-top: 10px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="lead">
+  <h1>Один и тот же экран, три шрифта</h1>
+  <p style="margin:0">Разметка, размеры, отступы и цвета одинаковые — меняется только гарнитура. Смотри на заголовок, цифры и строки списка.</p>
+</div>
+
+<div class="row">
+  <div class="col">
+    <div class="cap">A · Inter Variable <span>— локальный файл, свой у всех</span></div>
+    <div class="screen a">
+      <div class="bar"><span class="name">TwitchSignalBot</span><span class="badge">STAGING</span></div>
+      <div class="body">
+        <div class="head">
+          <div><h1 class="t">Обзор</h1><p class="sub">Состояние бота и люди, которым он нужен</p></div>
+          <span class="pill">Есть проблемы</span>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="label">Всего пользователей</div><div class="num">1267</div><div class="note">Известные личные пользователи</div></div>
+          <div class="card"><div class="label">Активны сегодня</div><div class="num">312</div><div class="note">Отметки действий за сегодня</div></div>
+        </div>
+        <div class="list">
+          <div class="h">Подсистемы</div>
+          <div class="li"><span>Telegram</span><span class="meta ok">Работает</span></div>
+          <div class="li"><span>Twitch</span><span class="meta bad">Сбой · 2 канала</span></div>
+          <div class="li"><span>Очередь уведомлений</span><span class="meta">Тишина</span></div>
+        </div>
+        <button class="btn">Обновить данные</button>
+        <p class="note-line">Наблюдение по снимку в 14:32 МСК</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap">B · Segoe UI Variable <span>— системный, файлы не нужны</span></div>
+    <div class="screen b">
+      <div class="bar"><span class="name">TwitchSignalBot</span><span class="badge">STAGING</span></div>
+      <div class="body">
+        <div class="head">
+          <div><h1 class="t">Обзор</h1><p class="sub">Состояние бота и люди, которым он нужен</p></div>
+          <span class="pill">Есть проблемы</span>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="label">Всего пользователей</div><div class="num">1267</div><div class="note">Известные личные пользователи</div></div>
+          <div class="card"><div class="label">Активны сегодня</div><div class="num">312</div><div class="note">Отметки действий за сегодня</div></div>
+        </div>
+        <div class="list">
+          <div class="h">Подсистемы</div>
+          <div class="li"><span>Telegram</span><span class="meta ok">Работает</span></div>
+          <div class="li"><span>Twitch</span><span class="meta bad">Сбой · 2 канала</span></div>
+          <div class="li"><span>Очередь уведомлений</span><span class="meta">Тишина</span></div>
+        </div>
+        <button class="btn">Обновить данные</button>
+        <p class="note-line">Наблюдение по снимку в 14:32 МСК</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="cap">C · Как сейчас <span>— Segoe UI из системного стека</span></div>
+    <div class="screen c">
+      <div class="bar"><span class="name">TwitchSignalBot</span><span class="badge">STAGING</span></div>
+      <div class="body">
+        <div class="head">
+          <div><h1 class="t">Обзор</h1><p class="sub">Состояние бота и люди, которым он нужен</p></div>
+          <span class="pill">Есть проблемы</span>
+        </div>
+        <div class="grid">
+          <div class="card"><div class="label">Всего пользователей</div><div class="num">1267</div><div class="note">Известные личные пользователи</div></div>
+          <div class="card"><div class="label">Активны сегодня</div><div class="num">312</div><div class="note">Отметки действий за сегодня</div></div>
+        </div>
+        <div class="list">
+          <div class="h">Подсистемы</div>
+          <div class="li"><span>Telegram</span><span class="meta ok">Работает</span></div>
+          <div class="li"><span>Twitch</span><span class="meta bad">Сбой · 2 канала</span></div>
+          <div class="li"><span>Очередь уведомлений</span><span class="meta">Тишина</span></div>
+        </div>
+        <button class="btn">Обновить данные</button>
+        <p class="note-line">Наблюдение по снимку в 14:32 МСК</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

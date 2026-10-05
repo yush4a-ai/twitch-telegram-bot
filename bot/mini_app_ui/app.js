@@ -36,7 +36,22 @@ const telegram = createTelegramAdapter(() => { if(!closeActiveDialog())router.ba
 let themeStorage;
 try { themeStorage = window.localStorage; } catch {}
 export const theme = createThemeController({storage:themeStorage,telegram});
-const api = createApi(telegram.initData);
+const AUTH_RELOAD_FLAG='ts-app-auth-reloaded';
+function handleAuthExpired(){
+  // Подпись Telegram живёт ограниченное время. Перезагружаем приложение один раз,
+  // чтобы клиент выдал свежую; если и это не помогло, объясняем человеку словами.
+  let already=false;
+  try{already=window.sessionStorage.getItem(AUTH_RELOAD_FLAG)==='1';}catch{}
+  if(!already){
+    try{window.sessionStorage.setItem(AUTH_RELOAD_FLAG,'1');}catch{}
+    window.location.reload();
+    return;
+  }
+  authError='Сессия истекла. Закройте приложение и откройте его заново из чата с ботом.';
+  canRetryEntry=true;
+  router.refresh();
+}
+const api = createApi(telegram.initData,{onAuthExpired:handleAuthExpired});
 router = createRouter(render);
 const onDialogChange=()=>telegram.syncBack(Boolean(document.querySelector('dialog[open]'))||router.canBack);
 document.addEventListener('app-dialog-change',onDialogChange);
@@ -49,7 +64,7 @@ const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.set
 resizeNavigation.observe(tabBar);
 document.getElementById('app-menu').addEventListener('click',event=>{
   dialog('Меню приложения',(box,close)=>{
-    const roles=element('p','role-explanation','Зритель — уведомления для себя. Стример — публикации в свой Telegram-канал.');box.append(roles);
+    const roles=element('p','role-explanation','Зритель: уведомления для себя. Стример: публикации в свой Telegram-канал.');box.append(roles);
     for(const [label,glyph,callback] of [['Профиль','profile',()=>router.setTab('profile')],['Тариф','plus',()=>router.openDetail('subscription')],['Поддержка','help',()=>router.openDetail('support')]]){
       box.append(navigationRow(label,'',glyph,()=>{close();callback();}));
     }
@@ -131,13 +146,16 @@ async function bootstrap() {
   if(disposed||bootstrapPending||session||!telegram.initData)return;
   bootstrapPending=true;authError=null;canRetryEntry=false;
   const controller=new AbortController();bootstrapController=controller;
-  const timer=setTimeout(()=>controller.abort(),5000);
+  // Первый запрос после холодного старта контейнера может не уложиться в пять
+  // секунд: даём пятнадцать, чтобы человек не видел ложную ошибку связи.
+  const timer=setTimeout(()=>controller.abort(),15000);
   router.refresh();
   try {
     const verified = await api.post('/app/api/bootstrap',{}, {signal:controller.signal});
     if(disposed)return;
     api.bindIdentity(verified.user);
     session=verified;
+    try{window.sessionStorage.removeItem(AUTH_RELOAD_FLAG);}catch{}
     viewerFeature=createViewerFeature(api,()=>router,telegram);
     streamerFeature=createStreamerFeature(api,()=>router,telegram);
     profileFeature=createProfileFeature(api,()=>router,theme);
@@ -162,3 +180,16 @@ if (!telegram.initData) {
   authError = 'Для входа нужна кнопка приложения в чате бота.';
   router.refresh();
 } else await bootstrap();
+
+// Возврат связи: обновляем вход и данные, чтобы человек не видел устаревший экран.
+function handleOnline(){
+  if(disposed)return;
+  if(!session){void bootstrap();return;}
+  void viewerFeature?.refresh();void streamerFeature?.refresh();void profileFeature?.refresh();
+  void subscriptionFeature?.refresh();router.refresh();
+}
+window.addEventListener('online',handleOnline);
+document.addEventListener('visibilitychange',()=>{
+  if(disposed||document.hidden||!session)return;
+  void subscriptionFeature?.refresh();
+});

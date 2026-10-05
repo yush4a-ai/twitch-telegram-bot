@@ -1,119 +1,152 @@
 {
   "tokens": {
-    "canvas": "#171717",
-    "surface": "#242424",
-    "raised": "#2D2B31",
-    "border": "#3B3841",
-    "text": "#F1F1F1",
-    "muted": "#B9B6BF",
-    "accent": "#C7A5FF",
-    "accent_ink": "#21162F",
-    "good": "#7FD8B4",
-    "warn": "#F0C674",
-    "danger": "#FF7A85"
+    "canvas": "#08070B",
+    "surface": "#100F15",
+    "raised": "#16141C",
+    "border": "#1E1D21",
+    "text": "#F4F2F8",
+    "muted": "#9C97A8",
+    "faint": "#8A8595",
+    "accent": "#B98CFF",
+    "accent_ink": "#1B1030",
+    "good": "#A8F06B",
+    "warn": "#FFC46B",
+    "danger": "#FF8A9B"
   },
   "results": [
     {
       "what": "основной текст на фоне приложения",
-      "front": "#F1F1F1",
-      "back": "#171717",
-      "ratio": 15.87,
+      "front": "#F4F2F8",
+      "back": "#08070B",
+      "ratio": 18.08,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "основной текст на поверхности",
-      "front": "#F1F1F1",
-      "back": "#242424",
-      "ratio": 13.74,
+      "front": "#F4F2F8",
+      "back": "#100F15",
+      "ratio": 17.17,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "основной текст на приподнятой поверхности",
-      "front": "#F1F1F1",
-      "back": "#2D2B31",
-      "ratio": 12.38,
+      "front": "#F4F2F8",
+      "back": "#16141C",
+      "ratio": 16.42,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "вторичный текст на фоне",
-      "front": "#B9B6BF",
-      "back": "#171717",
-      "ratio": 8.97,
+      "front": "#9C97A8",
+      "back": "#08070B",
+      "ratio": 7.08,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "вторичный текст на поверхности",
-      "front": "#B9B6BF",
-      "back": "#242424",
-      "ratio": 7.77,
+      "front": "#9C97A8",
+      "back": "#100F15",
+      "ratio": 6.73,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "вторичный текст на приподнятой поверхности",
-      "front": "#B9B6BF",
-      "back": "#2D2B31",
-      "ratio": 7.0,
+      "front": "#9C97A8",
+      "back": "#16141C",
+      "ratio": 6.43,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "тихие подписи на поверхности",
+      "front": "#8A8595",
+      "back": "#100F15",
+      "ratio": 5.33,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "accent на фоне (ссылки, «Подробнее»)",
-      "front": "#C7A5FF",
-      "back": "#171717",
-      "ratio": 8.75,
+      "front": "#B98CFF",
+      "back": "#08070B",
+      "ratio": 7.9,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "accent на поверхности",
-      "front": "#C7A5FF",
-      "back": "#242424",
-      "ratio": 7.58,
+      "front": "#B98CFF",
+      "back": "#100F15",
+      "ratio": 7.5,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "текст на главной кнопке",
-      "front": "#21162F",
-      "back": "#C7A5FF",
-      "ratio": 8.4,
+      "front": "#1B1030",
+      "back": "#B98CFF",
+      "ratio": 7.1,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "успех на поверхности",
-      "front": "#7FD8B4",
-      "back": "#242424",
-      "ratio": 9.15,
+      "front": "#A8F06B",
+      "back": "#100F15",
+      "ratio": 13.93,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "внимание на поверхности",
-      "front": "#F0C674",
-      "back": "#242424",
-      "ratio": 9.64,
+      "front": "#FFC46B",
+      "back": "#100F15",
+      "ratio": 12.13,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "ошибка на поверхности",
-      "front": "#FF7A85",
-      "back": "#242424",
-      "ratio": 6.19,
+      "front": "#FF8A9B",
+      "back": "#100F15",
+      "ratio": 8.5,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "успех на фоне приложения",
+      "front": "#A8F06B",
+      "back": "#08070B",
+      "ratio": 14.67,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "внимание на фоне приложения",
+      "front": "#FFC46B",
+      "back": "#08070B",
+      "ratio": 12.78,
+      "limit": 4.5,
+      "pass": true
+    },
+    {
+      "what": "ошибка на фоне приложения",
+      "front": "#FF8A9B",
+      "back": "#08070B",
+      "ratio": 8.95,
       "limit": 4.5,
       "pass": true
     },
     {
       "what": "разделитель на фоне (элемент интерфейса)",
-      "front": "#3B3841",
-      "back": "#171717",
-      "ratio": 1.56,
+      "front": "#1E1D21",
+      "back": "#08070B",
+      "ratio": 1.2,
       "limit": 1.0,
       "pass": true
     }

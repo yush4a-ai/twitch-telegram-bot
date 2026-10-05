@@ -20,7 +20,7 @@ DATA_SCREEN = ('<b>Мои данные</b>\n\n'
 
 TOPICS = {
     'about': ('Что умеет бот', '<b>Личные оповещения</b>\n'+ABOUT_TEXT+'\n\n'
-              '<b>Без покупки</b>\n<blockquote>В Free — до 50 стримеров и фото эфира.\n'
+              '<b>Без покупки</b>\n<blockquote>В Free: до 50 стримеров и фото эфира.\n'
               'Подключение своего Telegram-канала и существующие отчёты доступны без покупки.</blockquote>'),
     'import': ('Добавление и импорт', '<b>По нику или ссылке</b>\n'
                'Добавь стримера по нику или ссылке Twitch и подтверди выбор.\n\n'
@@ -28,7 +28,7 @@ TOPICS = {
                'Для импорта разреши чтение своих подписок в Twitch. Ссылка действует <b>5 минут</b>.\n\n'
                '<blockquote>Бот покажет найденные подписки, повторы и свободные места.\n'
                'Список изменится только после подтверждения. Повторы не добавляются.\n'
-               'В Free — до 50, в Зритель Plus — до 200 стримеров.</blockquote>\n\n'
+               'В Free до 50, в Зритель Plus до 200 стримеров.</blockquote>\n\n'
                '<b>Отмена и доступ</b>\n«Отменить» или «Меню» прекращает незавершённый импорт.\n'
                'Подключение своего Twitch не открывает число фолловеров чужих стримеров.'),
     'quiet': ('Тихие часы', '<b>Как настроить</b>\n'
@@ -43,8 +43,8 @@ TOPICS = {
     'reports': ('Отчёты и HTML', '<b>Где открыть</b>\nВ «Ещё» → «Отчёты» выбери стримера.\n\n'
                 '<b>Данные эфира</b>\nНачало и завершение в UTC, длительность, пик и среднее число зрителей.\n'
                 'Если часть данных чата потеряна после перезапуска, это отмечено в тексте.\n\n'
-                '<b>Два формата</b>\n<blockquote>Краткий — сводка в сообщении.\n'
-                'Развёрнутый — также HTML-файл с графиком и данными чата.\n'
+                '<b>Два формата</b>\n<blockquote>Краткий: сводка в сообщении.\n'
+                'Развёрнутый: также HTML-файл с графиком и данными чата.\n'
                 'Файл доступен в течение <b>24 часов</b> после эфира.\n'
                 'Эти отчёты не требуют покупки тарифа.</blockquote>\n\n'
                 'Автоотчёт включается отдельно в настройках стримера. HTML-файл можно сохранить как резерв.\n\n'
@@ -83,15 +83,15 @@ async def cb_help(callback,config=None,state=None,db=None,oauth_server=None):
 
 async def cb_commands(callback,config=None):
     text=('<b>Команды бота</b>\n\n<b>Стримеры и отчёты</b>\n'
-          '<blockquote>/track ник — добавить стримера\n/untrack ник — удалить\n/list — мой список\n/live — кто в эфире\n'
-          '/report ник — отчёт и HTML-файл\n/import_follows — импорт подписок Twitch</blockquote>\n\n'
-          '<b>Свой Twitch</b>\n/auth_twitch — фолловеры своего Twitch-канала\n'
-          '/streamer_connect — подключить свой Twitch\n\n<b>Навигация и поддержка</b>\n'
-          '/myid — мой Telegram ID\n/paysupport — поддержка по подписке\n/help — помощь\n/start — главное меню')
+          '<blockquote>/track ник: добавить стримера\n/untrack ник: удалить\n/list: мой список\n/live: кто в эфире\n'
+          '/report ник: отчёт и HTML-файл\n/import_follows: импорт подписок Twitch</blockquote>\n\n'
+          '<b>Свой Twitch</b>\n/auth_twitch: фолловеры своего Twitch-канала\n'
+          '/streamer_connect: подключить свой Twitch\n\n<b>Навигация и поддержка</b>\n'
+          '/myid: мой Telegram ID\n/paysupport: поддержка по подписке\n/help: помощь\n/start: главное меню')
     if getattr(config,'growth_enabled',False) and getattr(config,'admin_telegram_bot_username','')=='SignalStreamsBot':
-        text+='\n/invite — ссылка-приглашение'
+        text+='\n/invite: ссылка-приглашение'
     if _owner_admin_url(callback.message,config,actor_id=callback.from_user.id):
-        text+='\n\n<b>Для владельца бота</b>\n/admin — админ-панель\n/stats — статистика бота\n/health — состояние бота'
+        text+='\n\n<b>Для владельца бота</b>\n/admin: админ-панель\n/stats: статистика бота\n/health: состояние бота'
     await edit_menu(callback.message,text,reply_markup=back_keyboard('menu:help'))
     await callback.answer()
 

@@ -19,7 +19,6 @@ from .streamer_web import install_streamer_routes
 from .viewer_web import install_viewer_routes
 from .mini_app_web import install_mini_app_routes
 from .payment_web import install_payment_routes
-from .growth_site import install_growth_site
 from .database import Database
 from .oauth_result import result_page, UI_DIR as OAUTH_RESULT_UI_DIR
 from .admin_web import SECURITY_HEADERS
@@ -204,8 +203,7 @@ class OAuthCallbackServer:
         mini_app_billing_test_enabled: bool = False,
         mini_app_billing_test_user_ids: frozenset[int] = frozenset(),
         mini_app_billing_service=None,
-        growth_bot_username: str | None = None,
-        growth_public_base_url: str | None = None,
+        streamer_environment: str = "",
         mini_app_owner_config=None,
     ) -> None:
         self.redirect_uri = redirect_uri
@@ -232,22 +230,34 @@ class OAuthCallbackServer:
         self._mini_app_billing_test_enabled = mini_app_billing_test_enabled
         self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
         self._mini_app_billing_service = mini_app_billing_service
+        self._streamer_environment = streamer_environment
         self._mini_app_owner_config = mini_app_owner_config
         self._preview_observer = None
         self._mini_app_connect_tasks: dict[int, asyncio.Task] = {}
         self._mini_app_states: dict[str, tuple[int, str]] = {}
         self._result_tickets: dict[str, tuple[int, str, float]] = {}
-        self._growth_bot_username = growth_bot_username
-        self._growth_public_base_url = growth_public_base_url
         self._admin_snapshot_provider: SnapshotProvider | None = None
         self._admin_services: dict | None = None
 
     def set_admin_snapshot_provider(self, provider: SnapshotProvider | None) -> None:
         self._admin_snapshot_provider = provider
 
-    def set_admin_services(self, *, people=None, directory=None) -> None:
-        """Каталог людей и доступов для read-маршрутов панели владельца."""
-        self._admin_services = {"people": people, "directory": directory}
+    def set_admin_services(
+        self, *, people=None, directory=None, database=None, chat_sender=None,
+        media_dir=None,
+    ) -> None:
+        """Каталог людей и доступов, база рассылок, ответы в чате и каталог картинок.
+
+        Провайдеры появляются после старта сервера, поэтому панель спрашивает
+        их на каждом запросе, а не запоминает сейчас.
+        """
+        self._admin_services = {
+            "people": people,
+            "directory": directory,
+            "database": database,
+            "chat_sender": chat_sender,
+            "media_dir": media_dir,
+        }
 
     def set_preview_observer(self, observer) -> None:
         self._preview_observer = observer
@@ -287,9 +297,13 @@ class OAuthCallbackServer:
                 app, self._admin_access, _snapshot,
                 people_provider=lambda: (self._admin_services or {}).get("people"),
                 directory_provider=lambda: (self._admin_services or {}).get("directory"),
+                database_provider=lambda: (self._admin_services or {}).get("database"),
+                chat_sender_provider=lambda: (self._admin_services or {}).get("chat_sender"),
+                media_dir_provider=lambda: (self._admin_services or {}).get("media_dir"),
             )
         if self._streamer_access is not None and self._streamer_db is not None:
-            install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot)
+            install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot,
+                                    environment=self._streamer_environment)
         if self._viewer_db is not None and self._viewer_bot_token is not None:
             install_viewer_routes(app, self._viewer_db, self._viewer_bot_token)
         if self._mini_app_db is not None and self._mini_app_bot_token is not None:
@@ -304,8 +318,6 @@ class OAuthCallbackServer:
                 preview_status_provider=self._mini_app_preview_status,
                 owner_config=self._mini_app_owner_config,
             )
-        if self._growth_bot_username is not None:
-            install_growth_site(app, self._growth_bot_username, self._growth_public_base_url)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
         site = web.TCPSite(self._runner, self._host, self._port)

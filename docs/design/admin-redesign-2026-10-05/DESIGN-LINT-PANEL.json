@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "file": "bot/admin_ui/index.html",
+      "issues": [],
+      "buttons": 21,
+      "links": 19,
+      "button_padding_px": [],
+      "button_min_height_px": []
+    },
+    {
+      "file": "bot/admin_ui/panel.css",
+      "issues": [],
+      "buttons": 0,
+      "links": 0,
+      "button_padding_px": [],
+      "button_min_height_px": []
+    }
+  ],
+  "tap_target_min": 44,
+  "failures": 0
+}

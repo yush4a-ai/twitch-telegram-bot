@@ -332,7 +332,7 @@ class TwitchClient:
                     user_login=login,
                     stream_id=item["id"],
                     title=item.get("title", ""),
-                    game_name=item.get("game_name", "—"),
+                    game_name=item.get("game_name", "н/д"),
                     viewer_count=item.get("viewer_count", 0),
                     started_at=item.get("started_at", ""),
                     thumbnail_url=item.get("thumbnail_url") or None,

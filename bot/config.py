@@ -54,8 +54,6 @@ class ConfigError(RuntimeError):
 # принимают любой из этих трёх и отвергают чужого, чтобы окружение не падало
 # целиком из-за устаревшего ожидания одного имени.
 CONTOUR_BOT_USERNAMES = frozenset({"twitchsignalbot", "twitchsignaltestbot", "signalstreamsbot"})
-# Публичный сайт роста остаётся тестовым контуром: production-боту он запрещён.
-PUBLIC_SITE_BOT_USERNAMES = frozenset({"twitchsignaltestbot", "signalstreamsbot"})
 
 
 def _username_in(username: object, allowed: frozenset[str]) -> bool:
@@ -66,10 +64,6 @@ def _username_in(username: object, allowed: frozenset[str]) -> bool:
 
 def contour_bot_username_allowed(username: object) -> bool:
     return _username_in(username, CONTOUR_BOT_USERNAMES)
-
-
-def public_site_bot_username_allowed(username: object) -> bool:
-    return _username_in(username, PUBLIC_SITE_BOT_USERNAMES)
 
 
 def environment_label(public_base_url: str | None = None, env: str | None = None) -> str:
@@ -107,6 +101,16 @@ def _optional_int(name: str) -> int | None:
         return int(raw)
     except ValueError as e:
         raise ConfigError(f"Переменная {name} должна быть целым числом") from e
+
+
+def _optional_float(name: str) -> float | None:
+    raw = os.getenv(name)
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError as e:
+        raise ConfigError(f"Переменная {name} должна быть числом") from e
 
 
 def is_railway_environment() -> bool:
@@ -317,6 +321,9 @@ class Config:
     poll_interval_seconds: int
     db_path: str
     owner_chat_id: int | None
+    # Срок хранения переписки задаётся переменной, а не интерфейсом:
+    # владелец не должен случайно продлить хранение чужих сообщений.
+    dialogue_retention_days: float | None
     oauth_host: str
     oauth_port: int
     oauth_public_base_url: str
@@ -439,6 +446,7 @@ def load_config() -> Config:
         poll_interval_seconds=_positive_int("POLL_INTERVAL_SECONDS", "60"),
         db_path=db_path,
         owner_chat_id=_optional_int("OWNER_CHAT_ID"),
+        dialogue_retention_days=_optional_float("DIALOGUE_RETENTION_DAYS"),
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,
         oauth_public_base_url=public_url,

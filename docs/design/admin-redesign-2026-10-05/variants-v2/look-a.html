@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Обзор — предлагаемая подача</title>
+<style>
+  @font-face {
+    font-family: "InterVar";
+    src: url("fonts/InterVariable.woff2") format("woff2-variations");
+    font-weight: 100 900; font-style: normal; font-display: swap;
+  }
+  :root {
+    --canvas: #151517; --surface: #1C1B1F; --surface-2: #212026; --raised: #2A2830;
+    --border: #322F38; --border-strong: #403C48;
+    --text: #F2F1F4; --muted: #A9A5B2; --faint: #7E7A88;
+    --accent: #C7A5FF; --accent-soft: #2A2136; --ink: #1E1430;
+    --good: #7FD8B4; --warn: #F0C674; --danger: #FF7A85;
+    --lift: inset 0 1px 0 rgba(255,255,255,.045);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--canvas); color: var(--text); min-height: 100vh;
+    font: 14px/1.5 "InterVar", "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: "cv05" 1, "ss03" 1, "tnum" 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 100vh; }
+  .rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 0 24px; border-right: 1px solid var(--border); background: #191A1D; }
+  .mark { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 14px; border-radius: 12px; background: linear-gradient(160deg, #D5B8FF, #A97CF0); color: var(--ink); font-size: 13px; font-weight: 760; letter-spacing: .02em; box-shadow: var(--lift); }
+  .rlink { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 64px; min-height: 52px; border-radius: 12px; color: var(--muted); font-size: 10.5px; font-weight: 560; text-decoration: none; }
+  .rlink svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .rlink.on { background: var(--surface-2); color: var(--text); box-shadow: var(--lift); }
+  .rlink .dot { position: absolute; top: 8px; right: 12px; width: 7px; height: 7px; border-radius: 999px; background: var(--danger); box-shadow: 0 0 0 3px rgba(255,122,133,.16); }
+  .spacer { margin-top: auto; }
+
+  main { min-width: 0; }
+  .top { display: flex; align-items: center; gap: 14px; padding: 14px 28px; border-bottom: 1px solid var(--border); }
+  .env { padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .who { color: var(--muted); font-size: 13px; }
+  .right { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+  .stamp { text-align: right; color: var(--faint); font-size: 11.5px; line-height: 1.35; }
+  .stamp b { display: block; color: var(--good); font-weight: 600; }
+  .refresh { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--accent); color: var(--ink); font: inherit; font-weight: 640; box-shadow: var(--lift); }
+  .refresh svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+
+  .page { padding: 28px; }
+  .phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+  h1 { margin: 0; font-size: 34px; font-weight: 640; letter-spacing: -0.032em; line-height: 1.05; }
+  .sub { margin: 7px 0 0; color: var(--muted); font-size: 13.5px; }
+  .flag { display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px; border: 1px solid rgba(255,122,133,.35); border-radius: 999px; background: rgba(255,122,133,.09); color: #FFC9CF; font-size: 12.5px; font-weight: 560; }
+  .flag i { width: 7px; height: 7px; border-radius: 999px; background: var(--danger); }
+
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 1.1fr; gap: 14px; align-items: start; margin-bottom: 22px; }
+  .metric { padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--lift); }
+  .metric .k { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+  .metric .k svg { width: 15px; height: 15px; stroke: var(--faint); fill: none; stroke-width: 1.7; }
+  .metric .v { margin: 10px 0 6px; font-size: 38px; font-weight: 660; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .metric .n { color: var(--faint); font-size: 12px; }
+  .metric.accent { border-color: #3A2F4C; background: linear-gradient(180deg, rgba(199,165,255,.09), rgba(199,165,255,.02)); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 20px; align-items: start; }
+  .card { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--lift); overflow: hidden; }
+  .card > .ch { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .ch svg { width: 17px; height: 17px; stroke: var(--faint); fill: none; stroke-width: 1.7; }
+  .ch h2 { margin: 0; font-size: 15px; font-weight: 640; letter-spacing: -0.014em; }
+  .ch .note { margin-left: auto; color: var(--faint); font-size: 11.5px; }
+  .row { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; align-items: center; gap: 12px; min-height: 52px; padding: 0 18px; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .row .ic svg { width: 18px; height: 18px; stroke: var(--faint); fill: none; stroke-width: 1.7; }
+  .row .nm { font-size: 14px; }
+  .row .nm small { display: block; color: var(--faint); font-size: 12px; }
+  .st { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 560; }
+  .st i { width: 8px; height: 8px; border-radius: 999px; }
+  .st.ok { color: var(--good); } .st.ok i { background: var(--good); box-shadow: 0 0 0 3px rgba(127,216,180,.14); }
+  .st.bad { color: var(--danger); } .st.bad i { background: var(--danger); box-shadow: 0 0 0 3px rgba(255,122,133,.14); }
+  .st.idle { color: var(--faint); } .st.idle i { background: var(--faint); }
+  .tm { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .att { padding: 6px 0; }
+  .att .item { position: relative; padding: 12px 18px 12px 34px; border-bottom: 1px solid var(--border); }
+  .att .item:last-child { border-bottom: 0; }
+  .att .item::before { content: ""; position: absolute; left: 18px; top: 17px; width: 8px; height: 8px; border-radius: 999px; background: var(--warn); box-shadow: 0 0 0 3px rgba(240,198,116,.14); }
+  .att .t { font-size: 13.5px; font-weight: 560; }
+  .att .d { margin-top: 3px; color: var(--faint); font-size: 12px; }
+  .empty { padding: 16px 18px; color: var(--faint); font-size: 13px; }
+  .spark { display: flex; align-items: flex-end; gap: 4px; height: 46px; padding: 14px 18px 0; }
+  .spark span { flex: 1; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, rgba(199,165,255,.85), rgba(199,165,255,.35)); }
+  .axis { display: flex; justify-content: space-between; padding: 6px 18px 14px; color: var(--faint); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail" aria-label="Разделы">
+    <span class="mark">TS</span>
+    <a class="rlink on" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Обзор</a>
+    <a class="rlink" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.2-3.6 4-5.4 7.5-5.4S18.3 16.4 19.5 20"/></svg>Люди</a>
+    <a class="rlink" href="#"><svg viewBox="0 0 24 24"><path d="M15 7h3.5M15 12h3.5M15 17h3.5"/><path d="M8 5.5 5 12l3 6.5"/><path d="M5.5 12H15"/></svg>Доступы</a>
+    <a class="rlink" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.06.06A2 2 0 1 1 4.2 16.9l.06-.06A1.7 1.7 0 0 0 3 14.1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.3 7.2l-.06-.06A2 2 0 1 1 7.07 4.3l.06.06a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Система<span class="dot" aria-hidden="true"></span></a>
+    <a class="rlink" href="#"><svg viewBox="0 0 24 24"><path d="M4 17.5 10 11l3.4 3.4L20 7.5"/><path d="M20 12V7.5h-4.5"/></svg>Рост</a>
+    <a class="rlink" href="#"><svg viewBox="0 0 24 24"><path d="M9 5.5h6a4 4 0 0 1 0 8H9z"/><path d="M9 13.5h7.5a4 4 0 0 1 0 8H9z"/><path d="M9 5.5v16"/></svg>Оплаты</a>
+    <a class="rlink spacer" href="#"><svg viewBox="0 0 24 24"><path d="M12 4v8"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>Выйти</a>
+  </nav>
+
+  <main>
+    <div class="top">
+      <span class="env">Staging</span>
+      <span class="who">Только владелец · данные обновляются каждые 30 секунд</span>
+      <div class="right">
+        <div class="stamp">Обновлено 14:32<b>Данные актуальны</b></div>
+        <button class="refresh"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4.5V10h-5.5"/></svg>Обновить</button>
+      </div>
+    </div>
+
+    <div class="page">
+      <div class="phead">
+        <div>
+          <h1>Обзор</h1>
+          <p class="sub">Состояние бота и люди, которым он нужен</p>
+        </div>
+        <span class="flag"><i></i>Требует внимания: 2</span>
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <div class="k"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.1-3.5 3.8-5.3 7-5.3s5.9 1.8 7 5.3"/></svg>Всего пользователей</div>
+          <div class="v">1267</div>
+          <div class="n">Известные личные пользователи</div>
+        </div>
+        <div class="metric">
+          <div class="k"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.5V12l3 2"/></svg>Активны сегодня</div>
+          <div class="v">312</div>
+          <div class="n">Отметки действий за сегодня, МСК</div>
+        </div>
+        <div class="metric">
+          <div class="k"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg>Доставки за 24 ч</div>
+          <div class="v">864</div>
+          <div class="n">Уведомления и отчёты</div>
+        </div>
+        <div class="metric accent">
+          <div class="k"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.6 9l6 .9-4.3 4.2 1 6-5.3-2.8L6.7 20l1-6L3.4 9.9 9.4 9z"/></svg>Активный Plus</div>
+          <div class="v">54</div>
+          <div class="n">Выдано вручную и оплатой</div>
+          <div class="spark" aria-hidden="true">
+            <span style="height:34%"></span><span style="height:52%"></span><span style="height:44%"></span>
+            <span style="height:66%"></span><span style="height:78%"></span><span style="height:70%"></span><span style="height:92%"></span>
+          </div>
+          <div class="axis"><span>29.09</span><span>05.10</span></div>
+        </div>
+      </div>
+
+      <div class="cols">
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="ch">
+              <svg viewBox="0 0 24 24"><path d="M12 3.5 4 7v5.5c0 4.4 3.2 7.3 8 8 4.8-.7 8-3.6 8-8V7z"/></svg>
+              <h2>Подсистемы</h2><span class="note">Наблюдение по снимку в 14:32 МСК</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><path d="m21 4-9 9"/><path d="M21 4 15 21l-3.5-7.5L4 10z"/></svg></span>
+              <span class="nm">Telegram<small>Уведомления и команды</small></span>
+              <span class="st ok"><i></i>Работает</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M9 20h6"/></svg></span>
+              <span class="nm">Twitch<small>EventSub · нужна авторизация: 2 канала</small></span>
+              <span class="st bad"><i></i>Сбой</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m9.5 10 5 2-5 2z"/></svg></span>
+              <span class="nm">Видеопревью<small>Сборка и отправка</small></span>
+              <span class="st ok"><i></i>Работает</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></span>
+              <span class="nm">Очередь уведомлений<small>Ожидают 0 · готовы 2</small></span>
+              <span class="st idle"><i></i>Тишина</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7.5" ry="3"/><path d="M4.5 6.5v11c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-11"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></svg></span>
+              <span class="nm">База данных<small>Целостность и свободное место</small></span>
+              <span class="st ok"><i></i>Работает</span>
+            </div>
+            <div class="row">
+              <span class="ic"><svg viewBox="0 0 24 24"><path d="M5 8.5A3.5 3.5 0 0 1 8.5 5H12v3.5H8.5A3.5 3.5 0 0 1 5 8.5z"/><path d="M12 5h3.5a3.5 3.5 0 1 1 0 7H12z"/><path d="M12 12h3.5a3.5 3.5 0 1 1-3.5 3.5z"/><path d="M8.5 12H12v3.5A3.5 3.5 0 1 1 8.5 12z"/></svg></span>
+              <span class="nm">Резервная копия<small>Раз в сутки · проверка восстановления не проводилась</small></span>
+              <span class="st idle"><i></i>Не проверена</span>
+            </div>
+          </div>
+        </div>
+
+        <aside>
+          <div class="card" style="margin-bottom:20px">
+            <div class="ch"><svg viewBox="0 0 24 24"><path d="M12 4.5 3 20h18z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/></svg><h2>Требует внимания</h2></div>
+            <div class="att">
+              <div class="item"><div class="t">Twitch: 2 канала ждут авторизации</div><div class="d">drakeoffc, nightowl · с 12:40 МСК</div></div>
+              <div class="item"><div class="t">Резервная копия не проверена</div><div class="d">Последняя копия 05.10, 04:10 МСК</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ch"><svg viewBox="0 0 24 24"><path d="M4 12h4l2.5-5 3 10L16 12h4"/></svg><h2>Последние события</h2></div>
+            <div class="att">
+              <div class="item"><div class="t">Выдано право · Viewer Plus</div><div class="d">05.10, 14:20 МСК · исполнитель владелец</div></div>
+              <div class="item"><div class="t">Отозвано право · Viewer Plus</div><div class="d">05.10, 13:05 МСК · автоматически</div></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

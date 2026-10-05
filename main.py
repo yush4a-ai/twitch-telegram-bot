@@ -21,6 +21,9 @@ from aiogram.types import (
     BotCommandScopeAllGroupChats,
     BotCommandScopeAllPrivateChats,
     BotCommandScopeChat,
+    FSInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     MenuButtonCommands,
     MenuButtonWebApp,
     WebAppInfo,
@@ -63,6 +66,10 @@ from bot.oauth import (
 from bot.poller import StreamPoller, TelegramChannelUsernameCache
 from bot.notification_queue import NotificationQueue
 from bot.notification_worker import NotificationWorker
+from bot.broadcast_worker import BroadcastWorker
+from bot.owner_alerts import OwnerAlerter
+from bot.dialogue_retention import DEFAULT_RETENTION_DAYS, run_retention_loop
+from bot.handlers.broadcasts import OPTOUT_CALLBACK, OPTOUT_TEXT
 from bot.telegram_send_budget import TelegramSendBudget
 from bot.preview_analysis import HighlightAnalyzer
 from bot.preview_capture import CaptureService, CaptureSettings
@@ -498,6 +505,89 @@ async def _reconcile_telegram_channels(
         )
 
 
+# Подпись к фото в Telegram ограничена 1024 символами, а текст сообщения — 4096.
+TELEGRAM_CAPTION_LIMIT = 1024
+
+
+def _broadcast_keyboard(campaign: dict) -> InlineKeyboardMarkup:
+    """Кнопка владельца (если он её включил) и обязательный отказ от рассылок."""
+    rows: list[list[InlineKeyboardButton]] = []
+    button_text = campaign.get("button_text")
+    button_url = campaign.get("button_url")
+    if button_text and button_url:
+        rows.append([InlineKeyboardButton(text=button_text, url=button_url)])
+    rows.append([InlineKeyboardButton(text=OPTOUT_TEXT, callback_data=OPTOUT_CALLBACK)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _make_broadcast_sender(bot: Bot):
+    async def send(user_id: int, campaign: dict) -> None:
+        keyboard = _broadcast_keyboard(campaign)
+        body = campaign["body"]
+        image_path = campaign.get("image_path")
+        if image_path and Path(image_path).is_file():
+            if len(body) <= TELEGRAM_CAPTION_LIMIT:
+                await bot.send_photo(
+                    chat_id=user_id, photo=FSInputFile(image_path),
+                    caption=body, reply_markup=keyboard, parse_mode=None,
+                )
+                return
+            # Подпись к фото ограничена 1024 символами, а текст рассылки — 4096.
+            # Длинный текст отправляем отдельным сообщением, иначе Telegram откажет.
+            await bot.send_photo(
+                chat_id=user_id, photo=FSInputFile(image_path), parse_mode=None)
+        await bot.send_message(
+            chat_id=user_id, text=body, parse_mode=None,
+            reply_markup=keyboard, disable_web_page_preview=True,
+        )
+    return send
+
+
+def _make_chat_sender(bot: Bot):
+    """Ответ из панели. Недоступность человека — это False, а не исключение."""
+    async def send(user_id: int, text: str, image_path: str | None = None) -> bool:
+        try:
+            if image_path and Path(image_path).is_file():
+                if len(text or "") <= TELEGRAM_CAPTION_LIMIT:
+                    await bot.send_photo(
+                        chat_id=user_id, photo=FSInputFile(image_path),
+                        caption=text or None, parse_mode=None)
+                    return True
+                # Длинный ответ не влезает в подпись: фото отдельно, текст отдельно.
+                await bot.send_photo(
+                    chat_id=user_id, photo=FSInputFile(image_path), parse_mode=None)
+            await bot.send_message(
+                chat_id=user_id, text=text, parse_mode=None, disable_web_page_preview=True)
+            return True
+        except (TelegramForbiddenError, TelegramBadRequest):
+            return False
+    return send
+
+
+def _make_owner_alert_sender(bot: Bot, owner_chat_id: int):
+    """Короткое сообщение владельцу. Без подробностей и секретов."""
+    async def send(text: str) -> None:
+        await bot.send_message(
+            chat_id=owner_chat_id, text=text, disable_web_page_preview=True)
+    return send
+
+
+async def _run_owner_alerts(alerter: OwnerAlerter, collect, *, interval: float = 300.0) -> None:
+    """Редкая проверка подсистем: оповещения не срочные, панель не должна спамить."""
+    while True:
+        try:
+            snapshot = await collect()
+        except Exception:
+            logger.exception("Не удалось собрать снимок для оповещений владельцу")
+        else:
+            try:
+                await alerter.inspect(snapshot)
+                await alerter.repeat_if_still_bad(snapshot)
+            except Exception:
+                logger.exception("Сбой оповещений владельцу")
+        await asyncio.sleep(interval)
+
+
 def _make_notification_worker(
     config, db, poller: StreamPoller, send_budget: TelegramSendBudget | None = None,
 ) -> NotificationWorker | None:
@@ -579,7 +669,8 @@ async def main() -> None:
         )
         dp["billing_service"] = billing_service
         dp["channel_username_cache"] = channel_username_cache
-        setup_middlewares(dp, db=db)
+        setup_middlewares(
+            dp, db=db, media_dir=str(Path(config.db_path).parent / "media"))
         register_all_handlers(dp)
 
         if config.owner_chat_id is None:
@@ -694,12 +785,7 @@ async def main() -> None:
                 mini_app_billing_service=(
                     billing_service if getattr(config, "mini_app_enabled", False) else None
                 ),
-                growth_bot_username=(
-                    config.admin_telegram_bot_username
-                    if getattr(config, "growth_enabled", False)
-                    and config.admin_telegram_bot_username else None
-                ),
-                growth_public_base_url=config.oauth_public_base_url,
+                streamer_environment=environment_label(config.oauth_public_base_url),
             )
             follow_listener_task: asyncio.Task | None = None
             poller: StreamPoller | None = None
@@ -708,7 +794,10 @@ async def main() -> None:
             poller_task: asyncio.Task | None = None
             polling_task: asyncio.Task | None = None
             backup_task: asyncio.Task | None = None
+            owner_alert_task: asyncio.Task | None = None
+            retention_task: asyncio.Task | None = None
             notification_worker: NotificationWorker | None = None
+            broadcast_worker: BroadcastWorker | None = None
             try:
                 await oauth_server.start()
 
@@ -785,6 +874,12 @@ async def main() -> None:
                 oauth_server.set_preview_observer(preview_manager)
                 if notification_worker is not None:
                     notification_worker.start()
+                # Рассылки владельца идут своим отправителем поверх того же бюджета:
+                # очередь уведомлений о стримах от них не зависит.
+                broadcast_worker = BroadcastWorker(
+                    db, _make_broadcast_sender(bot), send_budget=telegram_send_budget,
+                )
+                broadcast_worker.start()
                 poller_task = asyncio.create_task(poller.run())
 
                 # Свежая копия базы раз в сутки. Без неё откат означал бы потерю
@@ -835,7 +930,29 @@ async def main() -> None:
                         directory=admin_directory,
                     )
                     oauth_server.set_admin_snapshot_provider(admin_snapshot.collect)
-                    oauth_server.set_admin_services(people=db, directory=admin_directory)
+                    oauth_server.set_admin_services(
+                        people=db, directory=admin_directory, database=db,
+                        chat_sender=_make_chat_sender(bot),
+                        media_dir=str(Path(config.db_path).parent / "media"),
+                    )
+                    # Оповещения владельцу: только когда подсистема меняет состояние.
+                    owner_chat_id = getattr(config, "owner_chat_id", None)
+                    owner_alerter = OwnerAlerter(
+                        _make_owner_alert_sender(bot, owner_chat_id) if owner_chat_id else None,
+                    )
+                    owner_alert_task = asyncio.create_task(
+                        _run_owner_alerts(owner_alerter, admin_snapshot.collect),
+                        name="owner-alerts",
+                    )
+                    # Срок хранения переписки: старое удаляется вместе с файлами.
+                    retention_task = asyncio.create_task(
+                        run_retention_loop(
+                            db, Path(config.db_path).parent / "media",
+                            days=getattr(config, "dialogue_retention_days", None)
+                            or DEFAULT_RETENTION_DAYS,
+                        ),
+                        name="dialogue-retention",
+                    )
 
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=False), "Удаление webhook"
@@ -869,6 +986,11 @@ async def main() -> None:
                 await _cancel_task(backup_task, "DB backup")
                 if notification_worker is not None:
                     await _safe_cleanup("Notification worker", notification_worker.stop())
+                if broadcast_worker is not None:
+                    await _safe_cleanup("Broadcast worker", broadcast_worker.stop())
+                if owner_alert_task is not None:
+                    await _cancel_task(owner_alert_task, "Owner alerts")
+                await _cancel_task(retention_task, "Dialogue retention")
                 await _shutdown_preview_runtime(
                     preview_manager, preview_capture_service
                 )

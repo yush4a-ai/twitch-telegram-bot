@@ -6,11 +6,13 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#171717">
   <title>Панель владельца · TwitchSignalBot</title>
+  <link rel="stylesheet" href="/admin/fonts.css">
   <link rel="stylesheet" href="/admin/panel.css">
   <script src="/admin/panel.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">К содержанию</a>
+  <div class="glow" aria-hidden="true"></div>
   <div class="shell">
     <aside class="rail" id="app-nav" aria-label="Разделы панели">
       <div class="brand">
@@ -18,22 +20,23 @@
         <span class="brand-text">TwitchSignal<span class="brand-bot">Bot</span></span>
       </div>
       <nav class="nav">
-        <a class="rail-link" href="#/overview" data-view-link="overview" title="Обзор"><b aria-hidden="true">▦</b><span>Обзор</span></a>
-        <a class="rail-link" href="#/users" data-view-link="users" title="Люди"><b aria-hidden="true">◔</b><span>Люди</span></a>
-        <a class="rail-link" href="#/access" data-view-link="access" title="Доступы"><b aria-hidden="true">⇄</b><span>Доступы</span></a>
+        <a class="rail-link" href="#/overview" data-view-link="overview" title="Обзор"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg><span>Обзор</span></a>
+        <a class="rail-link" href="#/users" data-view-link="users" title="Люди"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.2" r="3.3"/><path d="M5 19.5c1.2-3.4 3.9-5.2 7-5.2s5.8 1.8 7 5.2"/></svg><span>Люди</span></a>
+        <a class="rail-link" href="#/access" data-view-link="access" title="Доступы"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 7H19M14.5 12H19M14.5 17H19"/><path d="M4.8 12h9.2"/><path d="m7.6 8.8-3 3.2 3 3.2"/></svg><span>Доступы</span></a>
+        <a class="rail-link" href="#/campaigns" data-view-link="campaigns" title="Рассылки"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 6.5h17v11h-17z"/><path d="m3.5 7.5 8.5 6 8.5-6"/></svg><span>Рассылки</span><span class="nav-badge" id="nav-chat-badge" hidden>0</span></a>
         <div class="nav-separator" role="presentation"></div>
-        <a class="rail-link" href="#/system" data-view-link="system" title="Система"><b aria-hidden="true">◎</b><span>Система</span><span class="nav-badge" id="nav-system-badge" hidden>0</span></a>
-        <a class="rail-link" href="#/growth" data-view-link="growth" title="Рост"><b aria-hidden="true">↗</b><span>Рост</span></a>
-        <a class="rail-link" href="#/payments" data-view-link="payments" title="Оплаты"><b aria-hidden="true">₽</b><span>Оплаты</span></a>
+        <a class="rail-link" href="#/system" data-view-link="system" title="Система"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 1 1 0-4h.2A1.6 1.6 0 0 0 4.3 7.5l-.1-.1A2 2 0 1 1 7 4.6l.1.1a1.6 1.6 0 0 0 2.7-1.1V3.4a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.2.9z"/></svg><span>Система</span><span class="nav-badge" id="nav-system-badge" hidden>0</span></a>
+        <a class="rail-link" href="#/growth" data-view-link="growth" title="Рост"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17.6 9.8 11l3.3 3.3L20 7"/><path d="M20 12V7h-5"/></svg><span>Рост</span></a>
+        <a class="rail-link" href="#/payments" data-view-link="payments" title="Оплаты"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 5.6h5.6a3.9 3.9 0 0 1 0 7.8H9.2z"/><path d="M9.2 13.4h6.9a3.9 3.9 0 0 1 0 7.8H9.2z"/><path d="M9.2 5.6v15.6"/></svg><span>Оплаты</span></a>
       </nav>
       <div class="rail-foot">
-        <form method="post" action="/admin/logout"><button class="rail-link" type="submit" title="Выйти"><b aria-hidden="true">⏻</b><span>Выйти</span></button></form>
+        <form method="post" action="/admin/logout"><button class="rail-link" type="submit" title="Выйти"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v8"/><path d="M7.6 8.4 12 4l4.4 4.4"/><path d="M5 15.4v3.2A1.4 1.4 0 0 0 6.4 20h11.2a1.4 1.4 0 0 0 1.4-1.4v-3.2"/></svg><span>Выйти</span></button></form>
       </div>
     </aside>
 
     <div class="workspace">
       <header class="topbar">
-        <span class="environment" id="environment">STAGING</span>
+        <span class="environment" id="environment">Окружение неизвестно</span>
         <span class="topbar-note">Только владелец · данные обновляются каждые 30 секунд</span>
         <div class="topbar-actions">
           <span class="update-meta" role="status" aria-live="polite">
@@ -45,7 +48,10 @@
       </header>
 
       <main id="main-content" tabindex="-1">
-        <div class="notice" id="notice" role="alert" hidden></div>
+        <div class="notice" id="notice" role="alert" hidden>
+          <span class="notice-text" id="notice-text"></span>
+          <button class="button" id="notice-retry" type="button" hidden>Повторить</button>
+        </div>
 
         <section class="view" id="view-overview" data-view="overview" aria-labelledby="overview-heading">
           <div class="page-head">
@@ -102,13 +108,13 @@
                   <span class="panel-note" id="attention-note">Проверяется при каждом обновлении</span>
                 </div>
                 <ul class="attention-list" id="attention-list">
-                  <li class="empty-line">Нет открытых проблем</li>
+                  <li class="empty-line">Состояние не проверено</li>
                 </ul>
               </section>
 
               <section class="panel" aria-labelledby="events-heading">
                 <div class="panel-head"><h2 id="events-heading">Последние события</h2><span class="panel-note">По последнему опросу</span></div>
-                <ul class="event-list" id="event-list"><li class="empty-line">Событий пока нет</li></ul>
+                <ul class="event-list" id="event-list"><li class="empty-line">Состояние не проверено</li></ul>
               </section>
             </aside>
           </div>
@@ -186,9 +192,9 @@
           </div>
           <section class="panel">
             <div class="tabs" role="tablist" aria-label="Доступы">
-              <button class="tab" id="tab-active" role="tab" aria-selected="true" aria-controls="access-active" type="button">Действующие</button>
-              <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="access-history" type="button">История</button>
-              <button class="tab" id="tab-expiring" role="tab" aria-selected="false" aria-controls="access-expiring" type="button">Истекающие</button>
+              <button class="tab" id="tab-active" role="tab" aria-selected="true" aria-controls="access-active" type="button" tabindex="0">Действующие</button>
+              <button class="tab" id="tab-history" role="tab" aria-selected="false" aria-controls="access-history" type="button" tabindex="-1">История</button>
+              <button class="tab" id="tab-expiring" role="tab" aria-selected="false" aria-controls="access-expiring" type="button" tabindex="-1">Истекающие</button>
             </div>
             <div id="access-active" role="tabpanel" aria-labelledby="tab-active">
               <table class="data-table" aria-labelledby="tab-active">
@@ -210,6 +216,95 @@
             </div>
             <p class="panel-text" id="access-note" hidden></p>
           </section>
+        </section>
+
+        <section class="view" id="view-campaigns" data-view="campaigns" aria-labelledby="campaigns-heading" hidden>
+          <div class="page-head">
+            <div>
+              <h1 id="campaigns-heading">Рассылки</h1>
+              <p class="page-sub">Сообщение людям и переписка с ними</p>
+            </div>
+            <p class="health-line" id="campaigns-audience" data-state="unknown">Расчёт аудитории не загружен</p>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Раздел рассылок">
+            <button class="tab" id="tab-campaigns" role="tab" aria-selected="true" aria-controls="campaigns-panel" type="button" tabindex="0">Кампании</button>
+            <button class="tab" id="tab-chat" role="tab" aria-selected="false" aria-controls="chat-panel" type="button" tabindex="-1">Чат<span class="nav-badge" id="chat-tab-badge" hidden>0</span></button>
+          </div>
+
+          <div id="campaigns-panel" role="tabpanel" aria-labelledby="tab-campaigns">
+            <div class="split">
+              <section class="panel" aria-labelledby="compose-heading">
+                <div class="panel-head"><h2 id="compose-heading">Новое сообщение</h2><span class="panel-note">Уходит только по кнопке</span></div>
+                <form id="compose-form">
+                  <label class="field-label" for="compose-title">Название кампании</label>
+                  <input id="compose-title" maxlength="120" autocomplete="off" placeholder="Например: обновление бота">
+                  <label class="field-label" for="compose-body">Текст сообщения</label>
+                  <textarea id="compose-body" rows="6" maxlength="4096" placeholder="Что увидят люди"></textarea>
+                  <label class="check-line"><input type="checkbox" id="compose-button-on"> Добавить кнопку</label>
+                  <div id="compose-button-fields" hidden>
+                    <label class="field-label" for="compose-button-text">Текст кнопки</label>
+                    <input id="compose-button-text" maxlength="64" autocomplete="off" placeholder="Открыть">
+                    <label class="field-label" for="compose-button-url">Ссылка (только https)</label>
+                    <input id="compose-button-url" maxlength="512" autocomplete="off" placeholder="https://">
+                  </div>
+                  <label class="field-label" for="compose-image">Картинка (JPEG или PNG, до 5 МБ)</label>
+                  <input type="file" id="compose-image" accept="image/jpeg,image/png">
+                  <p class="panel-text">В каждое сообщение автоматически добавляется кнопка «Больше не присылать».</p>
+                  <div class="empty-actions">
+                    <button class="button" id="compose-save" type="submit">Сохранить черновик</button>
+                    <button class="button button-quiet" id="compose-reset" type="button">Очистить</button>
+                  </div>
+                  <p class="field-error" id="compose-error" hidden></p>
+                </form>
+              </section>
+
+              <section class="panel" aria-labelledby="optouts-heading">
+                <div class="panel-head"><h2 id="optouts-heading">Отписавшиеся</h2><span class="panel-note">Вернуть можно вручную</span></div>
+                <ul class="detail-list" id="optout-list"><li class="empty-line">Пока никто не отписывался</li></ul>
+              </section>
+            </div>
+
+            <section class="panel" aria-labelledby="campaign-list-heading">
+              <div class="panel-head"><h2 id="campaign-list-heading">Кампании</h2><span class="panel-note" id="campaigns-note"></span></div>
+              <table class="data-table" aria-labelledby="campaign-list-heading">
+                <thead><tr><th scope="col">Название</th><th scope="col">Состояние</th><th scope="col">Отправлено</th><th scope="col">Не дошли</th><th scope="col">Действие</th></tr></thead>
+                <tbody id="campaign-list"><tr class="empty-row"><td colspan="5">Кампаний пока нет</td></tr></tbody>
+              </table>
+            </section>
+          </div>
+
+          <div id="chat-panel" role="tabpanel" aria-labelledby="tab-chat" hidden>
+            <div class="chat-split">
+              <section class="panel" aria-labelledby="dialogues-heading">
+                <div class="panel-head"><h2 id="dialogues-heading">Диалоги</h2></div>
+                <form id="dialogues-form" role="search">
+                  <label class="field-label" for="dialogues-query">Поиск по имени, @username или ID</label>
+                  <input id="dialogues-query" autocomplete="off" placeholder="Кто писал боту">
+                </form>
+                <ul class="dialogue-list" id="dialogue-list"><li class="empty-line">Переписки пока нет</li></ul>
+              </section>
+
+              <section class="panel" aria-labelledby="thread-heading">
+                <div class="panel-head">
+                  <h2 id="thread-heading">Переписка</h2>
+                  <span class="panel-note" id="thread-note">Выберите диалог</span>
+                </div>
+                <ol class="thread" id="thread"><li class="empty-line">Сообщения появятся здесь</li></ol>
+                <form id="reply-form">
+                  <label class="field-label" for="reply-body">Ответ</label>
+                  <textarea id="reply-body" rows="3" maxlength="4096" placeholder="Написать человеку"></textarea>
+                  <label class="field-label" for="reply-image">Картинка (необязательно, JPEG или PNG)</label>
+                  <input type="file" id="reply-image" accept="image/jpeg,image/png">
+                  <div class="empty-actions">
+                    <button class="button" id="reply-send" type="submit">Отправить</button>
+                    <button class="button button-quiet" id="thread-delete" type="button">Удалить переписку</button>
+                  </div>
+                  <p class="field-error" id="reply-error" hidden></p>
+                </form>
+              </section>
+            </div>
+          </div>
         </section>
 
         <section class="view" id="view-system" data-view="system" aria-labelledby="system-heading" hidden>
@@ -284,10 +379,15 @@
               <p class="page-sub">Путь нового пользователя</p>
             </div>
           </div>
-          <section class="empty">
-            <h2>Недостаточно данных</h2>
-            <p class="panel-text">Нет сквозных данных: сейчас бот надёжно различает только источник перехода <span class="mono">site</span> и приглашения. Пока не собираются шаги внутри Mini App и просмотр тарифа, воронка показывала бы выдуманные числа, поэтому мы её не рисуем.</p>
-            <p class="panel-text">Измеримая часть уже видна в таблице источников ниже: сколько людей пришло, открыли бота и добавили канал.</p>
+          <section class="panel">
+            <div class="panel-head"><h2>Как считается воронка</h2></div>
+            <p class="panel-text">Шаги считаются по людям, которые пришли по ссылке: переход с сайта или по приглашению. Каждый следующий шаг — часть предыдущего, поэтому доли честные, а не собранные из разных наборов.</p>
+            <p class="panel-text">Люди без ссылки в воронку не попадают — их видно в общей картине под шагами и в таблице источников ниже. Шаги внутри Mini App и просмотр тарифа пока не собираются, поэтому в воронке их нет.</p>
+          </section>
+          <section class="panel" aria-labelledby="funnel-heading">
+            <div class="panel-head"><h2 id="funnel-heading">Воронка</h2><span class="panel-note">От перехода до Plus</span></div>
+            <ol class="funnel" id="funnel-list"><li class="empty-line">Данных пока нет</li></ol>
+            <p class="panel-text" id="funnel-totals"></p>
           </section>
           <section class="panel" aria-labelledby="sources-heading">
             <div class="panel-head"><h2 id="sources-heading">Источники</h2><span class="panel-note">Строго по атрибуции</span></div>
@@ -389,6 +489,7 @@
     <a class="mobile-link" href="#/overview" data-view-link="overview">Обзор</a>
     <a class="mobile-link" href="#/users" data-view-link="users">Люди</a>
     <a class="mobile-link" href="#/access" data-view-link="access">Доступы</a>
+    <a class="mobile-link" href="#/campaigns" data-view-link="campaigns">Рассылки</a>
     <details class="mobile-more">
       <summary class="mobile-link">Ещё</summary>
       <div class="mobile-more-list">

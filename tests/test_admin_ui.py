@@ -1,3 +1,4 @@
+import re
 import unittest
 
 import aiohttp
@@ -112,7 +113,8 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.get(self.base + "/admin") as response:
             html = await response.text()
 
-        self.assertIn("Нет сквозных данных", html)
+        # Рост теперь показывает воронку, а оплаты по-прежнему честно выключены.
+        self.assertIn("Как считается воронка", html)
         self.assertIn("Приём платежей не подключён", html)
         self.assertIn("Нет данных", html)
 
@@ -317,12 +319,12 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('id="app-nav"', html)
         self.assertIn('class="rail"', html)
         self.assertIn('class="rail-link', html)
-        # Единая шкала скруглений вместо прежних 20/24 px.
+        # Единая шкала скруглений направления «Сигнал»: 8/12/20 px плюс пилюли.
         self.assertIn("--radius-chip: 8px", css)
-        self.assertIn("--radius-card: 16px", css)
-        self.assertIn("--radius-group: 16px", css)
-        self.assertNotIn("--radius-card: 20px", css)
-        self.assertNotIn("--radius-group: 24px", css)
+        self.assertIn("--radius-control: 12px", css)
+        self.assertIn("--radius-card: 20px", css)
+        self.assertIn("--radius-group: 20px", css)
+        self.assertNotIn("--radius-card: 24px", css)
         self.assertIn("grid-template-columns: 88px minmax(0, 1fr)", css)
         self.assertIn("color-scheme: dark", css)
 
@@ -411,18 +413,25 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("unverified: 'Не проверена'", script)
 
 
-    async def test_growth_and_payments_placeholders_are_honest_and_actionable(self):
+    async def test_growth_funnel_is_real_and_payments_stay_honest(self):
         await self.login()
         async with self.session.get(self.base + "/admin") as response:
             html = await response.text()
         async with self.session.get(self.base + "/admin/panel.css") as response:
             css = await response.text()
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
 
-        # Общая заглушка «пусто»: причина и действие, без кнопок оплаты.
+        # Воронка настоящая: шаги, полосы и общая картина по людям без ссылки.
+        self.assertIn('id="funnel-list"', html)
+        self.assertIn("renderFunnel", script)
+        self.assertIn("renderFunnel(data.funnel)", script)
+        self.assertIn(".funnel-step", css)
+        self.assertIn("Как считается воронка", html)
+        # Общая заглушка «пусто» остаётся у оплат: причина и действие, без кнопок оплаты.
         self.assertIn('class="empty"', html)
         self.assertIn(".empty", css)
         self.assertIn("border: 1px dashed var(--border)", css)
-        self.assertIn("Недостаточно данных", html)
         self.assertIn("Приём платежей не подключён", html)
         self.assertIn("Выдать доступ вручную", html)
         for forbidden in ("Создать платёж", "Оформить подписку", "Оплатить"):
@@ -439,6 +448,9 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("function renderSkeleton(", script)
         self.assertIn(".skeleton", css)
         self.assertIn("renderSkeleton(body, 3)", script)
+        # Функция принимает и id, и элемент: иначе скелетон молча не рисуется.
+        self.assertIn("typeof containerId === 'string' ? $(containerId) : containerId", script)
+        self.assertIn("min-inline-size: 40%", css)
         # Скелетон не подставляет числа вместо данных.
         start = script.index("function renderSkeleton(")
         end = script.index("\nfunction ", start + 1)
@@ -466,6 +478,148 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("mobile-more", html)
         # Уважение к системной настройке «меньше движения».
         self.assertIn("prefers-reduced-motion", css)
+
+
+    async def test_review_findings_stay_fixed(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
+        async with self.session.get(self.base + "/admin/panel.css") as response:
+            css = await response.text()
+
+        # Недоступные данные не выглядят как «пусто», окружение не врёт про staging.
+        self.assertIn("События временно недоступны", script)
+        self.assertIn("Состояние не проверено", html)
+        self.assertIn("Окружение неизвестно", html)
+        # Ошибка: разный совет для сети и для отказа сервера, плюс кнопка повтора.
+        self.assertIn("Сервер не смог собрать данные", script)
+        self.assertIn('id="notice-retry"', html)
+        # Ошибки записи переведены, включая истёкшую сессию.
+        for code in ("unauthorized", "unavailable", "invalid_content_type"):
+            self.assertIn(code, script)
+        # Узкие экраны: вкладки переносятся, скелетон виден в мобильной карточке.
+        self.assertIn("flex-wrap: wrap", css)
+        self.assertIn(".skeleton-row td { display: block; }", css)
+        # Ник рядом с именем больше не выглядит как обычный текст.
+        self.assertIn(".muted-inline", css)
+        # Нечисловой id в адресе не оставляет карточку в «Загрузка…».
+        self.assertIn("Пользователь не найден. Проверьте Telegram ID или имя", script)
+        # Без данных окружение не подписывается «staging».
+        self.assertNotIn("|| 'staging'", script)
+        self.assertIn("ОКРУЖЕНИЕ НЕИЗВЕСТНО", script)
+        # Вкладки доступны с клавиатуры с самого начала, Home и End работают.
+        self.assertIn('tabindex="0"', html)
+        self.assertIn('tabindex="-1"', html)
+        self.assertIn("'Home'", script)
+        self.assertIn("'End'", script)
+        self.assertIn("открытых проблем:", script)
+
+
+    async def test_panel_serves_its_own_fonts_under_a_strict_policy(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+            policy = response.headers.get("Content-Security-Policy", "")
+        # Шрифты лежат рядом с панелью и разрешены политикой безопасности.
+        self.assertIn("/admin/fonts.css", html)
+        self.assertIn("font-src 'self'", policy)
+
+        async with self.session.get(self.base + "/admin/fonts.css") as response:
+            self.assertEqual(response.status, 200)
+            faces = await response.text()
+        self.assertIn("@font-face", faces)
+        self.assertIn('url("/admin/fonts/', faces)
+        # Никаких обращений к чужим серверам шрифтов.
+        self.assertNotIn("gstatic", faces)
+        self.assertNotIn("googleapis", faces)
+
+        first = re.search(r'url\("(/admin/fonts/[^"]+\.woff2)"\)', faces).group(1)
+        async with self.session.get(self.base + first) as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get("Content-Type"), "font/woff2")
+            self.assertTrue(await response.read())
+
+        # Посторонние имена через тот же маршрут не отдаём.
+        async with self.session.get(self.base + "/admin/fonts/panel.js") as response:
+            self.assertNotEqual(response.status, 200)
+
+    async def test_fonts_are_not_public_without_a_session(self):
+        async with aiohttp.ClientSession() as anonymous:
+            async with anonymous.get(self.base + "/admin/fonts.css") as response:
+                self.assertEqual(response.status, 401)
+
+    async def test_panel_faces_are_rubik_and_plex_mono(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin/panel.css") as response:
+            css = await response.text()
+        # Выбор владельца 05.10.2026: Rubik для интерфейса, IBM Plex Mono для чисел.
+        self.assertIn('"Rubik"', css)
+        self.assertIn('"IBM Plex Mono"', css)
+        # В стилях панели нет ни одной внешней ссылки.
+        self.assertNotIn("http://", css)
+        self.assertNotIn("https://", css)
+
+
+    async def test_navigation_uses_drawn_icons_not_text_symbols(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        async with self.session.get(self.base + "/admin/panel.css") as response:
+            css = await response.text()
+
+        # Иконки разделов — векторные, а не символы шрифта.
+        self.assertNotIn("<b aria-hidden", html)
+        self.assertGreaterEqual(html.count('<svg viewBox="0 0 24 24"'), 7)
+        self.assertIn(".rail-link svg", css)
+        # Свет — одним фиксированным слоем, он не участвует в прокрутке.
+        self.assertIn('class="glow" aria-hidden="true"', html)
+        self.assertIn(".glow { position: fixed", css)
+
+
+    async def test_campaigns_screen_has_campaigns_and_chat_tabs(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
+        async with self.session.get(self.base + "/admin/panel.css") as response:
+            css = await response.text()
+
+        # Раздел есть в рельсе, мобильном меню и роутере.
+        self.assertIn('data-view-link="campaigns"', html)
+        self.assertIn('id="view-campaigns"', html)
+        self.assertIn("'campaigns'", script)
+        # Две вкладки: кампании и чат.
+        self.assertIn('id="tab-campaigns"', html)
+        self.assertIn('id="tab-chat"', html)
+        self.assertIn('id="compose-form"', html)
+        self.assertIn('id="dialogue-list"', html)
+        self.assertIn('id="thread"', html)
+        self.assertIn('id="reply-form"', html)
+        # Панель ходит в свои маршруты и подтверждает массовую отправку словами.
+        self.assertIn("/admin/api/broadcasts", script)
+        self.assertIn("/admin/api/dialogues", script)
+        self.assertIn("window.confirm", script)
+        # В каждое сообщение добавляется кнопка отказа от рассылок.
+        self.assertIn("Больше не присылать", html)
+        # Картинка кампании: выбор файла и загрузка отдельным запросом.
+        self.assertIn('id="compose-image"', html)
+        self.assertIn("uploadCampaignImage", script)
+        self.assertIn("/image", script)
+        # Ответ в чате тоже может быть с картинкой, и она показывается в переписке.
+        self.assertIn('id="reply-image"', html)
+        self.assertIn("FormData()", script)
+        self.assertIn("/admin/api/media/", script)
+        self.assertIn(".bubble-image", css)
+        # Незаданный владелец объясняется причиной, а не общим запретом.
+        self.assertIn("owner_not_configured", script)
+        # Чат открывается прямой ссылкой #/campaigns/chat и сам выбирает диалог.
+        self.assertIn("param === 'chat'", script)
+        self.assertIn("const first = rows.find", script)
+        self.assertIn(".chat-split", css)
+        self.assertIn(".bubble.out", css)
 
 
 if __name__ == "__main__":

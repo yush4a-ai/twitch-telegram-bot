@@ -46,7 +46,7 @@ class HelpReportTests(unittest.IsolatedAsyncioTestCase):
         await telegram_plus.cb_plus(self.cb('menu:plus'), self.state, self.db, CONFIG)
         text = self.msg.edit_text.await_args.args[0]
         self.assertIn('включая тех, кто сейчас не в эфире', text)
-        self.assertIn('В Free — фото', text)
+        self.assertIn('В Free: фото', text)
         self.assertIn(PAYMENT_UNAVAILABLE_MESSAGE, text)
         self.assertFalse(await self.db.has_viewer_plus(101))
         await telegram_plus.cb_buy(self.cb('plus:buy:viewer_plus'), self.state, self.db)

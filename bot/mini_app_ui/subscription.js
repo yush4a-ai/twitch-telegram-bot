@@ -57,7 +57,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
   function benefitCopy(block) {
     const key=block.feature_ids[0];
     return {
-      viewer_channels:[`До ${catalog.limits.plus_streamers} стримеров`,`В Free — ${catalog.limits.free_streamers}`],
+      viewer_channels:[`До ${catalog.limits.plus_streamers} стримеров`,`В Free: ${catalog.limits.free_streamers}`],
       viewer_video:[`Видео от ${catalog.limits.video_slots} стримеров`,'Вы выбираете'],
       viewer_filters:['Точные уведомления','Фильтры и напоминания'],
       viewer_folders:['Папки и история','Порядок в подписках'],
@@ -158,7 +158,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       if(id==='viewer_plus'&&state.viewer.test_trial_available){box.append(element('p','muted','Ознакомление на 7 дней. Один раз, без оплаты и автопродления.'));const trial=action('Попробовать 7 дней',startTrial,true);trial.disabled=busy||loading;box.append(trial);}
       else if(id==='viewer_plus'&&state.viewer.test_trial_used)box.append(element('p','muted',state.viewer.test_trial_active?`Ознакомление действует до ${dateText(state.viewer.test_trial_expires_at)}.`:'Ознакомление уже использовано.'));
       target.append(box);
-      if(route.mode==='streamer'&&!secondary){const viewer=catalog.products.find(p=>p.product_id==='viewer_plus');target.append(navigationRow(`Тариф для зрителя — ${viewer.price_label}`,'','people',()=>getRouter().openDetail({name:'subscription',id:'viewer_plus'})));}
+      if(route.mode==='streamer'&&!secondary){const viewer=catalog.products.find(p=>p.product_id==='viewer_plus');target.append(navigationRow(`Тариф для зрителя: ${viewer.price_label}`,'','people',()=>getRouter().openDetail({name:'subscription',id:'viewer_plus'})));}
       const free=element('p','muted plus-details-copy',`До ${catalog.limits.free_streamers} стримеров, фото в уведомлениях, начало эфира и тихие часы. Подключение Twitch и Telegram-канала, обычный пост и HTML-отчёты доступны бесплатно.`);
       target.append(compactDetails('Что остаётся бесплатно','free',free));
       const history=element('div','navigation-group');

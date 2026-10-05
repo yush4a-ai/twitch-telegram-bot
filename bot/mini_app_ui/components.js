@@ -26,10 +26,25 @@ export function action(label, callback, secondary = false) {
     const result = callback(event);
     if (result && typeof result.then === 'function') {
       button.setAttribute('aria-disabled', 'true');
-      const finish = () => button.removeAttribute('aria-disabled');
-      result.then(finish, () => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(guard);
+        button.removeAttribute('aria-disabled');
+      };
+      // Страховка: если ответа нет дольше 15 секунд, кнопка снова становится
+      // нажимаемой, а человек видит понятное сообщение вместо залипшей кнопки.
+      const guard = setTimeout(() => {
         finish();
         if (!button.isConnected) return;
+        const note = element('p','notice error','Долго нет ответа. Попробуйте ещё раз.');
+        note.setAttribute('role','alert');button.after(note);
+      }, 15000);
+      result.then(finish, () => {
+        const wasSettled = settled;
+        finish();
+        if (wasSettled || !button.isConnected) return;
         const note = element('p','notice error','Не удалось выполнить действие. Попробуйте ещё раз.');
         note.setAttribute('role','alert');button.after(note);
       });

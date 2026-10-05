@@ -85,7 +85,7 @@ export function createPurchaseFeature(api,getRouter,telegram) {
       if(!offer){target.append(element('h1','','Выберите тариф'),action('Посмотреть тариф',()=>getRouter().openDetail('subscription')));return;}
       const current=purchase(id);
       target.append(element('h1','','Как оплатить?'),element('h2','',offer.title),element('p','subscription-price',`${offer.price_label} / месяц`));
-      target.append(element('p','muted','1 месяц. Без автопродления.'),element('p','','Telegram Stars — через Telegram.'),element('p','','СБП и банковская карта — через Platega.'));
+      target.append(element('p','muted','1 месяц. Без автопродления.'),element('p','','Telegram Stars: через Telegram.'),element('p','','СБП и банковская карта: через Platega.'));
       if(catalog.methods.length && catalog.methods.every(method=>offer.method_readiness?.[method.id]?.enabled===false)) {
         const note=element('p','purchase-availability','Оформление Plus пока недоступно. Бесплатные функции работают.');
         note.dataset.paymentAvailability='unavailable';target.append(note);

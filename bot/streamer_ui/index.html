@@ -11,20 +11,20 @@
 <body>
   <main class="shell">
     <header class="masthead">
-      <div><p class="eyebrow">TwitchSignalBot · staging</p><h1>Кабинет стримера</h1></div>
+      <div><p class="eyebrow">TwitchSignalBot{{environment}}</p><h1>Кабинет стримера</h1></div>
       <form action="/streamer/logout" method="post"><button class="quiet" type="submit">Выйти</button></form>
     </header>
     <p id="message" class="message" role="status">Загружаем данные…</p>
     <div class="grid" id="content" hidden>
       <section class="card identity" aria-labelledby="channel-title">
         <p class="label">Подключённый Twitch</p>
-        <h2 id="channel-title">—</h2>
+        <h2 id="channel-title">…</h2>
         <p>Доступ подтверждён через Twitch OAuth и личный Telegram-чат.</p>
       </section>
       <section class="card" aria-labelledby="plus-title">
         <p class="label">Тестовый доступ</p>
-        <h2 id="plus-title">—</h2>
-        <p id="plus-expiry">—</p>
+        <h2 id="plus-title">…</h2>
+        <p id="plus-expiry">…</p>
       </section>
       <section class="card wide" id="stats-card" hidden aria-labelledby="stats-title">
         <p class="label">Доставка · последние 30 дней</p>

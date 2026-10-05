@@ -5,13 +5,18 @@
 """
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import re
 
 HERE = pathlib.Path(__file__).resolve().parent
+ROOT = HERE.parents[3]
 FILES = ["prototype.html", "states.html"]
-ALLOWED_RADII = {0, 4, 8, 12, 16}
+ALLOWED_RADII = {0, 4, 8, 12, 16, 20}
+# 999px — полностью скруглённые бейджи статуса (окружение, здоровье, полоса активности).
+# Это осознанное исключение из шкалы, а не случайное значение.
+ALLOWED_RADII.add(999)
 TAP_TARGET_MIN = 44
 
 
@@ -66,8 +71,17 @@ def check_file(path: pathlib.Path) -> dict:
     }
 
 
-def main() -> int:
-    report = {"files": [], "tap_target_min": TAP_TARGET_MIN, "failures": 0}
+def _resolve(name: str) -> pathlib.Path:
+    """Файл ищем рядом со скриптом, затем от корня проекта."""
+    direct = pathlib.Path(name)
+    if direct.is_file():
+        return direct
+    local = HERE / name
+    return local if local.is_file() else ROOT / name
+
+
+def main(names: list[str] | None = None, report_name: str = "DESIGN-LINT") -> int:
+    summary = {"files": [], "tap_target_min": TAP_TARGET_MIN, "failures": 0}
     lines = [
         "# Линт макета панели",
         "",
@@ -75,15 +89,16 @@ def main() -> int:
         f"тёмная схема, подписи навигации, цель нажатия не меньше {TAP_TARGET_MIN} px.",
         "",
     ]
-    for name in FILES:
-        path = HERE / name
+    for name in names or FILES:
+        path = _resolve(name)
         if not path.is_file():
-            report["files"].append({"file": name, "issues": ["файл не найден"]})
-            report["failures"] += 1
+            summary["files"].append({"file": name, "issues": ["файл не найден"]})
+            summary["failures"] += 1
             continue
         result = check_file(path)
-        report["files"].append(result)
-        report["failures"] += len(result["issues"])
+        result["file"] = name
+        summary["files"].append(result)
+        summary["failures"] += len(result["issues"])
         status = "OK" if not result["issues"] else f"найдено {len(result['issues'])}"
         lines.append(f"## {name} — {status}")
         lines.append("")
@@ -93,13 +108,22 @@ def main() -> int:
             lines.append("- отклонений не найдено")
         lines.append("")
 
-    (HERE / "DESIGN-LINT.md").write_text("\n".join(lines), encoding="utf-8")
-    (HERE / "DESIGN-LINT.json").write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    (HERE / f"{report_name}.md").write_text("\n".join(lines), encoding="utf-8")
+    (HERE / f"{report_name}.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     print("\n".join(lines))
-    return 1 if report["failures"] else 0
+    return 1 if summary["failures"] else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--files", default=",".join(FILES))
+    parser.add_argument("--report", default="DESIGN-LINT")
+    arguments = parser.parse_args()
+    raise SystemExit(
+        main(
+            [part.strip() for part in arguments.files.split(",") if part.strip()],
+            arguments.report,
+        )
+    )

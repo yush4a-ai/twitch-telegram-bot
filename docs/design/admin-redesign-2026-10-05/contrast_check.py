@@ -11,17 +11,18 @@ import pathlib
 HERE = pathlib.Path(__file__).resolve().parent
 
 TOKENS = {
-    "canvas": "#171717",
-    "surface": "#242424",
-    "raised": "#2D2B31",
-    "border": "#3B3841",
-    "text": "#F1F1F1",
-    "muted": "#B9B6BF",
-    "accent": "#C7A5FF",
-    "accent_ink": "#21162F",
-    "good": "#7FD8B4",
-    "warn": "#F0C674",
-    "danger": "#FF7A85",
+    "canvas": "#08070B",
+    "surface": "#100F15",
+    "raised": "#16141C",
+    "border": "#1E1D21",
+    "text": "#F4F2F8",
+    "muted": "#9C97A8",
+    "faint": "#8A8595",
+    "accent": "#B98CFF",
+    "accent_ink": "#1B1030",
+    "good": "#A8F06B",
+    "warn": "#FFC46B",
+    "danger": "#FF8A9B",
 }
 
 # (передний план, фон, что это, требуемый порог)
@@ -32,12 +33,16 @@ PAIRS = [
     ("muted", "canvas", "вторичный текст на фоне", 4.5),
     ("muted", "surface", "вторичный текст на поверхности", 4.5),
     ("muted", "raised", "вторичный текст на приподнятой поверхности", 4.5),
+    ("faint", "surface", "тихие подписи на поверхности", 4.5),
     ("accent", "canvas", "accent на фоне (ссылки, «Подробнее»)", 4.5),
     ("accent", "surface", "accent на поверхности", 4.5),
     ("accent_ink", "accent", "текст на главной кнопке", 4.5),
     ("good", "surface", "успех на поверхности", 4.5),
     ("warn", "surface", "внимание на поверхности", 4.5),
     ("danger", "surface", "ошибка на поверхности", 4.5),
+    ("good", "canvas", "успех на фоне приложения", 4.5),
+    ("warn", "canvas", "внимание на фоне приложения", 4.5),
+    ("danger", "canvas", "ошибка на фоне приложения", 4.5),
     ("border", "canvas", "разделитель на фоне (элемент интерфейса)", 1.0),
 ]
 

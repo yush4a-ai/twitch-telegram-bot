@@ -723,6 +723,8 @@ class Database:
         await self._migrate_streamer_intents_schema()
         await self._migrate_growth_attribution_schema()
         await self._migrate_admin_schema()
+        await self._migrate_broadcast_schema()
+        await self._migrate_broadcast_leases()
         await migrate_plus_payments(self.conn, now=time.time())
         await self.conn.execute(
             "CREATE TABLE IF NOT EXISTS telegram_update_inbox ("
@@ -893,6 +895,88 @@ class Database:
         await self.conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('admin_001_profiles', ?)", (time.time(),)
+        )
+
+    async def _migrate_broadcast_schema(self) -> None:
+        """Рассылки владельца и переписка с людьми.
+
+        У рассылок свои таблицы и свой отправитель: очередь уведомлений о стримах
+        не должна зависеть от того, включены ли рассылки.
+        """
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS broadcast_campaigns ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, "
+            "body TEXT NOT NULL, image_path TEXT, image_bytes INTEGER, "
+            "button_text TEXT, button_url TEXT, "
+            "state TEXT NOT NULL CHECK(state IN ('draft', 'sending', 'sent', 'stopped', 'failed')), "
+            "audience_total INTEGER NOT NULL DEFAULT 0, sent_count INTEGER NOT NULL DEFAULT 0, "
+            "unreachable_count INTEGER NOT NULL DEFAULT 0, failed_count INTEGER NOT NULL DEFAULT 0, "
+            "created_at REAL NOT NULL, started_at REAL, finished_at REAL, "
+            "created_by INTEGER NOT NULL, request_key TEXT)"
+        )
+        await self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS broadcast_campaigns_request_key "
+            "ON broadcast_campaigns(request_key) WHERE request_key IS NOT NULL"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS broadcast_recipients ("
+            "campaign_id INTEGER NOT NULL, user_id INTEGER NOT NULL, "
+            "state TEXT NOT NULL CHECK(state IN "
+            "('pending', 'sent', 'unreachable', 'failed', 'opted_out', 'stopped')), "
+            "error_code TEXT, telegram_message_id INTEGER, updated_at REAL NOT NULL, "
+            "PRIMARY KEY (campaign_id, user_id))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS broadcast_recipients_state "
+            "ON broadcast_recipients(campaign_id, state)"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS broadcast_optouts ("
+            "user_id INTEGER PRIMARY KEY, opted_out_at REAL NOT NULL, reason TEXT)"
+        )
+        # Переписка: входящие личные сообщения и ответы владельца из панели.
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS dialogue_messages ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, "
+            "direction TEXT NOT NULL CHECK(direction IN ('in', 'out')), "
+            "body TEXT, image_path TEXT, telegram_message_id INTEGER, "
+            "delivery TEXT NOT NULL DEFAULT 'received', created_at REAL NOT NULL, "
+            "request_key TEXT)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS dialogue_messages_user "
+            "ON dialogue_messages(user_id, created_at DESC)"
+        )
+        # Ключ запроса защищает от повторной отправки при двойном нажатии.
+        await self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS dialogue_messages_request_key "
+            "ON dialogue_messages(request_key) WHERE request_key IS NOT NULL"
+        )
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS dialogue_state ("
+            "user_id INTEGER PRIMARY KEY, last_message_at REAL NOT NULL, "
+            "last_direction TEXT NOT NULL, unread_count INTEGER NOT NULL DEFAULT 0, "
+            "owner_read_at REAL)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('admin_003_broadcasts_and_dialogues', ?)", (time.time(),)
+        )
+
+    async def _migrate_broadcast_leases(self) -> None:
+        """Аренда получателя: две копии сервиса не должны слать одно сообщение дважды.
+
+        При выкладке старый и новый контейнер какое-то время работают вместе.
+        Без аренды оба взяли бы одну пачку и человек получил бы два сообщения.
+        """
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS broadcast_leases ("
+            "campaign_id INTEGER NOT NULL, user_id INTEGER NOT NULL, "
+            "leased_at REAL NOT NULL, PRIMARY KEY (campaign_id, user_id))"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('admin_004_broadcast_leases', ?)", (time.time(),)
         )
 
     async def _migrate_viewer_schema(self) -> None:
@@ -2803,6 +2887,57 @@ class Database:
             for row in await cursor.fetchall()
         ]
 
+    async def growth_funnel_report(self, *, now: float) -> dict:
+        """Настоящая воронка: пришли по ссылке → открыли бота → канал → Plus.
+
+        Каждый следующий шаг — подмножество предыдущего, поэтому доли считаются
+        честно. Отдельно показываем общую картину по всем людям бота: часть из
+        них пришла без ссылки, и в воронку по атрибуции они не попадают.
+        """
+        viewer = effective_viewer_predicate("a.uid", "?")
+        cursor = await self.conn.execute(
+            "WITH attributed AS ("
+            "SELECT DISTINCT telegram_user_id AS uid FROM growth_attributions "
+            "WHERE telegram_user_id IS NOT NULL AND telegram_user_id > 0) "
+            "SELECT (SELECT COUNT(*) FROM attributed), "
+            "(SELECT COUNT(*) FROM attributed a WHERE EXISTS ("
+            "SELECT 1 FROM known_private_users k WHERE k.user_id = a.uid)), "
+            "(SELECT COUNT(*) FROM attributed a WHERE EXISTS ("
+            "SELECT 1 FROM tracked_channels t WHERE t.chat_id = a.uid)), "
+            f"(SELECT COUNT(*) FROM attributed a WHERE {viewer})",
+            (float(now), float(now)),
+        )
+        attributed, opened, with_channel, with_plus = await cursor.fetchone()
+
+        viewer_total = effective_viewer_predicate("k.user_id", "?")
+        cursor = await self.conn.execute(
+            "SELECT (SELECT COUNT(*) FROM known_private_users), "
+            "(SELECT COUNT(*) FROM known_private_users k WHERE EXISTS ("
+            "SELECT 1 FROM tracked_channels t WHERE t.chat_id = k.user_id)), "
+            f"(SELECT COUNT(*) FROM known_private_users k WHERE {viewer_total})",
+            (float(now), float(now)),
+        )
+        total_users, total_channel, total_plus = await cursor.fetchone()
+
+        steps = [
+            {"key": "attributed", "title": "Пришли с сайта или по приглашению",
+             "users": int(attributed)},
+            {"key": "opened", "title": "Открыли бота", "users": int(opened)},
+            {"key": "channel", "title": "Добавили канал", "users": int(with_channel)},
+            {"key": "plus", "title": "Получили Plus", "users": int(with_plus)},
+        ]
+        for index, step in enumerate(steps):
+            previous = steps[index - 1]["users"] if index else step["users"]
+            step["share"] = round(step["users"] * 100 / previous, 1) if previous else None
+        return {
+            "steps": steps,
+            "totals": {
+                "users": int(total_users),
+                "with_channel": int(total_channel),
+                "with_plus": int(total_plus),
+            },
+        }
+
     async def _mark_growth_activation(self, chat_id: int) -> None:
         if chat_id > 0:
             await self.conn.execute(
@@ -3109,7 +3244,7 @@ class Database:
         query += "ORDER BY tc.twitch_login"
         cursor = await self.conn.execute(query, params)
         rows = await cursor.fetchall()
-        return [(row[0], row[1] or "", row[2], row[3] if row[3] != "—" else None) for row in rows]
+        return [(row[0], row[1] or "", row[2], row[3] if row[3] not in ("—", "н/д") else None) for row in rows]
 
     async def get_last_stream_end(self, chat_id: int, twitch_login: str) -> float | None:
         """Когда закончился прошлый стрим этого канала в этом чате (unix ts).
@@ -3855,7 +3990,7 @@ class Database:
             (chat_id, twitch_login, stream_id, chat_id, twitch_login, stream_id),
         )
         game_row = await game_cursor.fetchone()
-        game_name = game_row[0] if game_row and game_row[0] not in (None, "—") else None
+        game_name = game_row[0] if game_row and game_row[0] not in (None, "—", "н/д") else None
         return title, game_name
 
     @_serialized
@@ -5673,6 +5808,466 @@ class Database:
             )
             buckets.append({"date": start, "users": int((await cursor.fetchone())[0])})
         return buckets
+
+    # --- Рассылки владельца и переписка ------------------------------------
+
+    BROADCAST_STATES = frozenset({"draft", "sending", "sent", "stopped", "failed"})
+    RECIPIENT_STATES = frozenset(
+        {"pending", "sent", "unreachable", "failed", "opted_out", "stopped"}
+    )
+
+    async def broadcast_audience(self, *, owner_id: int) -> dict:
+        """Кто получит рассылку и почему остальные — нет.
+
+        Владелец не получает собственные рассылки; отписавшиеся исключены до
+        возврата владельцем; те, кому Telegram уже не даёт писать, не считаются
+        заново. Расчёт всегда виден до отправки, поэтому метод ничего не меняет.
+        """
+        cursor = await self.conn.execute(
+            "SELECT user_id FROM known_private_users WHERE user_id != ? "
+            "AND user_id NOT IN (SELECT user_id FROM broadcast_optouts) "
+            "AND user_id NOT IN "
+            "(SELECT user_id FROM broadcast_recipients WHERE state = 'unreachable') "
+            "ORDER BY user_id",
+            (int(owner_id),),
+        )
+        recipients = [int(row[0]) for row in await cursor.fetchall()]
+        opted_out = (await (await self.conn.execute(
+            "SELECT COUNT(*) FROM broadcast_optouts")).fetchone())[0]
+        unreachable = (await (await self.conn.execute(
+            "SELECT COUNT(DISTINCT user_id) FROM broadcast_recipients "
+            "WHERE state = 'unreachable'")).fetchone())[0]
+        owner = (await (await self.conn.execute(
+            "SELECT COUNT(*) FROM known_private_users WHERE user_id = ?",
+            (int(owner_id),))).fetchone())[0]
+        return {
+            "recipients": recipients,
+            "total": len(recipients),
+            "opted_out": int(opted_out),
+            "unreachable": int(unreachable),
+            "owner": int(owner),
+        }
+
+    async def save_broadcast_campaign(
+        self, *, title: str, body: str, created_by: int, now: float,
+        campaign_id: int | None = None, image_path: str | None = None,
+        image_bytes: int | None = None, button_text: str | None = None,
+        button_url: str | None = None, request_key: str | None = None,
+    ) -> int:
+        """Создаёт черновик или правит существующий. Правки возможны только в черновике."""
+        if campaign_id is None:
+            cursor = await self.conn.execute(
+                "INSERT INTO broadcast_campaigns "
+                "(title, body, image_path, image_bytes, button_text, button_url, state, "
+                "created_at, created_by, request_key) "
+                "VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)",
+                (title, body, image_path, image_bytes, button_text, button_url,
+                 float(now), int(created_by), request_key),
+            )
+            await self.conn.commit()
+            return int(cursor.lastrowid)
+        cursor = await self.conn.execute(
+            "SELECT state FROM broadcast_campaigns WHERE id = ?", (int(campaign_id),))
+        row = await cursor.fetchone()
+        if row is None:
+            raise ValueError("campaign not found")
+        if row[0] != "draft":
+            raise ValueError("campaign is not a draft")
+        await self.conn.execute(
+            "UPDATE broadcast_campaigns SET title = ?, body = ?, image_path = ?, "
+            "image_bytes = ?, button_text = ?, button_url = ? WHERE id = ?",
+            (title, body, image_path, image_bytes, button_text, button_url, int(campaign_id)),
+        )
+        await self.conn.commit()
+        return int(campaign_id)
+
+    async def get_broadcast_campaign(self, campaign_id: int) -> dict | None:
+        cursor = await self.conn.execute(
+            "SELECT id, title, body, image_path, image_bytes, button_text, button_url, "
+            "state, audience_total, sent_count, unreachable_count, failed_count, "
+            "created_at, started_at, finished_at FROM broadcast_campaigns WHERE id = ?",
+            (int(campaign_id),),
+        )
+        row = await cursor.fetchone()
+        if row is None:
+            return None
+        keys = (
+            "id", "title", "body", "image_path", "image_bytes", "button_text",
+            "button_url", "state", "audience_total", "sent_count",
+            "unreachable_count", "failed_count", "created_at", "started_at", "finished_at",
+        )
+        return dict(zip(keys, row, strict=True))
+
+    async def try_claim_broadcast_recipient(
+        self, campaign_id: int, user_id: int, *, now: float, lease_seconds: float = 300.0,
+    ) -> bool:
+        """Пытается застолбить получателя за собой.
+
+        Просроченная аренда (сервис упал во время отправки) освобождается,
+        поэтому получатель не теряется, а уходит со следующего захода.
+        """
+        await self.conn.execute(
+            "DELETE FROM broadcast_leases WHERE campaign_id = ? AND user_id = ? "
+            "AND leased_at < ?",
+            (int(campaign_id), int(user_id), float(now) - lease_seconds),
+        )
+        cursor = await self.conn.execute(
+            "INSERT OR IGNORE INTO broadcast_leases(campaign_id, user_id, leased_at) "
+            "VALUES (?, ?, ?)",
+            (int(campaign_id), int(user_id), float(now)),
+        )
+        await self.conn.commit()
+        return cursor.rowcount == 1
+
+    async def clear_broadcast_leases(self, campaign_id: int) -> int:
+        """Аренды нужны только на время отправки: после её окончания они мусор."""
+        cursor = await self.conn.execute(
+            "DELETE FROM broadcast_leases WHERE campaign_id = ?", (int(campaign_id),))
+        await self.conn.commit()
+        return int(cursor.rowcount)
+
+    async def release_broadcast_lease(self, campaign_id: int, user_id: int) -> None:
+        await self.conn.execute(
+            "DELETE FROM broadcast_leases WHERE campaign_id = ? AND user_id = ?",
+            (int(campaign_id), int(user_id)),
+        )
+        await self.conn.commit()
+
+    async def broadcast_campaign_by_request_key(self, request_key: str) -> int | None:
+        """Повторный запрос с тем же ключом не создаёт вторую кампанию."""
+        cursor = await self.conn.execute(
+            "SELECT id FROM broadcast_campaigns WHERE request_key = ?", (request_key,))
+        row = await cursor.fetchone()
+        return int(row[0]) if row else None
+
+    async def list_broadcast_campaigns(self, *, limit: int = 20) -> list[dict]:
+        cursor = await self.conn.execute(
+            "SELECT id, title, state, audience_total, sent_count, unreachable_count, "
+            "failed_count, created_at, started_at, finished_at, "
+            "(SELECT COUNT(*) FROM broadcast_recipients r WHERE r.campaign_id = c.id "
+            "AND r.state = 'pending') "
+            "FROM broadcast_campaigns c ORDER BY id DESC LIMIT ?", (int(limit),),
+        )
+        keys = (
+            "id", "title", "state", "audience_total", "sent_count",
+            "unreachable_count", "failed_count", "created_at", "started_at",
+            "finished_at", "pending_count",
+        )
+        return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
+
+    async def set_broadcast_image(
+        self, campaign_id: int, *, image_path: str | None, image_bytes: int | None,
+    ) -> None:
+        await self.conn.execute(
+            "UPDATE broadcast_campaigns SET image_path = ?, image_bytes = ? WHERE id = ?",
+            (image_path, image_bytes, int(campaign_id)),
+        )
+        await self.conn.commit()
+
+    async def set_broadcast_state(
+        self, campaign_id: int, state: str, *, now: float,
+    ) -> None:
+        if state not in self.BROADCAST_STATES:
+            raise ValueError("unknown campaign state")
+        if state == "sending":
+            await self.conn.execute(
+                "UPDATE broadcast_campaigns SET state = ?, started_at = ? WHERE id = ?",
+                (state, float(now), int(campaign_id)),
+            )
+        elif state in ("sent", "stopped", "failed"):
+            await self.conn.execute(
+                "UPDATE broadcast_campaigns SET state = ?, finished_at = ? WHERE id = ?",
+                (state, float(now), int(campaign_id)),
+            )
+        else:
+            await self.conn.execute(
+                "UPDATE broadcast_campaigns SET state = ? WHERE id = ?",
+                (state, int(campaign_id)),
+            )
+        await self.conn.commit()
+
+    async def is_broadcast_opted_out(self, user_id: int) -> bool:
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM broadcast_optouts WHERE user_id = ?", (int(user_id),))
+        return await cursor.fetchone() is not None
+
+    async def opt_out_broadcast(
+        self, user_id: int, *, now: float, reason: str | None = None,
+    ) -> None:
+        """Отписка от рассылок. Уведомления о стримах она не затрагивает."""
+        await self.conn.execute(
+            "INSERT INTO broadcast_optouts(user_id, opted_out_at, reason) VALUES (?, ?, ?) "
+            "ON CONFLICT(user_id) DO UPDATE SET opted_out_at = excluded.opted_out_at, "
+            "reason = excluded.reason",
+            (int(user_id), float(now), reason),
+        )
+        # Человек, который отписался, не должен остаться «в очереди» активной кампании.
+        await self.conn.execute(
+            "UPDATE broadcast_recipients SET state = 'opted_out', updated_at = ? "
+            "WHERE user_id = ? AND state = 'pending'", (float(now), int(user_id)),
+        )
+        await self.conn.commit()
+
+    async def restore_broadcast_optout(self, user_id: int) -> bool:
+        cursor = await self.conn.execute(
+            "DELETE FROM broadcast_optouts WHERE user_id = ?", (int(user_id),))
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    async def list_broadcast_optouts(self, *, limit: int = 200) -> list[dict]:
+        cursor = await self.conn.execute(
+            "SELECT o.user_id, o.opted_out_at, o.reason, p.username, p.display_name "
+            "FROM broadcast_optouts o "
+            "LEFT JOIN telegram_user_profiles p ON p.user_id = o.user_id "
+            "ORDER BY o.opted_out_at DESC LIMIT ?", (int(limit),),
+        )
+        keys = ("user_id", "opted_out_at", "reason", "username", "display_name")
+        return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
+
+    async def prepare_broadcast_recipients(
+        self, campaign_id: int, user_ids: list[int], *, now: float,
+    ) -> int:
+        """Заполняет получателей один раз: повторный вызов не сбрасывает итоги.
+
+        Отписавшиеся отсеиваются здесь, а не только при расчёте аудитории: между
+        расчётом и постановкой в очередь человек мог нажать «Больше не присылать».
+        """
+        candidate_ids = [int(user_id) for user_id in user_ids]
+        if candidate_ids:
+            cursor = await self.conn.execute("SELECT user_id FROM broadcast_optouts")
+            opted_out = {int(row[0]) for row in await cursor.fetchall()}
+            rows = [
+                (int(campaign_id), user_id, float(now))
+                for user_id in candidate_ids
+                if user_id not in opted_out
+            ]
+        else:
+            rows = []
+        if rows:
+            await self.conn.executemany(
+                "INSERT OR IGNORE INTO broadcast_recipients"
+                "(campaign_id, user_id, state, updated_at) VALUES (?, ?, 'pending', ?)",
+                rows,
+            )
+        await self.conn.execute(
+            "UPDATE broadcast_campaigns SET audience_total = "
+            "(SELECT COUNT(*) FROM broadcast_recipients WHERE campaign_id = ?) WHERE id = ?",
+            (int(campaign_id), int(campaign_id)),
+        )
+        await self.conn.commit()
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM broadcast_recipients WHERE campaign_id = ?",
+            (int(campaign_id),),
+        )
+        return int((await cursor.fetchone())[0])
+
+    async def next_broadcast_recipients(
+        self, campaign_id: int, *, limit: int = 25,
+    ) -> list[int]:
+        cursor = await self.conn.execute(
+            "SELECT user_id FROM broadcast_recipients WHERE campaign_id = ? "
+            "AND state = 'pending' ORDER BY user_id LIMIT ?",
+            (int(campaign_id), int(limit)),
+        )
+        return [int(row[0]) for row in await cursor.fetchall()]
+
+    async def mark_broadcast_recipient(
+        self, campaign_id: int, user_id: int, state: str, *, now: float,
+        error_code: str | None = None, telegram_message_id: int | None = None,
+    ) -> None:
+        if state not in self.RECIPIENT_STATES:
+            raise ValueError("unknown recipient state")
+        await self.conn.execute(
+            "UPDATE broadcast_recipients SET state = ?, error_code = ?, "
+            "telegram_message_id = ?, updated_at = ? "
+            "WHERE campaign_id = ? AND user_id = ?",
+            (state, error_code, telegram_message_id, float(now),
+             int(campaign_id), int(user_id)),
+        )
+        await self.conn.commit()
+        await self.refresh_broadcast_counters(campaign_id)
+
+    async def refresh_broadcast_counters(self, campaign_id: int) -> dict:
+        cursor = await self.conn.execute(
+            "SELECT state, COUNT(*) FROM broadcast_recipients WHERE campaign_id = ? "
+            "GROUP BY state", (int(campaign_id),),
+        )
+        counts = {row[0]: int(row[1]) for row in await cursor.fetchall()}
+        await self.conn.execute(
+            "UPDATE broadcast_campaigns SET sent_count = ?, unreachable_count = ?, "
+            "failed_count = ? WHERE id = ?",
+            (counts.get("sent", 0), counts.get("unreachable", 0),
+             counts.get("failed", 0), int(campaign_id)),
+        )
+        await self.conn.commit()
+        return {
+            "pending": counts.get("pending", 0),
+            "sent": counts.get("sent", 0),
+            "unreachable": counts.get("unreachable", 0),
+            "failed": counts.get("failed", 0),
+            "opted_out": counts.get("opted_out", 0),
+            "stopped": counts.get("stopped", 0),
+        }
+
+    async def broadcast_progress(self, campaign_id: int) -> dict:
+        campaign = await self.get_broadcast_campaign(campaign_id)
+        if campaign is None:
+            return {}
+        counts = await self.refresh_broadcast_counters(campaign_id)
+        return {
+            **counts,
+            "state": campaign["state"],
+            "audience_total": campaign["audience_total"],
+        }
+
+    async def stop_broadcast(self, campaign_id: int, *, now: float) -> int:
+        """Останавливает остаток: отправленное не откатывается."""
+        cursor = await self.conn.execute(
+            "UPDATE broadcast_recipients SET state = 'stopped', updated_at = ? "
+            "WHERE campaign_id = ? AND state = 'pending'",
+            (float(now), int(campaign_id)),
+        )
+        await self.conn.commit()
+        await self.set_broadcast_state(campaign_id, "stopped", now=now)
+        await self.refresh_broadcast_counters(campaign_id)
+        # Остановленная кампания больше не отправляет: аренды не нужны.
+        await self.clear_broadcast_leases(campaign_id)
+        return int(cursor.rowcount)
+
+    async def resume_broadcast_campaigns(self) -> list[int]:
+        """Кампании, застигнутые перезапуском: продолжаем с места остановки."""
+        cursor = await self.conn.execute(
+            "SELECT id FROM broadcast_campaigns WHERE state = 'sending' ORDER BY id")
+        return [int(row[0]) for row in await cursor.fetchall()]
+
+    # --- Переписка ----------------------------------------------------------
+
+    async def record_dialogue_message(
+        self, user_id: int, direction: str, body: str | None, *, now: float,
+        image_path: str | None = None, telegram_message_id: int | None = None,
+        delivery: str = "received", request_key: str | None = None,
+    ) -> int | None:
+        """Пишет сообщение переписки. Повтор с тем же ключом ничего не добавляет."""
+        if direction not in ("in", "out"):
+            raise ValueError("unknown direction")
+        if request_key is not None:
+            cursor = await self.conn.execute(
+                "SELECT 1 FROM dialogue_messages WHERE request_key = ?", (request_key,))
+            if await cursor.fetchone() is not None:
+                return None
+        try:
+            cursor = await self.conn.execute(
+                "INSERT INTO dialogue_messages(user_id, direction, body, image_path, "
+                "telegram_message_id, delivery, created_at, request_key) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (int(user_id), direction, body, image_path, telegram_message_id,
+                 delivery, float(now), request_key),
+            )
+        except aiosqlite.IntegrityError:
+            return None
+        if direction == "in":
+            await self.conn.execute(
+                "INSERT INTO dialogue_state(user_id, last_message_at, last_direction, unread_count) "
+                "VALUES (?, ?, 'in', 1) ON CONFLICT(user_id) DO UPDATE SET "
+                "last_message_at = excluded.last_message_at, last_direction = 'in', "
+                "unread_count = dialogue_state.unread_count + 1",
+                (int(user_id), float(now)),
+            )
+        else:
+            await self.conn.execute(
+                "INSERT INTO dialogue_state(user_id, last_message_at, last_direction, unread_count) "
+                "VALUES (?, ?, 'out', 0) ON CONFLICT(user_id) DO UPDATE SET "
+                "last_message_at = excluded.last_message_at, last_direction = 'out'",
+                (int(user_id), float(now)),
+            )
+        await self.conn.commit()
+        return int(cursor.lastrowid)
+
+    async def dialogue_message_by_request_key(self, request_key: str) -> int | None:
+        """Проверка до отправки: иначе двойное нажатие шлёт человеку два сообщения."""
+        cursor = await self.conn.execute(
+            "SELECT id FROM dialogue_messages WHERE request_key = ?", (request_key,))
+        row = await cursor.fetchone()
+        return int(row[0]) if row else None
+
+    async def list_dialogues(
+        self, *, limit: int = 40, query: str | None = None,
+    ) -> list[dict]:
+        text = (query or "").strip()
+        pattern = f"%{text}%"
+        where = ""
+        params: list[object] = []
+        if text:
+            where = (
+                "WHERE p.username LIKE ? OR p.display_name LIKE ? "
+                "OR CAST(s.user_id AS TEXT) LIKE ?"
+            )
+            params = [pattern, pattern, pattern]
+        params.append(int(limit))
+        cursor = await self.conn.execute(
+            "SELECT s.user_id, s.last_message_at, s.unread_count, p.username, p.display_name, "
+            "(SELECT body FROM dialogue_messages m WHERE m.user_id = s.user_id "
+            "ORDER BY m.id DESC LIMIT 1), "
+            "(SELECT direction FROM dialogue_messages m WHERE m.user_id = s.user_id "
+            "ORDER BY m.id DESC LIMIT 1), "
+            "(SELECT 1 FROM broadcast_optouts o WHERE o.user_id = s.user_id) "
+            "FROM dialogue_state s "
+            "LEFT JOIN telegram_user_profiles p ON p.user_id = s.user_id "
+            f"{where} ORDER BY s.last_message_at DESC LIMIT ?",
+            tuple(params),
+        )
+        keys = ("user_id", "last_message_at", "unread_count", "username",
+                "display_name", "last_body", "last_direction", "opted_out")
+        return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
+
+    async def dialogue_history(self, user_id: int, *, limit: int = 200) -> list[dict]:
+        cursor = await self.conn.execute(
+            "SELECT id, direction, body, image_path, delivery, created_at "
+            "FROM dialogue_messages WHERE user_id = ? ORDER BY id ASC LIMIT ?",
+            (int(user_id), int(limit)),
+        )
+        keys = ("id", "direction", "body", "image_path", "delivery", "created_at")
+        return [dict(zip(keys, row, strict=True)) for row in await cursor.fetchall()]
+
+    async def mark_dialogue_read(self, user_id: int, *, now: float) -> None:
+        await self.conn.execute(
+            "UPDATE dialogue_state SET unread_count = 0, owner_read_at = ? WHERE user_id = ?",
+            (float(now), int(user_id)),
+        )
+        await self.conn.commit()
+
+    async def dialogue_unread_total(self) -> int:
+        cursor = await self.conn.execute(
+            "SELECT COALESCE(SUM(unread_count), 0) FROM dialogue_state")
+        return int((await cursor.fetchone())[0])
+
+    async def delete_dialogue(self, user_id: int) -> list[str]:
+        """Удаляет переписку целиком и возвращает пути картинок для удаления файлов."""
+        cursor = await self.conn.execute(
+            "SELECT image_path FROM dialogue_messages "
+            "WHERE user_id = ? AND image_path IS NOT NULL", (int(user_id),),
+        )
+        images = [row[0] for row in await cursor.fetchall()]
+        await self.conn.execute(
+            "DELETE FROM dialogue_messages WHERE user_id = ?", (int(user_id),))
+        await self.conn.execute(
+            "DELETE FROM dialogue_state WHERE user_id = ?", (int(user_id),))
+        await self.conn.commit()
+        return images
+
+    async def old_dialogue_images(self, *, older_than: float) -> list[str]:
+        """Пути картинок старой переписки: нужны, чтобы удалить и файлы."""
+        cursor = await self.conn.execute(
+            "SELECT image_path FROM dialogue_messages "
+            "WHERE created_at < ? AND image_path IS NOT NULL", (float(older_than),))
+        return [row[0] for row in await cursor.fetchall()]
+
+    async def purge_dialogue_messages(self, *, older_than: float) -> int:
+        """Срок хранения переписки: старое удаляется пачкой, файлы — вызывающим."""
+        cursor = await self.conn.execute(
+            "DELETE FROM dialogue_messages WHERE created_at < ?", (float(older_than),))
+        await self.conn.commit()
+        return int(cursor.rowcount)
 
     REASON_CODES = frozenset({"compensation", "testing", "partnership", "other"})
     MAX_MANUAL_GRANT_SECONDS = 366 * 86400

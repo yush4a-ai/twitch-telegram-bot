@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import logging
+import io
+import pathlib
 import time
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, InaccessibleMessage, Message, TelegramObject
+
+from .media_store import MAX_IMAGE_BYTES, MediaError, save_image
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +92,7 @@ class ThrottleMiddleware(BaseMiddleware):
             if isinstance(event, CallbackQuery):
                 # без ответа на callback у пользователя вечно крутится «часики»
                 try:
-                    await event.answer("Слишком часто — подожди пару секунд.")
+                    await event.answer("Слишком часто. Подожди пару секунд.")
                 except Exception:
                     pass
             logger.debug("Действие пользователя отброшено троттлингом (heavy=%s)", heavy)
@@ -103,7 +107,13 @@ class CallbackGuardMiddleware(BaseMiddleware):
 
     Telegram не отдаёт тело сообщений старше 48 часов: в aiogram это приходит как
     InaccessibleMessage (или None). Обработчики читают из него chat_id и редактируют
-    текст, поэтому без такой проверки старая кнопка роняла бы их с AttributeError."""
+    текст, поэтому без такой проверки старая кнопка роняла бы их с AttributeError.
+
+    Исключение — отказ от рассылки: ему тело сообщения не нужно, а человек должен
+    мочь отписаться в любой момент, даже через неделю после рассылки."""
+
+    # Значения совпадают с bot/handlers/broadcasts.py: этим колбэкам сообщение не нужно.
+    MESSAGE_FREE_CALLBACKS = ("broadcast_",)
 
     async def __call__(
         self,
@@ -112,6 +122,9 @@ class CallbackGuardMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         if isinstance(event, CallbackQuery):
+            callback_data = event.data or ""
+            if callback_data.startswith(self.MESSAGE_FREE_CALLBACKS):
+                return await handler(event, data)
             message = event.message
             if message is None or isinstance(message, InaccessibleMessage):
                 try:
@@ -134,6 +147,11 @@ class ErrorGuardMiddleware(BaseMiddleware):
     async def _recover(self,event,data, *, wait=True):
         message=event.message if isinstance(event,CallbackQuery) else event
         actor=event.from_user.id if getattr(event,'from_user',None) else None
+        # Отказ от рассылки не нуждается в клавиатуре «Меню»: лишнее сообщение
+        # поверх подтверждения отписки только путает человека.
+        if isinstance(event, CallbackQuery) and (event.data or "").startswith(
+                CallbackGuardMiddleware.MESSAGE_FREE_CALLBACKS):
+            return
         from .telegram_ui import own_private
         if isinstance(message,(Message,InaccessibleMessage)) and own_private(message,actor):
             try:
@@ -263,7 +281,78 @@ class ProfileMiddleware(BaseMiddleware):
         self._retry_after.pop(user_id, None)
 
 
-def setup_middlewares(dp, db=None) -> None:
+class DialogueMiddleware(BaseMiddleware):
+    """Личные сообщения людей становятся перепиской в панели владельца.
+
+    Пишем только личные чаты и только не-команды: журнал команд — это не чат,
+    а группы и каналы в переписку вообще не попадают.
+    """
+
+    def __init__(self, db, *, media_dir=None, max_length: int = 4096) -> None:
+        self._db = db
+        self._media_dir = media_dir
+        self._max_length = max_length
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        try:
+            await self._remember(event, data)
+        except Exception:
+            # Переписка не должна мешать ответу человеку: сбой записи не блокирует бота.
+            logger.exception("Не удалось записать сообщение в переписку")
+        return await handler(event, data)
+
+    async def _download_photo(self, event: TelegramObject, data: dict[str, Any]) -> str | None:
+        """Скачивает фото человека, чтобы владелец видел его в панели.
+
+        Размер проверяется до скачивания: чужой файл не должен забивать диск.
+        """
+        if not self._media_dir:
+            return None
+        photos = getattr(event, "photo", None)
+        if not photos:
+            return None
+        bot = data.get("bot") if isinstance(data, dict) else None
+        if bot is None:
+            return None
+        largest = photos[-1]
+        size = getattr(largest, "file_size", None)
+        if isinstance(size, int) and size > MAX_IMAGE_BYTES:
+            logger.warning("Фото в переписке больше лимита, оставляю без файла")
+            return None
+        buffer = io.BytesIO()
+        await bot.download(largest, destination=buffer)
+        payload = buffer.getvalue()
+        try:
+            return save_image(pathlib.Path(self._media_dir), payload, prefix="chat")
+        except MediaError:
+            logger.warning("Фото в переписке не принято: неподдерживаемый формат или размер")
+            return None
+
+    async def _remember(self, event: TelegramObject, data: dict[str, Any]) -> None:
+        chat = getattr(event, "chat", None)
+        user = getattr(event, "from_user", None)
+        if user is None or getattr(chat, "type", None) != "private":
+            return
+        text = ((getattr(event, "text", None) or getattr(event, "caption", None)) or "").strip()
+        has_photo = bool(getattr(event, "photo", None))
+        if not text and not has_photo:
+            return
+        if text.startswith("/"):
+            return
+        image_path = await self._download_photo(event, data)
+        await self._db.record_dialogue_message(
+            int(user.id), "in", text[: self._max_length] or None,
+            now=time.time(), telegram_message_id=getattr(event, "message_id", None),
+            image_path=image_path,
+        )
+
+
+def setup_middlewares(dp, db=None, media_dir=None) -> None:
     """Порядок важен: сначала отбраковка мусорных апдейтов, затем троттлинг,
     и только потом — перехват ошибок вокруг самого обработчика."""
     for observer in (dp.message, dp.callback_query):
@@ -281,3 +370,5 @@ def setup_middlewares(dp, db=None) -> None:
         profile = ProfileMiddleware(db)
         dp.message.middleware(profile)
         dp.callback_query.middleware(profile)
+        # Переписка владельца с людьми: только личные сообщения, только не команды.
+        dp.message.middleware(DialogueMiddleware(db, media_dir=media_dir))

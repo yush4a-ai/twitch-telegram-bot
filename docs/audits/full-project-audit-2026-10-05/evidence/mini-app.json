@@ -1,0 +1,176 @@
+﻿{
+  "area": "6. Mini App",
+  "readiness": 6,
+  "verdict": "почти готово",
+  "summary": "Mini App живёт в production (@worker-production-cee5): /app отдаёт оболочку 200 OK, все 30+ маршрутов /app/api/* требуют подписанный initData и проверяют его единым верификатором с HMAC-SHA256, окном auth_date и лимитом тела 8192 байта. Интерфейс аккуратно обрабатывает загрузку, пустые и ошибочные состояния, тексты про выключенную оплату честные, а весь DOM строится через textContent (ни одного innerHTML/eval). Готовность для бесплатного сценария высокая, но для реальных платящих пользователей мешают три вещи: приложение не умеет переавторизоваться после истечения 10-минутного initData и превращается в тупик, покупка Plus из Mini App технически невозможна (ответ успешного prepare игнорируется, инвойс Stars не открывается), а каждая загрузка тянет 2,36 МиБ картинок без кэша и адаптивных размеров. Сверх этого есть очередь доработок по устойчивости сети и доступности, поэтому к продажам внутри Mini App поверхность не готова, а к бесплатному запуску — почти.",
+  "findings": [
+    {
+      "id": "A6-001",
+      "title": "Все статические ассеты Mini App отдаются с Cache-Control: no-store — каждая загрузка снова качает 2,36 МиБ картинок",
+      "severity": "major",
+      "evidence": "bot/mini_app_web.py:65-73 — middleware app_headers ставит setdefault по SECURITY_HEADERS для всех путей, начинающихся с /app/, включая статику; bot/admin_web.py:22 — в SECURITY_HEADERS лежит \"Cache-Control\": \"no-store\". HTTP production (curl.exe -s -o NUL -D - https://worker-production-cee5.up.railway.app/app/plus-mascot.png): 'HTTP/1.1 200 OK / Cache-Control: no-store / Content-Length: 1650620' и отсутствуют ETag и Last-Modified; то же для /app/mascot-cutout.png (Content-Length: 820165), /app/app.css и /app/app.js. Сумма: Get-ChildItem bot\\mini_app_ui\\*.png | Measure-Object Length -Sum -> 2 470 785 байт (2,36 МиБ). Сжатие текста включено (Content-Encoding: gzip на /app/app.css), картинки идут как есть.",
+      "impact": "И Telegram iOS, и Telegram Android, и Telegram Web при каждом открытии Mini App (и при каждом пересоздании WebView) полностью перезакачивают оболочку и картинки: 2,36 МиБ на открытие по мобильному трафику. Пользователь видит задержку перед первым экраном, владелец платит за исходящий трафик Railway.",
+      "recommendation": "Не распространять no-store на версионированные статические ассеты: для /app/{app.css,*.js,*.png} отдавать 'Cache-Control: public, max-age=31536000, immutable' и добавить версионный параметр в ссылки index.html (?v=<hash>), либо хотя бы 'public, max-age=86400' + ETag/Last-Modified для PNG. no-store оставить только для HTML-оболочки и /app/api/*.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-002",
+      "title": "Маскот-картинки 1254×1254 px весом 1,65 МБ и 0,82 МБ показываются в 112–180 px и грузятся без lazy-loading",
+      "severity": "major",
+      "evidence": "Размеры из PNG IHDR: bot/mini_app_ui/plus-mascot.png — 1254×1254, 1 650 620 байт; bot/mini_app_ui/mascot-cutout.png — 1254×1254, 820 165 байт. Места показа: bot/mini_app_ui/viewer.js:100 (home-mascot, width=168, без loading=\"lazy\"), bot/mini_app_ui/profile.js:25 (profile-mascot, width=112), bot/mini_app_ui/subscription.js:142 (plus-mascot, width=180, только decoding=async). Единственный loading=\"lazy\" во всём UI — bot/mini_app_ui/components.js:17 (аватары). HTTP production подтверждает отдачу полного размера: Content-Length: 820165 за /app/mascot-cutout.png.",
+      "impact": "На главном экране сразу после входа скачивается 820 КБ ради декоративной картинки 168×168 CSS px (при DPR 3 нужно 504 px — четырёхкратный запас по каждой стороне), а на вкладке «Тариф» ещё 1,65 МБ. На медленном мобильном канале это главный вклад в задержку и расход трафика, при этом визуально картинка не улучшается.",
+      "recommendation": "Пересобрать оба маскота в 512×512 (достаточно для DPR 3 при 168 px) и отдавать WebP/AVIF с fallback PNG; в разметке указать loading=\"lazy\" (для plus-mascot — loading=\"lazy\" он вне первого экрана) и srcset/sizes; проверить, что прозрачность маски mask-image не требует PNG.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-003",
+      "title": "Нет ни одного пути переавторизации: initData живёт 10 минут, а приложение делает bootstrap один раз и никогда не перезагружается",
+      "severity": "critical",
+      "evidence": "bot/telegram_identity.py:15-19 — _fresh пропускает только auth_date в окне -60..600 секунд; bot/mini_app_ui/app.js:130-131 — bootstrap() выходит сразу, если session уже есть (if(disposed||bootstrapPending||session||!telegram.initData)return); bot/mini_app_ui/app.js:161-164 — единственный вызов bootstrap на загрузке страницы. Команда: Select-String -Path bot\\mini_app_ui\\*.js,*.html -Pattern 'location\\.reload' -> matches=0; 'navigator\\.onLine' -> matches=0. Ошибки 401/403 обрабатываются как тупик с текстом: bot/mini_app_ui/viewer.js:75-77 'Время входа истекло. Откройте приложение из чата бота.', bot/mini_app_ui/app.js:152-153 то же для входа.",
+      "impact": "Любой экземпляр Mini App, проживший больше 10 минут (Telegram Desktop и мобильные клиенты держат WebView живым при переключении чатов; приложение само вызывает requestFullscreen и допускает сворачивание), теряет доступ: каждое действие отвечает 401/403, а пользователю предлагается 'открыть приложение заново из чата' — то есть закрыть и снова нажать кнопку в боте. Все несохранённые правки и переходы теряются, приложение выглядит сломанным.",
+      "recommendation": "Обрабатывать 401/403 централизованно в api.js: при первом же ответе 401/403 показывать полноэкранный экран 'Сессия истекла' с автообновлением страницы (location.reload() один раз, с защитой от цикла) — Telegram выдаст свежий initData; плюс периодически перепроверять сессию (например, раз в 5 минут по visibilitychange) и не считать сессию вечной; опционально — серверная короткоживущая cookie-сессия вместо повторной проверки initData.",
+      "confidence": "требует проверки"
+    },
+    {
+      "id": "A6-004",
+      "title": "Покупка Plus из Mini App невозможна: результат успешного prepare выбрасывается, после await безусловно ставится ошибка, инвойс Stars и ссылка на оплату не открываются",
+      "severity": "critical",
+      "evidence": "bot/mini_app_ui/purchase.js:24-25 — 'await api.post(\"/app/api/purchase/prepare\", ...)' без сохранения результата, сразу следующей строкой 'current.message=\"Не удалось получить статус оплаты. Попробуйте ещё раз.\";current.failed=true;' — то есть при любом 2xx пользователь видит ошибку; в файле нет ни openLink, ни openInvoice, ни перехода по payment_url. bot/mini_app_ui/telegram.js:53-111 — в адаптере есть openLink/openTelegramLink/requestWriteAccess/requestChat, но нет openInvoice (Select-String 'openInvoice' по bot\\mini_app_ui -> matches=0). bot/mini_app_billing.py:63-65 — сегодня prepare всегда отвечает 503 с BillingService.public_purchase, поэтому ветка 2xx недостижима; bot/billing.py:38 возвращает {'state':'unavailable','message':...,'payment_request_created':False}, и purchase.js:27 её корректно показывает. bot/plan_catalog.py:55-58 — у продуктов xtr=None, то есть способ 'stars' структурно неготов (plan_catalog.py:111-112 требует xtr и allow_invoice).",
+      "impact": "Сегодня вреда нет: сервер честно отвечает 'Оплата временно недоступна', и UI это показывает. Но в момент включения денег ключевой сценарий продажи Plus внутри Mini App не сработает: пользователь увидит 'Не удалось получить статус оплаты' даже при созданном платеже, а перейти к оплате (Telegram Stars invoice или внешний провайдер) будет физически нечем — то есть включать оплату нельзя до доработки фронтенда и до появления xtr-цены для Stars.",
+      "recommendation": "В purchase.js использовать результат prepare: при payment_url для Telegram Stars вызывать telegram.openInvoice(url, cb) (добавить метод в адаптер рядом с requestWriteAccess), для внешнего провайдера — openLink(payment_url) с возвратом на экран purchase-order; строку с сообщением об ошибке перенести в catch (или ставить её только при неуспехе). Перед включением оплаты задать xtr-цену продукта и закрыть period_rule/refund_policy (см. A6-012), иначе checkout_readiness всё равно вернёт disabled.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-005",
+      "title": "У основных загрузок и части мутаций нет таймаута и abort — экран может навсегда остаться в «Загружаем…», а кнопки — в заблокированном состоянии",
+      "severity": "major",
+      "evidence": "Без signal/таймаута: bot/mini_app_ui/viewer.js:72 (api.post('/app/api/viewer/state')) — от него зависит весь экран Зрителя; bot/mini_app_ui/profile.js:10 (subscription/state); bot/mini_app_ui/reports.js:10-14 (controller создан, но setTimeout с abort отсутствует); bot/mini_app_ui/streamer.js:127,140,172,188,200,211,235; bot/mini_app_ui/streamer_posts.js:65,79; мутации bot/mini_app_ui/viewer.js:145,161,170,219. Для контраста таймаут 5 с есть у app.js:134, purchase.js:12, subscription.js:21, support.js:33. Кнопки блокируются так: bot/mini_app_ui/components.js:26-30 — 'button.setAttribute('aria-disabled','true')' и снятие только в then/catch обещания; bot/mini_app_ui/viewer.js:143,153 — star.disabled=true до завершения запроса. Повторная загрузка не запускается, пока loading=true (viewer.js:63 'if (loading&&!fresh) return pendingLoad').",
+      "impact": "На нестабильной мобильной сети запрос без таймаута может висеть минутами или не завершиться: пользователь видит вечный статус «Загружаем подписки…» без кнопки «Повторить» (она появляется только при ошибке, viewer.js:1206-1209), а нажатая мутация (избранное, уведомления, удаление) оставляет контрол неактивным без объяснения. Единственный выход — закрыть и открыть приложение.",
+      "recommendation": "Дать createApi.post единый таймаут через AbortSignal.timeout(10000) по умолчанию (с возможностью переопределить), чтобы правило действовало и для новых вызовов; в action() снимать aria-disabled по таймауту (например, через Promise.race с 15 с) и показывать «Нет ответа, повторите»; для viewer/state при срабатывании таймаута оставлять кнопку «Повторить загрузку» и понятный текст.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-006",
+      "title": "Вход обрывается жёстко через 5 секунд, а после возврата связи нет ни одного автоматического повтора",
+      "severity": "minor",
+      "evidence": "bot/mini_app_ui/app.js:134 'const timer=setTimeout(()=>controller.abort(),5000);' — при срабатывании показывается 'Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.' (app.js:152-154) с кнопкой «Повторить вход» (app.js:98). Обработчиков сети нет: Select-String по bot\\mini_app_ui -Pattern 'navigator\\.onLine' -> matches=0, 'addEventListener\\(.online' -> matches=0. Перезагрузка данных происходит только по visibilitychange (viewer.js:82-85, subscription.js:124-125, purchase.js:57-58) и по устареванию >30 с (viewer.js:1202).",
+      "impact": "При холодном старте контейнера Railway или на медленном канале первый запрос может не уложиться в 5 секунд, хотя сервис работает: пользователь получает ошибку и вынужден жать «Повторить вход». После пропадания и возврата связи приложение не обновляется само — данные остаются устаревшими до ручного перехода по экранам.",
+      "recommendation": "Увеличить таймаут bootstrap до 15 с (или делать 2 попытки: 5 с и 15 с) и добавить один обработчик window.addEventListener('online', ...), который вызывает bootstrap()/router.refresh() всех активных фич.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-007",
+      "title": "/app/api/viewer/state делает отдельный запрос к БД на каждую подписку (до 200) и не ограничен по частоте",
+      "severity": "minor",
+      "evidence": "bot/mini_app_viewer.py:240-281 — список subscriptions строится включением, внутри которого для каждой строки вызывается await video_delivery_status(...) (mini_app_viewer.py:250-253), а она делает 'post = await db.get_live_post_state(user_id, login)' (mini_app_viewer.py:197); bot/database.py:3781-3791 — это отдельный SELECT по tracked_channels на каждый вызов. Клиент вызывает состояние при каждом показе и возврате: bot/mini_app_ui/viewer.js:83 (visibilitychange -> load()) и viewer.js:1202 ('Date.now()-lastLoadedAt>30000' -> load()). Ограничитель частоты есть только у поиска: bot/mini_app_viewer.py:168 и 469+ (search_times), у state/follow/notify его нет.",
+      "impact": "У подписчика Plus с 200 стримерами одно открытие Mini App даёт 200+ последовательных запросов к SQLite через общее соединение с фоновым поллером; на слабом инстансе это добавляет заметную задержку первому экрану, а отсутствие лимита позволяет клиенту вызывать тяжёлый state бесконечно. При нынешней базе пользователей эффект мал, но он растёт вместе с лимитом Plus.",
+      "recommendation": "Собрать состояние постов одним запросом (SELECT ... WHERE chat_id=? AND twitch_login IN (...) и разложить в словарь) вместо N вызовов; для /app/api/viewer/state добавить простой лимит на пользователя (например, не чаще 1 раза в 2-3 секунды с ответом 429) и не перезагружать состояние, если с последней загрузки прошло меньше минуты и вкладка не менялась.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-008",
+      "title": "Легаси-страница /viewer отдаётся с X-Frame-Options: DENY и без frame-ancestors — в Telegram Web её iframe не откроется",
+      "severity": "minor",
+      "evidence": "bot/viewer_web.py:31-37 — middleware viewer_headers ставит все SECURITY_HEADERS через setdefault, включая 'X-Frame-Options: DENY' (bot/admin_web.py:26), и CSP без frame-ancestors; в новом Mini App это исправлено: bot/mini_app_web.py:68-72 пропускает X-Frame-Options для '/app' и mini_app_web.py:82-87 добавляет '; frame-ancestors https://web.telegram.org'. HTTP production: GET /viewer -> 'x-frame-options: DENY' и CSP без frame-ancestors; GET /app -> заголовка x-frame-options нет, CSP содержит 'frame-ancestors https://web.telegram.org'.",
+      "impact": "Пока PRODUCTION_PRODUCT_ENABLED=1, бот ведёт пользователей на /app (bot/handlers/streams.py:186, bot/telegram_ui.py:40-41 не показывает legacy-кнопку) — вреда нет. Но если Mini App выключат или пользователь откроет старую ссылку /viewer из истории, в Telegram Web (единственный клиент, рисующий Mini App в iframe) страница не отобразится вовсе, а на мобильных и Desktop откроется.",
+      "recommendation": "Привести viewer_web.py к тому же правилу, что и mini_app_web.py: не ставить X-Frame-Options для HTML-оболочки /viewer и добавить '; frame-ancestors https://web.telegram.org' в её CSP; для ассетов /viewer/* оставить DENY.",
+      "confidence": "требует проверки"
+    },
+    {
+      "id": "A6-009",
+      "title": "При открытии диалога фокус попадает на кнопку «Закрыть», а не в поле ввода",
+      "severity": "minor",
+      "evidence": "bot/mini_app_ui/components.js:74-80: header.append(label,dismiss) — dismiss (иконка «Закрыть») добавлена в DOM раньше всего содержимого, затем вызывается overlay.showModal() без autofocus и без явного focus(); единственное управление фокусом — ручной trap по Tab (components.js:76-80) и возврат фокуса на origin при закрытии (components.js:73). Поле ввода создаётся позже внутри buildContent (например, bot/mini_app_ui/viewer.js:328 — input в диалоге «Добавить стримера»).",
+      "impact": "При открытии «Добавить стримера» и других диалогов с полем ввода пользователь получает сфокусированной кнопку «Закрыть»: клавиатура на телефоне не поднимается, приходится делать лишнее касание, а пользователи клавиатуры и скринридеров начинают с неверного элемента. Особенно мешает в единственном сценарии первого добавления стримера.",
+      "recommendation": "В dialog() принимать параметр initialFocus и вызывать focus() на нём после showModal(); для диалога поиска передавать input, для остальных — первый интерактивный элемент содержимого. Проверить поведение на реальном устройстве (см. unverifiable).",
+      "confidence": "требует проверки"
+    },
+    {
+      "id": "A6-010",
+      "title": "Удаление подписки свайпом недоступно с клавиатуры и никак не подсказано",
+      "severity": "minor",
+      "evidence": "bot/mini_app_ui/viewer.js:187 — setOpen(false) выставляет 'remove.tabIndex = value?0:-1', то есть в закрытом состоянии кнопка «Удалить» исключена из порядка табуляции; открыть свайп можно только указателем: обработчики pointerdown/pointermove/pointerup (viewer.js:189-208), клавиатурой обрабатывается лишь Escape (viewer.js:210). Альтернативный путь есть: bot/mini_app_ui/viewer.js:462-469 — кнопка «Удалить подписку» в карточке стримера с подтверждением через showConfirm.",
+      "impact": "Пользователь клавиатуры, переключателя доступа или скринридера не может удалить подписку из списка и должен сначала открыть карточку стримера. Жест при этом нигде не объяснён — новичок не знает, что строка сдвигается влево, и ищет кнопку удаления.",
+      "recommendation": "Оставить tabIndex=0 для кнопки удаления всегда (визуально она скрыта до свайпа), либо добавить в карточку строки пункт «Удалить» в меню по долгому нажатию, а под списком — короткую подсказку «Сдвиньте строку влево, чтобы удалить» с возможностью закрыть.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-011",
+      "title": "По умолчанию приложение всегда светлое и не следует тёмной теме Telegram",
+      "severity": "minor",
+      "evidence": "bot/mini_app_ui/theme.js:59-60 — 'let choice=\\'light\\'' и чтение сохранённого выбора только из localStorage; bot/mini_app_ui/index.html:2 — <html lang=\"ru\" data-theme=\"light\">, index.html:6 — <meta name=\"color-scheme\" content=\"light\">; тема Telegram применяется лишь при явном выборе, theme.js:64-65 (choice==='telegram'); выбор доступен только в Профиле (bot/mini_app_ui/profile.js:3,29-31). Решение осознанное — комментарий theme.js:1 'Semantic tokens from the accepted A palette; Telegram is an explicit choice'.",
+      "impact": "Пользователь с тёмной темой Telegram при первом входе получает светлый экран на весь экран (после requestFullscreen — действительно весь), что режет глаза в тёмной комнате и расходится с ожиданием от Mini App; чтобы это исправить, надо найти «Профиль» -> «Тема приложения» -> «Telegram». Тёмная и светлая темы при этом проработаны (theme.js:2-11, пересчёт контраста theme.js:26-45).",
+      "recommendation": "Сделать значением по умолчанию 'telegram' (первый запуск следует теме клиента), оставив явные «Светлая»/«Тёмная» как выбор; при отсутствии themeParams поведение уже корректно падает на светлую палитру.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-012",
+      "title": "Экран тарифа обещает «1 месяц», хотя серверный каталог держит срок неутверждённым и отклонит оплату по причине period_unapproved",
+      "severity": "minor",
+      "evidence": "bot/plan_catalog.py:55-58 — ProductSnapshot(..., \"one_month\", \"unapproved\", None, False, ...) и period_rule='unapproved'; bot/plan_catalog.py:107-108 — 'if not policy.period_approved or product.period_rule == \"unapproved\": return CheckoutReadiness(False, \"period_unapproved\")'; bot/mini_app_ui/subscription.js:150 и purchase.js:70 показывают '1 месяц. Без автопродления.'. Противоречие зафиксировано тестом: tests/test_mini_app_user_copy.py:65-68 проверяет period_label='1 месяц' и period_rule='unapproved' одновременно.",
+      "impact": "Пользователь видит конкретный срок подписки и цену (150/300 ₽), а система считает этот срок неутверждённым: даже при включённых платежах оформление будет отклонено с reason_code='period_unapproved', то есть обещание срока не подкреплено продуктом. Для честности текстов до покупки срок и политику возврата нужно либо утвердить в каталоге, либо не показывать как факт.",
+      "recommendation": "До включения оплаты утвердить срок (period_rule/period_rule_version) и refund_policy_approved в каталоге и в юридических документах, синхронно обновив тест test_mini_app_user_copy.py:65-68; до утверждения оставить в UI нейтральную формулировку без гарантии конкретного срока.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-013",
+      "title": "Собственный браузерный QA-гейт Mini App не воспроизводится: playwright-core не установлен, CI запускает только pytest",
+      "severity": "minor",
+      "evidence": "scripts/mini_app_redesign_matrix_qa.cjs:124 — require.resolve('playwright-core/package.json'); команда node -e \"require.resolve('playwright-core/package.json')\" -> 'NOT RESOLVABLE: MODULE_NOT_FOUND'; в корне репозитория нет package.json и node_modules (Test-Path -> False для обоих), .gitignore не содержит правил про node_modules; .github/workflows/tests.yml:28-35 устанавливает только requirements.txt и pytest и запускает 'python -m pytest tests -q -p no:cacheprovider'. Тестовый сторож scripts/..: tests/test_mini_app_browser_qa_guard.py:12 требует node и проверяет сам watchdog, а не сам прогон браузера.",
+      "impact": "Заявления о проверке 360/390/430/768/1440 px, четырёх тем, контраста ≥4.5 и тач-целей ≥44 px (scripts/mini_app_redesign_matrix_qa.cjs:10-11,44-52) нельзя перепроверить в текущем checkout: прогон падает до старта браузера, а CI его вообще не выполняет. Любой регресс в вёрстке и доступности Mini App проходит мимо автоматики, а ширина 320 px (узкие Android и iPhone SE) не покрыта даже в ручном матричном прогоне.",
+      "recommendation": "Зафиксировать playwright-core в package.json с точной версией и добавить шаг установки и прогона матрицы в .github/workflows/tests.yml (или отдельный workflow), а в матрицу добавить ширину 320 px и проверку горизонтального переполнения (document.scrollWidth <= innerWidth).",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-014",
+      "title": "HTML-оболочка /app отдаётся без X-Robots-Tag: noindex, в отличие от страниц документов",
+      "severity": "nit",
+      "evidence": "HTTP production GET /app: заголовки содержат Cache-Control: no-store, CSP, Referrer-Policy: no-referrer, X-Content-Type-Options: nosniff, но x-robots-tag отсутствует; при этом bot/legal_web.py:25-27 для /app/legal/* явно ставит 'X-Robots-Tag: noindex, nofollow' и Referrer-Policy: no-referrer.",
+      "impact": "Оболочка Mini App индексируема: в поиске может появиться страница с текстом «Откройте приложение из Telegram» и заголовком «Приложение · TwitchSignalBot». Вреда пользователю нет, но это мусор в выдаче и лишний вход для краулеров на публичный домен.",
+      "recommendation": "Добавить 'X-Robots-Tag: noindex, nofollow' для пути /app в middleware mini_app_web.py (ассеты — по желанию), как это уже сделано для документов.",
+      "confidence": "проверено"
+    },
+    {
+      "id": "A6-015",
+      "title": "В русском интерфейсе тариф Free показан англоязычной меткой без пояснения",
+      "severity": "nit",
+      "evidence": "bot/mini_app_ui/profile.js:21 — 'const active=state?.viewer.active||state?.streamer.active,product=state?.streamer.active?'Стример Plus':state?.viewer.active?'Зритель Plus':state?'Free':'Проверяем подписку…';'. Регулярное выражение копирайт-гейта (tests/test_mini_app_user_copy.py:13) запрещает demo/mock/prototype/staging, но слово Free не ловит.",
+      "impact": "Новичок видит в профиле «Free» и не понимает, бесплатный это тариф или англоязычная ошибка; рядом нигде не объяснено, что даёт бесплатный уровень (объяснение есть только внутри раскрывающегося блока «Что остаётся бесплатно» на экране тарифа, subscription.js:162-163).",
+      "recommendation": "Заменить метку на «Бесплатный» (или «Free — бесплатный тариф»), а в профиль рядом с планом добавить одну строку о том, что доступно бесплатно, со ссылкой на экран тарифа.",
+      "confidence": "проверено"
+    }
+  ],
+  "strengths": [
+    "Подпись initData проверяется строго и одинаково для всех маршрутов: HMAC-SHA256 с ключом WebAppData, hmac.compare_digest, отказ при дублировании ключей, окно auth_date -60..600 с, лимит тела 8192 байта (bot/telegram_identity.py:43-71, bot/mini_app_auth.py:21-39). Все /app/api/* используют единый verified_payload: bot/mini_app_viewer.py:210-214, bot/mini_app_streamer.py:58-60, bot/mini_app_streamer_plus.py:44-46, bot/mini_app_reports.py:30,49, bot/mini_app_billing.py:33-37, bot/legal_web.py:28-33. Живая проверка: curl -X POST -H 'Content-Type: application/json' -d '{}' https://worker-production-cee5.up.railway.app/app/api/bootstrap -> 'HTTP/1.1 401 Unauthorized' и тело {\"error\": \"unauthorized\"}.",
+    "В интерфейсе нет ни одного небезопасного DOM-стока: Select-String по bot/mini_app_ui -Pattern 'innerHTML|outerHTML|insertAdjacentHTML|eval\\(|new Function' -> matches=0; весь текст вставляется через textContent (bot/mini_app_ui/components.js:1-4), а юридические документы проходят через белый список тегов и проверку href (bot/mini_app_ui/support.js:6-26).",
+    "Состояния загрузки, пустоты и ошибок продуманы и честны: при потере связи показываются последние данные с явной пометкой ('Нет связи. Показываем последние загруженные данные.', bot/mini_app_ui/viewer.js:77), у ошибок есть «Повторить» (viewer.js:1206-1209, purchase.js:47,64, subscription.js:131, support.js:73), пустые состояния объясняют следующий шаг (viewer.js:103-105, 314, 317), а роли объявлены текстом в меню (bot/mini_app_ui/app.js:52).",
+    "Выключенная оплата показана без обмана: при недоступных методах кнопка называется «Способы оплаты» и рядом появляется 'Оформление пока недоступно' (bot/mini_app_ui/subscription.js:151-154, bot/mini_app_ui/purchase.js:71-74), а серверный текст PAYMENT_UNAVAILABLE_MESSAGE доходит до пользователя через 503 (bot/billing.py:28-38, bot/mini_app_ui/purchase.js:27). Цены и лимиты совпадают с каталогом: 150/300 ₽, Free 50 / Plus 200 стримеров, 5 видеослотов (bot/plan_catalog.py:8-11,55-58), что закреплено тестом tests/test_mini_app_user_copy.py:57-74.",
+    "Фокусная проверка Mini App проходит на текущем снимке: .venv\\Scripts\\python.exe -m pytest tests/test_mini_app_auth.py tests/test_mini_app_shell.py tests/test_mini_app_theme_assets.py tests/test_mini_app_browser_qa_guard.py -q -p no:cacheprovider -> '12 passed, 37 subtests passed in 5.96s'.",
+    "Нижняя навигация и возвраты сделаны как в Telegram: BackButton показывается только при непустом стеке и синхронизируется с открытыми диалогами (bot/mini_app_ui/app.js:41,93, bot/mini_app_ui/telegram.js:102-111), маршруты и позиция прокрутки/фокус восстанавливаются при возврате (bot/mini_app_ui/router.js:12-39), safe-area учитывается и не удваивается с env() (bot/mini_app_ui/telegram.js:38-52, bot/mini_app_ui/app.css:16-19,30,112,144)."
+  ],
+  "unverifiable": [
+    "Реальные клиенты Telegram (iOS, Android, Desktop) — нельзя проверить safe-area, поведение BackButton/сворачивания во весь экран (requestFullscreen вызывается без disableVerticalSwipes, bot/mini_app_ui/telegram.js:34) и жизненный цикл WebView, от которого зависит серьёзность A6-003.",
+    "Скринридеры (VoiceOver, TalkBack, NVDA) и реальный порядок фокуса — недоступны в этой среде; A6-009 оценивался по коду и спецификации showModal, нужна проверка на устройстве.",
+    "Telegram Web (web.telegram.org): блокировка iframe для /viewer из-за X-Frame-Options: DENY (A6-008) подтверждена только по заголовкам ответа; сама отрисовка в iframe здесь не проверялась.",
+    "Реальная скорость и вес на мобильном канале (3G/4G), холодный старт контейнера Railway и фактический TTFB — измерены только размеры и заголовки ответов, без профилирования на устройстве.",
+    "Собственный браузерный гейт Mini App (ширины 320/360/390/430/768/1440, четыре темы, контраст, тач-цели) запустить нельзя: playwright-core не установлен (node -e require.resolve -> MODULE_NOT_FOUND) — поэтому горизонтальное переполнение и контраст на узких экранах в этом аудите не подтверждены независимо (см. A6-013).",
+    "Сравнение контуров production/staging невозможно: staging (https://worker-staging-2f74.up.railway.app) отвечает 'HTTP/1.1 404 Not Found' с 'x-railway-fallback: true' даже на /healthz (проверено 05.10.2026 ~11:55 UTC) — по решению владельца staging выключен.",
+    "Переменные окружения production (PRODUCTION_PRODUCT_ENABLED, BILLING_TEST_USER_IDS и др.) не читались; вывод о включённом Mini App сделан по факту ответа 200 на /app и отсутствию 404-фолбэка.",
+    "Фактическая платежная интеграция (Platega, Telegram Stars) — провайдер не подключён, проверялась только готовность кода."
+  ],
+  "newcomer_confusion": [
+    "Первый экран — переключатель «Зритель/Стример» без объяснения, кем является человек и что меняется. Пояснение есть, но спрятано в меню «⋯» в правом верхнем углу (bot/mini_app_ui/app.js:50-56), а его описание ролей видно только там же (app.js:52).",
+    "В нижней навигации постоянно есть «Тариф» с ценами 150 и 300 ₽, но купить нельзя: кнопка называется «Способы оплаты», следующий экран сообщает 'Оформление пока недоступно. Бесплатные функции работают.' (subscription.js:152-154, purchase.js:71-74). Новичок не понимает, платный сервис или нет, и не понимает, что он и так уже пользуется бесплатным тарифом на главном экране.",
+    "Тариф в профиле показан словом «Free» (profile.js:21) — непонятно, это бесплатный тариф, английская метка или ошибка; рядом нет ни объяснения, что входит в бесплатный уровень, ни подсказки, что «Тариф» внизу — это про платные возможности.",
+    "Не объяснено разделение: настройки живут в Mini App, а сами оповещения приходят в личный чат с ботом; строка «Оповещения в личном чате» (viewer.js:100) — единственная подсказка, и она выглядит как статус, а не как объяснение.",
+    "Пустой список стримеров: «Добавьте первого стримера» открывает поиск, где до 4 символов не происходит ничего (viewer.js:237) — новичок, вводящий короткий ник и не видящий реакции, решает, что поиск сломан.",
+    "Инструменты «Видео», «Папки», «Фильтры», «Категории», «Напоминание» у бесплатного пользователя внешне выглядят рабочими, но ведут на экран тарифа (viewer.js:309, 449-455) — воспринимается как поломка, потому что на кнопке нет пометки «Plus».",
+    "Удаление подписки спрятано в свайп влево без подсказки (viewer.js:182-188); новичок либо не находит удаление, либо случайно открывает его при горизонтальном скролле списка.",
+    "«История уведомлений» и «Мои операции» лежат внутри раскрывающихся блоков (profile.js:35, subscription.js:164-167) — на телефоне их легко не заметить, а именно ими проверяют, что уведомления вообще приходили.",
+    "Текст ошибки при истечении сессии — «Время входа истекло. Откройте приложение заново из чата бота» (viewer.js:76): непонятно, как «открыть заново» — что нужно закрыть Mini App и нажать кнопку приложения в переписке с ботом, нигде не сказано; в этот момент приложение выглядит сломанным (см. A6-003)."
+  ],
+  "top_blockers": [
+    "A6-004",
+    "A6-003"
+  ]
+}

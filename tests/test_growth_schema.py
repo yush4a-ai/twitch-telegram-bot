@@ -26,6 +26,8 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                         [
                             "admin_001_profiles",
                             "admin_002_known_people",
+                            "admin_003_broadcasts_and_dialogues",
+                            "admin_004_broadcast_leases",
                             "mini_001_viewer_preferences",
                             "mini_002_category_alerts",
                             "mini_003_category_delivery",

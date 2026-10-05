@@ -18,7 +18,10 @@ from .streamer_community import verify_community_permission
 _UI_DIR = Path(__file__).with_name("streamer_ui")
 
 
-def _login_page(username: str, callback_url: str) -> str:
+def _login_page(username: str, callback_url: str, environment: str = "") -> str:
+    # Метка окружения приходит из конфигурации: раньше здесь было жёстко вписано
+    # «staging», и это показывалось даже на боевом контуре.
+    label = "TwitchSignalBot" + (f" · {environment}" if environment else "")
     widget = (
         '<script async src="https://telegram.org/js/telegram-widget.js?22" '
         f'data-telegram-login="{escape(username, quote=True)}" data-size="large" '
@@ -30,10 +33,10 @@ def _login_page(username: str, callback_url: str) -> str:
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         '<title>Кабинет стримера · TwitchSignalBot</title>'
         '<link rel="stylesheet" href="/streamer/login.css"></head><body>'
-        '<main class="entry"><p class="eyebrow">TwitchSignalBot · staging</p>'
+        '<main class="entry"><p class="eyebrow">' + escape(label) + '</p>'
         '<h1>Кабинет стримера</h1>'
-        '<p>Сначала подключи Twitch через /streamer_connect в личном чате с ботом. '
-        'Затем войди с тем же Telegram-аккаунтом.</p>'
+        '<p>Сначала подключите Twitch через /streamer_connect в личном чате с ботом. '
+        'Затем войдите с тем же Telegram-аккаунтом.</p>'
         f'{widget}'
         '<script src="https://telegram.org/js/telegram-web-app.js?63" defer></script>'
         '<script src="/streamer/login.js" defer></script>'
@@ -41,7 +44,8 @@ def _login_page(username: str, callback_url: str) -> str:
     )
 
 
-def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Database, bot=None) -> None:
+def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Database, bot=None, *,
+                            environment: str = "") -> None:
     if not access.enabled:
         return
 
@@ -68,8 +72,13 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
 
     async def index(request: web.Request) -> web.Response:
         if _user(request) is not None:
+            # Метка окружения подставляется из конфигурации: без неё в разметке
+            # осталось бы чужое слово «staging» на боевом контуре.
+            suffix = f" · {environment}" if environment else ""
             return web.Response(
-                text=(_UI_DIR / "index.html").read_text(encoding="utf-8"),
+                text=(_UI_DIR / "index.html").read_text(encoding="utf-8").replace(
+                    "{{environment}}", escape(suffix)
+                ),
                 content_type="text/html",
             )
         state = access.new_login_state(request.remote or '', request.cookies.get('ts_streamer_state'))
@@ -80,7 +89,7 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             f"/streamer/telegram-login?state={state}"
         )
         response = web.Response(
-            text=_login_page(access.bot_username, callback_url), content_type="text/html",
+            text=_login_page(access.bot_username, callback_url, environment), content_type="text/html",
         )
         response.set_cookie(
             "ts_streamer_state", state, path="/streamer", max_age=300,

@@ -68,7 +68,7 @@ async def _run_auth_flow(
             oauth_state=parse_qs(urlsplit(url).query).get('state',[None])[0]
             await state.update_data(legacy_oauth_state=oauth_state)
         await message.answer(
-            "Перейди по ссылке, войди в свой Twitch-аккаунт и разреши доступ — после этого "
+            "Перейди по ссылке, войди в свой Twitch-аккаунт и разреши доступ. После этого "
             f"бот сможет считать число новых фолловеров (ссылка активна 5 минут):\n{url}"
         )
 

@@ -44,7 +44,7 @@ async def cb_streamer(callback,db,config=None,state=None,oauth_server=None):
 async def cb_streamer_benefits(callback):
     if not await private_callback(callback): return
     await edit_menu(callback.message,"<b>Публикации о твоих эфирах</b>\n\n<b>Без покупки</b>\n"
-        "<blockquote>Подключи Twitch и Telegram-канал — бот сможет публиковать сообщения о начале твоих эфиров.\n"
+        "<blockquote>Подключи Twitch и Telegram-канал: бот сможет публиковать сообщения о начале твоих эфиров.\n"
         "Бесплатное подключение доступно без Plus.</blockquote>\n\n<b>Стример Plus</b>\n"
         "Видео, свой текст, кнопки, варианты оформления и статистика.",
         reply_markup=back_keyboard('menu:streamer'))

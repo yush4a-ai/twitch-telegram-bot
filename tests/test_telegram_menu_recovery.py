@@ -187,7 +187,7 @@ class MenuRecoveryTests(unittest.IsolatedAsyncioTestCase):
         await ErrorGuardMiddleware()(live_handler,callback,{'state':self.state})
         caption=next(m.caption for m in reversed(self.transport.calls) if m.__api_method__=='editMessageCaption')
         self.assertIn('alpha',caption); self.assertNotIn('other_private',caption)
-        self.assertIn('В эфире — 1',caption)
+        self.assertIn('В эфире: 1',caption)
         self.assertEqual(len(self.keyboards()),before+1); self.assert_menu(self.keyboards()[-1])
         await ErrorGuardMiddleware()(live_handler,callback,{'state':self.state})
         self.assertEqual(len(self.keyboards()),before+1)
