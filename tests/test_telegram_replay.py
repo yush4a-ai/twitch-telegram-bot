@@ -14,6 +14,40 @@ def ordinary(uid, text='/start'):
         'from': {'id': 101, 'is_bot': False, 'first_name': 'A'}, 'text': text}})
 
 
+class UpdateKindTests(unittest.TestCase):
+    def test_kind_names_what_telegram_sent(self):
+        from bot.telegram_replay import update_kind
+
+        self.assertEqual(update_kind(ordinary(1)), 'message')
+        callback = Update.model_validate({
+            'update_id': 2,
+            'callback_query': {
+                'id': 'c', 'chat_instance': 'i',
+                'from': {'id': 101, 'is_bot': False, 'first_name': 'A'},
+                'data': 'menu',
+            },
+        })
+        self.assertEqual(update_kind(callback), 'callback_query')
+
+    def test_payment_stays_financial(self):
+        from bot.telegram_replay import update_kind
+
+        payment = Update.model_validate({
+            'update_id': 3,
+            'message': {
+                'message_id': 3, 'date': 1700000000,
+                'chat': {'id': 101, 'type': 'private'},
+                'from': {'id': 101, 'is_bot': False, 'first_name': 'A'},
+                'successful_payment': {
+                    'currency': 'XTR', 'total_amount': 150,
+                    'invoice_payload': 'p', 'telegram_payment_charge_id': 'c',
+                    'provider_payment_charge_id': 'pr',
+                },
+            },
+        })
+        self.assertEqual(update_kind(payment), 'financial')
+
+
 class ReplayTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()

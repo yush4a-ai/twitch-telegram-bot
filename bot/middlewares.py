@@ -349,6 +349,12 @@ class DialogueMiddleware(BaseMiddleware):
         chat = getattr(event, "chat", None)
         user = getattr(event, "from_user", None)
         if user is None or getattr(chat, "type", None) != "private":
+            # Видно, какие обновления не попали в переписку и почему.
+            logger.info(
+                "Переписка: пропуск %s (чат %s, автор %s)",
+                type(event).__name__, getattr(chat, "type", None),
+                "есть" if user is not None else "нет",
+            )
             return
         text = ((getattr(event, "text", None) or getattr(event, "caption", None)) or "").strip()
         attachment = self._attachment_of(event)
@@ -383,5 +389,10 @@ def setup_middlewares(dp, db=None, media_dir=None) -> None:
         profile = ProfileMiddleware(db)
         dp.message.middleware(profile)
         dp.callback_query.middleware(profile)
-        # Переписка владельца с людьми: только личные сообщения, только не команды.
-        dp.message.middleware(DialogueMiddleware(db, media_dir=media_dir))
+        # Переписка владельца с людьми. Telegram шлёт сообщения разными
+        # обновлениями (обычные, бизнес- и гостевые): без этого часть людей
+        # выглядела молчащей, хотя они писали.
+        for observer_name in ("message", "business_message", "guest_message"):
+            observer = getattr(dp, observer_name, None)
+            if observer is not None:
+                observer.middleware(DialogueMiddleware(db, media_dir=media_dir))

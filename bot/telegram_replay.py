@@ -10,10 +10,16 @@ from aiogram.types import Update
 
 
 def update_kind(update):
-    message = update.message
+    """Вид обновления: по нему видно, что именно прислал Telegram.
+
+    Раньше всё, кроме платежей, помечалось словом «ordinary», и по журналу
+    нельзя было понять, почему сообщение человека не попало в переписку.
+    """
+    message = update.message or update.business_message
     if message is not None and (message.successful_payment or message.refunded_payment):
         return 'financial'
-    return 'ordinary'
+    fields = sorted(name for name in update.model_fields_set if name != 'update_id')
+    return fields[0] if fields else 'unknown'
 
 
 class ReplayDispatcher(Dispatcher):

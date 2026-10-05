@@ -32,7 +32,7 @@ _UI_DIR = Path(__file__).with_name("admin_ui")
 
 def _environment_note() -> str:
     label = environment_label().strip()
-    return f"TwitchSignalBot · окружение {label.upper()}" if label else "TwitchSignalBot · панель владельца"
+    return f"Twitch Signal · окружение {label.upper()}" if label else "Twitch Signal · панель владельца"
 
 
 def _login_page(error: str = "", *, emergency: bool = False, username: str = "", callback_url: str = "") -> str:
@@ -74,10 +74,10 @@ def _login_page(error: str = "", *, emergency: bool = False, username: str = "",
         '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         '<meta name="color-scheme" content="dark light">'
-        '<title>Вход · TwitchSignalBot</title>'
+        '<title>Вход · Twitch Signal</title>'
         '<link rel="stylesheet" href="/admin/login.css"></head>'
         '<body><main class="login"><div class="brand"><span class="brand-mark" aria-hidden="true"></span>'
-        '<span>TwitchSignal<span class="brand-bot">Bot</span></span></div>'
+        '<span>Twitch Signal</span></div>'
         '<h1>Вход в панель</h1><p>Панель доступна только владельцу.</p>'
         f'{login_html}'
         f'<p class="fine">{_environment_note()}</p></main></body></html>'

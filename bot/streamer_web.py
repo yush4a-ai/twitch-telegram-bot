@@ -21,7 +21,7 @@ _UI_DIR = Path(__file__).with_name("streamer_ui")
 def _login_page(username: str, callback_url: str, environment: str = "") -> str:
     # Метка окружения приходит из конфигурации: раньше здесь было жёстко вписано
     # «staging», и это показывалось даже на боевом контуре.
-    label = "TwitchSignalBot" + (f" · {environment}" if environment else "")
+    label = "Twitch Signal" + (f" · {environment}" if environment else "")
     widget = (
         '<script async src="https://telegram.org/js/telegram-widget.js?22" '
         f'data-telegram-login="{escape(username, quote=True)}" data-size="large" '
@@ -31,7 +31,7 @@ def _login_page(username: str, callback_url: str, environment: str = "") -> str:
     return (
         '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>Кабинет стримера · TwitchSignalBot</title>'
+        '<title>Кабинет стримера · Twitch Signal</title>'
         '<link rel="stylesheet" href="/streamer/login.css"></head><body>'
         '<main class="entry"><p class="eyebrow">' + escape(label) + '</p>'
         '<h1>Кабинет стримера</h1>'

@@ -160,5 +160,31 @@ class DialogueMiddlewareTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(handler.await_count, 1)
 
 
+class RegistrationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_conversation_listens_to_every_kind_of_message(self):
+        """Telegram шлёт сообщения разными обновлениями: слушаем все."""
+        from bot.middlewares import setup_middlewares
+
+        class Observer:
+            def __init__(self):
+                self.items = []
+
+            def middleware(self, mw):
+                self.items.append(mw)
+
+        class FakeDispatcher:
+            def __init__(self):
+                for name in ("message", "business_message", "guest_message",
+                             "callback_query"):
+                    setattr(self, name, Observer())
+
+        dp = FakeDispatcher()
+        setup_middlewares(dp, db=SimpleNamespace(), media_dir=None)
+        for name in ("message", "business_message", "guest_message"):
+            kinds = [type(mw).__name__ for mw in getattr(dp, name).items]
+            with self.subTest(observer=name):
+                self.assertIn("DialogueMiddleware", kinds)
+
+
 if __name__ == "__main__":
     unittest.main()
