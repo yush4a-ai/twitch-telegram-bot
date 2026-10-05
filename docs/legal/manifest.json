@@ -1,12 +1,12 @@
 {
-  "version": "2026-10-02-legal-v1",
+  "version": "2026-10-05-legal-v2",
   "documents": [
     {
       "id": "privacy",
       "filename": "PRIVACY-POLICY.md",
       "title": "Политика конфиденциальности",
-      "version": "2026-10-02-legal-v1",
-      "source_sha256": "c596f951805f4214254fa61ea8bd23d0bf37dcdbc72888cbaf7010a09801b824",
+      "version": "2026-10-05-legal-v2",
+      "source_sha256": "bc991672c66c4b1aff6c4196b47d07d60119cb697d83185604584835829a324a",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "operator",
@@ -14,7 +14,7 @@
         "retention",
         "support_contact"
       ],
-      "owner_accepted": false
+      "owner_accepted": true
     },
     {
       "id": "agreement",
@@ -30,7 +30,7 @@
         "refund_policy",
         "chargeback_policy"
       ],
-      "owner_accepted": false
+      "owner_accepted": true
     },
     {
       "id": "support",
@@ -42,7 +42,7 @@
       "required_owner_inputs": [
         "support_contact"
       ],
-      "owner_accepted": false
+      "owner_accepted": true
     },
     {
       "id": "tariffs",
@@ -52,7 +52,7 @@
       "source_sha256": "109eca3496cc14590e695c866c2b93c7246aacfaef6fdac34be67acb57c4a6ac",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [],
-      "owner_accepted": false
+      "owner_accepted": true
     },
     {
       "id": "payments",
@@ -66,7 +66,7 @@
         "refund_policy",
         "chargeback_policy"
       ],
-      "owner_accepted": false
+      "owner_accepted": true
     }
   ]
 }
