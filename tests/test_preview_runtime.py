@@ -371,6 +371,18 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(health["active_sessions"], 0)
         self.assertEqual(health["active_jobs"], 0)
 
+    async def test_health_snapshot_shows_the_limits_owner_sees_in_the_panel(self) -> None:
+        """Владельцу нужно видеть не только «сколько сейчас», но и потолок."""
+        await self.seed(101)
+        manager = self.manager(initial_delay=75)
+
+        await self.start_online(manager)
+
+        health = manager.health_snapshot()
+        self.assertGreaterEqual(health["max_active_sessions"], 1)
+        self.assertGreaterEqual(health["max_concurrent_jobs"], 1)
+        self.assertLessEqual(health["active_sessions"], health["max_active_sessions"])
+
     async def test_preview_disabled_destination_creates_no_session(self) -> None:
         await self.seed(101, preview=False)
         manager = self.manager()
@@ -1859,7 +1871,8 @@ class PreviewManagerSupervisionAndHealthTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             set(health),
             {
-                "enabled", "manager_running", "active_sessions", "deferred_sessions", "active_jobs",
+                "enabled", "manager_running", "active_sessions", "deferred_sessions",
+                "max_active_sessions", "max_concurrent_jobs", "active_jobs",
                 "consumer_tasks", "session_tasks", "job_tasks",
                 "latest_observation_age_seconds", "last_success_age_seconds",
                 "last_error", "consecutive_provider_failures", "disabled_reason",

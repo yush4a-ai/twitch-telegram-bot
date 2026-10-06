@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import pathlib
 import re
 import shutil
+import tempfile
 import time
 from collections.abc import Callable
 
@@ -13,6 +15,63 @@ from .audience_metrics import collect_audience, funnel as audience_funnel
 
 
 _SAFE_ERROR = re.compile(r"[A-Za-z_][A-Za-z0-9_.]{0,79}\Z")
+
+# Временные каталоги, куда превью пишет буферы, рендер и разбор кадров.
+PREVIEW_TEMP_PATTERNS = ("signalbot-preview", "twitch-signalbot-preview-*")
+
+
+def _directory_bytes(path: pathlib.Path, *, limit: float = 1.0) -> int:
+    """Размер каталога; обход ограничен по времени, чтобы не тормозить панель."""
+    total = 0
+    started = time.monotonic()
+    stack = [path]
+    while stack:
+        if time.monotonic() - started > limit:
+            break
+        current = stack.pop()
+        try:
+            entries = list(current.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            try:
+                if entry.is_dir() and not entry.is_symlink():
+                    stack.append(entry)
+                elif entry.is_file():
+                    total += entry.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def preview_disk_usage() -> dict[str, int] | None:
+    """Сколько места занимают временные файлы превью и сколько свободно.
+
+    Владельцу важно видеть это рядом с состоянием подсистемы: превью — самая
+    прожорливая часть бота, и упор в место выглядел как «превью сломалось».
+    """
+    root = pathlib.Path(tempfile.gettempdir())
+    try:
+        usage = shutil.disk_usage(root)
+    except OSError:
+        return None
+    used = 0
+    for pattern in PREVIEW_TEMP_PATTERNS:
+        try:
+            candidates = list(root.glob(pattern))
+        except OSError:
+            continue
+        for candidate in candidates:
+            try:
+                used += _directory_bytes(candidate)
+            except OSError:
+                # Сбой обхода не должен ломать снимок панели.
+                continue
+    return {
+        "free_bytes": int(usage.free),
+        "total_bytes": int(usage.total),
+        "preview_bytes": int(used),
+    }
 
 # Сколько проблем показываем владельцу на первом экране и с какого возраста
 # очереди считаем задержку заметной.
@@ -330,10 +389,16 @@ class AdminSnapshot:
             "preview": {
                 "state": preview_state,
                 "active_sessions": preview.get("active_sessions") if preview else None,
+                "deferred_sessions": preview.get("deferred_sessions") if preview else None,
+                "max_active_sessions": preview.get("max_active_sessions") if preview else None,
                 "active_jobs": preview.get("active_jobs") if preview else None,
+                "max_concurrent_jobs": preview.get("max_concurrent_jobs") if preview else None,
+                "consecutive_provider_failures": (
+                    preview.get("consecutive_provider_failures") if preview else None),
                 "latest_observation_age_seconds": preview.get("latest_observation_age_seconds") if preview else None,
                 "last_success_age_seconds": preview.get("last_success_age_seconds") if preview else None,
                 "disabled_reason": _error_class(preview.get("disabled_reason")) if preview else None,
+                "disk": preview_disk_usage(),
             },
             "audience": audience,
             "people": people,

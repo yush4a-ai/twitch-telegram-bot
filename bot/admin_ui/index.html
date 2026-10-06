@@ -356,6 +356,19 @@
               <p class="panel-text">Свежая копия не доказывает, что из неё можно восстановиться: отдельная проверка восстановления пока не выполняется.</p>
             </section>
           </div>
+          <section class="panel" aria-labelledby="preview-heading">
+            <div class="panel-head"><h2 id="preview-heading">Видеопревью</h2><span class="panel-note" id="preview-note">Пересчёт раз в 5 минут</span></div>
+            <dl class="detail-list">
+              <div><dt>Каналов в работе</dt><dd id="preview-active">Нет данных</dd></div>
+              <div><dt>Ждут очереди</dt><dd id="preview-deferred">Нет данных</dd></div>
+              <div><dt>Задач сейчас</dt><dd id="preview-jobs">Нет данных</dd></div>
+              <div><dt>Последнее превью</dt><dd id="preview-last">Нет данных</dd></div>
+              <div><dt>Сбоев подряд</dt><dd id="preview-failures">Нет данных</dd></div>
+              <div><dt>Временные файлы</dt><dd id="preview-temp">Нет данных</dd></div>
+              <div><dt>Свободно на диске</dt><dd id="preview-free">Нет данных</dd></div>
+            </dl>
+            <p class="panel-text">Канал получает видео, когда в записи нашёлся достаточно живой фрагмент. Если каналов больше лимита, они обновляются по кругу — это видно в строке «Ждут очереди».</p>
+          </section>
           <div class="split">
             <section class="panel" aria-labelledby="errors-heading">
               <div class="panel-head"><h2 id="errors-heading">Ошибки</h2><span class="panel-note">Только классы ошибок</span></div>

@@ -422,10 +422,64 @@ function renderAccess(access) {
   }
 }
 
+function humanBytes(raw) {
+  if (raw === null || raw === undefined || !Number.isFinite(Number(raw))) return 'Нет данных';
+  const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+  let size = Number(raw);
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) { size /= 1024; index += 1; }
+  return `${size >= 10 ? Math.round(size) : size.toFixed(1)} ${units[index]}`;
+}
+
+function humanAge(raw) {
+  if (raw === null || raw === undefined || !Number.isFinite(Number(raw))) return 'Нет данных';
+  const seconds = Number(raw);
+  if (seconds < 90) return 'только что';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) return `${minutes} мин назад`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 36) return `${hours} ч назад`;
+  return `${Math.round(hours / 24)} дн назад`;
+}
+
+function renderPreviewDetails(preview) {
+  const active = preview.active_sessions;
+  const limit = preview.max_active_sessions;
+  put('preview-active', active === null || active === undefined
+    ? 'Нет данных'
+    : (Number.isFinite(Number(limit)) && Number(limit) > 0
+      ? `${active} из ${limit}` : String(active)));
+  const deferred = preview.deferred_sessions;
+  put('preview-deferred', deferred === null || deferred === undefined
+    ? 'Нет данных'
+    : (Number(deferred) > 0 ? `${deferred} каналов` : 'никого'));
+  const jobs = preview.active_jobs;
+  const jobsLimit = preview.max_concurrent_jobs;
+  put('preview-jobs', jobs === null || jobs === undefined
+    ? 'Нет данных'
+    : (Number.isFinite(Number(jobsLimit)) && Number(jobsLimit) > 0
+      ? `${jobs} из ${jobsLimit}` : String(jobs)));
+  put('preview-last', humanAge(preview.last_success_age_seconds));
+  const failures = preview.consecutive_provider_failures;
+  put('preview-failures', failures === null || failures === undefined
+    ? 'Нет данных'
+    : (Number(failures) > 0 ? String(failures) : 'нет'));
+  const disk = preview.disk || {};
+  put('preview-temp', humanBytes(disk.preview_bytes));
+  put('preview-free', humanBytes(disk.free_bytes) === 'Нет данных'
+    ? 'Нет данных'
+    : `${humanBytes(disk.free_bytes)} из ${humanBytes(disk.total_bytes)}`);
+  const note = $('preview-note');
+  if (note && preview.disabled_reason) {
+    note.textContent = `Остановлено: ${preview.disabled_reason}`;
+  }
+}
+
 function renderSystem(data) {
   setState('system-telegram', (data.telegram || {}).state);
   setState('system-twitch', (data.twitch || {}).state);
   setState('system-preview', (data.preview || {}).state);
+  renderPreviewDetails(data.preview || {});
   // «Сбой» без причины бесполезен: показываем, сколько каналов отвалилось и кого просить.
   const twitch = data.twitch || {};
   const note = $('system-twitch-note');

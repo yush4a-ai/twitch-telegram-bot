@@ -153,6 +153,24 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         result = await self.build().collect()
         self.assertEqual(result["preview"]["last_success_age_seconds"], 5.0)
 
+    async def test_preview_monitor_shows_queue_limits_and_failures(self):
+        """Владелец должен видеть, сколько каналов ждёт очереди и каков потолок."""
+        self.preview.health_snapshot.return_value.update({
+            "deferred_sessions": 3,
+            "max_active_sessions": 8,
+            "max_concurrent_jobs": 4,
+            "consecutive_provider_failures": 2,
+        })
+
+        result = await self.build().collect()
+
+        preview = result["preview"]
+        self.assertEqual(preview["deferred_sessions"], 3)
+        self.assertEqual(preview["max_active_sessions"], 8)
+        self.assertEqual(preview["max_concurrent_jobs"], 4)
+        self.assertEqual(preview["consecutive_provider_failures"], 2)
+        self.assertIn("disk", preview)
+
     async def test_absent_preview_and_db_failure_do_not_hide_runtime(self):
         self.db.get_bot_stats.side_effect = RuntimeError("secret /data/bot.db")
         self.db.get_admin_live_streams.side_effect = RuntimeError("secret /data/bot.db")

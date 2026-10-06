@@ -237,6 +237,7 @@ class PreviewManager:
         self._clock = clock
         self._sleep = sleep
         self._artifact_semaphore = asyncio.Semaphore(max(1, int(max_concurrent_jobs)))
+        self._max_concurrent_jobs = max(1, int(max_concurrent_jobs))
         self._max_active_sessions = max(1, int(max_active_sessions))
         self._send_budget = send_budget
         self._admission_cursor = 0
@@ -334,6 +335,8 @@ class PreviewManager:
             "manager_running": self._running,
             "active_sessions": len(self._sessions),
             "deferred_sessions": self._deferred_sessions,
+            "max_active_sessions": self._max_active_sessions,
+            "max_concurrent_jobs": self._max_concurrent_jobs,
             "active_jobs": sum(
                 1
                 for record in self._sessions.values()

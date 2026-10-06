@@ -627,6 +627,12 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("startChatRefresh", script)
         self.assertIn("CHAT_REFRESH_MS", script)
         self.assertIn("requestSubmit()", script)
+        # Наблюдение за превью: видно очередь, потолки и расход места.
+        self.assertIn('id="preview-deferred"', html)
+        self.assertIn('id="preview-temp"', html)
+        self.assertIn('id="preview-free"', html)
+        self.assertIn("renderPreviewDetails", script)
+        self.assertIn("humanBytes", script)
         # Чат открывается прямой ссылкой #/campaigns/chat и сам выбирает диалог.
         self.assertIn("param === 'chat'", script)
         self.assertIn("const first = rows.find", script)
