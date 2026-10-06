@@ -129,10 +129,11 @@ class TelegramStarsProvider:
         hosted_url = None
         if callable(create_link):
             try:
+                # createInvoiceLink не принимает start_parameter (в отличие от
+                # sendInvoice): лишний аргумент ломал вызов ещё до Telegram.
                 link = await asyncio.wait_for(create_link(
                     title=title, description=description, payload=payload,
                     provider_token="", currency="XTR", prices=prices,
-                    start_parameter="subscription",
                 ), timeout=5)
             except asyncio.CancelledError:
                 raise

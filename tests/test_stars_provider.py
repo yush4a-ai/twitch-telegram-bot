@@ -56,6 +56,27 @@ class FakeSender:
         return True
 
 
+class LinkFakeSender(FakeSender):
+    """Отправитель с createInvoiceLink — как настоящий бот.
+
+    Сигнатура намеренно повторяет aiogram: ``start_parameter`` здесь не
+    принимается, и лишний аргумент ломал создание счёта ещё до Telegram.
+    """
+
+    def __init__(self, link="https://t.me/$fixture-invoice-link"):
+        super().__init__()
+        self.link = link
+        self.links = []
+
+    async def create_invoice_link(self, *, title, description, payload,
+                                  provider_token, currency, prices):
+        self.links.append({
+            "title": title, "description": description, "payload": payload,
+            "provider_token": provider_token, "currency": currency, "prices": prices,
+        })
+        return self.link
+
+
 class FakeSession(BaseSession):
     def __init__(self):
         super().__init__()
@@ -118,6 +139,20 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         attempt = await (await self.db.conn.execute("SELECT attempt_id FROM billing_payment_attempts WHERE order_id=?", (order.order_id,))).fetchone()
         payload = self.provider.invoice_payload(order.order_id, attempt[0])
         return order, payload
+
+    async def test_real_bot_invoice_link_is_created_without_start_parameter(self):
+        """Настоящий бот создаёт счёт ссылкой: лишний аргумент ломал оплату."""
+        sender = LinkFakeSender()
+        provider = TelegramStarsProvider(sender, POLICY)
+        service = self.make_service(provider=provider)
+
+        result = await service.prepare_payment(101, "viewer_plus", "stars", "link-key", now=100)
+
+        self.assertEqual(result.state, "pending")
+        self.assertEqual(result.hosted_url, sender.link)
+        self.assertEqual(len(sender.links), 1)
+        self.assertEqual(sender.links[0]["currency"], "XTR")
+        self.assertEqual(sender.invoices, [])
 
     async def test_xtr_tbd_disabled_runtime_and_client_paid_cannot_send_invoice_or_grant(self):
         for policy, catalog in ((first_release_payment_policy(), fixture_product), (POLICY, get_product)):
