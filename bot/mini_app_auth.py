@@ -2,36 +2,24 @@
 
 from __future__ import annotations
 
-import json
-
 from aiohttp import web
 
+from .request_body import bounded_json_object, json_content_type
 from .telegram_identity import VerifiedTelegramIdentity, verify_webapp_identity
 
 
-def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("duplicate Mini App field")
-        result[key] = value
-    return result
+# Тело запроса Mini App: подпись Telegram и несколько коротких полей.
+MAX_BODY_BYTES = 8192
 
 
 async def verified_identity_payload(
     request: web.Request, bot_token: str,
 ) -> tuple[VerifiedTelegramIdentity | None, dict[str, object] | None, int]:
-    if request.content_length is not None and request.content_length > 8192:
-        return None, None, 413
-    try:
-        raw = await request.text()
-        if len(raw.encode("utf-8")) > 8192:
-            return None, None, 413
-        values = json.loads(raw, object_pairs_hook=_unique_pairs)
-    except (UnicodeError, ValueError, TypeError):
-        return None, None, 400
-    if not isinstance(values, dict):
-        return None, None, 400
+    if not json_content_type(request):
+        return None, None, 415
+    values, status = await bounded_json_object(request, MAX_BODY_BYTES)
+    if status != 200 or values is None:
+        return None, None, status
     init_data = values.get("init_data")
     if not isinstance(init_data, str) or not init_data:
         return None, None, 401

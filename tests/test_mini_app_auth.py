@@ -90,6 +90,7 @@ class MiniAppAuthTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.post(
             self.base + "/app/api/bootstrap",
             data='{"init_data":"first","init_data":"second"}',
+            headers={"Content-Type": "application/json"},
         ) as response:
             self.assertEqual(response.status, 400)
 

@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import time
 from html import escape
 from pathlib import Path
 
 from aiohttp import web
 
-from .admin_web import SECURITY_HEADERS
+from .admin_web import SECURITY_HEADERS, security_headers
 from .database import Database
+from .request_body import bounded_json_object, json_content_type
 from .streamer_auth import StreamerAccess
 from .streamer_community import verify_community_permission
 
@@ -50,14 +50,14 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
         return
 
     @web.middleware
-    async def security_headers(request: web.Request, handler):
+    async def security_headers_middleware(request: web.Request, handler):
         response = await handler(request)
         if request.path.startswith("/streamer"):
-            for key, value in SECURITY_HEADERS.items():
+            for key, value in security_headers(request).items():
                 response.headers.setdefault(key, value)
         return response
 
-    app.middlewares.append(security_headers)
+    app.middlewares.append(security_headers_middleware)
 
     def _user(request: web.Request) -> int | None:
         return access.user_for_session(request.cookies.get("ts_streamer"))
@@ -215,12 +215,15 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
             return web.json_response({"error": "origin_denied"}, status=403)
         if await db.get_streamer_identity(user_id) is None:
             return web.json_response({"error": "not_linked"}, status=403)
+        if not json_content_type(request):
+            return web.json_response({"error": "invalid_content_type"}, status=415)
         try:
-            body = await request.read()
-            if len(body) > 2048:
+            payload, status = await bounded_json_object(request, limit=2048)
+            if status == 413:
                 return web.json_response({"error": "invalid_request"}, status=413)
-            payload = json.loads(body)
-            chat_id = payload.get("chat_id") if isinstance(payload, dict) else None
+            if status != 200 or payload is None:
+                return web.json_response({"error": "invalid_request"}, status=400)
+            chat_id = payload.get("chat_id")
             if type(chat_id) is not int or chat_id >= 0:
                 return web.json_response({"error": "invalid_chat"}, status=400)
         except (ValueError, UnicodeError):
@@ -285,13 +288,10 @@ def install_streamer_routes(app: web.Application, access: StreamerAccess, db: Da
         if request.content_type != "application/json":
             return web.json_response({"error": "invalid_content_type"}, status=415)
         try:
-            if request.content_length is not None and request.content_length > 4096:
+            payload, status = await bounded_json_object(request, limit=4096)
+            if status == 413:
                 return web.json_response({"error": "invalid_request"}, status=413)
-            body = await request.content.read(4097)
-            if len(body) > 4096:
-                return web.json_response({"error": "invalid_request"}, status=413)
-            payload = json.loads(body)
-            if not isinstance(payload, dict) or set(payload) != {
+            if status != 200 or payload is None or set(payload) != {
                 "version", "headline", "body", "buttons"
             }:
                 return web.json_response({"error": "invalid_request"}, status=400)

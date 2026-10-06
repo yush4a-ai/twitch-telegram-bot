@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -15,6 +14,7 @@ from .admin_auth import AdminAccess
 from .config import environment_label
 from .database import AccessConflict, AccessDenied
 from .media_store import MAX_IMAGE_BYTES, MediaError, remove_image, save_image
+from .request_body import bounded_json_object
 
 SnapshotProvider = Callable[[], Awaitable[dict]]
 PAGE_SIZE = 20
@@ -22,12 +22,36 @@ MAX_PAGE = 500
 
 SECURITY_HEADERS = {
     "Cache-Control": "no-store",
-    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "X-Frame-Options": "DENY",
 }
+HSTS_HEADER = "Strict-Transport-Security"
+HSTS_VALUE = "max-age=31536000"
 _UI_DIR = Path(__file__).with_name("admin_ui")
+
+
+def _secure_transport(request: web.Request) -> bool:
+    """Признак защищённого контура: прямое https-соединение или TLS на прокси.
+
+    Railway терминирует TLS на балансировщике, поэтому до процесса запрос
+    доходит по http, а признак приходит заголовком X-Forwarded-Proto. Подделать
+    его клиент может, но вреда нет: HSTS применяется браузером только к ответам,
+    полученным по HTTPS (RFC 6797), а по http заголовок игнорируется.
+    """
+    if request.scheme == "https" or request.secure:
+        return True
+    forwarded = request.headers.get("X-Forwarded-Proto", "")
+    return forwarded.split(",")[0].strip().lower() == "https"
+
+
+def security_headers(request: web.Request) -> dict[str, str]:
+    """Заголовки приватных страниц: HSTS только на защищённом контуре."""
+    headers = dict(SECURITY_HEADERS)
+    if _secure_transport(request):
+        headers[HSTS_HEADER] = HSTS_VALUE
+    return headers
 
 
 def _environment_note() -> str:
@@ -135,7 +159,7 @@ def install_admin_routes(
     async def headers(request: web.Request, handler):
         response = await handler(request)
         if request.path.startswith("/admin"):
-            for key, value in SECURITY_HEADERS.items():
+            for key, value in security_headers(request).items():
                 response.headers.setdefault(key, value)
         return response
 
@@ -290,16 +314,8 @@ def install_admin_routes(
                                    request.headers.get("X-Admin-CSRF"))
 
     async def _write_body(request: web.Request, allowed: set[str]) -> dict | None:
-        try:
-            if request.content_length is not None and request.content_length > 4096:
-                return None
-            raw = await request.content.read(4097)
-            if len(raw) > 4096:
-                return None
-            payload = json.loads(raw)
-        except (ValueError, UnicodeError):
-            return None
-        if not isinstance(payload, dict) or not set(payload) <= allowed:
+        payload, status = await bounded_json_object(request, limit=4096)
+        if status != 200 or payload is None or not set(payload) <= allowed:
             return None
         return payload
 

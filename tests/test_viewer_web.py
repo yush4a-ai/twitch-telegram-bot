@@ -66,6 +66,7 @@ class ViewerWebTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.post(
             self.base + "/viewer/api/state",
             data='{"init_data":"one","init_data":"two"}',
+            headers={"Content-Type": "application/json"},
         ) as response:
             self.assertEqual(response.status, 400)
         async with self.request("/viewer/api/state", 202) as response:

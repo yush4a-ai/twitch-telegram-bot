@@ -2,26 +2,18 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from aiohttp import web
 
-from .admin_web import SECURITY_HEADERS
+from .admin_web import SECURITY_HEADERS, security_headers
 from .database import Database
+from .mini_app_auth import MAX_BODY_BYTES
+from .request_body import bounded_json_object, json_content_type
 from .telegram_identity import verify_webapp_user
 
 
 _UI_DIR = Path(__file__).with_name("viewer_ui")
-
-
-def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("duplicate Mini App field")
-        result[key] = value
-    return result
 
 
 def install_viewer_routes(app: web.Application, db: Database, bot_token: str) -> None:
@@ -32,7 +24,7 @@ def install_viewer_routes(app: web.Application, db: Database, bot_token: str) ->
     async def viewer_headers(request: web.Request, handler):
         response = await handler(request)
         if request.path.startswith("/viewer"):
-            for key, value in SECURITY_HEADERS.items():
+            for key, value in security_headers(request).items():
                 response.headers.setdefault(key, value)
         return response
 
@@ -57,17 +49,11 @@ def install_viewer_routes(app: web.Application, db: Database, bot_token: str) ->
         )
 
     async def _payload(request: web.Request) -> tuple[int | None, dict[str, object] | None, int]:
-        if request.content_length is not None and request.content_length > 8192:
-            return None, None, 413
-        try:
-            raw = await request.text()
-            if len(raw.encode("utf-8")) > 8192:
-                return None, None, 413
-            values = json.loads(raw, object_pairs_hook=_unique_pairs)
-            if not isinstance(values, dict):
-                return None, None, 400
-        except (UnicodeError, ValueError, TypeError):
-            return None, None, 400
+        if not json_content_type(request):
+            return None, None, 415
+        values, status = await bounded_json_object(request, MAX_BODY_BYTES)
+        if status != 200 or values is None:
+            return None, None, status
         init_data = values.get("init_data")
         if not isinstance(init_data, str) or not init_data:
             return None, None, 401

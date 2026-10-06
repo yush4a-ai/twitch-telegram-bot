@@ -1,3 +1,5 @@
+import asyncio
+import json
 import os
 import tempfile
 import time
@@ -210,6 +212,37 @@ class StreamerWebTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status, 303)
         async with self.session.get(template_url) as response:
             self.assertEqual(response.status, 403)
+
+    async def test_community_connect_requires_json_and_a_bounded_body(self):
+        async with self.session.post(
+            self.base + "/streamer/telegram-webapp",
+            data={"init_data": signed_webapp(101)}, allow_redirects=False,
+        ) as response:
+            self.assertEqual(response.status, 303)
+        # Тело не-JSON типа не принимается: маршрут читает только JSON.
+        async with self.session.post(
+            self.base + "/streamer/api/communities", data=json.dumps({"chat_id": -1001}),
+            headers={"Content-Type": "text/plain"},
+        ) as response:
+            self.assertEqual(response.status, 415)
+
+        # Chunked-тело сверх предела отклоняется, не вычитываясь до конца.
+        async def oversized_stream():
+            yield b'{"chat_id":' + b"9" * 3000
+            await asyncio.sleep(0.01)
+            yield b"}"
+
+        timeout = aiohttp.ClientTimeout(total=20, sock_read=15)
+        async with self.session.post(
+            self.base + "/streamer/api/communities", data=oversized_stream(),
+            headers={"Content-Type": "application/json"}, timeout=timeout,
+        ) as response:
+            self.assertEqual(response.status, 413)
+
+        async with self.session.post(
+            self.base + "/streamer/api/communities", json={"chat_id": -1001},
+        ) as response:
+            self.assertEqual(response.status, 201)
 
     async def test_stats_expose_only_signed_streamers_own_published_posts(self):
         await self.db.add_channel(-1001, "alpha")

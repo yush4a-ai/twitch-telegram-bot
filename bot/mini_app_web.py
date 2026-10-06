@@ -9,7 +9,7 @@ from pathlib import Path
 
 from aiohttp import web
 
-from .admin_web import SECURITY_HEADERS
+from .admin_web import SECURITY_HEADERS, security_headers
 from .capabilities import CapabilityService
 from .database import Database
 from .mini_app_auth import verified_identity_payload
@@ -67,7 +67,7 @@ def install_mini_app_routes(
     async def app_headers(request: web.Request, handler):
         response = await handler(request)
         if request.path == "/app" or request.path.startswith("/app/"):
-            for key, value in SECURITY_HEADERS.items():
+            for key, value in security_headers(request).items():
                 if request.path == "/app" and key == "X-Frame-Options":
                     continue
                 response.headers.setdefault(key, value)
@@ -84,7 +84,9 @@ def install_mini_app_routes(
             SECURITY_HEADERS["Content-Security-Policy"]
             .replace("script-src 'self'", "script-src 'self' https://telegram.org")
             .replace("img-src 'self'", "img-src 'self' data: https://static-cdn.jtvnw.net https://t.me")
-            + "; frame-ancestors https://web.telegram.org"
+            # Мини-апп открывается во фрейме web.telegram.org — это единственное
+            # исключение; у остальных приватных страниц frame-ancestors 'none'.
+            .replace("frame-ancestors 'none'", "frame-ancestors https://web.telegram.org")
         )
         return response
 
