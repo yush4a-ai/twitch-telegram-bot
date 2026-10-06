@@ -15,7 +15,7 @@ from .plan_catalog import BillingRuntimePolicy
 
 
 _PAYLOAD = re.compile(r"ts1:([a-f0-9]{32}):([a-f0-9]{32})\Z")
-_CHARGE = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+_CHARGE = re.compile(r"[A-Za-z0-9_-]{1,256}\Z")
 
 
 @dataclass(frozen=True)

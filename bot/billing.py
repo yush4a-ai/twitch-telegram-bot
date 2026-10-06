@@ -17,7 +17,12 @@ from .billing_models import (
     AccessPeriodPolicy, ApplyResult, BillingSubject, CheckoutResult, Money,
     PaymentAttempt, ServerOrderSnapshot, VerifiedPaymentEvidence,
 )
-from .billing_provider import CheckoutSession, PaymentProvider, RefundOutcome
+from .billing_provider import (
+    CheckoutSession,
+    PaymentProvider,
+    PaymentVerificationError,
+    RefundOutcome,
+)
 from .billing_store import BillingStore, PaymentAlreadyActive, PaymentInProgress
 from .plan_catalog import BillingRuntimePolicy, get_product, checkout_readiness, PAYMENT_UNAVAILABLE_MESSAGE
 from .database import Database
@@ -270,9 +275,14 @@ class BillingService:
         if not isinstance(evidence, VerifiedPaymentEvidence):
             raise ValueError("verified provider evidence required")
         self._check_now(evidence.observed_at)
+        # Идентификатор платежа звёздами длиннее прочих полей: Telegram отдаёт
+        # charge_id в 131 символ, и прежний предел в 128 отклонял реальную оплату.
         if (not isinstance(evidence.money, Money) or evidence.status not in {"pending", "confirmed", "canceled", "refunded"}
                 or any(not isinstance(value, str) or not 1 <= len(value) <= 128 or not value.isascii()
-                       for value in (evidence.provider, evidence.transaction_id, evidence.order_id, evidence.attempt_id, evidence.method, evidence.raw_status))):
+                       for value in (evidence.provider, evidence.order_id, evidence.attempt_id, evidence.method, evidence.raw_status))
+                or not isinstance(evidence.transaction_id, str)
+                or not 1 <= len(evidence.transaction_id) <= 256
+                or not evidence.transaction_id.isascii()):
             raise ValueError("invalid verified evidence")
         statuses = {"platega": {"PENDING": "pending", "CONFIRMED": "confirmed", "CANCELED": "canceled", "CHARGEBACKED": "refunded"},
                     "telegram_stars": {"successful_payment": "confirmed", "refunded_payment": "refunded"}}

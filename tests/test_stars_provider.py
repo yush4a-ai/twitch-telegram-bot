@@ -228,6 +228,18 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         await self.service.reconcile_due(now=110)
         self.assertEqual(len(self.sender.invoices), 1)
 
+    async def test_long_real_charge_id_is_accepted(self):
+        """Telegram отдаёт charge_id в 131 символ — такая оплата должна проходить."""
+        order, payload = await self.create(key="long-charge-key")
+        charge = "stx" + "A" * 128
+        self.assertEqual(len(charge), 131)
+        message = payment_message(payload, charge=charge)
+
+        result = await on_successful_payment(message, self.service, now=110)
+
+        self.assertIsNotNone(result)
+        self.assertTrue(await self.db.has_viewer_plus(101, now=110))
+
     async def test_missing_payment_message_is_recovered_from_star_transactions(self):
         """Оплата без сообщения от Telegram восстанавливается по транзакциям."""
         order, payload = await self.create(key="recover-key")
