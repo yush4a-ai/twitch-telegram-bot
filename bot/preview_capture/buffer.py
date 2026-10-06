@@ -25,8 +25,31 @@ SEGMENT_TARGET_SECONDS = 2
 HLS_LIST_SIZE = 128
 MAX_COMPLETE_FILES = 128
 PARTIAL_FILE_MAX_BYTES = 32 * 1024 * 1024
-ROOT_HARD_MAX_BYTES = 384 * 1024 * 1024
-FREE_DISK_RESERVE_BYTES = 256 * 1024 * 1024
+
+
+def _env_bytes(name: str, default: int, *, minimum: int = 64 * 1024 * 1024,
+               maximum: int = 16 * 1024 * 1024 * 1024) -> int:
+    """Потолок места из переменной окружения; при мусоре — безопасное значение.
+
+    Раньше потолок был зашит числом: 384 МБ на все захваты, из-за чего больше
+    двух каналов не запускалось даже при свободном томе.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    if not minimum <= value <= maximum:
+        return default
+    return value
+
+
+# Сколько всего места разрешено занимать временным файлам захвата и какой
+# запас свободного места держать неприкосновенным.
+ROOT_HARD_MAX_BYTES = _env_bytes("PREVIEW_ROOT_MAX_BYTES", 384 * 1024 * 1024)
+FREE_DISK_RESERVE_BYTES = _env_bytes("PREVIEW_FREE_DISK_RESERVE_BYTES", 256 * 1024 * 1024)
 _SEGMENT_NAME = re.compile(r"segment-\d{9}\.ts\Z")
 _REPARSE_POINT = 0x400
 
