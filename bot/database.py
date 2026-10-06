@@ -1039,14 +1039,24 @@ class Database:
             return bool(cursor.rowcount)
 
     async def list_due_notification_digests(
-        self, *, now: float, window_seconds: float, limit: int = 200
+        self, *, now: float, window_seconds: float, limit: int = 200,
+        max_wait_seconds: float | None = None,
     ) -> list[int]:
-        """Чаты, у которых самое раннее событие ждёт дольше окна накопления."""
+        """Чаты, чью сводку пора отправлять.
+
+        Ждём тишины: пока каналы выходят один за другим, список растёт, и все
+        они попадают в одно сообщение. Верхняя граница нужна, чтобы при
+        непрерывном потоке выходов сводка не откладывалась бесконечно.
+        """
+        wait_limit = (
+            window_seconds * 3 if max_wait_seconds is None else float(max_wait_seconds)
+        )
         cursor = await self.conn.execute(
             "SELECT chat_id FROM notification_digest WHERE sent_at IS NULL "
-            "GROUP BY chat_id HAVING MIN(queued_at) <= ? "
+            "GROUP BY chat_id "
+            "HAVING MAX(queued_at) <= ? OR MIN(queued_at) <= ? "
             "ORDER BY MIN(queued_at) LIMIT ?",
-            (now - window_seconds, limit),
+            (now - window_seconds, now - wait_limit, limit),
         )
         return [int(row[0]) for row in await cursor.fetchall()]
 

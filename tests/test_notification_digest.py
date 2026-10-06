@@ -105,6 +105,29 @@ class DigestStorageTests(unittest.IsolatedAsyncioTestCase):
             await self.db.list_due_notification_digests(now=1400.0, window_seconds=300), []
         )
 
+    async def test_channels_leaving_close_together_share_one_digest(self):
+        """Второй канал, вышедший следом, должен попасть в ту же сводку."""
+        await self.db.queue_notification_digest(101, "alpha", "s1", "A", None, 1, now=1000.0)
+        await self.db.queue_notification_digest(101, "beta", "s2", "B", None, 2, now=1200.0)
+
+        # Окно первого канала истекло, но второй вышел только что — ждём тишины.
+        self.assertEqual(
+            await self.db.list_due_notification_digests(now=1310.0, window_seconds=300), []
+        )
+        self.assertEqual(
+            await self.db.list_due_notification_digests(now=1501.0, window_seconds=300), [101]
+        )
+
+    async def test_constant_stream_of_go_lives_cannot_postpone_the_digest(self):
+        """При непрерывном потоке выходов сводка всё равно уходит по верхней границе."""
+        await self.db.queue_notification_digest(101, "alpha", "s1", "A", None, 1, now=1000.0)
+        await self.db.queue_notification_digest(101, "beta", "s2", "B", None, 2, now=1900.0)
+
+        # Тишины нет, но с первого события прошло больше трёх окон.
+        self.assertEqual(
+            await self.db.list_due_notification_digests(now=1905.0, window_seconds=300), [101]
+        )
+
     async def test_opt_out_drops_what_was_already_collected(self):
         await self.db.queue_notification_digest(101, "alpha", "s1", "A", None, 1, now=1000.0)
 
