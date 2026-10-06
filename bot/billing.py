@@ -289,8 +289,14 @@ class BillingService:
                 result = await self.apply_payment_evidence(evidence, now=now)
             except (PaymentVerificationError, PermissionError, ValueError):
                 continue
-            if result.state in {"applied", "recorded", "already_applied"}:
+            if result.state == "applied":
                 applied += 1
+            elif result.state == "manual_review":
+                # Деньги пришли, а доступ не выдан: это не «ноль событий»,
+                # владелец должен увидеть причину.
+                logger.warning(
+                    "Сверка звёзд: заказ %s требует ручной проверки", order_id,
+                )
         return applied
 
     async def apply_payment_evidence(self, evidence: VerifiedPaymentEvidence, *, now: float) -> ApplyResult:

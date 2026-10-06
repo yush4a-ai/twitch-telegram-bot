@@ -40,6 +40,7 @@ class Sender:
         self.invoices = []
         self.link_calls = []
         self.history_calls = 0
+        self.transactions = []
 
     async def send_invoice(self, **fields):
         self.invoices.append(fields)
@@ -51,7 +52,7 @@ class Sender:
 
     async def get_star_transactions(self, *, limit: int = 30, offset: int = 0):
         self.history_calls += 1
-        return SimpleNamespace(transactions=[])
+        return SimpleNamespace(transactions=list(self.transactions[offset:offset + limit]))
 
 
 class StarsReconcileGateTests(unittest.IsolatedAsyncioTestCase):
@@ -66,6 +67,46 @@ class StarsReconcileGateTests(unittest.IsolatedAsyncioTestCase):
             self.db, provider, runtime_policy=POLICY, access_policy=PERIOD,
             catalog=fixture_product, terms_version="gate-terms-v1",
         )
+
+    async def test_a_repeat_sweep_does_not_inflate_the_counter(self):
+        """Счётчик показывает реально восстановленные оплаты, а не повторы."""
+        from datetime import datetime, timezone
+
+        from bot.billing_models import Money, VerifiedPaymentEvidence
+
+        sender = Sender()
+        service = self.service(sender)
+        paid = await service.prepare_payment(101, "viewer_plus", "stars", "counter-a", now=100)
+        waiting = await service.prepare_payment(202, "viewer_plus", "stars", "counter-b", now=100)
+        paid_attempt = await (await self.db.conn.execute(
+            "SELECT attempt_id FROM billing_payment_attempts WHERE order_id=?", (paid.order_id,),
+        )).fetchone()
+        waiting_attempt = await (await self.db.conn.execute(
+            "SELECT attempt_id FROM billing_payment_attempts WHERE order_id=?", (waiting.order_id,),
+        )).fetchone()
+        # Первый заказ уже выдан обычным путём, второй ждёт восстановления.
+        await service.apply_payment_evidence(VerifiedPaymentEvidence(
+            "telegram_stars", "stx_counter_paid", paid.order_id, paid_attempt[0],
+            Money(100, "XTR"), "stars", "confirmed", "successful_payment", 110,
+        ), now=110)
+        sender.transactions = [
+            SimpleNamespace(
+                id="stx_counter_paid", amount=100,
+                date=datetime.fromtimestamp(110, timezone.utc),
+                source=SimpleNamespace(invoice_payload=service._provider.invoice_payload(
+                    paid.order_id, paid_attempt[0])),
+            ),
+            SimpleNamespace(
+                id="stx_counter_waiting", amount=100,
+                date=datetime.fromtimestamp(111, timezone.utc),
+                source=SimpleNamespace(invoice_payload=service._provider.invoice_payload(
+                    waiting.order_id, waiting_attempt[0])),
+            ),
+        ]
+
+        applied = await service.apply_stars_transactions(now=120)
+
+        self.assertEqual(applied, 1)
 
     async def test_no_telegram_call_when_there_is_nothing_to_recover(self):
         sender = Sender()
