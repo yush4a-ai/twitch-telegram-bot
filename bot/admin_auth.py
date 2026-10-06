@@ -13,6 +13,11 @@ from .login_states import LoginStates
 
 
 class AdminAccess:
+    # Пул сессий панели. При заполненном пуле новая сессия не создаётся:
+    # раньше вытеснялась самая старая, и владелец сам выталкивал себя из уже
+    # открытой панели. Чужие сессии не вытесняются никогда.
+    MAX_SESSIONS = 32
+
     def __init__(
         self,
         key: str,
@@ -57,7 +62,12 @@ class AdminAccess:
             self._failures[remote] = failures
             return None, False
         self._failures.pop(remote, None)
-        return self._new_session(now, remote), False
+        token = self._new_session(now, remote)
+        if token is None:
+            # Пул занят: честный отказ вместо «неверного ключа», иначе владелец
+            # ищет ошибку в ключе, а дело в лимите сессий.
+            return None, True
+        return token, False
 
     def login_webapp(self, init_data: str, remote: str | None = None) -> str | None:
         if not self.enabled or self.owner_id is None:
@@ -99,13 +109,14 @@ class AdminAccess:
     def consume_login_state(self, candidate: str, cookie: str | None) -> bool:
         return self._login_states.consume(candidate, cookie)
 
-    def _new_session(self, now: float, remote: str | None = None) -> str:
+    def _new_session(self, now: float, remote: str | None = None) -> str | None:
         self._prune(now)
         # Успешный вход запоминает адрес: следующий раз он получит резерв в пуле.
         self._remember_owner_client(remote, now)
-        if len(self._sessions) >= 32:
-            oldest = min(self._sessions, key=self._sessions.__getitem__)
-            self._sessions.pop(oldest, None)
+        if len(self._sessions) >= self.MAX_SESSIONS:
+            # Fail-closed, как в кабинете стримера: место освобождают только
+            # истёкшие сессии, а не вытеснение самой старой рабочей.
+            return None
         token = secrets.token_urlsafe(32)
         self._sessions[self._digest(token)] = now + self.session_ttl
         return token
