@@ -1,7 +1,10 @@
 import { element, panel, action, icon, navigationRow } from './components.js';
 import { ApiError } from './api.js';
+import { describeFailure } from './failures.js';
 
-export const dateText = value => value ? new Date(value * 1000).toLocaleString('ru-RU', {dateStyle:'medium', timeStyle:'short'}) : '';
+// Даты операций показываются в том же поясе, что и в боте (Москва): иначе срок
+// счёта и срок доступа выглядели по-разному в чате и в приложении.
+export const dateText = value => value ? new Date(value * 1000).toLocaleString('ru-RU', {dateStyle:'medium', timeStyle:'short', timeZone:'Europe/Moscow'}) : '';
 export function orderStatus(order) {
   if (!order.monetary) return {pending:'Доступ ещё не предоставлен', paid:'Доступ предоставлен без оплаты', cancelled:'Отменён', expired:'Срок истёк', refunded:'Доступ отозван'}[order.status] || 'Статус неизвестен';
   if(order.financial_status==='pending'&&order.status==='expired')return 'Время оплаты истекло';
@@ -10,7 +13,7 @@ export function orderStatus(order) {
 
 export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
   let state=null, catalog=null, loading=false, requested=false, disposed=false, busy=false;
-  let generation=0, controller=null, pending=null, feedback='', error='';
+  let generation=0, controller=null, pending=null, feedback='', error='', retry=true;
   const disclosures=new Map();
   const refresh=()=>{if(!disposed)getRouter().refresh();};
   async function load({fresh=false}={}) {
@@ -23,8 +26,14 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
     pending=(async()=>{
       try {
         const [status, offers]=await Promise.all([api.post('/app/api/subscription/state',{}, {signal}),api.post('/app/api/subscription/catalog',{}, {signal})]);
-        if(token===generation&&!disposed){state=status;catalog=offers;error='';}
-      }catch{if(token===generation&&!disposed)error=state?'Нет связи. Показан последний загруженный статус.':'Не удалось загрузить подписку. Попробуйте ещё раз.';}
+        if(token===generation&&!disposed){state=status;catalog=offers;error='';retry=true;}
+      }catch(cause){
+        if(token===generation&&!disposed){
+          const failure=describeFailure(cause);
+          error=state?`${failure.message} Показан последний загруженный статус.`:`Не удалось загрузить подписку. ${failure.message}`;
+          retry=failure.retry;
+        }
+      }
       finally{clearTimeout(timer);if(token===generation&&!disposed){loading=false;pending=null;refresh();}}
     })();
     return pending;
@@ -36,7 +45,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       if(disposed)return;
       feedback=result.started_now?'Ознакомление на 7 дней включено. Без оплаты и автопродления.':'Ознакомление уже включено. Срок не изменился.';
       await load({fresh:true});onAccessChanged();
-    }catch(cause){if(!disposed){feedback=cause instanceof ApiError&&cause.code==='trial_used'?'Ознакомление уже использовано. Бесплатные возможности продолжают работать.':cause instanceof ApiError&&cause.code==='plus_active'?'Plus уже активен. Ознакомление остаётся доступным позже.':'Не удалось включить ознакомление. Попробуйте ещё раз.';await load({fresh:true});}}
+    }catch(cause){if(!disposed){feedback=cause instanceof ApiError&&cause.code==='trial_used'?'Ознакомление уже использовано. Бесплатные возможности продолжают работать.':cause instanceof ApiError&&cause.code==='plus_active'?'Plus уже активен. Ознакомление остаётся доступным позже.':describeFailure(cause).message;await load({fresh:true});}}
     finally{busy=false;refresh();}
   }
   function featureList(ids) {
@@ -128,7 +137,7 @@ export function createSubscriptionFeature(api, getRouter, onAccessChanged) {
       target.replaceChildren();if(!requested)void load();
       const detailsView=route.detail?.name==='subscription'&&route.detail.id.endsWith(':details');
       target.append(element('h1','',detailsView?'Возможности Plus':state?.viewer.active||state?.streamer.active?'Моя подписка':'Тариф'));
-      if(!state||!catalog){target.append(panel('Загружаем подписку',error||'Проверяем доступ и возможности.'));if(error)target.append(action('Повторить',()=>load({fresh:true})));return;}
+      if(!state||!catalog){target.append(panel('Загружаем подписку',error||'Проверяем доступ и возможности.'));if(error&&retry)target.append(action('Повторить',()=>load({fresh:true})));return;}
       if(error){const notice=element('p','notice error',error);notice.setAttribute('role','alert');target.append(notice);}
       if(feedback){const notice=element('p','notice',feedback);notice.setAttribute('role','status');target.append(notice);}
       const secondary=route.detail?.name==='subscription'&&route.detail.id.startsWith('viewer_plus');

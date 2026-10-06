@@ -100,7 +100,7 @@ class MiniAppShellTests(unittest.IsolatedAsyncioTestCase):
         async with self.session.post(self.base + "/app/api/bootstrap", json={}) as response:
             self.assertEqual(response.status, 401)
             self.assertEqual(response.headers["X-Frame-Options"], "DENY")
-        for asset in ("app.css", "reports.js", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
+        for asset in ("app.css", "reports.js", "app.js", "telegram.js", "theme.js", "router.js", "api.js", "failures.js", "components.js", "viewer.js", "subscription.js", "profile.js", "support.js"):
             with self.subTest(asset=asset):
                 async with self.session.get(self.base + "/app/" + asset) as response:
                     self.assertEqual(response.status, 200)
