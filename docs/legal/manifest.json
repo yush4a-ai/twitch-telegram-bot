@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-05-legal-v3",
+  "version": "2026-10-06-legal-v4",
   "documents": [
     {
       "id": "privacy",
@@ -20,8 +20,8 @@
       "id": "agreement",
       "filename": "USER-AGREEMENT.md",
       "title": "Пользовательское соглашение",
-      "version": "2026-10-02-legal-v1",
-      "source_sha256": "03a883fbdd82be08fda5a2760142b33ad0360e04bb63f39c7d4a684378a153d2",
+      "version": "2026-10-06-legal-v1",
+      "source_sha256": "44302a9e219103fb724d5e0e85a3b68c2c2579e6782590eaf0c8a6e763f8feb2",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "operator",
@@ -36,8 +36,8 @@
       "id": "support",
       "filename": "SUPPORT.md",
       "title": "Поддержка",
-      "version": "2026-10-02-legal-v1",
-      "source_sha256": "bc110eb7e96f16385f9de1eb07e58d116f40458d1e62d6e32544d18493b274d6",
+      "version": "2026-10-06-legal-v1",
+      "source_sha256": "624df5daef8bfac2446adeea2b442abcf69c4cc39df5781a67d1302f8e5d8358",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "support_contact"
@@ -48,8 +48,8 @@
       "id": "tariffs",
       "filename": "TARIFFS.md",
       "title": "Тарифы",
-      "version": "2026-10-05-legal-v3",
-      "source_sha256": "2433a7eb92d4e3c8bfb7a73853dd22e5f7328ef954adec66a735571fff06fe56",
+      "version": "2026-10-06-legal-v1",
+      "source_sha256": "175461e7837d2455d8e4c6ff9dbffc157a6f0cdcf82e3c273d9786b318808650",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [],
       "owner_accepted": true
@@ -58,8 +58,8 @@
       "id": "payments",
       "filename": "PAYMENTS.md",
       "title": "Оплата",
-      "version": "2026-10-05-legal-v3",
-      "source_sha256": "c6283afe431cce97fc09b957fa93c196dbbd6c1225f471303697df6ea897dc32",
+      "version": "2026-10-06-legal-v1",
+      "source_sha256": "13de658b445c9fe2202fced276891a75d293ce7ef7da0e0746a2c3eb24a805e9",
       "catalog_version": "2026-10-02-role-plus-300-v1",
       "required_owner_inputs": [
         "support_contact",
