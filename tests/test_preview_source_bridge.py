@@ -35,7 +35,7 @@ class FakeResolver:
         self.results = list(results)
         self.calls: list[str] = []
 
-    async def resolve(self, login: str):
+    async def resolve(self, login: str, *, max_height: int | None = None):
         self.calls.append(login)
         if not self.results:
             raise AssertionError("unexpected resolve")
