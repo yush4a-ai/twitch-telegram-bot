@@ -118,6 +118,16 @@ class TelegramStarsProvider:
             raise PaymentVerificationError("unapproved frozen Stars product")
 
     async def create_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str):
+        """Счёт-сообщение в чат с ботом (кнопка «Оплатить»)."""
+        return await self._create_payment(snapshot, attempt_id, prefer_link=False)
+
+    async def create_link_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str):
+        """Ссылка на счёт для мини-аппа (открывается через WebApp.openInvoice)."""
+        return await self._create_payment(snapshot, attempt_id, prefer_link=True)
+
+    async def _create_payment(
+        self, snapshot: ServerOrderSnapshot, attempt_id: str, *, prefer_link: bool
+    ):
         self._require_ready()
         if (not isinstance(snapshot, ServerOrderSnapshot) or snapshot.provider != self.provider_id or snapshot.method != "stars"
                 or snapshot.money != snapshot.product.xtr or snapshot.money is None or snapshot.money.currency != "XTR"
@@ -140,14 +150,26 @@ class TelegramStarsProvider:
         description = "Подписка на 1 месяц"
         prices = [LabeledPrice(label=title, amount=snapshot.money.amount_minor)]
         # Telegram проводит оплату цифровых товаров счётом-сообщением: у него
-        # есть кнопка «Оплатить», открывающая платёжную форму. Ссылка на счёт
-        # для звёзд такую форму не открывает («payment method is not available»),
-        # поэтому ссылку оставляем только тем клиентам, кто не умеет отправлять
-        # счёт сообщением (например, мини-аппу).
+        # есть кнопка «Оплатить», открывающая платёжную форму. Мини-апп счёт-
+        # сообщение показать не может, поэтому для него создаём ссылку на счёт,
+        # которую клиент открывает через WebApp.openInvoice.
         send_invoice = getattr(self._sender, "send_invoice", None)
         create_link = getattr(self._sender, "create_invoice_link", None)
         hosted_url = None
-        if callable(send_invoice):
+        if prefer_link and callable(create_link):
+            try:
+                link = await asyncio.wait_for(create_link(
+                    title=title, description=description, payload=payload,
+                    provider_token="", currency="XTR", prices=prices,
+                ), timeout=5)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                raise PaymentCreationUnknown("invoice link outcome unknown; do not resend") from None
+            if not isinstance(link, str) or not link.startswith("https://"):
+                raise PaymentCreationUnknown("invalid invoice link")
+            hosted_url = link
+        elif callable(send_invoice):
             try:
                 await asyncio.wait_for(send_invoice(
                     chat_id=snapshot.telegram_user_id, title=title,

@@ -120,7 +120,11 @@ def checkout_readiness(product_id: str, method: str, policy: BillingRuntimePolic
         return CheckoutReadiness(False, "period_unapproved")
     if not policy.refund_policy_approved:
         return CheckoutReadiness(False, "policy_unapproved")
-    if method == "stars" and (product.xtr is None or not policy.allow_invoice):
+    # Звёзды требуют и счёта, и разрешения владельца на публичную оплату:
+    # витрина не должна обещать способ, который затем откажет.
+    if method == "stars" and (
+        product.xtr is None or not policy.allow_invoice or not policy.allow_public_stars
+    ):
         return CheckoutReadiness(False, "stars_unavailable")
     if method != "stars" and not policy.allow_external_create:
         return CheckoutReadiness(False, "provider_unavailable")

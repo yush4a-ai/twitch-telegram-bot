@@ -72,7 +72,11 @@ def install_mini_app_billing_routes(
             )
         try:
             result = await public_service.prepare_payment(
-                user_id, values["product"], values["method"], values["request_key"], now=time.time(),
+                user_id, values["product"], values["method"], values["request_key"],
+                now=time.time(),
+                # Мини-апп открывает оплату окном Telegram, поэтому ему нужна
+                # ссылка на счёт, а не сообщение в чате с ботом.
+                prefer_link=True,
             )
         except PermissionError:
             return web.json_response({"error": "twitch_required"}, status=403)

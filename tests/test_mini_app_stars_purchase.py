@@ -38,7 +38,7 @@ CHARGE_ID = "stars_charge_purchase_1"
 # Утверждённая политика: деньги открываются только этим полным набором флагов.
 STARS_POLICY = BillingRuntimePolicy(
     mode="sandbox", target_verified=True, allow_invoice=True,
-    period_approved=True, refund_policy_approved=True,
+    period_approved=True, refund_policy_approved=True, allow_public_stars=True,
 )
 # Срок доступа должен совпадать с замороженным сроком каталога.
 ACCESS_PERIOD = AccessPeriodPolicy(PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION)
@@ -148,6 +148,22 @@ class MiniAppStarsPurchaseTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(readiness["sbp"]["enabled"])
             self.assertFalse(readiness["bank_card"]["enabled"])
             self.assertEqual(product["xtr"]["currency"], "XTR")
+
+    async def test_catalog_hides_stars_when_the_owner_has_not_opened_them(self):
+        """Без разрешения владельца витрина не обещает оплату звёздами."""
+        locked = self.make_service(policy=BillingRuntimePolicy(
+            mode="sandbox", target_verified=True, allow_invoice=True,
+            period_approved=True, refund_policy_approved=True,
+        ))
+        base = await self.server(service=locked)
+        async with self.session.post(
+            base + "/app/api/subscription/catalog", json={"init_data": signed_webapp(BUYER_ID)}
+        ) as response:
+            catalog = await response.json()
+        for product in catalog["products"]:
+            readiness = product["method_readiness"]["stars"]
+            self.assertFalse(readiness["enabled"], product["product_id"])
+            self.assertEqual(readiness["reason_code"], "stars_unavailable")
 
     async def test_catalog_without_live_service_reports_unavailable(self):
         base = await self.server(service=None)

@@ -147,7 +147,8 @@ class BillingService:
         return len(order_ids)
 
     async def prepare_payment(self, user_id: int, product_id: str, method: str,
-                              request_key: str, *, now: float) -> CheckoutResult:
+                              request_key: str, *, now: float,
+                              prefer_link: bool = False) -> CheckoutResult:
         self._check_now(now)
         if type(user_id) is not int or user_id <= 0 or method not in {"sbp", "bank_card", "stars"}:
             raise ValueError("invalid purchase request")
@@ -203,7 +204,12 @@ class BillingService:
             # Another connection already owns the durable send; never POST again.
             return CheckoutResult("creation_unknown", saved.order_id)
         try:
-            checkout = await self._provider.create_payment(snapshot, attempt_id)
+            creator = self._provider.create_payment
+            if prefer_link:
+                link_creator = getattr(self._provider, "create_link_payment", None)
+                if callable(link_creator):
+                    creator = link_creator
+            checkout = await creator(snapshot, attempt_id)
             if checkout.order_id != snapshot.order_id:
                 raise ValueError("provider checkout identity mismatch")
         except asyncio.CancelledError:

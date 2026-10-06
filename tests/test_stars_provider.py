@@ -402,9 +402,16 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
                                       "BILLING_ALLOW_INVOICE":"1", "BILLING_PERIOD_APPROVED":"1",
                                       "BILLING_REFUND_APPROVED":"1"}):
             enabled = first_release_payment_policy()
-        self.assertTrue(checkout_readiness("viewer_plus", "stars", enabled).enabled)
+        # Счёт разрешён, но публичной оплаты владелец ещё не открывал: витрина
+        # не должна обещать способ, который затем откажет.
+        self.assertFalse(checkout_readiness("viewer_plus", "stars", enabled).enabled)
+        with patch.dict("os.environ",{"BILLING_MODE":"sandbox", "BILLING_TARGET_VERIFIED":"1",
+                                      "BILLING_ALLOW_INVOICE":"1", "BILLING_PERIOD_APPROVED":"1",
+                                      "BILLING_REFUND_APPROVED":"1", "BILLING_PUBLIC_STARS":"1"}):
+            public = first_release_payment_policy()
+        self.assertTrue(checkout_readiness("viewer_plus", "stars", public).enabled)
         # Внешние способы остаются выключенными: их включает отдельный флаг провайдера.
-        self.assertFalse(checkout_readiness("viewer_plus", "sbp", enabled).enabled)
+        self.assertFalse(checkout_readiness("viewer_plus", "sbp", public).enabled)
 
     async def test_ingress_crash_replay_keeps_one_real_ledger_grant_and_refund(self):
         from bot.telegram_replay import ReplayDispatcher
