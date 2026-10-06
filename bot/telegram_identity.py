@@ -12,11 +12,22 @@ from dataclasses import dataclass
 from urllib.parse import parse_qsl
 
 
+# Верхняя граница идентификатора Telegram. Реальные id на порядки меньше, а всё
+# выше этой границы не помещается в целочисленные поля SQLite: подпись проходила,
+# а маршрут падал 500-й ошибкой вместо честного отказа.
+MAX_TELEGRAM_USER_ID = 2 ** 52
+
+
 def _fresh(raw: str) -> bool:
     if not isinstance(raw, str) or not raw.isascii() or not raw.isdecimal():
         return False
     age = time.time() - int(raw)
     return -60 <= age <= 600
+
+
+def _supported_user_id(user_id: object) -> bool:
+    """Только целое (не bool) в поддерживаемом диапазоне 0 < id < 2**52."""
+    return type(user_id) is int and 0 < user_id < MAX_TELEGRAM_USER_ID
 
 
 @dataclass(frozen=True)
@@ -58,7 +69,7 @@ def verify_webapp_identity(init_data: str, bot_token: str) -> VerifiedTelegramId
             return None
         user = json.loads(fields["user"], object_pairs_hook=_unique_user)
         user_id = user.get("id") if isinstance(user, dict) else None
-        if type(user_id) is not int or user_id <= 0:
+        if not _supported_user_id(user_id):
             return None
         first, last = _optional_label(user.get("first_name")), _optional_label(user.get("last_name"))
         display = " ".join(part for part in (first, last) if part) or None
@@ -86,7 +97,7 @@ def verify_login_widget_user(values: Mapping[str, str], bot_token: str) -> int |
         if not _fresh(fields["auth_date"]) or not raw_id.isascii() or not raw_id.isdecimal():
             return None
         user_id = int(raw_id)
-        if user_id <= 0 or raw_id != str(user_id):
+        if not _supported_user_id(user_id) or raw_id != str(user_id):
             return None
         check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()))
         secret = hashlib.sha256(bot_token.encode()).digest()
