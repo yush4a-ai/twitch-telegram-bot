@@ -345,7 +345,9 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         accepted = await self.service.request_payment_refund(999, order.order_id, "refund-merchant", now=125)
         self.assertEqual(accepted.state, "accepted")
         self.assertEqual(self.sender.refunds, [{"user_id":101,"telegram_payment_charge_id":"stars_charge_1"}])
-        self.assertTrue(await self.db.has_viewer_plus(101, now=126))
+        # Подтверждённый возврат сразу снимает доступ: ждать отдельного
+        # сообщения Telegram не нужно.
+        self.assertFalse(await self.db.has_viewer_plus(101, now=126))
         refund = self.provider.refunded_payment_to_evidence(payment_message(payload,refund=True), updated, expected_charge="stars_charge_1", now=130)
         await self.service.apply_payment_evidence(refund, now=130)
         await self.service.apply_payment_evidence(evidence, now=135)

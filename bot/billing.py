@@ -265,7 +265,7 @@ class BillingService:
         lister = getattr(provider, "star_transactions", None)
         if not callable(lister):
             return 0
-        if not await self._db.has_stars_orders_awaiting_reconciliation():
+        if not await self._db.has_stars_orders_awaiting_reconciliation(now=now):
             # Нечего восстанавливать: не тревожим платёжный API Telegram.
             return 0
         applied = 0
@@ -525,7 +525,18 @@ class BillingService:
             raise ValueError("invalid refund request key")
         async with self._store.transaction() as conn:
             order = await self._db.get_billing_order(order_id)
-            if order is None or order.provider != self._provider.provider_id or order.financial_status != "confirmed":
+            if order is None or order.provider != self._provider.provider_id:
+                raise ValueError("confirmed provider order required")
+            if order.financial_status == "refunded":
+                # Повторный запрос по уже возвращённому заказу — не ошибка:
+                # отвечаем тем же исходом и второй раз деньги не возвращаем.
+                previous = await (await conn.execute(
+                    "SELECT provider_reference FROM billing_payment_refunds "
+                    "WHERE order_id=? ORDER BY requested_at DESC LIMIT 1",
+                    (order_id,),
+                )).fetchone()
+                return RefundOutcome("refunded", previous[0] if previous else None)
+            if order.financial_status != "confirmed":
                 raise ValueError("confirmed provider order required")
             existing = await (await conn.execute("SELECT order_id,state,provider_reference FROM billing_payment_refunds WHERE request_key=?", (request_key,))).fetchone()
             if existing is not None:
@@ -548,16 +559,47 @@ class BillingService:
             if not isinstance(result, RefundOutcome) or result.state not in {"unsupported", "accepted", "manual_control_required", "declined", "unknown"}:
                 raise ValueError("unverified refund outcome")
         except asyncio.CancelledError:
-            await asyncio.shield(self._finish_refund(request_key, "unknown"))
+            await asyncio.shield(self._finish_refund(request_key, "unknown", now=now))
             raise
         except Exception:
             result = RefundOutcome("unknown", reference)
-        await self._finish_refund(request_key, result.state)
+        await self._finish_refund(request_key, result.state, now=now)
         return result
 
-    async def _finish_refund(self, request_key, state):
+    async def _finish_refund(self, request_key, state, *, now: float):
+        """Фиксирует исход возврата; подтверждённый возврат снимает доступ.
+
+        Человек, которому вернули деньги, не должен оставаться с подпиской, и
+        ждать для этого отдельного сообщения Telegram не нужно.
+        """
         async with self._store.transaction() as conn:
-            await conn.execute("UPDATE billing_payment_refunds SET state=? WHERE request_key=?", (state, request_key))
+            row = await (await conn.execute(
+                "SELECT order_id FROM billing_payment_refunds WHERE request_key=?",
+                (request_key,),
+            )).fetchone()
+            await conn.execute(
+                "UPDATE billing_payment_refunds SET state=? WHERE request_key=?", (state, request_key))
+            if row is None or state != "accepted":
+                return
+            order = await self._db.get_billing_order(row[0])
+            if order is None or order.financial_status == "refunded":
+                return
+            if order.grant_id is not None:
+                update = await conn.execute(
+                    "UPDATE entitlement_grants SET revoked_at=? WHERE grant_id=? "
+                    "AND source='paid' AND revoked_at IS NULL",
+                    (now, order.grant_id),
+                )
+                if update.rowcount == 1:
+                    await conn.execute(
+                        "INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) "
+                        "VALUES (?,'revoke',0,?)", (order.grant_id, now))
+            await conn.execute(
+                "UPDATE billing_orders SET status='refunded', financial_status='refunded', "
+                "closed_at=? WHERE order_id=?", (now, order.order_id))
+            await conn.execute(
+                "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'payment_refunded',?)",
+                (order.order_id, now))
 
     async def reconcile_due(self, *, now: float, limit: int = 10):
         return await self._reconciler.reconcile_due(now=now, limit=limit)

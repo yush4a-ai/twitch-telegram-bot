@@ -154,11 +154,14 @@ class PaymentLifecycleV3Tests(PaymentFixture):
             await self.service.request_payment_refund(101, checkout.order_id, "accepted", now=2100)
         self.assertEqual((await self.service.request_payment_refund(999, checkout.order_id, "accepted", now=2100)).state, "accepted")
         self.provider.refund_result = RefundOutcome("manual_control_required", TX)
-        self.assertEqual((await self.service.request_payment_refund(999, checkout.order_id, "second-key", now=2100)).state, "accepted")
+        # Деньги уже вернули: повтор отвечает тем же исходом и второй раз не списывает.
+        self.assertEqual((await self.service.request_payment_refund(999, checkout.order_id, "second-key", now=2100)).state, "refunded")
         self.assertEqual(len(self.provider.refund_calls), 1)
-        self.assertTrue(await self.db.has_streamer_plus(101, now=2101))
+        # Подтверждённый возврат снял доступ сразу, не дожидаясь сообщения Telegram.
+        self.assertFalse(await self.db.has_streamer_plus(101, now=2101))
         refunded = replace(evidence, status="refunded", raw_status="CHARGEBACKED")
-        self.assertEqual((await self.service.apply_payment_evidence(refunded, now=2200)).state, "applied")
+        # Возврат уже применён по подтверждению провайдера: повтор идемпотентен.
+        self.assertEqual((await self.service.apply_payment_evidence(refunded, now=2200)).state, "already_applied")
         self.assertFalse(await self.db.has_streamer_plus(101, now=2201))
         self.assertTrue(await self.db.has_viewer_plus(101, now=2201))
         self.assertEqual((await self.db.get_current_plus_grant(101, "viewer_plus", now=2201))[1], 4000)

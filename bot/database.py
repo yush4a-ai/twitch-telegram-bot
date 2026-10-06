@@ -1670,16 +1670,23 @@ class Database:
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
-    async def has_stars_orders_awaiting_reconciliation(self) -> bool:
+    async def has_stars_orders_awaiting_reconciliation(
+        self, *, now: float, lookback_seconds: float = 86400.0,
+    ) -> bool:
         """Есть ли звёздный заказ, по которому ещё может понадобиться сверка.
 
         Нужно, чтобы воркер не обращался к платёжному API Telegram, когда
-        восстанавливать нечего (например, публичная оплата выключена).
+        восстанавливать нечего (например, публичная оплата выключена). Закрытые
+        заказы учитываются недавние: оплата по уже закрытому счёту может прийти
+        с задержкой, и её нельзя терять.
         """
         cursor = await self.conn.execute(
             "SELECT 1 FROM billing_orders WHERE provider='telegram_stars' "
-            "AND grant_id IS NULL "
-            "AND (status='pending' OR entitlement_state IN ('review','failed')) LIMIT 1"
+            "AND grant_id IS NULL AND ("
+            "status='pending' OR entitlement_state IN ('review','failed') "
+            "OR (status IN ('cancelled','expired') AND COALESCE(closed_at, created_at) >= ?)"
+            ") LIMIT 1",
+            (now - lookback_seconds,),
         )
         return await cursor.fetchone() is not None
 

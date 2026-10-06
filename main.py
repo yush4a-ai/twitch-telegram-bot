@@ -722,7 +722,9 @@ async def main() -> None:
             "Проверка Telegram-каналов",
         )
         dp = Dispatcher()
-        payment_policy = first_release_payment_policy()
+        payment_policy = first_release_payment_policy(
+            contract_policy=getattr(contract, "payment_policy", None),
+        )
         # Провайдер Stars подключается только при включённой денежной политике:
         # пока режим «выключено», покупка отвечает «недоступно» и заказ не создаётся.
         stars_provider = (
@@ -732,6 +734,11 @@ async def main() -> None:
             db, stars_provider, runtime_policy=payment_policy,
             access_policy=AccessPeriodPolicy(PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION),
             terms_version=PLUS_TERMS_VERSION,
+            # Возврат инициирует только владелец: подтверждённый возврат снимает
+            # доступ по этому заказу, независимые подписки не затрагиваются.
+            merchant_actor_ids=(
+                frozenset({config.owner_chat_id}) if config.owner_chat_id else frozenset()
+            ),
         )
         dp["billing_service"] = billing_service
         dp["channel_username_cache"] = channel_username_cache
