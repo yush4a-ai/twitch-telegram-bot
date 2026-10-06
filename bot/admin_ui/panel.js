@@ -466,6 +466,9 @@ function renderPreviewDetails(preview) {
     : (Number(failures) > 0 ? String(failures) : 'нет'));
   const disk = preview.disk || {};
   put('preview-temp', humanBytes(disk.preview_bytes));
+  put('preview-data-free', humanBytes(disk.data_free_bytes) === 'Нет данных'
+    ? 'Нет данных'
+    : `${humanBytes(disk.data_free_bytes)} из ${humanBytes(disk.data_total_bytes)}`);
   put('preview-free', humanBytes(disk.free_bytes) === 'Нет данных'
     ? 'Нет данных'
     : `${humanBytes(disk.free_bytes)} из ${humanBytes(disk.total_bytes)}`);

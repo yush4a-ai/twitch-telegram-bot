@@ -41,6 +41,20 @@ class PreviewDiskUsageTests(unittest.TestCase):
         self.assertIsNotNone(usage)
         self.assertEqual(usage["preview_bytes"], 0)
 
+    def test_volume_with_the_database_is_reported_separately(self):
+        """Том с базой и временная папка — разные места; нужны обе цифры."""
+        with tempfile.TemporaryDirectory() as tmp:
+            database = pathlib.Path(tmp) / "bot.db"
+            database.write_bytes(b"db")
+            with patch.object(admin_metrics.tempfile, "gettempdir", return_value=tmp):
+                with patch.dict("os.environ", {"DB_PATH": str(database)}):
+                    usage = admin_metrics.preview_disk_usage()
+
+        self.assertIsNotNone(usage)
+        self.assertIn("data_free_bytes", usage)
+        self.assertIn("data_total_bytes", usage)
+        self.assertGreater(usage["data_total_bytes"], 0)
+
     def test_walking_is_bounded_and_never_raises(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / "signalbot-preview"

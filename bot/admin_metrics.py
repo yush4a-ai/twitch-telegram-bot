@@ -67,11 +67,20 @@ def preview_disk_usage() -> dict[str, int] | None:
             except OSError:
                 # Сбой обхода не должен ломать снимок панели.
                 continue
-    return {
+    result = {
         "free_bytes": int(usage.free),
         "total_bytes": int(usage.total),
         "preview_bytes": int(used),
     }
+    # Том с базой — отдельное место: если он переполнится, пострадает не только
+    # превью, поэтому владелец должен видеть обе цифры.
+    try:
+        data = shutil.disk_usage(os.getenv("DB_PATH", "/data/bot.db"))
+    except OSError:
+        return result
+    result["data_free_bytes"] = int(data.free)
+    result["data_total_bytes"] = int(data.total)
+    return result
 
 # Сколько проблем показываем владельцу на первом экране и с какого возраста
 # очереди считаем задержку заметной.
