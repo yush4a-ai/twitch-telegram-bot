@@ -116,6 +116,14 @@ def _optional_float(name: str) -> float | None:
         raise ConfigError(f"Переменная {name} должна быть числом") from e
 
 
+def _optional_positive_int(name: str) -> int | None:
+    """Владелец — это личный чат: его chat_id не может быть нулём или отрицательным."""
+    value = _optional_int(name)
+    if value is not None and value <= 0:
+        raise ConfigError(f"Переменная {name} должна быть больше нуля")
+    return value
+
+
 def is_railway_environment() -> bool:
     """True только по служебным runtime-переменным Railway."""
     return any(
@@ -477,7 +485,7 @@ def load_config() -> Config:
         twitch_client_secret=_require("TWITCH_CLIENT_SECRET"),
         poll_interval_seconds=_positive_int("POLL_INTERVAL_SECONDS", "60"),
         db_path=db_path,
-        owner_chat_id=_optional_int("OWNER_CHAT_ID"),
+        owner_chat_id=_optional_positive_int("OWNER_CHAT_ID"),
         dialogue_retention_days=_optional_float("DIALOGUE_RETENTION_DAYS"),
         oauth_host="0.0.0.0",
         oauth_port=oauth_port,

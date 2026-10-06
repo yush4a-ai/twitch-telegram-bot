@@ -7084,7 +7084,8 @@ class HealthObservabilityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_health_is_owner_only_even_when_owner_is_missing(self) -> None:
         message = SimpleNamespace(
-            chat=SimpleNamespace(id=7),
+            chat=SimpleNamespace(id=7, type=ChatType.PRIVATE),
+            from_user=SimpleNamespace(id=7),
             answer=AsyncMock(),
         )
         never = Mock(side_effect=AssertionError("health dependency must not run"))
@@ -7128,7 +7129,8 @@ class HealthObservabilityTests(unittest.IsolatedAsyncioTestCase):
             before = db.conn.total_changes
             poller, eventsub, oauth, token, _database = self._healthy_snapshots()
             message = SimpleNamespace(
-                chat=SimpleNamespace(id=7),
+                chat=SimpleNamespace(id=7, type=ChatType.PRIVATE),
+                from_user=SimpleNamespace(id=7),
                 answer=AsyncMock(),
             )
 

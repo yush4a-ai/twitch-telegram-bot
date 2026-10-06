@@ -652,9 +652,25 @@ async def cmd_myid(message: Message) -> None:
     await message.answer(f"chat_id этого чата: {message.chat.id}")
 
 
+def _owner_private_message(message: Message, config: Config | None) -> bool:
+    """Команда владельца: только личный чат, и пишет в нём сам владелец.
+
+    Совпадения ``chat_id`` недостаточно: при ошибочно заданном групповом ID
+    телеметрию увидел бы любой участник этой группы.
+    """
+    if config is None or config.owner_chat_id is None:
+        return False
+    if getattr(message.chat, "type", None) != ChatType.PRIVATE:
+        return False
+    if message.chat.id != config.owner_chat_id:
+        return False
+    actor = getattr(message, "from_user", None)
+    return actor is not None and actor.id == config.owner_chat_id
+
+
 @router.message(Command("stats"))
 async def cmd_stats(message: Message, db: Database, config: Config) -> None:
-    if config.owner_chat_id is None or message.chat.id != config.owner_chat_id:
+    if not _owner_private_message(message, config):
         return
     stats = await db.get_bot_stats()
     await message.answer(
@@ -680,7 +696,7 @@ async def cmd_health(
     oauth_server: OAuthCallbackServer,
     token_store: TokenStore,
 ) -> None:
-    if config.owner_chat_id is None or message.chat.id != config.owner_chat_id:
+    if not _owner_private_message(message, config):
         return
 
     now = time.time()
