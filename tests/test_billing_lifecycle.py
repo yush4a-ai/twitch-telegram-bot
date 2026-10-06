@@ -56,8 +56,12 @@ class BillingLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await cursor.fetchone())[0], 1)
         cursor = await self.db.conn.execute("SELECT COUNT(*) FROM billing_webhook_events")
         self.assertEqual((await cursor.fetchone())[0], 1)
-        with self.assertRaises(ValueError):
-            await self.service.cancel_order(101, checkout.order_id, now=112)
+        # Отмена уже оплаченного заказа — спокойный отказ, а не исключение:
+        # гонка «отмена против оплаты» нормальна, деньги и доступ не страдают.
+        self.assertFalse(await self.service.cancel_order(101, checkout.order_id, now=112))
+        order = await self.db.get_billing_order(checkout.order_id)
+        self.assertEqual(order.status, "paid")
+        self.assertTrue(await self.db.has_streamer_plus(101, now=112))
 
     async def test_event_id_conflict_and_duplicate_capture_cannot_change_payment(self):
         checkout = await self.checkout()

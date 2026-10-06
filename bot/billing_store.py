@@ -93,8 +93,10 @@ class BillingStore:
                 return existing
             active = await (await conn.execute(
                 "SELECT order_id FROM billing_orders WHERE telegram_user_id=? "
-                "AND provider IN ('platega','telegram_stars') AND financial_status IN ('pending','manual_review') LIMIT 1",
-                (snapshot.telegram_user_id,),
+                "AND provider IN ('platega','telegram_stars') "
+                "AND financial_status IN ('pending','manual_review') "
+                "AND status = 'pending' AND checkout_expires_at > ? LIMIT 1",
+                (snapshot.telegram_user_id, snapshot.created_at),
             )).fetchone()
             if active is not None:
                 raise PaymentInProgress(active[0])

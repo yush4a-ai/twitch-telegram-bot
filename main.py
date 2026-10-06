@@ -587,9 +587,17 @@ def _make_owner_alert_sender(bot: Bot, owner_chat_id: int):
 
 
 async def _run_billing_reconcile(service, *, interval: float = 300.0) -> None:
-    """Сверка оплат звёздами: Telegram мог не доставить сообщение об оплате."""
+    """Сверка оплат звёздами и закрытие просроченных счетов.
+
+    Telegram мог не доставить сообщение об оплате — тогда оплату восстанавливают
+    по истории транзакций. Заодно закрываются счета с истёкшим сроком: оплатить
+    их уже нельзя, а незакрытый заказ блокировал бы человеку следующую покупку.
+    """
     while True:
         try:
+            expired = await service.expire_pending(now=time.time())
+            if expired:
+                logger.info("Закрыто просроченных счетов: %s", expired)
             applied = await service.apply_stars_transactions(now=time.time())
             if applied:
                 logger.info("Восстановлено оплат звёздами: %s", applied)

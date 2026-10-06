@@ -510,7 +510,9 @@ class BillingService:
         if order.status in {"cancelled", "expired"}:
             return False
         if order.status != "pending":
-            raise ValueError("only pending billing orders can be cancelled")
+            # Заказ уже закрыт — это не ошибка вызывающего: гонка «отмена против
+            # оплаты» нормальна, и ронять её исключением нельзя.
+            return False
         if order.checkout_reference is not None and at < order.checkout_expires_at:
             await self._provider.cancel_checkout(order.checkout_reference)
         return await self._db.cancel_billing_order(telegram_user_id, order_id, now=at)

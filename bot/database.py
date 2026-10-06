@@ -2065,14 +2065,15 @@ class Database:
         order = await self.get_billing_order(order_id)
         if order is None or order.telegram_user_id != telegram_user_id:
             raise PermissionError("billing order is not owned by Telegram user")
-        if order.status in {"cancelled", "expired"}:
-            return False
         if order.status != "pending":
-            raise ValueError("only pending billing orders can be cancelled")
+            # Заказ уже закрыт (оплачен, отменён или истёк). Это не ошибка
+            # вызывающего: гонка «отмена против оплаты» — нормальный случай,
+            # и ронять её исключением нельзя.
+            return False
         status = "cancelled" if now < order.checkout_expires_at else "expired"
         cursor = await self.conn.execute(
-            "UPDATE billing_orders SET status = ?, closed_at = ? "
-            "WHERE order_id = ? AND status = 'pending'",
+            "UPDATE billing_orders SET status = ?, financial_status = 'canceled', "
+            "closed_at = ? WHERE order_id = ? AND status = 'pending'",
             (status, now, order_id),
         )
         if cursor.rowcount == 1:
@@ -2096,8 +2097,8 @@ class Database:
         if not order_ids:
             return 0
         await self.conn.executemany(
-            "UPDATE billing_orders SET status='expired', closed_at=? "
-            "WHERE order_id=? AND status='pending'",
+            "UPDATE billing_orders SET status='expired', financial_status='canceled', "
+            "closed_at=? WHERE order_id=? AND status='pending'",
             [(now, order_id) for order_id in order_ids],
         )
         await self.conn.executemany(
