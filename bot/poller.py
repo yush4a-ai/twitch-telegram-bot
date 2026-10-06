@@ -400,6 +400,9 @@ class StreamPoller:
         preview_observer: PreviewObserver | None = None,
         telegram_channel_username_cache: TelegramChannelUsernameCache | None = None,
         notification_queue_enabled: bool = False,
+        notification_digest_enabled: bool = False,
+        notification_digest_window_seconds: int = 300,
+        notification_digest_max_lines: int = 5,
         viewer_filters_enabled: bool = False,
         bot_username: str = TELEGRAM_BOT_USERNAME,
         telegram_send_budget: TelegramSendBudget | None = None,
@@ -433,6 +436,9 @@ class StreamPoller:
             telegram_channel_username_cache or TelegramChannelUsernameCache()
         )
         self._notification_queue_enabled = notification_queue_enabled
+        self._notification_digest_enabled = notification_digest_enabled
+        self._notification_digest_window = max(30, int(notification_digest_window_seconds))
+        self._notification_digest_max_lines = max(1, int(notification_digest_max_lines))
         self._viewer_filters_enabled = viewer_filters_enabled
         self._bot_username = bot_username
         self._telegram_send_budget = telegram_send_budget
@@ -1337,6 +1343,19 @@ class StreamPoller:
                             queue_go_live = await self._viewer_allows_private_alert(
                                 chat_id, login, title, game_name,
                             )
+                            if queue_go_live and await self._digest_eligible(chat_id, login):
+                                # У чата нет живого видео по этому каналу: отдельное
+                                # сообщение не создаём, канал попадёт в общую сводку.
+                                await self._db.queue_notification_digest(
+                                    chat_id,
+                                    login,
+                                    effective_stream_id,
+                                    title,
+                                    game_name,
+                                    stream.viewer_count,
+                                    now=now,
+                                )
+                                queue_go_live = False
                         else:
                             message_id = (
                                 await self._notify(
@@ -1487,6 +1506,7 @@ class StreamPoller:
                         )
 
             await self._flush_sample_batches(pending_samples)
+            await self._flush_notification_digests(now)
             if update_requests:
                 await NotificationQueue(self._db).request_live_updates(
                     update_requests, now=now
@@ -2754,6 +2774,81 @@ class StreamPoller:
             if cleared and state.stats_sent:
                 await self._db.clear_finished_session(job.chat_id, job.twitch_login)
             return NotificationOutcome.SENT if cleared else NotificationOutcome.STALE
+
+    async def _digest_eligible(self, chat_id: int, login: str) -> bool:
+        """Собирать ли это уведомление в сводку вместо отдельного сообщения.
+
+        Сводка — только для личных чатов и только когда у человека нет живого
+        видео по этому каналу: каналы с превью продолжают приходить отдельно.
+        """
+        if not self._notification_digest_enabled or chat_id <= 0:
+            return False
+        try:
+            state = await self._db.get_preview_destination_state(chat_id, login)
+        except Exception:
+            # Не смогли проверить право — ведём себя как раньше, отдельным сообщением.
+            return False
+        return state is None or not getattr(state, "preview_enabled", False)
+
+    def _build_digest_message(
+        self, entries: list[tuple[int, str, str, str | None, int]], total: int
+    ) -> tuple[str, InlineKeyboardMarkup]:
+        shown = entries[: self._notification_digest_max_lines]
+        lines = []
+        for _entry_id, login, _title, game_name, viewer_count in shown:
+            details = []
+            if game_name:
+                details.append(html.escape(str(game_name)))
+            if viewer_count:
+                details.append(f"{viewer_count} зрителей")
+            line = f"• {html.escape(login)}"
+            if details:
+                line += " — " + " · ".join(details)
+            lines.append(line)
+        text = f"🔴 Сейчас в эфире: {total}\n" + "\n".join(lines)
+        hidden = total - len(shown)
+        if hidden > 0:
+            text += f"\nи ещё {hidden}"
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"Смотреть {login}",
+                        url=f"https://www.twitch.tv/{login}",
+                    )
+                ]
+                for _entry_id, login, _title, _game_name, _viewers in shown
+            ]
+        )
+        return text, keyboard
+
+    async def _flush_notification_digests(self, now: float) -> None:
+        """Отправляет накопленные сводки: несколько каналов одним сообщением."""
+        if not self._notification_digest_enabled:
+            return
+        chat_ids = await self._db.list_due_notification_digests(
+            now=now, window_seconds=self._notification_digest_window
+        )
+        for chat_id in chat_ids:
+            entries = await self._db.notification_digest_entries(chat_id, limit=200)
+            if not entries:
+                continue
+            total = await self._db.notification_digest_pending_count(chat_id)
+            text, keyboard = self._build_digest_message(entries, total)
+            sent = await self._tg_call(
+                lambda: self._bot.send_message(chat_id, text, reply_markup=keyboard),
+                f"Сводка уведомлений в {mask_chat_id(chat_id)}",
+                permanent_failure_is_success=True,
+            )
+            if sent is None:
+                # Блокировка бота или удалённый чат: копить дальше бессмысленно.
+                await self._db.drop_notification_digest_chat(chat_id)
+                continue
+            if sent is _FAILED:
+                continue
+            await self._db.mark_notification_digest_sent(
+                [row[0] for row in entries], now=now
+            )
 
     async def _notify(
         self,

@@ -862,6 +862,11 @@ async def main() -> None:
                     preview_observer=preview_manager,
                     telegram_channel_username_cache=channel_username_cache,
                     notification_queue_enabled=getattr(config, "notification_queue_enabled", False),
+                    notification_digest_enabled=getattr(config, "notification_digest_enabled", False),
+                    notification_digest_window_seconds=getattr(
+                        config, "notification_digest_window_seconds", 300),
+                    notification_digest_max_lines=getattr(
+                        config, "notification_digest_max_lines", 5),
                     telegram_send_budget=telegram_send_budget,
                     viewer_filters_enabled=getattr(config, "viewer_plus_enabled", False),
                     bot_username=(

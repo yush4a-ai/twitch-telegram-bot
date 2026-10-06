@@ -342,6 +342,11 @@ class Config:
     admin_panel_access_key: str | None = None
     admin_telegram_bot_username: str = ""
     notification_queue_enabled: bool = False
+    # Сводки уведомлений: несколько вышедших каналов одним сообщением.
+    # Разрешены только на pinned staging: в production флаг не включить.
+    notification_digest_enabled: bool = False
+    notification_digest_window_seconds: int = 300
+    notification_digest_max_lines: int = 5
     streamer_plus_enabled: bool = False
     viewer_plus_enabled: bool = False
     growth_enabled: bool = False
@@ -447,6 +452,19 @@ def load_config() -> Config:
         )
         if notification_queue_enabled and not pinned_staging and production_contract is None:
             raise ConfigError("NOTIFICATION_QUEUE_ENABLED разрешён только на pinned Railway staging")
+    digest_flag = os.getenv("NOTIFICATION_DIGEST_ENABLED", "0").strip()
+    if digest_flag not in {"0", "1"}:
+        raise ConfigError("NOTIFICATION_DIGEST_ENABLED должен быть 0 или 1")
+    notification_digest_enabled = digest_flag == "1"
+    if notification_digest_enabled and not pinned_staging:
+        # Владелец тестирует сводки на staging: в production флаг не включить.
+        raise ConfigError("NOTIFICATION_DIGEST_ENABLED разрешён только на pinned Railway staging")
+    notification_digest_window_seconds = min(
+        3600, max(30, _positive_int("NOTIFICATION_DIGEST_WINDOW_SECONDS", "300"))
+    )
+    notification_digest_max_lines = min(
+        10, max(1, _positive_int("NOTIFICATION_DIGEST_MAX_LINES", "5"))
+    )
     backup_interval_seconds = max(
         300, _positive_int("BACKUP_INTERVAL_SECONDS", str(24 * 60 * 60))
     )
@@ -470,6 +488,9 @@ def load_config() -> Config:
         admin_panel_access_key=admin_panel_access_key,
         admin_telegram_bot_username=admin_telegram_bot_username,
         notification_queue_enabled=notification_queue_enabled,
+        notification_digest_enabled=notification_digest_enabled,
+        notification_digest_window_seconds=notification_digest_window_seconds,
+        notification_digest_max_lines=notification_digest_max_lines,
         streamer_plus_enabled=not railway or pinned_staging or production_contract is not None,
         viewer_plus_enabled=not railway or pinned_staging or production_contract is not None,
         growth_enabled=not railway or pinned_staging,

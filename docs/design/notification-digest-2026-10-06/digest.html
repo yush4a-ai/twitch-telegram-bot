@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сводка уведомлений — макет</title>
+<style>
+  :root {
+    --phone: #17212b;
+    --header: #242f3d;
+    --bubble: #182533;
+    --bubble-own: #2b5278;
+    --accent: #64b5ef;
+    --text: #ffffff;
+    --muted: #7d8b99;
+    --button: #2b5278;
+    --time: #6d7f8f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px;
+    background: #0e1621;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .column { width: 420px; }
+  .caption {
+    text-align: center;
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+  .caption b { color: #e8eef4; font-size: 17px; display: block; margin-bottom: 4px; }
+  .phone {
+    width: 420px;
+    height: 720px;
+    background: var(--phone);
+    border-radius: 28px;
+    border: 1px solid #24303d;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .topbar {
+    background: var(--header);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #1b2733;
+  }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #9146ff, #5c2d91);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .topbar .name { font-size: 16px; font-weight: 600; }
+  .topbar .status { font-size: 12px; color: var(--muted); }
+  .chat {
+    flex: 1;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background:
+      radial-gradient(circle at 20% 10%, #1b2a38 0%, transparent 45%),
+      radial-gradient(circle at 80% 80%, #1a2735 0%, transparent 40%),
+      var(--phone);
+  }
+  .bubble {
+    background: var(--bubble);
+    border-radius: 14px;
+    padding: 11px 13px 8px;
+    max-width: 340px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    align-self: flex-start;
+  }
+  .bubble .title { font-weight: 600; margin-bottom: 2px; }
+  .bubble .game { color: var(--muted); font-size: 13.5px; }
+  .bubble .time { text-align: right; font-size: 11.5px; color: var(--time); margin-top: 4px; }
+  .bubble a { color: var(--accent); text-decoration: none; }
+  .bubble .watch {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: var(--button);
+    border-radius: 9px;
+    color: #dbeaff;
+    font-size: 13.5px;
+  }
+  .digest-list { margin: 6px 0 2px; }
+  .digest-row { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid #22303f; }
+  .digest-row:last-child { border-bottom: none; }
+  .dot { color: #ff5b5b; line-height: 1.45; }
+  .digest-row .who { font-weight: 600; }
+  .digest-row .what { color: var(--muted); font-size: 13px; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .buttons span {
+    padding: 6px 11px;
+    background: var(--button);
+    border-radius: 9px;
+    font-size: 13.5px;
+    color: #dbeaff;
+  }
+  .counter {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .counter b { color: #e8eef4; }
+  .counter span { color: #7ee0a8; }
+</style>
+</head>
+<body>
+  <div class="column">
+    <div class="caption"><b>Сейчас</b>три канала вышли в эфир — три отдельных сообщения</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="avatar">🔔</div>
+        <div>
+          <div class="name">TwitchSignalBot</div>
+          <div class="status">бот</div>
+        </div>
+      </div>
+      <div class="chat">
+        <div class="bubble">
+          <div class="title">🔴 bratishkinoff в эфире</div>
+          <div class="game">Dota 2 · 12 480 зрителей</div>
+          <div class="watch">Смотреть</div>
+          <div class="time">21:04</div>
+        </div>
+        <div class="bubble">
+          <div class="title">🔴 drakeoffc в эфире</div>
+          <div class="game">Just Chatting · 3 210 зрителей</div>
+          <div class="watch">Смотреть</div>
+          <div class="time">21:05</div>
+        </div>
+        <div class="bubble">
+          <div class="title">🔴 stintik в эфире</div>
+          <div class="game">CS2 · 890 зрителей</div>
+          <div class="watch">Смотреть</div>
+          <div class="time">21:07</div>
+        </div>
+      </div>
+    </div>
+    <div class="counter"><b>3 отправки</b> в Telegram</div>
+  </div>
+
+  <div class="column">
+    <div class="caption"><b>Со сводкой</b>те же три канала — одно сообщение со списком</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="avatar">🔔</div>
+        <div>
+          <div class="name">TwitchSignalBot</div>
+          <div class="status">бот</div>
+        </div>
+      </div>
+      <div class="chat">
+        <div class="bubble">
+          <div class="title">🔴 Сейчас в эфире — 3 канала</div>
+          <div class="digest-list">
+            <div class="digest-row">
+              <span class="dot">●</span>
+              <span><span class="who">bratishkinoff</span><br><span class="what">Dota 2 · 12 480 зрителей</span></span>
+            </div>
+            <div class="digest-row">
+              <span class="dot">●</span>
+              <span><span class="who">drakeoffc</span><br><span class="what">Just Chatting · 3 210 зрителей</span></span>
+            </div>
+            <div class="digest-row">
+              <span class="dot">●</span>
+              <span><span class="who">stintik</span><br><span class="what">CS2 · 890 зрителей</span></span>
+            </div>
+          </div>
+          <div class="buttons">
+            <span>Смотреть bratishkinoff</span>
+            <span>Смотреть drakeoffc</span>
+            <span>Смотреть stintik</span>
+          </div>
+          <div class="time">21:10</div>
+        </div>
+      </div>
+    </div>
+    <div class="counter"><b>1 отправка</b> <span>вместо трёх</span></div>
+  </div>
+</body>
+</html>

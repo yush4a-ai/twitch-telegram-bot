@@ -726,6 +726,7 @@ class Database:
         await self._migrate_broadcast_schema()
         await self._migrate_broadcast_leases()
         await self._migrate_dialogue_attachments()
+        await self._migrate_notification_digest()
         await migrate_plus_payments(self.conn, now=time.time())
         await self.conn.execute(
             "CREATE TABLE IF NOT EXISTS telegram_update_inbox ("
@@ -995,6 +996,103 @@ class Database:
             "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
             "VALUES ('admin_005_dialogue_attachments', ?)", (time.time(),)
         )
+
+    async def _migrate_notification_digest(self) -> None:
+        """Накопление уведомлений для сводки: несколько каналов одним сообщением.
+
+        Сводка заменяет отдельное сообщение на каждый вышедший канал, поэтому
+        события копятся в таблице и переживают перезапуск бота. Уникальность по
+        (чат, канал, эфир) не даёт одному эфиру попасть в две сводки.
+        """
+        await self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS notification_digest ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "chat_id INTEGER NOT NULL, twitch_login TEXT NOT NULL, "
+            "logical_stream_id TEXT NOT NULL, title TEXT NOT NULL, "
+            "game_name TEXT, viewer_count INTEGER NOT NULL DEFAULT 0, "
+            "queued_at REAL NOT NULL, sent_at REAL, "
+            "UNIQUE(chat_id, twitch_login, logical_stream_id))"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_notification_digest_pending "
+            "ON notification_digest (sent_at, queued_at)"
+        )
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+            "VALUES ('admin_006_notification_digest', ?)", (time.time(),)
+        )
+
+    async def queue_notification_digest(
+        self, chat_id: int, twitch_login: str, logical_stream_id: str,
+        title: str, game_name: str | None, viewer_count: int, *, now: float,
+    ) -> bool:
+        """Кладёт событие в сводку. Повтор того же эфира ничего не меняет."""
+        async with self._write_lock:
+            cursor = await self.conn.execute(
+                "INSERT OR IGNORE INTO notification_digest "
+                "(chat_id, twitch_login, logical_stream_id, title, game_name, "
+                "viewer_count, queued_at, sent_at) VALUES (?,?,?,?,?,?,?,NULL)",
+                (chat_id, twitch_login, logical_stream_id, title, game_name,
+                 int(viewer_count), now),
+            )
+            await self.conn.commit()
+            return bool(cursor.rowcount)
+
+    async def list_due_notification_digests(
+        self, *, now: float, window_seconds: float, limit: int = 200
+    ) -> list[int]:
+        """Чаты, у которых самое раннее событие ждёт дольше окна накопления."""
+        cursor = await self.conn.execute(
+            "SELECT chat_id FROM notification_digest WHERE sent_at IS NULL "
+            "GROUP BY chat_id HAVING MIN(queued_at) <= ? "
+            "ORDER BY MIN(queued_at) LIMIT ?",
+            (now - window_seconds, limit),
+        )
+        return [int(row[0]) for row in await cursor.fetchall()]
+
+    async def notification_digest_entries(
+        self, chat_id: int, *, limit: int
+    ) -> list[tuple[int, str, str, str | None, int]]:
+        cursor = await self.conn.execute(
+            "SELECT id, twitch_login, title, game_name, viewer_count "
+            "FROM notification_digest WHERE chat_id = ? AND sent_at IS NULL "
+            "ORDER BY queued_at, id LIMIT ?",
+            (chat_id, limit),
+        )
+        return [
+            (int(row[0]), str(row[1]), str(row[2]), row[3], int(row[4]))
+            for row in await cursor.fetchall()
+        ]
+
+    async def notification_digest_pending_count(self, chat_id: int) -> int:
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM notification_digest "
+            "WHERE chat_id = ? AND sent_at IS NULL",
+            (chat_id,),
+        )
+        row = await cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    async def mark_notification_digest_sent(
+        self, ids: list[int], *, now: float
+    ) -> None:
+        if not ids:
+            return
+        placeholders = ",".join("?" for _ in ids)
+        async with self._write_lock:
+            await self.conn.execute(
+                f"UPDATE notification_digest SET sent_at = ? WHERE id IN ({placeholders})",
+                (now, *ids),
+            )
+            await self.conn.commit()
+
+    async def drop_notification_digest_chat(self, chat_id: int) -> None:
+        """Снимает накопленное: человек отписался или заблокировал бота."""
+        async with self._write_lock:
+            await self.conn.execute(
+                "DELETE FROM notification_digest WHERE chat_id = ?", (chat_id,)
+            )
+            await self.conn.commit()
 
     async def _migrate_viewer_schema(self) -> None:
         await self.conn.execute(
