@@ -29,6 +29,7 @@ _ASSETS = {
     "theme.js": "application/javascript",
     "router.js": "application/javascript",
     "api.js": "application/javascript",
+    "failures.js": "application/javascript",
     "components.js": "application/javascript",
     "viewer.js": "application/javascript",
     "streamer.js": "application/javascript",

@@ -6,6 +6,7 @@
 настоящей звезды. Выключенная денежная политика должна честно отклонять покупку.
 """
 
+import asyncio
 import os
 import tempfile
 import time
@@ -65,6 +66,18 @@ def stars_message(payload, *, refund=False, charge=CHARGE_ID, buyer=BUYER_ID):
                    chat=Chat(id=buyer, type="private"),
                    from_user=User(id=buyer, is_bot=False, first_name="Покупатель"),
                    **{"refunded_payment" if refund else "successful_payment": payment})
+
+
+class SlowStarsSender(FakeStarsSender):
+    """Счёт создаётся медленно: клиент успевает уйти по таймауту."""
+
+    def __init__(self, delay=0.4):
+        super().__init__()
+        self.delay = delay
+
+    async def create_invoice_link(self, **fields):
+        await asyncio.sleep(self.delay)
+        return await super().create_invoice_link(**fields)
 
 
 class BotLikeStarsSender(FakeStarsSender):
@@ -241,6 +254,66 @@ class MiniAppStarsPurchaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second["payment_url"], first["payment_url"])
         self.assertEqual(len(self.sender.invoice_calls), 1)
         self.assertEqual(await self.count("SELECT count(*) FROM billing_orders"), 1)
+
+    async def test_client_timeout_then_repeat_returns_the_same_order_and_the_same_link(self):
+        """Обрыв клиента по таймауту не должен терять уже созданный счёт.
+
+        Приложение обрывает запрос через 20 секунд. Если заказ и счёт к этому
+        моменту созданы, повторный запрос с тем же ключом обязан вернуть тот же
+        order_id и ту же ссылку — иначе человек платит вслепую.
+        """
+        sender = SlowStarsSender()
+        provider = TelegramStarsProvider(sender, STARS_POLICY)
+        service = self.make_service(provider=provider)
+        base = await self.server(service=service)
+
+        first = asyncio.ensure_future(self.prepare(base, request_key="stars-timeout-1"))
+        for _ in range(200):
+            if await self.count("SELECT count(*) FROM billing_orders"):
+                break
+            await asyncio.sleep(0.01)
+        self.assertEqual(await self.count("SELECT count(*) FROM billing_orders"), 1)
+        first.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await first
+        # Сервер доводит создание счёта до конца уже без клиента.
+        await asyncio.sleep(sender.delay + 0.4)
+
+        status, body = await self.prepare(base, request_key="stars-timeout-1")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["state"], "pending")
+        order_ids = [row[0] for row in await (await self.db.conn.execute(
+            "SELECT order_id FROM billing_orders")).fetchall()]
+        self.assertEqual(order_ids, [body["order_id"]])
+        order = await self.db.get_billing_order(body["order_id"])
+        self.assertEqual(order.checkout_url, body["payment_url"])
+        self.assertIsInstance(body["payment_url"], str)
+        self.assertEqual(len(sender.invoice_calls), 1, "счёт создаётся ровно один раз")
+
+    async def test_fifty_parallel_calls_with_one_key_create_one_order(self):
+        """Пятьдесят одновременных одинаковых запросов не создают второй заказ."""
+        base = await self.server()
+        results = await asyncio.gather(*[
+            self.prepare(base, request_key="stars-parallel-1") for _ in range(50)
+        ])
+
+        order_ids = {body.get("order_id") for _status, body in results}
+        self.assertEqual(len(order_ids), 1, order_ids)
+        order_id = order_ids.pop()
+        self.assertRegex(order_id, r"^[0-9a-f]{32}$")
+        self.assertEqual(await self.count("SELECT count(*) FROM billing_orders"), 1)
+        self.assertEqual(await self.count("SELECT count(*) FROM billing_payment_attempts"), 1)
+        self.assertEqual(len(self.sender.invoice_calls), 1)
+        for status, body in results:
+            self.assertIn(status, (200, 503))
+            # Ответ обязан указывать на тот единственный заказ, а не запускать новый.
+            self.assertEqual(body.get("order_id"), order_id)
+        successes = [body for status, body in results if status == 200]
+        self.assertTrue(successes)
+        for body in successes:
+            self.assertEqual(body["state"], "pending")
+            self.assertTrue(body["payment_url"].startswith("https://"))
 
     async def test_confirmed_payment_grants_viewer_plus_exactly_once(self):
         base = await self.server()

@@ -55,21 +55,43 @@ const api = createApi(telegram.initData,{onAuthExpired:handleAuthExpired});
 router = createRouter(render);
 const onDialogChange=()=>telegram.syncBack(Boolean(document.querySelector('dialog[open]'))||router.canBack);
 document.addEventListener('app-dialog-change',onDialogChange);
-window.addEventListener('pagehide', (event) => {
-  if(event.persisted)return;
-  disposed = true; bootstrapController?.abort();
-  document.removeEventListener('app-dialog-change',onDialogChange);theme.dispose();telegram.dispose();router.dispose();viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();reportsFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();resizeNavigation.disconnect();
-});
-const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
-resizeNavigation.observe(tabBar);
-document.getElementById('app-menu').addEventListener('click',event=>{
+const onAppMenu=event=>{
   dialog('Меню приложения',(box,close)=>{
     const roles=element('p','role-explanation','Зритель: уведомления для себя. Стример: публикации в свой Telegram-канал.');box.append(roles);
     for(const [label,glyph,callback] of [['Профиль','profile',()=>router.setTab('profile')],['Тариф','plus',()=>router.openDetail('subscription')],['Поддержка','help',()=>router.openDetail('support')]]){
       box.append(navigationRow(label,'',glyph,()=>{close();callback();}));
     }
   },{origin:event.currentTarget});
+};
+// Возврат связи: обновляем вход и данные, чтобы человек не видел устаревший экран.
+function handleOnline(){
+  if(disposed)return;
+  if(!session){void bootstrap();return;}
+  void viewerFeature?.refresh();void streamerFeature?.refresh();void profileFeature?.refresh();
+  void subscriptionFeature?.refresh();router.refresh();
+}
+function handleVisible(){
+  if(disposed||document.hidden||!session)return;
+  void subscriptionFeature?.refresh();
+}
+function teardown(){
+  window.removeEventListener('online',handleOnline);
+  document.removeEventListener('visibilitychange',handleVisible);
+  document.removeEventListener('app-dialog-change',onDialogChange);
+  document.getElementById('app-menu').removeEventListener('click',onAppMenu);
+  resizeNavigation.disconnect();
+  theme.dispose();telegram.dispose();router.dispose();
+  viewerFeature?.dispose();streamerFeature?.dispose();profileFeature?.dispose();supportFeature?.dispose();
+  reportsFeature?.dispose();subscriptionFeature?.dispose();purchaseFeature?.dispose();
+}
+window.addEventListener('pagehide', (event) => {
+  if(event.persisted)return;
+  disposed = true; bootstrapController?.abort();
+  teardown();
 });
+const resizeNavigation=new ResizeObserver(()=>document.documentElement.style.setProperty('--navigation-height',`${tabBar.getBoundingClientRect().height}px`));
+resizeNavigation.observe(tabBar);
+document.getElementById('app-menu').addEventListener('click',onAppMenu);
 document.getElementById('app-menu').append(icon('more'));
 
 function render(state, canBack) {
@@ -163,7 +185,10 @@ async function bootstrap() {
     reportsFeature=createReportsFeature(api,()=>router);
     subscriptionFeature=createSubscriptionFeature(api,()=>router,()=>{void viewerFeature.refresh();void streamerFeature.refresh();void profileFeature.refresh();});
     purchaseFeature=createPurchaseFeature(api,()=>router,telegram);
+    // Подпись Telegram могла истечь, пока человек был на оплате: приложение
+    // перезагрузилось и обязано вернуть его на экран последней операции.
     if(new URLSearchParams(location.search).get('screen')==='subscription')router.openDetail('subscription');
+    else purchaseFeature.restoreOperation();
   } catch (error) {
     if(disposed)return;
     canRetryEntry = !(error instanceof ApiError && (error.status === 401 || error.status === 403));
@@ -181,15 +206,7 @@ if (!telegram.initData) {
   router.refresh();
 } else await bootstrap();
 
-// Возврат связи: обновляем вход и данные, чтобы человек не видел устаревший экран.
-function handleOnline(){
-  if(disposed)return;
-  if(!session){void bootstrap();return;}
-  void viewerFeature?.refresh();void streamerFeature?.refresh();void profileFeature?.refresh();
-  void subscriptionFeature?.refresh();router.refresh();
-}
+// Возврат связи и возврат в приложение: обновляем вход и данные, чтобы человек
+// не видел устаревший экран. Обработчики именованные — их снимает teardown().
 window.addEventListener('online',handleOnline);
-document.addEventListener('visibilitychange',()=>{
-  if(disposed||document.hidden||!session)return;
-  void subscriptionFeature?.refresh();
-});
+document.addEventListener('visibilitychange',handleVisible);

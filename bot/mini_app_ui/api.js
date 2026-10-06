@@ -49,6 +49,14 @@ export function createApi(initData, {onAuthExpired=null, timeoutMs=10000}={}) {
       }
       if (!response.ok) throw new ApiError(response.status, result.error || 'request_failed', result);
       return result;
+    } catch (cause) {
+      // Таймаут, обрыв связи и ответ сервера — разные причины с разными
+      // текстами и разным решением о повторе: их различает таксономия сбоев.
+      if (cause instanceof ApiError) throw cause;
+      if (cause && cause.name === 'AbortError') {
+        throw new ApiError(0, external?.aborted ? 'aborted' : 'timeout');
+      }
+      throw new ApiError(0, 'network');
     } finally {
       clearTimeout(timer);
       if (external) external.removeEventListener('abort', relay);
