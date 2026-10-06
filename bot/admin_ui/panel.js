@@ -481,6 +481,14 @@ function renderPreviewDetails(preview) {
   const note = $('preview-note');
   if (note && preview.disabled_reason) {
     note.textContent = `Остановлено: ${preview.disabled_reason}`;
+  } else if (note) {
+    const minutes = Number.isFinite(preview.interval_seconds) && preview.interval_seconds > 0
+      ? Math.round(preview.interval_seconds / 60) : null;
+    const every = minutes ? `Пересчёт раз в ${minutes} мин` : 'Пересчёт по циклу';
+    // Простой режим — это осознанный выбор, а не сбой: свежие секунды без разбора.
+    note.textContent = preview.mode === 'simple'
+      ? `Простой режим: свежие секунды без разбора · ${every}`
+      : every;
   }
 }
 

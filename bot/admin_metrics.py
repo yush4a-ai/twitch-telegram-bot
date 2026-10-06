@@ -100,7 +100,8 @@ def _msk_midnight(now: float) -> float:
 
 
 def _attention(queues: dict | None, errors: dict, preview_state: str | None,
-               eventsub: dict | None = None, blocked_logins: list[str] | None = None) -> list[dict]:
+               eventsub: dict | None = None, blocked_logins: list[str] | None = None,
+               preview_age: float | None = None) -> list[dict]:
     """До трёх проблем, отсортированных по влиянию на людей."""
     items: list[dict] = []
     if errors.get("database"):
@@ -143,11 +144,17 @@ def _attention(queues: dict | None, errors: dict, preview_state: str | None,
                 "detail": f"В очереди {due}, старейшее ждёт {int(age // 60)} мин.",
             })
     if preview_state == "degraded":
+        if preview_age is None:
+            detail = "Новых сборок нет, и время последней неизвестно."
+        elif preview_age < 3600:
+            detail = f"Последняя сборка была {int(preview_age // 60)} мин назад."
+        else:
+            detail = f"Последняя сборка была {int(preview_age // 3600)} ч назад."
         items.append({
             "kind": "preview",
             "severity": "warn",
-            "title": "Видеопревью работает со сбоями",
-            "detail": "Последняя сборка превью завершилась ошибкой.",
+            "title": "Видеопревью не собирается",
+            "detail": detail,
         })
     for subsystem, label in (("poller", "Опрос Twitch"), ("eventsub", "EventSub")):
         if errors.get(subsystem):
@@ -281,14 +288,28 @@ class AdminSnapshot:
 
         if preview is None:
             preview_state = "unknown"
+            preview_mode = None
         elif not preview.get("enabled"):
             preview_state = "disabled"
-        elif not preview.get("manager_running") or preview.get("last_error"):
-            preview_state = "degraded"
-        elif preview.get("last_success_age_seconds") is None:
-            preview_state = "unknown"
+            preview_mode = None
         else:
-            preview_state = "ok"
+            # Сбоем считается только то, что мешает людям: сборок нет дольше
+            # трёх циклов или провайдер падает несколько раз подряд.
+            # Остановленный «умный» разбор сам по себе сбоем не является:
+            # видео уходит в простом режиме, и человек его видит.
+            interval = float(preview.get("interval_seconds") or 300.0)
+            stale_after = max(600.0, interval * 3)
+            success_age = preview.get("last_success_age_seconds")
+            failures = int(preview.get("consecutive_provider_failures") or 0)
+            preview_mode = "smart" if preview.get("manager_running") else "simple"
+            if success_age is not None and success_age <= stale_after:
+                preview_state = "ok"
+            elif failures >= 3 or preview.get("last_error"):
+                preview_state = "degraded"
+            elif success_age is None:
+                preview_state = "unknown"
+            else:
+                preview_state = "degraded"
 
         audience = live = queues = growth = None
         people = None
@@ -397,6 +418,8 @@ class AdminSnapshot:
             },
             "preview": {
                 "state": preview_state,
+                "mode": preview_mode,
+                "interval_seconds": preview.get("interval_seconds") if preview else None,
                 "active_sessions": preview.get("active_sessions") if preview else None,
                 "deferred_sessions": preview.get("deferred_sessions") if preview else None,
                 "simple_sessions": preview.get("simple_sessions") if preview else None,
@@ -420,7 +443,10 @@ class AdminSnapshot:
             "backup": backup,
             "deliveries": deliveries,
             "activity": activity,
-            "attention": _attention(queues, errors, preview_state, eventsub, blocked_logins),
+            "attention": _attention(
+                queues, errors, preview_state, eventsub, blocked_logins,
+                preview_age=(preview.get("last_success_age_seconds") if preview else None),
+            ),
             "errors": errors,
             "resources": resources,
         }

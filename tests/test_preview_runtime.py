@@ -1955,6 +1955,7 @@ class PreviewManagerSupervisionAndHealthTests(unittest.IsolatedAsyncioTestCase):
             {
                 "enabled", "manager_running", "active_sessions", "deferred_sessions",
                 "simple_sessions", "max_active_sessions", "max_concurrent_jobs",
+                "interval_seconds",
                 "active_jobs",
                 "consumer_tasks", "session_tasks", "job_tasks",
                 "latest_observation_age_seconds", "last_success_age_seconds",

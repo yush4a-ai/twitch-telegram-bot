@@ -81,6 +81,22 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("подключим позже", text)
         self.assertNotIn(PAYMENT_UNAVAILABLE_MESSAGE, text)
 
+    async def test_real_bot_with_the_owner_flag_is_ready(self):
+        """Настоящий бот без внешнего транспорта: звёзды проводит сам Telegram."""
+        from aiogram import Bot
+
+        from bot.stars_provider import TelegramStarsProvider
+
+        bot = Bot(token="123456:TEST-TOKEN-FOR-OBJECT-ONLY")
+        try:
+            provider = TelegramStarsProvider(bot, ready_policy())
+            self.assertTrue(provider.network_free)
+            # Без разрешения владельца тот же бот денег не принимает.
+            locked = TelegramStarsProvider(bot, ready_policy(allow_public_stars=False))
+            self.assertFalse(locked.network_free)
+        finally:
+            await bot.session.close()
+
     async def test_choosing_stars_creates_an_invoice_button(self):
         billing = self.service(ready_policy())
         checkout = CheckoutResult("pending", "order-1", "https://t.me/invoice/abc")

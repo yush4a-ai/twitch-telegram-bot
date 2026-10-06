@@ -139,6 +139,36 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         result = await self.build().collect()
         self.assertEqual(result["preview"]["state"], "unknown")
 
+    async def test_preview_ok_when_smart_mode_is_off_but_builds_are_fresh(self):
+        """Остановленный умный разбор — не сбой: видео идёт в простом режиме."""
+        self.preview.health_snapshot.return_value.update({
+            "enabled": True,
+            "manager_running": False,
+            "last_success_age_seconds": 120.0,
+            "interval_seconds": 300,
+            "consecutive_provider_failures": 0,
+            "last_error": None,
+        })
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["state"], "ok")
+        self.assertEqual(result["preview"]["mode"], "simple")
+        self.assertFalse([item for item in result["attention"] if item["kind"] == "preview"])
+
+    async def test_preview_degraded_when_builds_stopped_for_too_long(self):
+        """Сбой — это когда сборок нет дольше трёх циклов."""
+        self.preview.health_snapshot.return_value.update({
+            "enabled": True,
+            "manager_running": True,
+            "last_success_age_seconds": 4000.0,
+            "interval_seconds": 300,
+            "consecutive_provider_failures": 0,
+            "last_error": None,
+        })
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["state"], "degraded")
+        detail = next(item["detail"] for item in result["attention"] if item["kind"] == "preview")
+        self.assertIn("ч назад", detail)
+
     async def test_preview_age_uses_manager_monotonic_clock(self):
         manager = PreviewManager(
             Mock(), Mock(), Mock(), enabled=True,

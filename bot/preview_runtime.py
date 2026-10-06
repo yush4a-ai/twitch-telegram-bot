@@ -360,6 +360,9 @@ class PreviewManager:
             ),
             "max_active_sessions": self._max_active_sessions,
             "max_concurrent_jobs": self._max_concurrent_jobs,
+            # Интервал цикла нужен панели, чтобы отличить «собирается реже обычного»
+            # от настоящего сбоя.
+            "interval_seconds": self._interval,
             "active_jobs": sum(
                 1
                 for record in self._sessions.values()

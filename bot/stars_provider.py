@@ -6,6 +6,7 @@ import math
 import re
 from dataclasses import dataclass
 
+from aiogram import Bot
 from aiogram.types import LabeledPrice, Message, PreCheckoutQuery
 
 from .billing_models import Money, ServerOrderSnapshot, VerifiedPaymentEvidence
@@ -37,7 +38,19 @@ class TelegramStarsProvider:
 
     @property
     def network_free(self):
-        return getattr(self._sender, "network_free", False) is True
+        """Готов ли провайдер к денежным операциям без внешнего транспорта.
+
+        У звёзд внешнего платёжного провайдера нет: счёт и оплату проводит сам
+        Telegram через Bot API, который бот и так использует. Поэтому реальный
+        бот считается подходящим отправителем — но только при явном разрешении
+        владельца (``allow_public_stars``), а не просто потому, что есть ключи.
+        """
+        if getattr(self._sender, "network_free", None) is True:
+            return True
+        return bool(
+            isinstance(self._sender, Bot)
+            and getattr(self._policy, "allow_public_stars", False)
+        )
 
     def _require_ready(self):
         if not (self.network_free and self._policy.mode == "sandbox" and self._policy.target_verified
