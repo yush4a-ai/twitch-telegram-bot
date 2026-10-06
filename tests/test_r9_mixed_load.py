@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -28,8 +29,9 @@ class R9MixedLoadTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(result["process_cpu_seconds"], 0)
 
     async def test_rejects_active_workspace_path_and_resource_exhaustion(self):
+        # Каталог заведомо вне системного временного: нагрузка обязана отказать.
         with self.assertRaises(ValueError):
-            await run_mixed_profile(4, temp_root=Path.cwd())
+            await run_mixed_profile(4, temp_root=Path(tempfile.gettempdir()).parent)
         with self.assertRaises(CapacityLimit):
             await run_mixed_profile(4, max_rss_bytes=1)
         with self.assertRaises(ValueError):

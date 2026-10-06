@@ -2781,7 +2781,7 @@ class StreamPoller:
                 details.append(f"{viewer_count} зрителей")
             line = f"• {html.escape(login)}"
             if details:
-                line += " — " + " · ".join(details)
+                line += ": " + " · ".join(details)
             lines.append(line)
         text = f"🔴 Сейчас в эфире: {total}\n" + "\n".join(lines)
         hidden = total - len(shown)

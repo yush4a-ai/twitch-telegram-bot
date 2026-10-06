@@ -94,7 +94,7 @@ export function createPurchaseFeature(api,getRouter,telegram) {
       return;
     }
     if(result?.state==='pending'){
-      current.message='Счёт создан и отправлен в чат с ботом — оплатите его там.';
+      current.message='Счёт создан и отправлен в чат с ботом: оплатите его там.';
       current.failed=true;current.retry=false;
       if(result.order_id){rememberOrder(result.order_id);getRouter().openDetail({name:'purchase-order',id:result.order_id});}
       return;

@@ -204,7 +204,7 @@ class _FakeProvider:
         self.child_cpu_baseline = _finished_children_cpu()
         self.child_rss_peak = 0
 
-    async def open_session(self, key):
+    async def open_session(self, key, *, max_height: int | None = None):
         self.active += 1
         self.peak_capture = max(self.peak_capture, self.active)
         self.opened.append(key.twitch_login)

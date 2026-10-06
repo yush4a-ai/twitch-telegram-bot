@@ -49,8 +49,8 @@ def stars_checkout_ready(billing_service) -> bool:
 
 def payment_status_text(billing_service) -> str:
     if stars_checkout_ready(billing_service):
-        return ("Telegram Stars — доступно: счёт придёт в этот чат.\n"
-                "СБП и банковская карта — подключим позже.")
+        return ("Telegram Stars: доступно, счёт придёт в этот чат.\n"
+                "СБП и банковская карта: подключим позже.")
     return PAYMENT_UNAVAILABLE_MESSAGE
 
 

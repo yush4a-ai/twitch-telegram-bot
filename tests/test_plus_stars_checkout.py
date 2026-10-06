@@ -101,20 +101,29 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(PAYMENT_UNAVAILABLE_MESSAGE, text)
 
     async def test_real_bot_with_the_owner_flag_is_ready(self):
-        """Настоящий бот без внешнего транспорта: звёзды проводит сам Telegram."""
-        from aiogram import Bot
+        """Настоящий бот без внешнего транспорта: звёзды проводит сам Telegram.
 
+        Реальный aiogram.Bot в тестах не создаётся (это запрещено изоляцией
+        набора): подменяем класс на двойник, чтобы проверялась именно логика
+        «транспорт это бот и владелец разрешил публичную оплату».
+        """
+        from bot import stars_provider
         from bot.stars_provider import TelegramStarsProvider
 
-        bot = Bot(token="123456:TEST-TOKEN-FOR-OBJECT-ONLY")
-        try:
+        class FakeTelegramTransport:
+            async def send_invoice(self, **_fields):  # pragma: no cover - не вызывается
+                raise AssertionError("в этом тесте счёт не отправляется")
+
+            async def create_invoice_link(self, **_fields):  # pragma: no cover
+                raise AssertionError("в этом тесте ссылка не создаётся")
+
+        with patch.object(stars_provider, "Bot", FakeTelegramTransport):
+            bot = FakeTelegramTransport()
             provider = TelegramStarsProvider(bot, ready_policy())
             self.assertTrue(provider.network_free)
             # Без разрешения владельца тот же бот денег не принимает.
             locked = TelegramStarsProvider(bot, ready_policy(allow_public_stars=False))
             self.assertFalse(locked.network_free)
-        finally:
-            await bot.session.close()
 
     async def test_choosing_stars_creates_an_invoice_button(self):
         billing = self.service(ready_policy())

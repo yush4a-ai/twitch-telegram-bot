@@ -92,7 +92,7 @@ class DeploymentPackagingTests(unittest.TestCase):
             if line.strip().lower().startswith("streamlink")
         ]
 
-        self.assertEqual(streamlink_requirements, ["streamlink==8.5.0"])
+        self.assertEqual(streamlink_requirements, ["streamlink==8.6.1"])
 
     def test_streamlink_urllib3_compatibility_is_pinned(self) -> None:
         requirements = REQUIREMENTS_PATH.read_text(encoding="utf-8").splitlines()

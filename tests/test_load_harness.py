@@ -62,7 +62,9 @@ class LoadHarnessTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError):
                 await run_profile(10, seed=1, db_path=str(existing), rounds=1)
             self.assertEqual(existing.read_bytes(), b"sentinel")
-        outside = Path.cwd() / "forbidden-load-harness.db"
+        # Путь заведомо вне системного временного каталога: харнесс обязан отказать.
+        outside = Path(tempfile.gettempdir()).parent / "forbidden-load-harness.db"
+        outside.unlink(missing_ok=True)
         with self.assertRaises(ValueError):
             await run_profile(10, seed=1, db_path=str(outside), rounds=1)
         self.assertFalse(outside.exists())

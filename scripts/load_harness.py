@@ -221,7 +221,7 @@ async def run_preview_profile(
             return None
 
     class Provider:
-        async def open_session(self, _key):
+        async def open_session(self, _key, *, max_height: int | None = None):
             return Session()
 
     class Updater:

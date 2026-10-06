@@ -81,7 +81,7 @@ class PreviewSourceBoundaryTests(unittest.TestCase):
             for line in requirements.splitlines()
             if line.strip().lower().startswith("streamlink")
         ]
-        self.assertEqual(streamlink_requirements, ["streamlink==8.5.0"])
+        self.assertEqual(streamlink_requirements, ["streamlink==8.6.1"])
         self.assertNotIn("streamlink", config.lower())
         self.assertNotIn("preview_source", config.lower())
 
