@@ -51,6 +51,9 @@ _PROVIDER_RENDER_REASONS = frozenset({
 
 PreviewArtifact: TypeAlias = LocalAnimation | TelegramAnimation
 
+# Потолок качества потока для зрительского режима: в чат всё равно уходит 854x480.
+_SIMPLE_STREAM_MAX_HEIGHT = 480
+
 
 @dataclass(frozen=True)
 class PreviewObservation:
@@ -109,7 +112,9 @@ class PreviewArtifactSession(Protocol):
 
 
 class PreviewArtifactProvider(Protocol):
-    async def open_session(self, key: PreviewSessionKey) -> PreviewArtifactSession: ...
+    async def open_session(
+        self, key: PreviewSessionKey, *, max_height: int | None = None
+    ) -> PreviewArtifactSession: ...
 
 
 class PreviewObserver(Protocol):
@@ -130,7 +135,9 @@ class _NoopPreviewArtifactSession:
 
 
 class NoopPreviewArtifactProvider:
-    async def open_session(self, key: PreviewSessionKey) -> PreviewArtifactSession:
+    async def open_session(
+        self, key: PreviewSessionKey, *, max_height: int | None = None
+    ) -> PreviewArtifactSession:
         return _NoopPreviewArtifactSession()
 
 
@@ -207,6 +214,7 @@ Sleeper: TypeAlias = Callable[[float], Awaitable[None]]
 
 class PreviewManager:
     """Fail-open coordinator for one preview pipeline per physical Twitch stream."""
+
 
     def __init__(
         self,
@@ -554,10 +562,20 @@ class PreviewManager:
                 if not self._is_current(record.token):
                     break
                 if record.provider_session is None:
+                    # Режим решаем до открытия записи: зрительскому каналу не нужен
+                    # поток 720p, достаточно 480p — в чат уходит тот же размер.
+                    simple = self._is_simple_audience(
+                        await self._frozen_participants(record.key.twitch_login)
+                    )
                     try:
                         record.provider_session = await self._timed_provider_operation(
                             record,
-                            self._provider.open_session(record.key),
+                            self._provider.open_session(
+                                record.key,
+                                max_height=(
+                                    _SIMPLE_STREAM_MAX_HEIGHT if simple else None
+                                ),
+                            ),
                             on_late_result=self._close_late_session,
                         )
                     except asyncio.CancelledError:
@@ -566,12 +584,9 @@ class PreviewManager:
                         await self._provider_failed(record, error)
                         continue
                     record.state = PreviewSessionState.WARMING
-                    delay = self._initial_delay
-                    if self._is_simple_audience(
-                        await self._frozen_participants(record.key.twitch_login)
-                    ):
-                        delay = self._simple_initial_delay
-                    await self._sleep(delay)
+                    await self._sleep(
+                        self._simple_initial_delay if simple else self._initial_delay
+                    )
                     if not self._is_current(record.token):
                         break
 
@@ -641,6 +656,13 @@ class PreviewManager:
                         )
                 if not self._is_current(record.token):
                     break
+                if request.simple_audience:
+                    # Держать запись до следующего обновления незачем: закрываем её
+                    # и включаемся заново через интервал — поток всё это время не
+                    # качается, а слот успевает обслужить другие каналы.
+                    await self._close_record_session(record)
+                    record.provider_session = None
+                    record.close_started = False
                 record.completed_rounds += 1
                 record.state = PreviewSessionState.WAITING
                 await self._sleep(self._interval)

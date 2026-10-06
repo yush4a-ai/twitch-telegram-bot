@@ -57,7 +57,11 @@ class TwitchCaptureSource:
         self.capture_service = capture_service
 
     async def open(
-        self, twitch_login: str, physical_stream_id: str
+        self,
+        twitch_login: str,
+        physical_stream_id: str,
+        *,
+        max_height: int | None = None,
     ) -> TwitchCaptureStartResult:
         login = normalize_twitch_login(twitch_login)
         if login is None or not _valid_physical_stream_id(physical_stream_id):
@@ -67,7 +71,7 @@ class TwitchCaptureSource:
             )
         key = TwitchCaptureKey(login, physical_stream_id)
         try:
-            resolve_result = await self.resolver.resolve(login)
+            resolve_result = await self.resolver.resolve(login, max_height=max_height)
             if not isinstance(resolve_result, PlaybackResolveResult):
                 raise TypeError("resolver returned an invalid result")
         except Exception:

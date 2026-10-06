@@ -142,10 +142,12 @@ class LivePreviewArtifactProvider:
         self._analyzer = analyzer
         self._renderer = renderer
 
-    async def open_session(self, key: PreviewSessionKey) -> PreviewArtifactSession:
+    async def open_session(
+        self, key: PreviewSessionKey, *, max_height: int | None = None
+    ) -> PreviewArtifactSession:
         try:
             result = await self._source.open(
-                key.twitch_login, key.physical_stream_id
+                key.twitch_login, key.physical_stream_id, max_height=max_height
             )
         except asyncio.CancelledError:
             raise

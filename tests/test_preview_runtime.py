@@ -155,6 +155,7 @@ class ControlledProvider:
     def __init__(self, clock: ManualClock) -> None:
         self.clock = clock
         self.open_calls: list[object] = []
+        self.open_max_heights: list[int | None] = []
         self.open_times: list[float] = []
         self.sessions: list[ControlledSession] = []
         self.create_calls: list[tuple[object, object]] = []
@@ -181,8 +182,9 @@ class ControlledProvider:
         self.active_creates = 0
         self.max_active_creates = 0
 
-    async def open_session(self, key):
+    async def open_session(self, key, *, max_height=None):
         self.open_calls.append(key)
+        self.open_max_heights.append(max_height)
         self.open_times.append(self.clock())
         gate = self.open_gate_by_physical.get(key.physical_stream_id, self.open_gate)
         if gate is not None:
@@ -405,6 +407,35 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.provider.create_calls) == 1)
         self.assertEqual(len(self.provider.create_calls), 1)
 
+    async def test_viewer_only_channel_asks_for_a_lighter_stream(self) -> None:
+        """Зрительскому каналу хватает 480p: в чат всё равно уходит 854x480."""
+        await self.seed(101)
+        manager = self.manager()
+
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.open_calls) == 1)
+
+        self.assertEqual(self.provider.open_max_heights, [480])
+
+    async def test_viewer_only_channel_stops_recording_between_updates(self) -> None:
+        """Поток не качается всё время эфира: запись закрывается после обновления."""
+        await self.seed(101)
+        manager = self.manager(interval=300)
+
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+        await _wait_until(lambda: len(self.provider.closed) == 1)
+
+        # Следующее обновление включает запись заново, а не держит её постоянно.
+        await _wait_until(lambda: bool(self.clock.sleeps))
+        deadline = max(item[0] for item in self.clock.sleeps)
+        # Наблюдение обновляем прямо перед пробуждением: иначе оно устареет.
+        await self.clock.advance(deadline - self.clock.now - 1)
+        manager.observe_cycle((self.observation(),))
+        await _settle()
+        await self.clock.advance(1)
+        await _wait_until(lambda: len(self.provider.open_calls) == 2)
+
     async def test_preview_disabled_destination_creates_no_session(self) -> None:
         await self.seed(101, preview=False)
         manager = self.manager()
@@ -418,6 +449,8 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager(initial_delay=75)
 
         await self.start_online(manager)
+        # Режим решается по получателям до открытия записи, поэтому ждём условие.
+        await _wait_until(lambda: len(self.provider.open_calls) == 1)
 
         self.assertEqual(len(self.provider.open_calls), 1)
         self.assertEqual(self.provider.open_calls[0].twitch_login, "channel")
@@ -566,6 +599,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.provider.default_outcome = None
         manager = self.manager(initial_delay=75)
         await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.sessions) == 1)
         first_session = self.provider.sessions[0]
 
         manager.observe_cycle((self.observation(physical="physical-B"),))
@@ -641,6 +675,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager = self.manager(initial_delay=75)
 
         await self.start_online(manager)
+        await _wait_until(lambda: bool(self.provider.open_times))
         self.assertEqual(self.provider.open_times, [1000.0])
         self.assertEqual(self.provider.create_calls, [])
         await _wait_until(
@@ -665,7 +700,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager.observe_cycle((self.observation(),))
         await _settle()
         await self.clock.advance(1)
-        self.assertEqual(len(self.provider.create_calls), 2)
+        await _wait_until(lambda: len(self.provider.create_calls) == 2)
 
     async def test_long_job_has_no_overlap_or_catch_up_queue(self) -> None:
         await self.seed(101)
@@ -686,7 +721,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager.observe_cycle((self.observation(),))
         await _settle()
         await self.clock.advance(1)
-        self.assertEqual(len(self.provider.create_calls), 2)
+        await _wait_until(lambda: len(self.provider.create_calls) == 2)
 
     async def test_global_semaphore_limits_artifact_creation_not_fanout(self) -> None:
         await self.seed(101, "alpha", message_id=701)
@@ -978,6 +1013,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.provider.ignore_close_cancellation = True
         manager = self.manager(initial_delay=75, timeout=0.01)
         await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.sessions) == 1)
         self.assertEqual(len(self.provider.sessions), 1)
 
         shutdown_task = asyncio.create_task(manager.shutdown())
@@ -1274,7 +1310,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         manager.observe_cycle((self.observation(physical="physical-A"),))
         manager.observe_cycle((self.observation(physical="physical-B"),))
         manager.observe_cycle((self.observation(physical="physical-C"),))
-        await _settle()
+        await _wait_until(lambda: len(self.provider.open_calls) == 1)
 
         self.assertEqual(len(self.provider.open_calls), 1)
         self.assertEqual(self.provider.open_calls[0].physical_stream_id, "physical-C")
@@ -1283,10 +1319,13 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(101)
         manager = self.manager(initial_delay=75)
         await self.start_online(manager)
+        # Ждём фактического открытия записи, а не только записи в реестре.
+        await _wait_until(lambda: len(self.provider.sessions) == 1)
         self.assertEqual(manager.health_snapshot()["active_sessions"], 1)
 
         manager.observe_cycle(())
         await _settle(30)
+        await _wait_until(lambda: len(self.provider.closed) == 1)
 
         self.assertEqual(manager.health_snapshot()["active_sessions"], 0)
         self.assertEqual(len(self.provider.closed), 1)
@@ -1310,6 +1349,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await self.seed(101)
         first = self.manager(initial_delay=75)
         await self.start_online(first)
+        await _wait_until(lambda: len(self.provider.open_calls) == 1)
         await first.shutdown()
 
         second = self.manager(initial_delay=75)

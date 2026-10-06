@@ -51,13 +51,15 @@ class _Provider:
         self.active = 0
         self.peak = 0
         self.opened = []
+        self.max_heights = []
         self.created = 0
         self.artifact = artifact
 
-    async def open_session(self, key):
+    async def open_session(self, key, *, max_height=None):
         self.active += 1
         self.peak = max(self.peak, self.active)
         self.opened.append(key.twitch_login)
+        self.max_heights.append(max_height)
         return _Session(self)
 
 

@@ -181,7 +181,12 @@ async def probe_streamlink(
     )
 
 
-def _resolver_argv(executable: str, login: str) -> tuple[str, ...]:
+def _resolver_argv(
+    executable: str, login: str, *, max_height: int | None = None
+) -> tuple[str, ...]:
+    # Умный режим оставляем как был. Зрительскому хватает 480p: в чат всё равно
+    # уходит 854x480, а входящий трафик падает в разы.
+    exclusion = ">720p60" if max_height is None else f">{int(max_height)}p"
     return (
         executable,
         "--no-config",
@@ -193,7 +198,7 @@ def _resolver_argv(executable: str, login: str) -> tuple[str, ...]:
         "--stream-url",
         "--twitch-supported-codecs=h264",
         "--stream-sorting-excludes",
-        ">720p60",
+        exclusion,
         f"https://www.twitch.tv/{login}",
         "best,best-unfiltered",
     )
@@ -245,7 +250,9 @@ class TwitchPlaybackResolver:
         self.timeout = timeout
         self.executable = executable
 
-    async def resolve(self, twitch_login: str) -> PlaybackResolveResult:
+    async def resolve(
+        self, twitch_login: str, *, max_height: int | None = None
+    ) -> PlaybackResolveResult:
         login = normalize_twitch_login(twitch_login)
         if login is None:
             return PlaybackResolveResult(
@@ -265,7 +272,9 @@ class TwitchPlaybackResolver:
             stdout_max_bytes=STDOUT_MAX_BYTES,
         )
         try:
-            execution = await executor.run(_resolver_argv(self.executable, login))
+            execution = await executor.run(
+                _resolver_argv(self.executable, login, max_height=max_height)
+            )
         except ResolverProcessTimeout:
             return PlaybackResolveResult(
                 status=PlaybackResolveStatus.TIMEOUT,

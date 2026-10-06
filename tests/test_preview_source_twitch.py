@@ -26,7 +26,7 @@ def _available_capability():
     )
 
 
-async def _resolve_and_argv(login: str = "Valid_Login"):
+async def _resolve_and_argv(login: str = "Valid_Login", *, max_height: int | None = None):
     source = _source_module()
     runner = QueueRunner(
         FakeProcess(stdout=(PLAYBACK_URL + "\n").encode(), returncode=0)
@@ -34,7 +34,7 @@ async def _resolve_and_argv(login: str = "Valid_Login"):
     resolver = source.TwitchPlaybackResolver(
         _available_capability(), runner=runner, timeout=0.1
     )
-    result = await resolver.resolve(login)
+    result = await resolver.resolve(login, max_height=max_height)
     return source, result, runner.calls[0]
 
 
@@ -69,6 +69,17 @@ class TwitchResolverCommandTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(argv[filter_index + 1], ">720p60")
         self.assertEqual(argv.count(">720p60"), 1)
         self.assertNotIn("shell", " ".join(argv).lower())
+
+    async def test_viewer_mode_asks_for_a_lighter_stream(self) -> None:
+        """Зрительский режим качает 480p: в чат всё равно уходит 854x480."""
+        _source, result, argv = await _resolve_and_argv(max_height=480)
+
+        self.assertEqual(result.status, _source.PlaybackResolveStatus.RESOLVED)
+        filter_index = argv.index("--stream-sorting-excludes")
+        self.assertEqual(argv[filter_index + 1], ">480p")
+        # Остальные параметры не меняются: фильтр — единственное отличие.
+        self.assertEqual(argv[0], "streamlink")
+        self.assertEqual(argv[-1], "best,best-unfiltered")
 
     async def test_strict_login_is_normalized_before_url_construction(self) -> None:
         _source, _result, argv = await _resolve_and_argv("Mixed_Case")

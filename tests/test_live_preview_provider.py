@@ -165,9 +165,13 @@ class FakeSource:
     def __init__(self, *results: object) -> None:
         self.results = deque(results)
         self.open_calls: list[tuple[str, str]] = []
+        self.open_max_heights: list[int | None] = []
 
-    async def open(self, twitch_login: str, physical_stream_id: str):
+    async def open(
+        self, twitch_login: str, physical_stream_id: str, *, max_height: int | None = None
+    ):
         self.open_calls.append((twitch_login, physical_stream_id))
+        self.open_max_heights.append(max_height)
         if not self.results:
             raise AssertionError("unexpected source.open")
         result = self.results.popleft()
