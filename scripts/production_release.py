@@ -88,8 +88,13 @@ REQUIRED_PACKAGE_FILES = (
 DEPLOY_TIMEOUT_SECONDS = 900
 POLL_SECONDS = 15
 
+# Сколько копий базы держим на сервере. 05.10.2026 выяснилось, что копии перед
+# выпуском никто не убирал: 30 файлов заняли 378 МБ из 434 МБ тома, и превью
+# стало падать на нехватке места.
+BACKUP_KEEP = 3
+
 BACKUP_SCRIPT = """
-import os, sqlite3, time
+import os, sqlite3, time, glob
 from contextlib import closing
 stamp = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
 dest = '/data/backups/predeploy-%s.db' % stamp
@@ -101,7 +106,18 @@ with closing(sqlite3.connect('file:%s?mode=ro' % dest, uri=True)) as check:
     print('BACKUP_INTEGRITY=' + cur.execute('PRAGMA integrity_check').fetchone()[0])
     print('BACKUP_FK=' + str(len(cur.execute('PRAGMA foreign_key_check').fetchall())))
     print('BACKUP_BYTES=' + str(os.path.getsize(dest)))
-"""
+copies = sorted(
+    glob.glob('/data/backups/predeploy-*.db'), key=os.path.getmtime, reverse=True)
+pruned = 0
+for old in copies[__BACKUP_KEEP__:]:
+    for suffix in ('', '-shm', '-wal'):
+        try:
+            os.remove(old + suffix)
+        except OSError:
+            continue
+    pruned += 1
+print('BACKUP_PRUNED=' + str(pruned))
+""".replace("__BACKUP_KEEP__", str(BACKUP_KEEP))
 
 HEALTH_SCRIPT = (
     "import json, os, urllib.request; "

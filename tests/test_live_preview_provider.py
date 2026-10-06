@@ -424,7 +424,8 @@ class ArtifactFlowTests(ProviderTestCase):
         self.assertEqual(handle.close_calls, 0)
         self.assertEqual(renderer.calls, [])
 
-    async def test_non_first_preview_does_not_request_fallback(self) -> None:
+    async def test_every_preview_requests_a_fallback_not_only_the_first(self) -> None:
+        """Спокойный стрим не должен замирать: запасной фрагмент нужен всегда."""
         snapshot = FakeSnapshot()
         handle = FakeCaptureHandle(
             SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
@@ -438,7 +439,7 @@ class ArtifactFlowTests(ProviderTestCase):
         artifact = await session.create_artifact(request)
 
         self.assertIsNone(artifact)
-        self.assertEqual(analyzer.include_fallback_calls, [False])
+        self.assertEqual(analyzer.include_fallback_calls, [True])
         self.assertEqual(renderer.calls, [])
 
     async def test_first_preview_requests_fallback_and_no_fallback_found_returns_none(

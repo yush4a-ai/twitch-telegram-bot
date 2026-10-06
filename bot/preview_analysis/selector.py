@@ -241,9 +241,9 @@ def select_safe_fallback(
     duration_seconds: float,
     config: AnalysisConfig,
 ) -> HighlightWindow | None:
-    """One safe, continuous ``FALLBACK_DURATION_SECONDS`` window for the very
-    first preview of a physical stream when :func:`select_highlights` found no
-    interesting highlight. Reuses the same black/freeze/cut/coverage safety
+    """One safe, continuous ``FALLBACK_DURATION_SECONDS`` window for a preview
+    when :func:`select_highlights` found no interesting highlight — including
+    calm streams where no highlight ever appears. Reuses the same black/freeze/cut/coverage safety
     gate as normal candidates (:func:`_is_safe_window`) so a fallback never
     surfaces a black, frozen, or corrupt interval — it only skips the
     interestingness (motion/audio/scene) requirement. Picks the least

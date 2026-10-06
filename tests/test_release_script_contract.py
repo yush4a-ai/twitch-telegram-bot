@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from scripts.production_release import HEALTH_SCRIPT
+from scripts.production_release import BACKUP_KEEP, BACKUP_SCRIPT, HEALTH_SCRIPT
 
 RELEASE_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "production_release.py"
 
@@ -18,6 +18,14 @@ class ReleaseRemoteCommandTests(unittest.TestCase):
         # railway CLI не переносит переводы строк в удалённую команду.
         self.assertNotIn("\n", HEALTH_SCRIPT)
         self.assertIn("GETME_USERNAME=", HEALTH_SCRIPT)
+
+    def test_backup_script_rotates_its_own_copies(self):
+        """Копии перед выпуском не должны накапливаться и съедать том."""
+        self.assertIn("predeploy-*.db", BACKUP_SCRIPT)
+        self.assertIn("BACKUP_PRUNED=", BACKUP_SCRIPT)
+        # Ровно столько свежих копий остаётся на сервере.
+        self.assertIn(f"copies[{BACKUP_KEEP}:]", BACKUP_SCRIPT)
+        self.assertGreaterEqual(BACKUP_KEEP, 2)
 
 
 if __name__ == "__main__":

@@ -290,9 +290,10 @@ class _LivePreviewArtifactSession:
         self, snapshot: Any, is_first_preview: bool
     ) -> _PendingCycle | object | None:
         try:
-            analysis = await self._analyzer.analyze(
-                snapshot, include_fallback=is_first_preview
-            )
+            # Запасной фрагмент просим всегда, а не только для первого показа:
+            # на спокойных стримах (Just Chatting) интересных моментов нет, и
+            # набор в 23 секунды никогда не добирался — превью замирало.
+            analysis = await self._analyzer.analyze(snapshot, include_fallback=True)
         except asyncio.CancelledError:
             raise
         except Exception:
