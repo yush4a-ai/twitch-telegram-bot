@@ -4,6 +4,7 @@ import asyncio
 import json
 import math
 import re
+import time
 from dataclasses import dataclass
 
 from aiogram import Bot
@@ -33,8 +34,23 @@ class TelegramStarsProvider:
             raise ValueError("invalid Stars runtime policy")
         self._sender = sender
         self._policy = runtime_policy
-        self._attempts = set()
+        # Попытки создания счёта: попытка не должна отправляться дважды, но и
+        # копиться вечно она не может — иначе после 4096 счетов продажи встают.
+        self._attempts: dict[str, float] = {}
         self._refunds = {}
+
+    def _prune_attempts(self, now: float, *, ttl: float = 3600.0) -> None:
+        expired = [key for key, stamp in self._attempts.items() if now - stamp > ttl]
+        for key in expired:
+            self._attempts.pop(key, None)
+        if len(self._attempts) < 4096:
+            return
+        # Переполнение: освобождаем половину самых старых записей, чтобы приём
+        # оплат не останавливался до перезапуска процесса.
+        for key, _stamp in sorted(self._attempts.items(), key=lambda item: item[1])[
+            : max(1, len(self._attempts) // 2)
+        ]:
+            self._attempts.pop(key, None)
 
     @property
     def network_free(self):
@@ -116,9 +132,10 @@ class TelegramStarsProvider:
                             and snapshot.broadcaster_id.isdecimal() and int(snapshot.broadcaster_id) > 0))):
             raise PaymentVerificationError("invalid Stars server snapshot")
         payload = self.invoice_payload(snapshot.order_id, attempt_id)
-        if attempt_id in self._attempts or len(self._attempts) >= 4096:
+        self._prune_attempts(time.monotonic())
+        if attempt_id in self._attempts:
             raise PaymentCreationUnknown("invoice outcome unresolved; do not resend")
-        self._attempts.add(attempt_id)
+        self._attempts[attempt_id] = time.monotonic()
         title = "Viewer Plus" if snapshot.product.product_id == "viewer_plus" else "Streamer Plus"
         description = "Подписка на 1 месяц"
         prices = [LabeledPrice(label=title, amount=snapshot.money.amount_minor)]
@@ -161,37 +178,48 @@ class TelegramStarsProvider:
         # sendInvoice возвращает сообщение, а не идентификатор списания.
         return CheckoutSession(snapshot.order_id, None, hosted_url, "pending", snapshot.checkout_expires_at)
 
-    async def star_transactions(self, *, limit: int = 30):
+    async def star_transactions(self, *, limit: int = 30, pages: int = 5):
         """Оплаченные звёздные счета бота: (charge_id, payload, amount, date).
 
         Telegram присылает сообщение об оплате один раз. Если оно потерялось,
         оплата остаётся в истории транзакций — по ней платёж можно восстановить.
+        Список отдаётся постранично и в хронологическом порядке, поэтому читаем
+        страницы до конца: иначе свежие оплаты остались бы за окном выборки.
         """
         getter = getattr(self._sender, "get_star_transactions", None)
         if not callable(getter):
             return []
-        try:
-            result = await asyncio.wait_for(getter(limit=limit), timeout=10)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            return []
+        page_size = max(1, min(100, limit))
         collected = []
-        for transaction in getattr(result, "transactions", None) or ():
-            source = getattr(transaction, "source", None)
-            payload = getattr(source, "invoice_payload", None)
-            charge = getattr(transaction, "id", None)
-            amount = getattr(transaction, "amount", None)
-            moment = getattr(transaction, "date", None)
-            if (not isinstance(payload, str) or not payload.startswith("ts1:")
-                    or not isinstance(charge, str) or type(amount) is not int
-                    or amount <= 0 or moment is None):
-                continue
+        offset = 0
+        for _page in range(max(1, pages)):
             try:
-                observed = float(moment.timestamp())
-            except (AttributeError, TypeError, ValueError, OverflowError):
-                observed = 0.0
-            collected.append((charge, payload, amount, observed))
+                result = await asyncio.wait_for(
+                    getter(limit=page_size, offset=offset), timeout=10
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                return collected
+            transactions = list(getattr(result, "transactions", None) or ())
+            for transaction in transactions:
+                source = getattr(transaction, "source", None)
+                payload = getattr(source, "invoice_payload", None)
+                charge = getattr(transaction, "id", None)
+                amount = getattr(transaction, "amount", None)
+                moment = getattr(transaction, "date", None)
+                if (not isinstance(payload, str) or not payload.startswith("ts1:")
+                        or not isinstance(charge, str) or type(amount) is not int
+                        or amount <= 0 or moment is None):
+                    continue
+                try:
+                    observed = float(moment.timestamp())
+                except (AttributeError, TypeError, ValueError, OverflowError):
+                    observed = 0.0
+                collected.append((charge, payload, amount, observed))
+            if len(transactions) < page_size:
+                break
+            offset += page_size
         return collected
 
     def validate_precheckout(self, query, order, *, now):

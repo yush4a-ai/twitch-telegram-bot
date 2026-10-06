@@ -88,8 +88,9 @@ class BillingService:
                 and self._runtime_policy.refund_policy_approved and self._access_policy is not None
                 and (rule, version) == (self._access_policy.rule, self._access_policy.version))
 
-    def _access_end(self, start: float) -> float:
-        if self._access_policy.rule == "30_days":
+    def _access_end(self, start: float, rule: str | None = None) -> float:
+        active_rule = rule if rule is not None else getattr(self._access_policy, "rule", "30_days")
+        if active_rule == "30_days":
             return start + 30 * 86400
         date = datetime.fromtimestamp(start, timezone.utc)
         year, month = (date.year + 1, 1) if date.month == 12 else (date.year, date.month + 1)
@@ -98,12 +99,15 @@ class BillingService:
     async def _cancel_stale_unresolved(
         self, user_id: int, *, now: float, grace_seconds: float = 300.0
     ) -> int:
-        """Закрывает попытки, по которым счёт так и не создался.
+        """Закрывает заказы, по которым оплата уже невозможна.
 
-        Иначе один сбой навсегда блокирует покупку: незакрытый заказ заставляет
-        следующую попытку ответить «платёж уже в процессе». Трогаем только те
-        заказы, где провайдер не выдал ни ссылки, ни идентификатора платежа —
-        оплатить по ним физически нечего.
+        Два случая. Первый: счёт вообще не создался (сбой провайдера). Второй,
+        и он важнее для людей: счёт создан, но человек его не оплатил, и срок
+        счёта истёк — оплатить его Telegram уже не даст, а незакрытый заказ
+        навсегда блокирует следующую покупку («платёж уже в процессе»).
+
+        Не трогаем заказы, по которым есть сохранённый идентификатор платежа:
+        там оплата могла пройти, и её зачтёт сверка.
         """
         cutoff = now - grace_seconds
         async with self._store.transaction() as conn:
@@ -112,12 +116,16 @@ class BillingService:
                 "WHERE o.telegram_user_id = ? AND o.provider = 'telegram_stars' "
                 "AND o.status = 'pending' "
                 "AND o.financial_status IN ('pending', 'manual_review') "
-                "AND o.created_at <= ? AND COALESCE(o.checkout_url, '') = '' "
-                "AND EXISTS(SELECT 1 FROM billing_payment_attempts a "
-                "WHERE a.order_id = o.order_id AND a.state = 'creation_unknown' "
-                "AND a.provider_reference IS NULL) "
+                "AND NOT EXISTS(SELECT 1 FROM billing_payment_attempts a "
+                "WHERE a.order_id = o.order_id AND a.provider_reference IS NOT NULL) "
+                "AND ("
+                "  (o.created_at <= ? AND COALESCE(o.checkout_url, '') = '' "
+                "   AND EXISTS(SELECT 1 FROM billing_payment_attempts a "
+                "   WHERE a.order_id = o.order_id AND a.state = 'creation_unknown')) "
+                "  OR o.checkout_expires_at <= ?"
+                ") "
                 "LIMIT 10",
-                (user_id, cutoff),
+                (user_id, cutoff, now),
             )
             order_ids = [row[0] for row in await cursor.fetchall()]
             for order_id in order_ids:
@@ -128,7 +136,7 @@ class BillingService:
                 )
                 await conn.execute(
                     "UPDATE billing_payment_attempts SET state='done',lease_until=NULL,"
-                    "next_reconcile_at=NULL WHERE order_id=? AND state='creation_unknown'",
+                    "next_reconcile_at=NULL WHERE order_id=? AND state != 'done'",
                     (order_id,),
                 )
                 await conn.execute(
@@ -254,9 +262,11 @@ class BillingService:
             except PaymentVerificationError:
                 continue
             order = await self._db.get_billing_order(order_id)
-            if (order is None or order.status != "pending"
-                    or order.currency != "XTR" or order.units != amount):
+            if (order is None or order.currency != "XTR" or order.units != amount
+                    or order.financial_status == "refunded" or order.grant_id is not None):
                 continue
+            # Заказ мог быть закрыт по истечении счёта: это не отменяет оплату,
+            # которая уже прошла — деньги списаны, значит доступ нужно выдать.
             evidence = VerifiedPaymentEvidence(
                 provider.provider_id, charge, order_id, attempt_id,
                 Money(amount, "XTR"), "stars", "confirmed", "successful_payment",
@@ -344,7 +354,10 @@ class BillingService:
                 return ApplyResult("manual_review", order.order_id, order.grant_id)
             if evidence.status == "refunded":
                 changed = False
-                if order.grant_id is not None and self._period_ready(order.period_rule, order.period_rule_version):
+                # Доступ отзываем всегда, когда возврат подтверждён: раньше отзыв
+                # зависел от текущей денежной политики, и после её изменения
+                # человек оставался с доступом, хотя деньги ему вернули.
+                if order.grant_id is not None:
                     update = await conn.execute("UPDATE entitlement_grants SET revoked_at=? WHERE grant_id=? AND source='paid' AND revoked_at IS NULL", (now, order.grant_id))
                     changed = update.rowcount == 1
                     if changed:
@@ -359,10 +372,12 @@ class BillingService:
                 return ApplyResult("recorded", order.order_id)
             if order.grant_id is not None:
                 return ApplyResult("already_applied", order.order_id, order.grant_id)
-            await conn.execute("UPDATE billing_orders SET financial_status='confirmed' WHERE order_id=?", (order.order_id,))
-            if (not self._period_ready(order.period_rule, order.period_rule_version)
-                    or self._terms_version is None or order.terms_version != self._terms_version):
+            # Подтверждённую оплату обязаны закрыть доступом: заказ хранит
+            # замороженные условия покупки, поэтому смена текущей политики или
+            # версии периода не лишает человека уже оплаченного месяца.
+            if not self._local_runtime() and self._provider is None:
                 return ApplyResult("recorded", order.order_id)
+            await conn.execute("UPDATE billing_orders SET financial_status='confirmed' WHERE order_id=?", (order.order_id,))
             try:
                 frozen_product = json.loads(order.product_snapshot_json)
                 expected_money = frozen_product["rub" if order.currency == "RUB" else "xtr"]
@@ -378,14 +393,21 @@ class BillingService:
             if not matches:
                 return ApplyResult("manual_review", order.order_id)
             grant_id = uuid.uuid4().hex
-            end = self._access_end(now)
+            # Месяц считаем от даты платежа: если подтверждение пришло позже
+            # (например, восстановили потерянную оплату), человек не теряет дни.
+            start = now
+            observed = getattr(evidence, "observed_at", None)
+            if (isinstance(observed, (int, float)) and math.isfinite(observed)
+                    and 0 < observed <= now and now - observed < 30 * 86400):
+                start = observed
+            end = self._access_end(start, order.period_rule)
             await conn.execute(
                 "INSERT INTO entitlement_grants(grant_id,request_key,subject_kind,subject_id,plan,source,starts_at,expires_at,issued_by,created_at,beneficiary_telegram_user_id) "
                 "VALUES (?,?,?,?,?,'paid',?,?,0,?,?)",
-                (grant_id, "paid-order:" + order.order_id, order.subject_kind, order.subject_id, order.plan, now, end, now, order.beneficiary_telegram_user_id))
+                (grant_id, "paid-order:" + order.order_id, order.subject_kind, order.subject_id, order.plan, start, end, now, order.beneficiary_telegram_user_id))
             await conn.execute("INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) VALUES (?,'grant',0,?)", (grant_id, now))
             await conn.execute("UPDATE billing_orders SET status='paid',paid_at=?,grant_id=?,access_starts_at=?,access_expires_at=?,duration_seconds=? WHERE order_id=?",
-                (now, grant_id, now, end, int(end-now), order.order_id))
+                (now, grant_id, start, end, int(end-start), order.order_id))
             await conn.execute("UPDATE billing_payment_attempts SET state='done',lease_until=NULL,next_reconcile_at=NULL WHERE attempt_id=?", (attempt.attempt_id,))
             await conn.execute("INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'access_applied',?)", (order.order_id, now))
             return ApplyResult("applied", order.order_id, grant_id)

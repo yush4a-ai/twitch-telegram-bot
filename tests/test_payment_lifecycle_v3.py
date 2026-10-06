@@ -191,8 +191,12 @@ class PaymentLifecycleV3Tests(PaymentFixture):
                 self.assertEqual(await self.count("entitlement_grants"), 0)
         policy_off = self.make_service(self.db, policy=BillingRuntimePolicy(), period=None)
         result = await policy_off.apply_payment_evidence(evidence, now=120)
-        self.assertEqual(result.state, "recorded")
-        self.assertEqual(await self.count("entitlement_grants"), 0)
+        # Оплата уже подтверждена провайдером: человек заплатил, поэтому доступ
+        # выдаётся по замороженным условиям заказа. Неутверждённая политика
+        # запрещает СОЗДАВАТЬ новые счёта (prepare_payment), но не отменяет
+        # уже случившуюся оплату.
+        self.assertEqual(result.state, "applied")
+        self.assertEqual(await self.count("entitlement_grants"), 1)
         self.assertEqual(await self.count("billing_provider_facts"), 1)
 
     async def test_retry_budget_429_and_concurrency_do_not_grant_or_retry_early(self):
@@ -267,7 +271,13 @@ class PaymentLifecycleV3Tests(PaymentFixture):
         fact = await (await self.db.conn.execute("SELECT status FROM billing_provider_facts WHERE transaction_id=?", (TX,))).fetchone()
         self.assertEqual(fact, ("confirmed",))
         order = await self.db.get_billing_order(evidence.order_id)
-        self.assertEqual((order.grant_id, order.access_starts_at), (first.grant_id, 110))
+        # Месяц отсчитывается от даты платежа, а не от момента обработки: иначе
+        # задержка подтверждения (или восстановление потерянной оплаты) съедала
+        # бы оплаченные дни.
+        self.assertEqual(
+            (order.grant_id, order.access_starts_at),
+            (first.grant_id, evidence.observed_at),
+        )
         self.assertTrue(await self.db.has_streamer_plus(101, now=140))
 
     async def test_tick_is_limited_to_ten_and_shared_worker_lease_blocks_second_connection(self):
