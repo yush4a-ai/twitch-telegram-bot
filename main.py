@@ -586,6 +586,20 @@ def _make_owner_alert_sender(bot: Bot, owner_chat_id: int):
     return send
 
 
+async def _run_billing_reconcile(service, *, interval: float = 300.0) -> None:
+    """Сверка оплат звёздами: Telegram мог не доставить сообщение об оплате."""
+    while True:
+        try:
+            applied = await service.apply_stars_transactions(now=time.time())
+            if applied:
+                logger.info("Восстановлено оплат звёздами: %s", applied)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Сверка оплат звёздами не удалась")
+        await asyncio.sleep(interval)
+
+
 async def _run_owner_alerts(alerter: OwnerAlerter, collect, *, interval: float = 300.0) -> None:
     """Редкая проверка подсистем: оповещения не срочные, панель не должна спамить."""
     while True:
@@ -953,6 +967,12 @@ async def main() -> None:
                         people=db, directory=admin_directory, database=db,
                         chat_sender=_make_chat_sender(bot),
                         media_dir=str(Path(config.db_path).parent / "media"),
+                    )
+                    # Сверка оплат: сообщение об успешной оплате приходит один раз,
+                    # и потерянное сообщение нельзя оставлять без последствий.
+                    billing_task = asyncio.create_task(
+                        _run_billing_reconcile(billing_service),
+                        name="billing-reconcile",
                     )
                     # Оповещения владельцу: только когда подсистема меняет состояние.
                     owner_chat_id = getattr(config, "owner_chat_id", None)

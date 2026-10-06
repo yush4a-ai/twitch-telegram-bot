@@ -26,7 +26,7 @@ class PrecheckoutDecision:
 
 class TelegramStarsProvider:
     provider_id = "telegram_stars"
-    can_reconcile = False
+    can_reconcile = True
 
     def __init__(self, sender, runtime_policy: BillingRuntimePolicy):
         if not isinstance(runtime_policy, BillingRuntimePolicy):
@@ -160,6 +160,39 @@ class TelegramStarsProvider:
             raise PaymentCreationUnknown("no invoice transport")
         # sendInvoice возвращает сообщение, а не идентификатор списания.
         return CheckoutSession(snapshot.order_id, None, hosted_url, "pending", snapshot.checkout_expires_at)
+
+    async def star_transactions(self, *, limit: int = 30):
+        """Оплаченные звёздные счета бота: (charge_id, payload, amount, date).
+
+        Telegram присылает сообщение об оплате один раз. Если оно потерялось,
+        оплата остаётся в истории транзакций — по ней платёж можно восстановить.
+        """
+        getter = getattr(self._sender, "get_star_transactions", None)
+        if not callable(getter):
+            return []
+        try:
+            result = await asyncio.wait_for(getter(limit=limit), timeout=10)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return []
+        collected = []
+        for transaction in getattr(result, "transactions", None) or ():
+            source = getattr(transaction, "source", None)
+            payload = getattr(source, "invoice_payload", None)
+            charge = getattr(transaction, "id", None)
+            amount = getattr(transaction, "amount", None)
+            moment = getattr(transaction, "date", None)
+            if (not isinstance(payload, str) or not payload.startswith("ts1:")
+                    or not isinstance(charge, str) or type(amount) is not int
+                    or amount <= 0 or moment is None):
+                continue
+            try:
+                observed = float(moment.timestamp())
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                observed = 0.0
+            collected.append((charge, payload, amount, observed))
+        return collected
 
     def validate_precheckout(self, query, order, *, now):
         self._require_ready()

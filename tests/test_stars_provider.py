@@ -221,10 +221,46 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(invoice["start_parameter"])
         self.assertIsNone(order.checkout_reference)
         self.assertIsNone(order.checkout_url)
-        self.assertFalse(self.provider.can_reconcile)
+        # Сверка появилась: оплату можно восстановить из истории транзакций,
+        # если сообщение об оплате потерялось.
+        self.assertTrue(self.provider.can_reconcile)
         self.assertFalse(hasattr(self.provider, "get_payment_status"))
         await self.service.reconcile_due(now=110)
         self.assertEqual(len(self.sender.invoices), 1)
+
+    async def test_missing_payment_message_is_recovered_from_star_transactions(self):
+        """Оплата без сообщения от Telegram восстанавливается по транзакциям."""
+        order, payload = await self.create(key="recover-key")
+        charge = "stx_recovered_charge_1"
+        transaction = SimpleNamespace(
+            id=charge, amount=17,
+            date=datetime.fromtimestamp(110, timezone.utc),
+            source=SimpleNamespace(invoice_payload=payload),
+        )
+        self.sender.get_star_transactions = AsyncMock(
+            return_value=SimpleNamespace(transactions=[transaction])
+        )
+
+        applied = await self.service.apply_stars_transactions(now=120)
+
+        self.assertEqual(applied, 1)
+        self.assertTrue(await self.db.has_viewer_plus(101, now=120))
+        # Повторная сверка не выдаёт доступ дважды.
+        self.assertEqual(await self.service.apply_stars_transactions(now=130), 0)
+
+    async def test_star_transactions_ignore_foreign_payloads(self):
+        self.sender.get_star_transactions = AsyncMock(
+            return_value=SimpleNamespace(transactions=[
+                SimpleNamespace(
+                    id="stx_other", amount=50,
+                    date=datetime.fromtimestamp(110, timezone.utc),
+                    source=SimpleNamespace(invoice_payload="other-bot-payload"),
+                ),
+            ])
+        )
+
+        self.assertEqual(await self.service.apply_stars_transactions(now=120), 0)
+        self.assertFalse(await self.db.has_viewer_plus(101, now=120))
 
     async def test_precheckout_checks_buyer_payload_amount_currency_expiry_and_binding_without_grant(self):
         order, payload = await self.create("streamer_plus")

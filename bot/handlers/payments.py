@@ -1,6 +1,7 @@
 """Payment updates from the existing authenticated aiogram polling pipeline."""
 
 import asyncio
+import logging
 import time
 
 from aiogram import F, Router
@@ -11,6 +12,9 @@ from ..billing_provider import PaymentVerificationError
 from ..plan_catalog import PAYMENT_UNAVAILABLE_MESSAGE
 from ..stars_provider import TelegramStarsProvider
 from ..legal_documents import get_support_state
+
+
+logger = logging.getLogger(__name__)
 
 
 async def on_payment_support(message, config):
@@ -70,7 +74,14 @@ async def _apply_message(message, service, *, refund, now):
         evidence = (provider.refunded_payment_to_evidence(message, order, expected_charge=attempt.provider_reference, now=now)
                     if refund else provider.successful_payment_to_evidence(message, order, now=now))
         return await service.apply_payment_evidence(evidence, now=now)
-    except (PaymentVerificationError, PermissionError, ValueError):
+    except (PaymentVerificationError, PermissionError, ValueError) as error:
+        # Молчаливый отказ уже стоил одного оплаченного, но не выданного
+        # доступа: причину обязательно пишем в журнал.
+        logger.warning(
+            "Платёж не применён: %s (%s)", type(error).__name__, error)
+        return None
+    except Exception as error:
+        logger.exception("Сбой обработки платежа: %s", type(error).__name__)
         return None
 
 

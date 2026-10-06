@@ -227,6 +227,44 @@ class BillingService:
             raise ValueError("provider notice mismatch")
         return await self._store.accept_notice(notice, hashlib.sha256(body).hexdigest(), now=now)
 
+    async def apply_stars_transactions(self, *, now: float, limit: int = 30) -> int:
+        """Подтягивает оплаты звёздами, о которых Telegram не сообщил.
+
+        Сообщение об успешной оплате приходит один раз: если оно потерялось,
+        человек остаётся без доступа, хотя деньги списаны. Сверяемся с
+        официальным списком транзакций бота и применяем найденные оплаты тем же
+        путём, что и обычное подтверждение.
+        """
+        self._check_now(now)
+        provider = self._provider
+        if provider is None or getattr(provider, "provider_id", None) != "telegram_stars":
+            return 0
+        lister = getattr(provider, "star_transactions", None)
+        if not callable(lister):
+            return 0
+        applied = 0
+        for charge, payload, amount, observed in await lister(limit=limit):
+            try:
+                order_id, attempt_id = provider.parse_payload(payload)
+            except PaymentVerificationError:
+                continue
+            order = await self._db.get_billing_order(order_id)
+            if (order is None or order.status != "pending"
+                    or order.currency != "XTR" or order.units != amount):
+                continue
+            evidence = VerifiedPaymentEvidence(
+                provider.provider_id, charge, order_id, attempt_id,
+                Money(amount, "XTR"), "stars", "confirmed", "successful_payment",
+                observed if observed > 0 else now,
+            )
+            try:
+                result = await self.apply_payment_evidence(evidence, now=now)
+            except (PaymentVerificationError, PermissionError, ValueError):
+                continue
+            if result.state in {"applied", "recorded", "already_applied"}:
+                applied += 1
+        return applied
+
     async def apply_payment_evidence(self, evidence: VerifiedPaymentEvidence, *, now: float) -> ApplyResult:
         self._check_now(now)
         if not isinstance(evidence, VerifiedPaymentEvidence):
