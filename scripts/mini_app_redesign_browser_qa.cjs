@@ -605,7 +605,7 @@ async function historyJourney(page){
   await page.getByRole('button',{name:'История уведомлений',exact:true}).click();
   await page.getByRole('heading',{name:'История уведомлений',exact:true}).waitFor();
   if(argument('scenario','')==='free-six'){
-    await page.getByText('Viewer Plus неактивен',{exact:true}).waitFor();assert.equal(await page.locator('[data-history-event]').count(),0);
+    await page.getByText('Зритель Plus неактивен',{exact:true}).waitFor();assert.equal(await page.locator('[data-history-event]').count(),0);
     await page.getByRole('button',{name:'Посмотреть тариф',exact:true}).click();await page.getByRole('heading',{name:'Тариф',exact:true}).waitFor();await page.evaluate(()=>window.__qaSdk.back());await page.evaluate(()=>window.__qaSdk.back());
     await page.getByRole('heading',{name:'Профиль',exact:true}).waitFor();await page.getByRole('button',{name:'Уведомления',exact:true}).click();await page.getByRole('button',{name:'Сохранить тихие часы',exact:true}).waitFor();return [await settingsPicture(page,'free-notifications')];
   }
@@ -903,7 +903,7 @@ async function tariffCopyJourney(page) {
     await page.getByRole('button',{name:'Профиль',exact:true}).click();
     await page.locator('#content[data-profile-state="ready"]').waitFor();
     await page.getByRole('button',{name:active?'Моя подписка':'О тарифе',exact:true}).click();
-    await page.getByRole('heading',{name:mode==='viewer'?'Viewer Plus':'Streamer Plus',exact:true}).waitFor();
+    await page.getByRole('heading',{name:mode==='viewer'?'Зритель Plus':'Стример Plus',exact:true}).waitFor();
     await page.getByRole('heading',{name:active?'Моя подписка':'Тариф',exact:true}).waitFor();
     await page.getByText(mode==='viewer'?'150 ₽ / месяц':'300 ₽ / месяц',{exact:true}).waitFor();
     const labels=(await page.locator('#tab-bar button').allTextContents()).map(x=>x.trim());
@@ -933,26 +933,26 @@ async function purchaseJourney(page) {
   const own=(await call('subscription/state')).data;
   const title=own.viewer.active||own.streamer.active?'Моя подписка':'Тариф';
   await page.getByRole('heading',{name:title,exact:true}).waitFor();
-  await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();
   assert.equal(await page.locator('[data-benefit-block]').count(),4);
   await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Streamer Plus',exact:true}).count(),0);
+  assert.equal(await page.getByRole('heading',{name:'Стример Plus',exact:true}).count(),0);
   assert.equal(await page.locator('#content').getByText(/тестов|demo|mock|staging|prototype/i).count(),0);
   await picture('viewer');
   await page.getByText('Все возможности',{exact:true}).click();
   await page.locator('details[open]').getByText('Напоминания',{exact:true}).waitFor();await picture('viewer-expanded');
   await page.getByRole('button',{name:'Стример',exact:true}).click();
-  await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Стример Plus',exact:true}).waitFor();
   await page.getByText('300 ₽ / месяц',{exact:true}).waitFor();
   assert.equal(await page.locator('[data-benefit-block]').count(),4);
-  await page.getByText('Viewer Plus включён',{exact:true}).click();
+  await page.getByText('Зритель Plus включён',{exact:true}).click();
   await page.locator('details[open]').getByText('Напоминания',{exact:true}).waitFor();await picture('streamer');
   await page.getByRole('button',{name:'Тариф для зрителя — 150 ₽',exact:true}).click();
-  await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();
   await page.getByText('150 ₽ / месяц',{exact:true}).waitFor();await picture('secondary-viewer');
   await page.evaluate(()=>window.__qaSdk.back());
-  await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
-  await page.getByRole('button',{name:/^(Оформить|Продлить) Streamer Plus — 300 ₽$/}).click();
+  await page.getByRole('heading',{name:'Стример Plus',exact:true}).waitFor();
+  await page.getByRole('button',{name:/^(Оформить|Продлить) Стример Plus — 300 ₽$/}).click();
   await page.getByRole('heading',{name:'Как оплатить?',exact:true}).waitFor();
   await page.getByText('СБП и банковская карта — через Platega.',{exact:true}).waitFor();await picture('methods');
   for(const [method,label] of [['stars','Telegram Stars'],['sbp','СБП'],['bank_card','Банковская карта']]){
@@ -965,27 +965,27 @@ async function purchaseJourney(page) {
   assert.equal(await page.getByRole('button',{name:'Повторить',exact:true}).count(),0,'Permanent unavailable is not a network retry');
   await page.getByRole('button',{name:'Банковская карта',exact:true}).click();
   await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
-  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Streamer Plus',exact:true}).waitFor();
+  await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Стример Plus',exact:true}).waitFor();
   let release,seen;const held=new Promise(r=>release=r),started=new Promise(r=>seen=r);
   await page.route('**/app/api/purchase/prepare',async route=>{seen();await held;return route.continue();});
   try{
-    await page.getByRole('button',{name:/^(Оформить|Продлить) Streamer Plus — 300 ₽$/}).click();
+    await page.getByRole('button',{name:/^(Оформить|Продлить) Стример Plus — 300 ₽$/}).click();
     await page.getByRole('button',{name:'СБП',exact:true}).click();await started;
     assert.equal(await page.getByRole('button',{name:'Telegram Stars',exact:true}).isDisabled(),true);
     await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('button',{name:'Зритель',exact:true}).click();
-    await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();release();
+    await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();release();
   }finally{release();await page.unroute('**/app/api/purchase/prepare');}
   assert.equal(await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).count(),0);
   const final=(await call('subscription/state')).data;assert.deepEqual(final.history,own.history);assert.equal(final.viewer.active,own.viewer.active);assert.equal(final.streamer.active,own.streamer.active);
   await page.goto(new URL('/app?screen=subscription&paid=1&price=1&product=streamer_plus',page.url()).href);
-  await page.getByRole('heading',{name:title,exact:true}).waitFor();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByRole('heading',{name:title,exact:true}).waitFor();await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();
   assert.deepEqual((await call('subscription/state')).data.history,own.history);
-  await page.getByRole('button',{name:/^(Оформить|Продлить) Viewer Plus — 150 ₽$/}).click();
+  await page.getByRole('button',{name:/^(Оформить|Продлить) Зритель Plus — 150 ₽$/}).click();
   await page.route('**/app/api/purchase/prepare',route=>route.abort());
   await page.getByRole('button',{name:'СБП',exact:true}).click();await page.getByText('Нет связи. Попробуйте ещё раз.',{exact:true}).waitFor();await picture('offline');
   await page.unroute('**/app/api/purchase/prepare');await page.getByRole('button',{name:'Повторить',exact:true}).click();
   await page.getByText('Оплата временно недоступна. Мы заканчиваем подключение платёжной системы.',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:own.viewer.active||own.streamer.active?'Моя подписка':'О тарифе',exact:true}).click();await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Профиль',exact:true}).click();await page.getByRole('button',{name:own.viewer.active||own.streamer.active?'Моя подписка':'О тарифе',exact:true}).click();await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();
   if(argument('scenario','free-six')==='purchase-history'){
     assert.equal(own.history.length,5);
     for(const order of own.history){
@@ -993,10 +993,10 @@ async function purchaseJourney(page) {
       await page.getByRole('heading',{name:'Моя операция',exact:true}).waitFor();
       const label=order.financial_status==='pending'?(order.status==='expired'?'Время оплаты истекло':'Ожидает оплаты'):order.financial_status==='refunded'?'Возврат подтверждён':order.financial_status==='canceled'?'Отменён':'Оплата подтверждена';
       await page.getByText(label,{exact:true}).waitFor();
-      await page.getByText('Возможности Viewer Plus сейчас не активны.',{exact:true}).waitFor();
+      await page.getByText('Возможности Зритель Plus сейчас не активны.',{exact:true}).waitFor();
       if(order.access_expires_at)await page.getByText(/^Срок доступа по операции: до /).waitFor();
       await picture(`order-${order.order_id.slice(-1)}`);await page.evaluate(()=>window.__qaSdk.back());
-      await page.getByRole('heading',{name:'Viewer Plus',exact:true}).waitFor();
+      await page.getByRole('heading',{name:'Зритель Plus',exact:true}).waitFor();
     }
     let releaseOrder,seenOrder,reads=0;const orderHeld=new Promise(r=>releaseOrder=r),orderStarted=new Promise(r=>seenOrder=r);
     await page.route('**/app/api/purchase/state',async route=>{
@@ -1045,7 +1045,7 @@ async function legalJourney(page) {
     await page.evaluate(()=>document.documentElement.style.fontSize='200%');await picture(`agreement-${width}-text200`);await page.keyboard.press('Tab');assert(await page.evaluate(()=>document.activeElement!==document.body));
     await page.evaluate(()=>window.__qaSdk.back());await page.getByRole('heading',{name:'Поддержка',exact:true}).waitFor();await page.evaluate(()=>document.documentElement.style.fontSize='');
   }
-  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Тариф',exact:true}).click();await page.getByRole('button',{name:'Оформить Viewer Plus — 150 ₽',exact:true}).click();await page.getByRole('button',{name:'Документы и поддержка',exact:true}).click();await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Тариф',exact:true}).click();await page.getByRole('button',{name:'Оформить Зритель Plus — 150 ₽',exact:true}).click();await page.getByRole('button',{name:'Документы и поддержка',exact:true}).click();await page.getByRole('button',{name:'Пользовательское соглашение',exact:true}).waitFor();
   if(ready){
     await page.route('**/app/api/support/state',async route=>{const response=await route.fetch();const state=await response.json();await route.fulfill({response,json:{...state,email:'support?tag#section%part@example.com'}});});
     await page.getByRole('button',{name:'Обновить',exact:true}).click();const mail=page.getByRole('link',{name:'support?tag#section%part@example.com',exact:true});await mail.waitFor();assert.equal(await mail.getAttribute('href'),'mailto:support%3Ftag%23section%25part%40example.com');await page.unroute('**/app/api/support/state');
