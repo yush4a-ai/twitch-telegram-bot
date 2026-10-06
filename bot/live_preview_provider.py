@@ -39,6 +39,8 @@ from bot.preview_source import (
 
 
 _SNAPSHOT_WINDOW_SECONDS = 90.0
+# Зрительскому режиму нужны последние секунды, а не полтора минуты материала.
+_SIMPLE_SNAPSHOT_WINDOW_SECONDS = 15.0
 _CAPTURE_RESET_ANALYSIS_DIAGNOSTICS = frozenset(
     {"missing_segment", "empty_snapshot"}
 )
@@ -235,7 +237,11 @@ class _LivePreviewArtifactSession:
             _provider_error("capture_recovery")
 
         try:
-            acquired = handle.acquire_snapshot(_SNAPSHOT_WINDOW_SECONDS)
+            acquired = handle.acquire_snapshot(
+                _SIMPLE_SNAPSHOT_WINDOW_SECONDS
+                if request.simple_audience
+                else _SNAPSHOT_WINDOW_SECONDS
+            )
         except Exception:
             _provider_error("snapshot")
         if not isinstance(acquired, SnapshotAcquireResult):

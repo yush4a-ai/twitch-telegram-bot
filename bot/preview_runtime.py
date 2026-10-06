@@ -219,6 +219,7 @@ class PreviewManager:
         interval_seconds: float,
         max_concurrent_jobs: int,
         max_active_sessions: int = 2,
+        simple_initial_delay_seconds: float | None = None,
         send_budget: TelegramSendBudget | None = None,
         job_timeout_seconds: float,
         poll_interval_seconds: float,
@@ -234,6 +235,12 @@ class PreviewManager:
         self._running = False
         self._accepting = False
         self._initial_delay = max(0.0, float(initial_delay_seconds))
+        # Зрительскому режиму не нужен длинный прогрев: он берёт последние секунды.
+        self._simple_initial_delay = (
+            self._initial_delay
+            if simple_initial_delay_seconds is None
+            else max(0.0, float(simple_initial_delay_seconds))
+        )
         self._interval = max(0.0, float(interval_seconds))
         self._job_timeout = max(0.001, float(job_timeout_seconds))
         self._cleanup_timeout = min(1.0, self._job_timeout)
@@ -559,7 +566,12 @@ class PreviewManager:
                         await self._provider_failed(record, error)
                         continue
                     record.state = PreviewSessionState.WARMING
-                    await self._sleep(self._initial_delay)
+                    delay = self._initial_delay
+                    if self._is_simple_audience(
+                        await self._frozen_participants(record.key.twitch_login)
+                    ):
+                        delay = self._simple_initial_delay
+                    await self._sleep(delay)
                     if not self._is_current(record.token):
                         break
 

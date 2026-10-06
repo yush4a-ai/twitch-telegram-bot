@@ -346,6 +346,7 @@ async def _build_preview_runtime(
             enabled=enabled,
             disabled_reason=disabled_reason,
             initial_delay_seconds=preview_config.initial_delay_seconds,
+            simple_initial_delay_seconds=preview_config.simple_initial_delay_seconds,
             interval_seconds=preview_config.interval_seconds,
             max_concurrent_jobs=preview_config.max_concurrent_jobs,
             max_active_sessions=preview_config.max_active_sessions,

@@ -38,6 +38,8 @@ def first_release_payment_policy():
     )
 
 PREVIEW_INITIAL_DELAY_SECONDS = 75
+# Зрительский режим: хватает последних секунд, поэтому и ждать почти нечего.
+PREVIEW_SIMPLE_INITIAL_DELAY_SECONDS = 15
 PREVIEW_INTERVAL_SECONDS = 300
 PREVIEW_MAX_CONCURRENT_JOBS = 1
 PREVIEW_JOB_TIMEOUT_SECONDS = 120
@@ -193,6 +195,7 @@ def _database_path(*, railway: bool) -> str:
 class PreviewRuntimeConfig:
     enabled: bool = False
     initial_delay_seconds: int = PREVIEW_INITIAL_DELAY_SECONDS
+    simple_initial_delay_seconds: int = PREVIEW_SIMPLE_INITIAL_DELAY_SECONDS
     interval_seconds: int = PREVIEW_INTERVAL_SECONDS
     max_concurrent_jobs: int = PREVIEW_MAX_CONCURRENT_JOBS
     max_active_sessions: int = 2
@@ -285,6 +288,9 @@ def _preview_config() -> PreviewRuntimeConfig:
         enabled=enabled,
         initial_delay_seconds=positive(
             "PREVIEW_INITIAL_DELAY_SECONDS", PREVIEW_INITIAL_DELAY_SECONDS
+        ),
+        simple_initial_delay_seconds=positive(
+            "PREVIEW_SIMPLE_INITIAL_DELAY_SECONDS", PREVIEW_SIMPLE_INITIAL_DELAY_SECONDS
         ),
         interval_seconds=positive("PREVIEW_INTERVAL_SECONDS", PREVIEW_INTERVAL_SECONDS),
         max_concurrent_jobs=positive(

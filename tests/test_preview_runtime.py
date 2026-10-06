@@ -326,6 +326,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         *,
         enabled: bool = True,
         initial_delay: float = 0,
+        simple_initial_delay: float | None = None,
         interval: float = 300,
         concurrency: int = 1,
         timeout: float = 1,
@@ -340,6 +341,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
             provider or self.provider,
             enabled=enabled,
             initial_delay_seconds=initial_delay,
+            simple_initial_delay_seconds=simple_initial_delay,
             interval_seconds=interval,
             max_concurrent_jobs=concurrency,
             job_timeout_seconds=timeout,
@@ -382,6 +384,26 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(health["max_active_sessions"], 1)
         self.assertGreaterEqual(health["max_concurrent_jobs"], 1)
         self.assertLessEqual(health["active_sessions"], health["max_active_sessions"])
+
+    async def test_viewer_only_channel_warms_up_much_faster(self) -> None:
+        """Зрительскому каналу не нужен полный прогрев: он берёт последние секунды."""
+        await self.seed(101)
+        manager = self.manager(initial_delay=75, simple_initial_delay=5)
+
+        manager.start()
+        manager.observe_cycle((self.observation(),))
+        await _settle()
+        # Прогрев идёт по короткому сроку, а не по общим 75 секундам.
+        await _wait_until(
+            lambda: any(deadline == 1005.0 for deadline, _future in self.clock.sleeps)
+        )
+        await self.clock.advance(4)
+        self.assertEqual(self.provider.create_calls, [])
+
+        await self.clock.advance(1)
+
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+        self.assertEqual(len(self.provider.create_calls), 1)
 
     async def test_preview_disabled_destination_creates_no_session(self) -> None:
         await self.seed(101, preview=False)

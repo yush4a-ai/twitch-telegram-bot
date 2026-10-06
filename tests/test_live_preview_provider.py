@@ -465,6 +465,8 @@ class ArtifactFlowTests(ProviderTestCase):
         self.assertIsInstance(artifact, LocalAnimation)
         # Разбор моментов не запускаем вовсе: это и есть экономия.
         self.assertEqual(analyzer.include_fallback_calls, [])
+        # И запрашиваем у записи всего несколько секунд вместо полутора минут.
+        self.assertEqual(handle.acquire_calls, [15.0])
         self.assertEqual(len(renderer.calls), 1)
         _snapshot, selection = renderer.calls[0]
         window = selection.windows[0]
