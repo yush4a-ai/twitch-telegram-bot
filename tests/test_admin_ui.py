@@ -629,6 +629,7 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("requestSubmit()", script)
         # Наблюдение за превью: видно очередь, потолки и расход места.
         self.assertIn('id="preview-deferred"', html)
+        self.assertIn('id="preview-simple"', html)
         self.assertIn('id="preview-temp"', html)
         self.assertIn('id="preview-free"', html)
         self.assertIn("renderPreviewDetails", script)

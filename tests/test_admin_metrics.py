@@ -160,6 +160,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
             "max_active_sessions": 8,
             "max_concurrent_jobs": 4,
             "consecutive_provider_failures": 2,
+            "simple_sessions": 2,
         })
 
         result = await self.build().collect()
@@ -169,6 +170,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(preview["max_active_sessions"], 8)
         self.assertEqual(preview["max_concurrent_jobs"], 4)
         self.assertEqual(preview["consecutive_provider_failures"], 2)
+        self.assertEqual(preview["simple_sessions"], 2)
         self.assertIn("disk", preview)
 
     async def test_absent_preview_and_db_failure_do_not_hide_runtime(self):

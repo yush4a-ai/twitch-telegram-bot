@@ -453,6 +453,12 @@ function renderPreviewDetails(preview) {
   put('preview-deferred', deferred === null || deferred === undefined
     ? 'Нет данных'
     : (Number(deferred) > 0 ? `${deferred} каналов` : 'никого'));
+  const simple = preview.simple_sessions;
+  put('preview-simple', simple === null || simple === undefined
+    ? 'Нет данных'
+    : (Number(simple) > 0
+      ? `${simple} — свежие секунды без разбора`
+      : 'ничего — все каналы со стримерами'));
   const jobs = preview.active_jobs;
   const jobsLimit = preview.max_concurrent_jobs;
   put('preview-jobs', jobs === null || jobs === undefined

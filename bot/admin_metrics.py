@@ -399,6 +399,7 @@ class AdminSnapshot:
                 "state": preview_state,
                 "active_sessions": preview.get("active_sessions") if preview else None,
                 "deferred_sessions": preview.get("deferred_sessions") if preview else None,
+                "simple_sessions": preview.get("simple_sessions") if preview else None,
                 "max_active_sessions": preview.get("max_active_sessions") if preview else None,
                 "active_jobs": preview.get("active_jobs") if preview else None,
                 "max_concurrent_jobs": preview.get("max_concurrent_jobs") if preview else None,

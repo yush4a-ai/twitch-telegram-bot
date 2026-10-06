@@ -85,6 +85,9 @@ class PreviewArtifactRequest:
     generation: PreviewGeneration
     observation: PreviewObservation
     is_first_preview: bool = False
+    # Все получатели — личные чаты: смотрит только зритель, а не сообщество
+    # стримера. Такому каналу хватает свежих секунд записи без разбора моментов.
+    simple_audience: bool = False
 
 
 class PreviewSessionState(Enum):
@@ -190,6 +193,8 @@ class _ManagedSession:
     close_started: bool = False
     stopping: bool = False
     consecutive_failures: int = 0
+    # Последний запрос этой сессии: простой режим (только зрители) или полный.
+    simple_audience: bool = False
 
 
 ContentBuilder: TypeAlias = Callable[
@@ -335,6 +340,9 @@ class PreviewManager:
             "manager_running": self._running,
             "active_sessions": len(self._sessions),
             "deferred_sessions": self._deferred_sessions,
+            "simple_sessions": sum(
+                1 for record in self._sessions.values() if record.simple_audience
+            ),
             "max_active_sessions": self._max_active_sessions,
             "max_concurrent_jobs": self._max_concurrent_jobs,
             "active_jobs": sum(
@@ -565,7 +573,9 @@ class PreviewManager:
                     record.token,
                     observed.value,
                     is_first_preview=self._is_first_preview(participants),
+                    simple_audience=self._is_simple_audience(participants),
                 )
+                record.simple_audience = request.simple_audience
                 artifact: PreviewArtifact | None = None
                 job: asyncio.Task | None = None
                 try:
@@ -925,6 +935,22 @@ class PreviewManager:
         Reuses the durable P2B lifecycle field already tracked per logical
         stream instead of introducing a second persistent state."""
         return not any(kind in {"video", "animation"} for _, _, _, kind in participants)
+
+    @staticmethod
+    def _is_simple_audience(
+        participants: tuple[tuple[int, str, int, str], ...]
+    ) -> bool:
+        """Смотрит только зритель (все получатели — личные чаты).
+
+        Разбор моментов нужен сообществу стримера. Если канал выбран лишь
+        зрителями, достаточно последних секунд записи: конвейер короче, а
+        значит на те же ресурсы влезает больше каналов. Как только у канала
+        появляется хотя бы один групповой получатель, режим снова полный —
+        один канал всегда даёт один артефакт.
+        """
+        if not participants:
+            return False
+        return all(chat_id > 0 for chat_id, _, _, _ in participants)
 
     async def _fan_out(
         self,

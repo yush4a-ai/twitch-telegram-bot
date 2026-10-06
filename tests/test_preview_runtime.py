@@ -429,6 +429,26 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(manager_type._is_first_preview(((101, "s", 701, "animation"),)))
         self.assertFalse(manager_type._is_first_preview(((101, "s", 701, "video"),)))
 
+    async def test_simple_mode_is_used_only_when_nobody_watches_from_a_group(self) -> None:
+        """Один канал — один артефакт: смешанная аудитория остаётся в полном режиме."""
+        manager_type = self.preview.PreviewManager
+        private = ((101, "s", 701, "text"),)
+        mixed = ((101, "s", 701, "text"), (-1001, "s", 702, "text"))
+        group = ((-1001, "s", 702, "text"),)
+        self.assertTrue(manager_type._is_simple_audience(private))
+        self.assertFalse(manager_type._is_simple_audience(mixed))
+        self.assertFalse(manager_type._is_simple_audience(group))
+        self.assertFalse(manager_type._is_simple_audience(()))
+
+    async def test_private_audience_asks_the_provider_for_the_simple_mode(self) -> None:
+        await self.seed(101)
+        manager = self.manager()
+
+        await self.start_online(manager)
+        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+
+        self.assertTrue(self.provider.create_calls[0][1].simple_audience)
+
     async def test_local_animation_file_id_fans_out_as_telegram_animation(self) -> None:
         from bot.live_post import LocalAnimation, TelegramAnimation
 
@@ -1872,7 +1892,8 @@ class PreviewManagerSupervisionAndHealthTests(unittest.IsolatedAsyncioTestCase):
             set(health),
             {
                 "enabled", "manager_running", "active_sessions", "deferred_sessions",
-                "max_active_sessions", "max_concurrent_jobs", "active_jobs",
+                "simple_sessions", "max_active_sessions", "max_concurrent_jobs",
+                "active_jobs",
                 "consumer_tasks", "session_tasks", "job_tasks",
                 "latest_observation_age_seconds", "last_success_age_seconds",
                 "last_error", "consecutive_provider_failures", "disabled_reason",

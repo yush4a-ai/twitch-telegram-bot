@@ -11,6 +11,7 @@ from bot.preview_analysis import (
     AnalysisStatus,
     HighlightAnalyzer,
     HighlightSelection,
+    HighlightWindow,
 )
 from bot.preview_capture import (
     CaptureEndReason,
@@ -45,6 +46,8 @@ _CAPTURE_RESET_RENDER_DIAGNOSTICS = frozenset({"source_file_missing"})
 _RECOVER_CAPTURE = object()
 _MAX_CYCLE_SNIPPETS = 4
 _CYCLE_COMPLETE_SECONDS = 23.0
+# Зрительский режим: сколько последних секунд показываем без разбора моментов.
+_SIMPLE_SNIPPET_SECONDS = 6.0
 _TELEGRAM_ANIMATION_MAX_BYTES = 10 * 1024 * 1024
 
 
@@ -256,7 +259,7 @@ class _LivePreviewArtifactSession:
         snapshot = acquired.snapshot
         try:
             result = await self._create_from_snapshot(
-                snapshot, request.is_first_preview
+                snapshot, request.is_first_preview, request.simple_audience
             )
         except asyncio.CancelledError:
             self._release_during_cancellation(snapshot)
@@ -287,8 +290,10 @@ class _LivePreviewArtifactSession:
         return self._commit_cycle(result)
 
     async def _create_from_snapshot(
-        self, snapshot: Any, is_first_preview: bool
+        self, snapshot: Any, is_first_preview: bool, simple_audience: bool = False
     ) -> _PendingCycle | object | None:
+        if simple_audience:
+            return await self._create_simple_snippet(snapshot)
         try:
             # Запасной фрагмент просим всегда, а не только для первого показа:
             # на спокойных стримах (Just Chatting) интересных моментов нет, и
@@ -397,6 +402,63 @@ class _LivePreviewArtifactSession:
             snippet=snippet,
             output=output,
             snippets=prospective,
+            obsolete=obsolete,
+            cutoff=self._snapshot_tail(snapshot),
+        )
+
+    async def _create_simple_snippet(
+        self, snapshot: Any
+    ) -> _PendingCycle | object | None:
+        """Зрительский режим: последние секунды записи, без разбора моментов.
+
+        Разбор стоит двух проходов ffmpeg на фрагмент, а зрителю важно «что
+        происходит на стриме сейчас». Короче конвейер — больше каналов
+        обслуживается на тех же ресурсах. Кадр может быть спокойным или тёмным:
+        это и есть прямой эфир.
+        """
+        try:
+            duration = float(snapshot.actual_duration_seconds)
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return None
+        if not math.isfinite(duration) or duration <= 0:
+            return None
+        length = min(_SIMPLE_SNIPPET_SECONDS, duration)
+        start = max(0.0, duration - length)
+        selection = HighlightSelection((HighlightWindow(start, length, 0.0),))
+        try:
+            rendered = await self._renderer.render(snapshot, selection)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _provider_error("render")
+        if not isinstance(rendered, RenderResult):
+            _provider_error("render")
+        if rendered.status is not RenderStatus.SUCCESS:
+            if (
+                rendered.status is RenderStatus.SNAPSHOT_INVALIDATED
+                or (
+                    rendered.status is RenderStatus.PROCESS_FAILED
+                    and rendered.diagnostic_code
+                    in _CAPTURE_RESET_RENDER_DIAGNOSTICS
+                )
+            ):
+                return _RECOVER_CAPTURE
+            _provider_error(
+                "render",
+                status=rendered.status.value,
+                reason=rendered.diagnostic_code,
+            )
+        snippet = rendered.artifact
+        if not self._fits_telegram_animation_budget(snippet):
+            self._release_owner(snippet)
+            self._capture_cutoff = self._snapshot_tail(snapshot)
+            return None
+        # Не накапливаем: каждый раз показываем свежие секунды, старое отпускаем.
+        obsolete = self._cycle_snippets
+        return _PendingCycle(
+            snippet=snippet,
+            output=snippet,
+            snippets=(snippet,),
             obsolete=obsolete,
             cutoff=self._snapshot_tail(snapshot),
         )

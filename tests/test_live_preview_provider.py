@@ -50,6 +50,7 @@ def _request(
     observation_physical_id: str | None = None,
     online: bool = True,
     is_first_preview: bool = False,
+    simple_audience: bool = False,
 ) -> PreviewArtifactRequest:
     return PreviewArtifactRequest(
         generation=PreviewGeneration(
@@ -71,6 +72,7 @@ def _request(
             twitch_started_at="2026-09-13T00:00:00Z",
         ),
         is_first_preview=is_first_preview,
+        simple_audience=simple_audience,
     )
 
 
@@ -441,6 +443,52 @@ class ArtifactFlowTests(ProviderTestCase):
         self.assertIsNone(artifact)
         self.assertEqual(analyzer.include_fallback_calls, [True])
         self.assertEqual(renderer.calls, [])
+
+    async def test_private_audience_gets_the_latest_seconds_without_analysis(self) -> None:
+        """Зрительский канал: без разбора моментов, только свежие секунды записи."""
+        snapshot = FakeSnapshot(sequence=7)
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        analyzer = FakeAnalyzer(AnalysisResult(AnalysisStatus.SUCCESS, _selection()))
+        rendered = FakeRenderedPreview()
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=rendered)
+        )
+        session, _source, analyzer, renderer = await self._session(
+            handle, analyzer, renderer
+        )
+        request = _request(self.key, simple_audience=True)
+
+        artifact = await session.create_artifact(request)
+
+        self.assertIsInstance(artifact, LocalAnimation)
+        # Разбор моментов не запускаем вовсе: это и есть экономия.
+        self.assertEqual(analyzer.include_fallback_calls, [])
+        self.assertEqual(len(renderer.calls), 1)
+        _snapshot, selection = renderer.calls[0]
+        window = selection.windows[0]
+        self.assertAlmostEqual(window.start_seconds, 84.0)
+        self.assertAlmostEqual(window.duration_seconds, 6.0)
+
+    async def test_group_audience_still_uses_the_full_pipeline(self) -> None:
+        """Если канал смотрит сообщество, режим остаётся полным."""
+        snapshot = FakeSnapshot(sequence=7)
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        analyzer = FakeAnalyzer(AnalysisResult(AnalysisStatus.SUCCESS, _selection()))
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview())
+        )
+        session, _source, analyzer, renderer = await self._session(
+            handle, analyzer, renderer
+        )
+        request = _request(self.key, simple_audience=False)
+
+        await session.create_artifact(request)
+
+        self.assertEqual(len(analyzer.include_fallback_calls), 1)
 
     async def test_first_preview_requests_fallback_and_no_fallback_found_returns_none(
         self,
