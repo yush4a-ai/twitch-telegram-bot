@@ -1670,6 +1670,19 @@ class Database:
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
+    async def has_stars_orders_awaiting_reconciliation(self) -> bool:
+        """Есть ли звёздный заказ, по которому ещё может понадобиться сверка.
+
+        Нужно, чтобы воркер не обращался к платёжному API Telegram, когда
+        восстанавливать нечего (например, публичная оплата выключена).
+        """
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM billing_orders WHERE provider='telegram_stars' "
+            "AND grant_id IS NULL "
+            "AND (status='pending' OR entitlement_state IN ('review','failed')) LIMIT 1"
+        )
+        return await cursor.fetchone() is not None
+
     async def list_orders_needing_entitlement_review(
         self, *, limit: int = 20, retry_before: float | None = None,
     ) -> list[BillingOrder]:

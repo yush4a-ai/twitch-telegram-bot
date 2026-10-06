@@ -6,6 +6,7 @@ import math
 import re
 import time
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from aiogram import Bot
 from aiogram.types import LabeledPrice, Message, PreCheckoutQuery
@@ -17,6 +18,19 @@ from .plan_catalog import BillingRuntimePolicy
 
 _PAYLOAD = re.compile(r"ts1:([a-f0-9]{32}):([a-f0-9]{32})\Z")
 _CHARGE = re.compile(r"[A-Za-z0-9_-]{1,256}\Z")
+# РЎСЃС‹Р»РєР° РЅР° СЃС‡С‘С‚ РґРѕР»Р¶РЅР° РІРµСЃС‚Рё РЅР° РґРѕРјРµРЅ Telegram: РµС‘ РѕС‚РєСЂС‹РІР°РµС‚ РєР»РёРµРЅС‚, Рё
+# РїРѕРґРјРµРЅС‘РЅРЅС‹Р№ Р°РґСЂРµСЃ РЅРµ РґРѕР»Р¶РµРЅ РїРѕРїР°РґР°С‚СЊ РІ РёРЅС‚РµСЂС„РµР№СЃ.
+_INVOICE_HOSTS = frozenset({"t.me", "telegram.me", "www.t.me"})
+
+
+def is_telegram_invoice_link(link: object) -> bool:
+    if not isinstance(link, str) or not link:
+        return False
+    try:
+        parsed = urlsplit(link)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and (parsed.hostname or "").lower() in _INVOICE_HOSTS
 
 
 @dataclass(frozen=True)
@@ -34,8 +48,8 @@ class TelegramStarsProvider:
             raise ValueError("invalid Stars runtime policy")
         self._sender = sender
         self._policy = runtime_policy
-        # Попытки создания счёта: попытка не должна отправляться дважды, но и
-        # копиться вечно она не может — иначе после 4096 счетов продажи встают.
+        # РџРѕРїС‹С‚РєРё СЃРѕР·РґР°РЅРёСЏ СЃС‡С‘С‚Р°: РїРѕРїС‹С‚РєР° РЅРµ РґРѕР»Р¶РЅР° РѕС‚РїСЂР°РІР»СЏС‚СЊСЃСЏ РґРІР°Р¶РґС‹, РЅРѕ Рё
+        # РєРѕРїРёС‚СЊСЃСЏ РІРµС‡РЅРѕ РѕРЅР° РЅРµ РјРѕР¶РµС‚ вЂ” РёРЅР°С‡Рµ РїРѕСЃР»Рµ 4096 СЃС‡РµС‚РѕРІ РїСЂРѕРґР°Р¶Рё РІСЃС‚Р°СЋС‚.
         self._attempts: dict[str, float] = {}
         self._refunds = {}
 
@@ -45,8 +59,8 @@ class TelegramStarsProvider:
             self._attempts.pop(key, None)
         if len(self._attempts) < 4096:
             return
-        # Переполнение: освобождаем половину самых старых записей, чтобы приём
-        # оплат не останавливался до перезапуска процесса.
+        # РџРµСЂРµРїРѕР»РЅРµРЅРёРµ: РѕСЃРІРѕР±РѕР¶РґР°РµРј РїРѕР»РѕРІРёРЅСѓ СЃР°РјС‹С… СЃС‚Р°СЂС‹С… Р·Р°РїРёСЃРµР№, С‡С‚РѕР±С‹ РїСЂРёС‘Рј
+        # РѕРїР»Р°С‚ РЅРµ РѕСЃС‚Р°РЅР°РІР»РёРІР°Р»СЃСЏ РґРѕ РїРµСЂРµР·Р°РїСѓСЃРєР° РїСЂРѕС†РµСЃСЃР°.
         for key, _stamp in sorted(self._attempts.items(), key=lambda item: item[1])[
             : max(1, len(self._attempts) // 2)
         ]:
@@ -54,12 +68,12 @@ class TelegramStarsProvider:
 
     @property
     def network_free(self):
-        """Готов ли провайдер к денежным операциям без внешнего транспорта.
+        """Р“РѕС‚РѕРІ Р»Рё РїСЂРѕРІР°Р№РґРµСЂ Рє РґРµРЅРµР¶РЅС‹Рј РѕРїРµСЂР°С†РёСЏРј Р±РµР· РІРЅРµС€РЅРµРіРѕ С‚СЂР°РЅСЃРїРѕСЂС‚Р°.
 
-        У звёзд внешнего платёжного провайдера нет: счёт и оплату проводит сам
-        Telegram через Bot API, который бот и так использует. Поэтому реальный
-        бот считается подходящим отправителем — но только при явном разрешении
-        владельца (``allow_public_stars``), а не просто потому, что есть ключи.
+        РЈ Р·РІС‘Р·Рґ РІРЅРµС€РЅРµРіРѕ РїР»Р°С‚С‘Р¶РЅРѕРіРѕ РїСЂРѕРІР°Р№РґРµСЂР° РЅРµС‚: СЃС‡С‘С‚ Рё РѕРїР»Р°С‚Сѓ РїСЂРѕРІРѕРґРёС‚ СЃР°Рј
+        Telegram С‡РµСЂРµР· Bot API, РєРѕС‚РѕСЂС‹Р№ Р±РѕС‚ Рё С‚Р°Рє РёСЃРїРѕР»СЊР·СѓРµС‚. РџРѕСЌС‚РѕРјСѓ СЂРµР°Р»СЊРЅС‹Р№
+        Р±РѕС‚ СЃС‡РёС‚Р°РµС‚СЃСЏ РїРѕРґС…РѕРґСЏС‰РёРј РѕС‚РїСЂР°РІРёС‚РµР»РµРј вЂ” РЅРѕ С‚РѕР»СЊРєРѕ РїСЂРё СЏРІРЅРѕРј СЂР°Р·СЂРµС€РµРЅРёРё
+        РІР»Р°РґРµР»СЊС†Р° (``allow_public_stars``), Р° РЅРµ РїСЂРѕСЃС‚Рѕ РїРѕС‚РѕРјСѓ, С‡С‚Рѕ РµСЃС‚СЊ РєР»СЋС‡Рё.
         """
         if getattr(self._sender, "network_free", None) is True:
             return True
@@ -118,11 +132,11 @@ class TelegramStarsProvider:
             raise PaymentVerificationError("unapproved frozen Stars product")
 
     async def create_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str):
-        """Счёт-сообщение в чат с ботом (кнопка «Оплатить»)."""
+        """РЎС‡С‘С‚-СЃРѕРѕР±С‰РµРЅРёРµ РІ С‡Р°С‚ СЃ Р±РѕС‚РѕРј (РєРЅРѕРїРєР° В«РћРїР»Р°С‚РёС‚СЊВ»)."""
         return await self._create_payment(snapshot, attempt_id, prefer_link=False)
 
     async def create_link_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str):
-        """Ссылка на счёт для мини-аппа (открывается через WebApp.openInvoice)."""
+        """РЎСЃС‹Р»РєР° РЅР° СЃС‡С‘С‚ РґР»СЏ РјРёРЅРё-Р°РїРїР° (РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ С‡РµСЂРµР· WebApp.openInvoice)."""
         return await self._create_payment(snapshot, attempt_id, prefer_link=True)
 
     async def _create_payment(
@@ -147,12 +161,12 @@ class TelegramStarsProvider:
             raise PaymentCreationUnknown("invoice outcome unresolved; do not resend")
         self._attempts[attempt_id] = time.monotonic()
         title = "Viewer Plus" if snapshot.product.product_id == "viewer_plus" else "Streamer Plus"
-        description = "Подписка на 1 месяц"
+        description = "РџРѕРґРїРёСЃРєР° РЅР° 1 РјРµСЃСЏС†"
         prices = [LabeledPrice(label=title, amount=snapshot.money.amount_minor)]
-        # Telegram проводит оплату цифровых товаров счётом-сообщением: у него
-        # есть кнопка «Оплатить», открывающая платёжную форму. Мини-апп счёт-
-        # сообщение показать не может, поэтому для него создаём ссылку на счёт,
-        # которую клиент открывает через WebApp.openInvoice.
+        # Telegram РїСЂРѕРІРѕРґРёС‚ РѕРїР»Р°С‚Сѓ С†РёС„СЂРѕРІС‹С… С‚РѕРІР°СЂРѕРІ СЃС‡С‘С‚РѕРј-СЃРѕРѕР±С‰РµРЅРёРµРј: Сѓ РЅРµРіРѕ
+        # РµСЃС‚СЊ РєРЅРѕРїРєР° В«РћРїР»Р°С‚РёС‚СЊВ», РѕС‚РєСЂС‹РІР°СЋС‰Р°СЏ РїР»Р°С‚С‘Р¶РЅСѓСЋ С„РѕСЂРјСѓ. РњРёРЅРё-Р°РїРї СЃС‡С‘С‚-
+        # СЃРѕРѕР±С‰РµРЅРёРµ РїРѕРєР°Р·Р°С‚СЊ РЅРµ РјРѕР¶РµС‚, РїРѕСЌС‚РѕРјСѓ РґР»СЏ РЅРµРіРѕ СЃРѕР·РґР°С‘Рј СЃСЃС‹Р»РєСѓ РЅР° СЃС‡С‘С‚,
+        # РєРѕС‚РѕСЂСѓСЋ РєР»РёРµРЅС‚ РѕС‚РєСЂС‹РІР°РµС‚ С‡РµСЂРµР· WebApp.openInvoice.
         send_invoice = getattr(self._sender, "send_invoice", None)
         create_link = getattr(self._sender, "create_invoice_link", None)
         hosted_url = None
@@ -166,7 +180,7 @@ class TelegramStarsProvider:
                 raise
             except Exception:
                 raise PaymentCreationUnknown("invoice link outcome unknown; do not resend") from None
-            if not isinstance(link, str) or not link.startswith("https://"):
+            if not is_telegram_invoice_link(link):
                 raise PaymentCreationUnknown("invalid invoice link")
             hosted_url = link
         elif callable(send_invoice):
@@ -182,8 +196,8 @@ class TelegramStarsProvider:
                 raise PaymentCreationUnknown("invoice outcome unknown; do not resend") from None
         elif callable(create_link):
             try:
-                # createInvoiceLink не принимает start_parameter (в отличие от
-                # sendInvoice): лишний аргумент ломал вызов ещё до Telegram.
+                # createInvoiceLink РЅРµ РїСЂРёРЅРёРјР°РµС‚ start_parameter (РІ РѕС‚Р»РёС‡РёРµ РѕС‚
+                # sendInvoice): Р»РёС€РЅРёР№ Р°СЂРіСѓРјРµРЅС‚ Р»РѕРјР°Р» РІС‹Р·РѕРІ РµС‰С‘ РґРѕ Telegram.
                 link = await asyncio.wait_for(create_link(
                     title=title, description=description, payload=payload,
                     provider_token="", currency="XTR", prices=prices,
@@ -192,21 +206,21 @@ class TelegramStarsProvider:
                 raise
             except Exception:
                 raise PaymentCreationUnknown("invoice link outcome unknown; do not resend") from None
-            if not isinstance(link, str) or not link.startswith("https://"):
+            if not is_telegram_invoice_link(link):
                 raise PaymentCreationUnknown("invalid invoice link")
             hosted_url = link
         else:
             raise PaymentCreationUnknown("no invoice transport")
-        # sendInvoice возвращает сообщение, а не идентификатор списания.
+        # sendInvoice РІРѕР·РІСЂР°С‰Р°РµС‚ СЃРѕРѕР±С‰РµРЅРёРµ, Р° РЅРµ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃРїРёСЃР°РЅРёСЏ.
         return CheckoutSession(snapshot.order_id, None, hosted_url, "pending", snapshot.checkout_expires_at)
 
     async def star_transactions(self, *, limit: int = 30, pages: int = 5):
-        """Оплаченные звёздные счета бота: (charge_id, payload, amount, date).
+        """РћРїР»Р°С‡РµРЅРЅС‹Рµ Р·РІС‘Р·РґРЅС‹Рµ СЃС‡РµС‚Р° Р±РѕС‚Р°: (charge_id, payload, amount, date).
 
-        Telegram присылает сообщение об оплате один раз. Если оно потерялось,
-        оплата остаётся в истории транзакций — по ней платёж можно восстановить.
-        Список отдаётся постранично и в хронологическом порядке, поэтому читаем
-        страницы до конца: иначе свежие оплаты остались бы за окном выборки.
+        Telegram РїСЂРёСЃС‹Р»Р°РµС‚ СЃРѕРѕР±С‰РµРЅРёРµ РѕР± РѕРїР»Р°С‚Рµ РѕРґРёРЅ СЂР°Р·. Р•СЃР»Рё РѕРЅРѕ РїРѕС‚РµСЂСЏР»РѕСЃСЊ,
+        РѕРїР»Р°С‚Р° РѕСЃС‚Р°С‘С‚СЃСЏ РІ РёСЃС‚РѕСЂРёРё С‚СЂР°РЅР·Р°РєС†РёР№ вЂ” РїРѕ РЅРµР№ РїР»Р°С‚С‘Р¶ РјРѕР¶РЅРѕ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ.
+        РЎРїРёСЃРѕРє РѕС‚РґР°С‘С‚СЃСЏ РїРѕСЃС‚СЂР°РЅРёС‡РЅРѕ Рё РІ С…СЂРѕРЅРѕР»РѕРіРёС‡РµСЃРєРѕРј РїРѕСЂСЏРґРєРµ, РїРѕСЌС‚РѕРјСѓ С‡РёС‚Р°РµРј
+        СЃС‚СЂР°РЅРёС†С‹ РґРѕ РєРѕРЅС†Р°: РёРЅР°С‡Рµ СЃРІРµР¶РёРµ РѕРїР»Р°С‚С‹ РѕСЃС‚Р°Р»РёСЃСЊ Р±С‹ Р·Р° РѕРєРЅРѕРј РІС‹Р±РѕСЂРєРё.
         """
         getter = getattr(self._sender, "get_star_transactions", None)
         if not callable(getter):
@@ -257,9 +271,9 @@ class TelegramStarsProvider:
                 and order_id == order.order_id and order.status == "pending" and order.financial_status == "pending"
                 and order.created_at <= now < order.checkout_expires_at
                 and query.shipping_option_id is None and query.order_info is None)
-            return PrecheckoutDecision(valid, None if valid else "Не удалось подтвердить заказ. Откройте тариф ещё раз.")
+            return PrecheckoutDecision(valid, None if valid else "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґС‚РІРµСЂРґРёС‚СЊ Р·Р°РєР°Р·. РћС‚РєСЂРѕР№С‚Рµ С‚Р°СЂРёС„ РµС‰С‘ СЂР°Р·.")
         except (PaymentVerificationError, AttributeError, TypeError):
-            return PrecheckoutDecision(False, "Не удалось подтвердить заказ. Откройте тариф ещё раз.")
+            return PrecheckoutDecision(False, "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґС‚РІРµСЂРґРёС‚СЊ Р·Р°РєР°Р·. РћС‚РєСЂРѕР№С‚Рµ С‚Р°СЂРёС„ РµС‰С‘ СЂР°Р·.")
 
     def _message_evidence(self, message, order, *, refund, now, expected_charge=None):
         self._require_ready()

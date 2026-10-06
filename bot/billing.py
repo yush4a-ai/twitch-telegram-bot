@@ -265,6 +265,9 @@ class BillingService:
         lister = getattr(provider, "star_transactions", None)
         if not callable(lister):
             return 0
+        if not await self._db.has_stars_orders_awaiting_reconciliation():
+            # Нечего восстанавливать: не тревожим платёжный API Telegram.
+            return 0
         applied = 0
         for charge, payload, amount, observed in await lister(limit=limit):
             try:
