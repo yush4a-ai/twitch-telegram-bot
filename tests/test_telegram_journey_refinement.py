@@ -92,7 +92,7 @@ class JourneyCancellationTests(unittest.IsolatedAsyncioTestCase):
 class TariffOriginTests(unittest.IsolatedAsyncioTestCase):
     async def test_streamer_offer_secondary_payment_and_back_keep_source_and_product(self):
         from bot.handlers.telegram_streamer import cb_streamer
-        from bot.handlers.telegram_plus import cb_plus, cb_buy, cb_payment_method
+        from bot.handlers.telegram_plus import cb_accept_terms, cb_plus, cb_buy, cb_payment_method
         from bot.billing import BillingService
         db = Database(':memory:')
         await db.connect()
@@ -114,7 +114,15 @@ class TariffOriginTests(unittest.IsolatedAsyncioTestCase):
         await cb_buy(cb, state, db)
         self.assertEqual(buttons()[-1].callback_data, 'plus:show:viewer_plus:streamer')
         cb.data = buttons()[0].callback_data
-        await cb_payment_method(cb, state, SimpleNamespace(public_purchase=BillingService.public_purchase))
+        billing = SimpleNamespace(public_purchase=BillingService.public_purchase)
+        await cb_payment_method(cb, state, billing)
+        # Возврат с подтверждения ведёт на выбор способа того же тарифа.
+        self.assertEqual(buttons()[-1].callback_data, 'plus:buy:viewer_plus:streamer')
+        self.assertTrue(any(b.text == 'Я принимаю условия' for b in buttons()))
+        self.assertEqual((await (await db.conn.execute('SELECT count(*) FROM billing_orders')).fetchone())[0], 0)
+        cb.data = next(b.callback_data for b in buttons() if b.text == 'Я принимаю условия')
+        await cb_accept_terms(cb, state, billing)
+        self.assertEqual((await (await db.conn.execute('SELECT count(*) FROM billing_orders')).fetchone())[0], 0)
         self.assertEqual(buttons()[-1].callback_data, 'plus:show:viewer_plus:streamer')
         self.assertEqual((await (await db.conn.execute('SELECT count(*) FROM entitlement_grants')).fetchone())[0], 0)
 

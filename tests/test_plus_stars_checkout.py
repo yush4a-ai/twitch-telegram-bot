@@ -17,6 +17,7 @@ from bot.billing import BillingService
 from bot.billing_models import CheckoutResult
 from bot.database import Database
 from bot.handlers.telegram_plus import (
+    cb_accept_terms,
     cb_buy,
     cb_payment_method,
     cb_plus,
@@ -55,6 +56,24 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
             data=data, message=self.msg,
             from_user=SimpleNamespace(id=actor), answer=AsyncMock(),
         )
+
+    def buttons(self):
+        return [
+            button
+            for row in self.msg.edit_text.await_args.kwargs["reply_markup"].inline_keyboard
+            for button in row
+        ]
+
+    def pick_method(self, label):
+        return next(b.callback_data for b in self.buttons() if b.text == label)
+
+    async def accept_terms(self, billing):
+        """Подтверждение условий: без него счёт не создаётся (D24, B4)."""
+        accept = next(
+            b.callback_data for b in self.buttons() if b.text == "Я принимаю условия"
+        )
+        await cb_accept_terms(self.cb(accept), self.state, billing)
+        return accept
 
     def service(self, policy):
         return BillingService(self.db, self.provider, runtime_policy=policy,
@@ -102,13 +121,12 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
         checkout = CheckoutResult("pending", "order-1", "https://t.me/invoice/abc")
         with patch.object(billing, "prepare_payment", AsyncMock(return_value=checkout)) as prepare:
             await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db, billing)
-            method = next(
-                button.callback_data
-                for row in self.msg.edit_text.await_args.kwargs["reply_markup"].inline_keyboard
-                for button in row
-                if button.text == "Telegram Stars"
-            )
+            method = self.pick_method("Telegram Stars")
             await cb_payment_method(self.cb(method), self.state, billing)
+            # Счёт не создаётся до явного подтверждения условий покупки.
+            prepare.assert_not_awaited()
+            self.assertIn("Я принимаю условия", [b.text for b in self.buttons()])
+            await self.accept_terms(billing)
 
         prepare.assert_awaited_once()
         user_id, product_id, called_method = prepare.await_args.args[:3]
@@ -125,17 +143,14 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
     async def test_sbp_and_card_stay_closed_even_when_stars_is_open(self):
         billing = self.service(ready_policy())
         with patch.object(billing, "prepare_payment", AsyncMock()) as prepare:
-            await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db, billing)
-            buttons = [
-                button
-                for row in self.msg.edit_text.await_args.kwargs["reply_markup"].inline_keyboard
-                for button in row
-            ]
             for label in ("СБП", "Банковская карта"):
-                choice = next(b.callback_data for b in buttons if b.text == label)
-                await cb_payment_method(self.cb(choice), self.state, billing)
-                text = self.msg.edit_text.await_args.args[0]
-                self.assertIn("Деньги не списаны", text)
+                with self.subTest(method=label):
+                    await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db, billing)
+                    choice = self.pick_method(label)
+                    await cb_payment_method(self.cb(choice), self.state, billing)
+                    await self.accept_terms(billing)
+                    text = self.msg.edit_text.await_args.args[0]
+                    self.assertIn("Деньги не списаны", text)
 
         prepare.assert_not_awaited()
 
@@ -152,13 +167,9 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
             AsyncMock(return_value=CheckoutResult("unavailable", reason_code="already_active")),
         ):
             await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db, billing)
-            method = next(
-                button.callback_data
-                for row in self.msg.edit_text.await_args.kwargs["reply_markup"].inline_keyboard
-                for button in row
-                if button.text == "Telegram Stars"
-            )
+            method = self.pick_method("Telegram Stars")
             await cb_payment_method(self.cb(method), self.state, billing)
+            await self.accept_terms(billing)
 
         self.assertIn("Подписка уже действует", self.msg.edit_text.await_args.args[0])
 

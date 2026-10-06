@@ -12,6 +12,7 @@ from ..billing_provider import PaymentVerificationError
 from ..plan_catalog import PAYMENT_UNAVAILABLE_MESSAGE
 from ..stars_provider import TelegramStarsProvider
 from ..legal_documents import get_support_state
+from .telegram_terms import on_terms
 
 
 logger = logging.getLogger(__name__)
@@ -99,4 +100,5 @@ def build_payment_router():
     router.message.register(on_successful_payment, F.successful_payment)
     router.message.register(on_refunded_payment, F.refunded_payment)
     router.message.register(on_payment_support, Command("paysupport"))
+    router.message.register(on_terms, Command("terms"))
     return router

@@ -93,7 +93,7 @@ async def cb_commands(callback,config=None):
           '/report ник: отчёт и HTML-файл\n/import_follows: импорт подписок Twitch</blockquote>\n\n'
           '<b>Свой Twitch</b>\n/auth_twitch: фолловеры своего Twitch-канала\n'
           '/streamer_connect: подключить свой Twitch\n\n<b>Навигация и поддержка</b>\n'
-          '/myid: мой Telegram ID\n/paysupport: поддержка по подписке\n/help: помощь\n/start: главное меню')
+          '/myid: мой Telegram ID\n/paysupport: поддержка по подписке\n/terms: условия подписки и документы\n/help: помощь\n/start: главное меню')
     if getattr(config,'growth_enabled',False) and getattr(config,'admin_telegram_bot_username','')=='SignalStreamsBot':
         text+='\n/invite: ссылка-приглашение'
     if _owner_admin_url(callback.message,config,actor_id=callback.from_user.id):

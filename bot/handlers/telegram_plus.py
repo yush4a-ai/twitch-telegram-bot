@@ -5,10 +5,11 @@ import time
 import html
 from datetime import datetime, timedelta, timezone
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from ..plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE
+from ..plan_catalog import catalog_payload, PAYMENT_UNAVAILABLE_MESSAGE, PLUS_TERMS_VERSION
 from ..subscription_state import SubscriptionService
 from ..telegram_ui import back_keyboard, cancel_ui
 from .telegram_streamer import private_callback
+from .telegram_terms import CONFIRM_TEXT, buy_token, terms_row
 from .streams import _viewer_url
 
 
@@ -92,14 +93,34 @@ def return_route(source):
     return 'menu:streamer' if source=='streamer' else 'menu:more'
 
 
-def offer_keyboard(product,source='more'):
+def offer_keyboard(product,source='more',config=None):
     viewer=product['product_id']=='viewer_plus'
     secondary=product_view('streamer_plus' if viewer else 'viewer_plus')
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"Оформить {product['title']}: {product['price_label']}",callback_data=f"plus:buy:{product['product_id']}:{source}")],
         [InlineKeyboardButton(text='Тариф для стримера' if viewer else f"Тариф для зрителя: {secondary['price_label']}",
                               callback_data=f"plus:show:{secondary['product_id']}:{source}")],
+        terms_row(config, buy_token(product['product_id'],source)),
         [InlineKeyboardButton(text='← Назад',callback_data=return_route(source))]])
+
+
+def confirmation_text(product, method_id):
+    """Что человек подтверждает перед созданием счёта: тариф, цена и способ."""
+    method=next((row for row in catalog_payload()['methods'] if row['id']==method_id),None)
+    title=method['title'] if method else method_id
+    return (CONFIRM_TEXT+"\n\n"
+            f"Тариф: <b>{html.escape(product['title'])}</b>, {product['price_label']} / "
+            f"{product['period_label'].removeprefix('1 ')}.\n"
+            f"Способ: <b>{html.escape(title)}</b>.\n"
+            "Автопродление выключено.\n"
+            f"Версия условий: <code>{html.escape(PLUS_TERMS_VERSION)}</code>.")
+
+
+def confirmation_keyboard(product,source,nonce,config=None):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Я принимаю условия',callback_data=f"plus:agree:{nonce}")],
+        terms_row(config, buy_token(product['product_id'],source)),
+        [InlineKeyboardButton(text='← Назад',callback_data=f"plus:buy:{product['product_id']}:{source}")]])
 
 
 async def access_label(db,user_id,product_id,active,now):
@@ -161,11 +182,11 @@ async def cb_plus(callback,state,db,config=None,billing_service=None,oauth_serve
         text+=benefits(product)
         if product['includes']: text+='\n\n<b>Возможности зрителя</b>\n'+benefits(product_view('viewer_plus'))
         text+='\n\n<b>Оплата</b>\n'+payment_status_text(billing_service)
-        await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source))
+        await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source,config))
     await callback.answer()
 
 
-async def cb_buy(callback,state,db,billing_service=None,oauth_server=None):
+async def cb_buy(callback,state,db,billing_service=None,oauth_server=None,config=None):
     if not await private_callback(callback): return
     try:
         product_id,source=product_route(callback.data,'buy')
@@ -176,6 +197,7 @@ async def cb_buy(callback,state,db,billing_service=None,oauth_server=None):
     nonce=secrets.token_hex(8)
     await state.update_data(purchase_product=product_id,purchase_source=source,purchase_nonce=nonce,purchase_expires_at=time.time()+600)
     rows=[[InlineKeyboardButton(text=m['title'],callback_data=f"plus:pay:{nonce}:{m['id']}")] for m in catalog_payload()['methods']]
+    rows.append(terms_row(config, buy_token(product_id,source)))
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
         "<b>Выберите способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
@@ -184,13 +206,35 @@ async def cb_buy(callback,state,db,billing_service=None,oauth_server=None):
     await callback.answer()
 
 
-async def cb_payment_method(callback,state,billing_service):
+async def cb_payment_method(callback,state,billing_service=None,config=None,db=None):
+    """Выбор способа оплаты: счёт создаётся только после подтверждения условий."""
     if not await private_callback(callback): return
     parts=(callback.data or '').split(':');data=await state.get_data()
     if (len(parts)!=4 or parts[2]!=data.get('purchase_nonce') or data.get('purchase_expires_at',0)<=time.time()
         or parts[3] not in {m['id'] for m in catalog_payload()['methods']}):
         await callback.answer('Выбор оплаты устарел. Откройте тариф заново.',show_alert=True);return
     product_id=data['purchase_product'];method=parts[3]
+    try:
+        product=product_view(product_id)
+    except StopIteration:
+        await callback.answer('Тариф недоступен. Откройте тариф заново.',show_alert=True);return
+    source=data.get('purchase_source','more')
+    await state.update_data(purchase_method=method)
+    await edit_menu(callback.message,confirmation_text(product,method),
+        reply_markup=confirmation_keyboard(product,source,data['purchase_nonce'],config))
+    await callback.answer()
+
+
+async def cb_accept_terms(callback,state,billing_service=None,db=None,config=None):
+    """Подтверждение условий: единственная точка создания счёта из бота."""
+    if not await private_callback(callback): return
+    parts=(callback.data or '').split(':');data=await state.get_data()
+    methods={m['id'] for m in catalog_payload()['methods']}
+    products={p['product_id'] for p in catalog_payload()['products']}
+    if (len(parts)!=3 or parts[2]!=data.get('purchase_nonce') or data.get('purchase_expires_at',0)<=time.time()
+        or data.get('purchase_method') not in methods or data.get('purchase_product') not in products):
+        await callback.answer('Выбор оплаты устарел. Откройте тариф заново.',show_alert=True);return
+    product_id=data['purchase_product'];method=data['purchase_method']
     back=f"plus:show:{product_id}:{data.get('purchase_source','more')}"
     if method=='stars' and stars_checkout_ready(billing_service):
         # Единственный открытый способ: звёзды. Счёт создаётся на сервере, а

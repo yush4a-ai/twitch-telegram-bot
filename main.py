@@ -141,6 +141,7 @@ def _private_bot_commands(
         BotCommand(command="streamer_connect", description="🎮 Подключить кабинет стримера"),
         BotCommand(command="myid", description="🆔 Узнать chat_id этого чата"),
         BotCommand(command="paysupport", description="Поддержка по подписке и оплате"),
+        BotCommand(command="terms", description="Условия подписки и документы"),
     ]
     if growth_enabled:
         commands.append(BotCommand(command="invite", description="🔗 Пригласить в тестовый бот"))

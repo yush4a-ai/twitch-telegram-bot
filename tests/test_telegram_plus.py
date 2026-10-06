@@ -60,7 +60,7 @@ class TelegramPlusTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse((await SubscriptionService(self.db).state(202,now=now))['viewer']['active'])
 
     async def test_all_three_methods_are_clickable_same_billing_contract_and_zero_mutation(self):
-        from bot.handlers.telegram_plus import cb_buy, cb_payment_method
+        from bot.handlers.telegram_plus import cb_accept_terms, cb_buy, cb_payment_method
         provider=SimpleNamespace(provider_id='platega',network_free=True,create_payment=AsyncMock(),create_checkout=AsyncMock())
         billing=BillingService(self.db,provider,runtime_policy=BillingRuntimePolicy(mode='sandbox',target_verified=True,
                                allow_external_create=True,allow_invoice=True,period_approved=True,refund_policy_approved=True))
@@ -77,6 +77,13 @@ class TelegramPlusTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(len(methods),3)
                     choice=next(b.callback_data for b in methods if b.callback_data.endswith(':'+method))
                     await cb_payment_method(self.cb(choice),self.state,billing)
+                    # До подтверждения условий счёт не создаётся и оплата не вызывается.
+                    self.assertEqual(public.call_count,(('viewer_plus','streamer_plus').index(product)*3)+('stars','sbp','bank_card').index(method))
+                    actual_payment.assert_not_awaited()
+                    confirm=next(b.callback_data for b in
+                                 [b for row in self.msg.edit_text.await_args.kwargs['reply_markup'].inline_keyboard for b in row]
+                                 if b.text=='Я принимаю условия')
+                    await cb_accept_terms(self.cb(confirm),self.state,billing)
                     self.assertIn(PAYMENT_UNAVAILABLE_MESSAGE,self.msg.edit_text.await_args.args[0])
                     self.assertIn('Платёж не создан. Деньги не списаны.',self.msg.edit_text.await_args.args[0])
             self.assertEqual(public.call_count,6)
