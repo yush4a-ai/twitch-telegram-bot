@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 import hashlib
+import logging
+import sqlite3
 import time
 import uuid
 import json
@@ -26,6 +28,8 @@ from .billing_provider import (
 from .billing_store import BillingStore, PaymentAlreadyActive, PaymentInProgress
 from .plan_catalog import BillingRuntimePolicy, get_product, checkout_readiness, PAYMENT_UNAVAILABLE_MESSAGE
 from .database import Database
+
+logger = logging.getLogger(__name__)
 
 
 class BillingService:
@@ -378,45 +382,135 @@ class BillingService:
                 return ApplyResult("recorded", order.order_id)
             if order.grant_id is not None:
                 return ApplyResult("already_applied", order.order_id, order.grant_id)
-            # Подтверждённую оплату обязаны закрыть доступом: заказ хранит
-            # замороженные условия покупки, поэтому смена текущей политики или
-            # версии периода не лишает человека уже оплаченного месяца.
-            if not self._local_runtime() and self._provider is None:
-                return ApplyResult("recorded", order.order_id)
-            await conn.execute("UPDATE billing_orders SET financial_status='confirmed' WHERE order_id=?", (order.order_id,))
-            try:
-                frozen_product = json.loads(order.product_snapshot_json)
-                expected_money = frozen_product["rub" if order.currency == "RUB" else "xtr"]
-                matches = (expected_money == {"amount_minor": order.units, "currency": order.currency}
-                    and frozen_product["product_id"] == order.plan and frozen_product["catalog_version"] == order.catalog_version
-                    and frozen_product["period_rule"] == order.period_rule and frozen_product["period_rule_version"] == order.period_rule_version
-                    and frozen_product["auto_renew"] is False)
-            except (ValueError, TypeError, KeyError):
-                matches = False
-            if order.subject_kind == "streamer":
-                identity = await self._db.get_streamer_identity(order.telegram_user_id)
-                matches = matches and identity is not None and identity[0] == order.broadcaster_id
-            if not matches:
-                return ApplyResult("manual_review", order.order_id)
-            grant_id = uuid.uuid4().hex
-            # Месяц считаем от даты платежа: если подтверждение пришло позже
-            # (например, восстановили потерянную оплату), человек не теряет дни.
-            start = now
-            observed = getattr(evidence, "observed_at", None)
-            if (isinstance(observed, (int, float)) and math.isfinite(observed)
-                    and 0 < observed <= now and now - observed < 30 * 86400):
-                start = observed
-            end = self._access_end(start, order.period_rule)
+            return await self._grant_order(
+                conn, order, attempt.attempt_id, now=now,
+                observed_at=getattr(evidence, "observed_at", None), evidence=evidence,
+            )
+
+    async def _flag_entitlement_review(
+        self, conn, order, reason: str, *, now: float, evidence=None,
+    ) -> None:
+        """Деньги подтверждены, а доступ выдать не удалось: это должно быть видно.
+
+        Раньше такой заказ просто помечался подтверждённым и замолкал: ни
+        журнала, ни карантина, ни сигнала владельцу (аудит A1).
+        """
+        await conn.execute(
+            "UPDATE billing_orders SET financial_status='confirmed', entitlement_state='review', "
+            "entitlement_error=?, entitlement_updated_at=? WHERE order_id=?",
+            (reason[:200], now, order.order_id),
+        )
+        await conn.execute(
+            "INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'entitlement_review',?)",
+            (order.order_id, now),
+        )
+        if evidence is not None:
+            digest = hashlib.sha256(
+                f"{evidence.provider}:{evidence.transaction_id}:{evidence.order_id}".encode()
+            ).hexdigest()
+            await conn.execute(
+                "INSERT OR IGNORE INTO billing_provider_quarantine(provider,transaction_id,payload_digest,"
+                "order_hint,raw_status,amount_minor,currency,method,observed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (evidence.provider, evidence.transaction_id, digest, order.order_id,
+                 evidence.raw_status, order.units, order.currency, order.method, now),
+            )
+        logger.warning(
+            "Оплата подтверждена, но доступ не выдан: заказ %s (%s)", order.order_id, reason,
+        )
+
+    async def _grant_order(
+        self, conn, order, attempt_id: str, *, now: float,
+        observed_at: float | None, evidence=None,
+    ) -> ApplyResult:
+        """Выдаёт доступ по подтверждённой оплате ровно один раз."""
+        try:
+            frozen_product = json.loads(order.product_snapshot_json)
+            expected_money = frozen_product["rub" if order.currency == "RUB" else "xtr"]
+            matches = (expected_money == {"amount_minor": order.units, "currency": order.currency}
+                and frozen_product["product_id"] == order.plan and frozen_product["catalog_version"] == order.catalog_version
+                and frozen_product["period_rule"] == order.period_rule and frozen_product["period_rule_version"] == order.period_rule_version
+                and frozen_product["auto_renew"] is False)
+        except (ValueError, TypeError, KeyError):
+            matches = False
+        if order.subject_kind == "streamer":
+            identity = await self._db.get_streamer_identity(order.telegram_user_id)
+            matches = matches and identity is not None and identity[0] == order.broadcaster_id
+        if not matches:
+            await self._flag_entitlement_review(
+                conn, order, "frozen product or Twitch identity mismatch", now=now, evidence=evidence,
+            )
+            return ApplyResult("manual_review", order.order_id, order.grant_id)
+
+        request_key = "paid-order:" + order.order_id
+        grant_id = uuid.uuid4().hex
+        # Месяц считаем от даты платежа: если подтверждение пришло позже
+        # (например, восстановили потерянную оплату), человек не теряет дни.
+        start = now
+        if (isinstance(observed_at, (int, float)) and math.isfinite(observed_at)
+                and 0 < observed_at <= now and now - observed_at < 30 * 86400):
+            start = observed_at
+        end = self._access_end(start, order.period_rule)
+        try:
             await conn.execute(
                 "INSERT INTO entitlement_grants(grant_id,request_key,subject_kind,subject_id,plan,source,starts_at,expires_at,issued_by,created_at,beneficiary_telegram_user_id) "
                 "VALUES (?,?,?,?,?,'paid',?,?,0,?,?)",
-                (grant_id, "paid-order:" + order.order_id, order.subject_kind, order.subject_id, order.plan, start, end, now, order.beneficiary_telegram_user_id))
-            await conn.execute("INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) VALUES (?,'grant',0,?)", (grant_id, now))
-            await conn.execute("UPDATE billing_orders SET status='paid',paid_at=?,grant_id=?,access_starts_at=?,access_expires_at=?,duration_seconds=? WHERE order_id=?",
-                (now, grant_id, start, end, int(end-start), order.order_id))
-            await conn.execute("UPDATE billing_payment_attempts SET state='done',lease_until=NULL,next_reconcile_at=NULL WHERE attempt_id=?", (attempt.attempt_id,))
-            await conn.execute("INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'access_applied',?)", (order.order_id, now))
-            return ApplyResult("applied", order.order_id, grant_id)
+                (grant_id, request_key, order.subject_kind, order.subject_id, order.plan, start, end, now, order.beneficiary_telegram_user_id))
+        except sqlite3.IntegrityError:
+            # Грант по этому заказу уже есть (гонка или повтор): второй не создаём.
+            existing = await (await conn.execute(
+                "SELECT grant_id FROM entitlement_grants WHERE request_key=?", (request_key,),
+            )).fetchone()
+            if existing is None:
+                raise
+            grant_id = existing[0]
+            await conn.execute(
+                "UPDATE billing_orders SET grant_id=COALESCE(grant_id,?), entitlement_state='applied', "
+                "entitlement_error=NULL, entitlement_updated_at=? WHERE order_id=?",
+                (grant_id, now, order.order_id))
+            return ApplyResult("already_applied", order.order_id, grant_id)
+        await conn.execute("INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) VALUES (?,'grant',0,?)", (grant_id, now))
+        await conn.execute(
+            "UPDATE billing_orders SET status='paid',financial_status='confirmed',paid_at=?,grant_id=?,"
+            "access_starts_at=?,access_expires_at=?,duration_seconds=?,entitlement_state='applied',"
+            "entitlement_error=NULL,entitlement_updated_at=? WHERE order_id=?",
+            (now, grant_id, start, end, int(end-start), now, order.order_id))
+        await conn.execute("UPDATE billing_payment_attempts SET state='done',lease_until=NULL,next_reconcile_at=NULL WHERE attempt_id=?", (attempt_id,))
+        await conn.execute("INSERT INTO billing_audit(order_id,action,happened_at) VALUES (?,'access_applied',?)", (order.order_id, now))
+        return ApplyResult("applied", order.order_id, grant_id)
+
+    async def retry_pending_entitlements(
+        self, *, now: float | None = None, limit: int = 20, quiet_seconds: float = 0.0,
+    ) -> int:
+        """Доводит до конца выдачи, где деньги подтверждены, а доступа нет.
+
+        ``quiet_seconds`` ограничивает частоту повторов для фонового воркера;
+        явный вызов (панель владельца, тест) повторяет сразу.
+        """
+        at = time.time() if now is None else now
+        self._check_now(at)
+        candidates = await self._db.list_orders_needing_entitlement_review(
+            limit=limit, retry_before=at - quiet_seconds,
+        )
+        applied = 0
+        for candidate in candidates:
+            async with self._store.transaction() as conn:
+                order = await self._db.get_billing_order(candidate.order_id)
+                if order is None or order.grant_id is not None or order.financial_status == "refunded":
+                    continue
+                attempt = await (await conn.execute(
+                    "SELECT attempt_id FROM billing_payment_attempts "
+                    "WHERE order_id=? AND provider_reference IS NOT NULL LIMIT 1",
+                    (order.order_id,),
+                )).fetchone()
+                if attempt is None:
+                    # Платёж не подтверждён провайдером: выдавать нечего.
+                    continue
+                outcome = await self._grant_order(
+                    conn, order, attempt[0], now=at, observed_at=None,
+                )
+                if outcome.state == "applied":
+                    applied += 1
+        return applied
 
     async def request_payment_refund(self, actor_id: int, order_id: str, request_key: str, *, now: float) -> RefundOutcome:
         self._check_now(now)

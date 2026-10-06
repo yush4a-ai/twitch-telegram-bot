@@ -21,6 +21,7 @@ SUBSYSTEM_TITLES = {
     "queue": "Очередь уведомлений",
     "database": "База данных",
     "backup": "Резервная копия",
+    "billing": "Оплата",
 }
 
 BAD_TEXT = {
@@ -28,6 +29,7 @@ BAD_TEXT = {
     "queue": "есть неудачные задания: часть уведомлений не доставлена.",
     "database": "отвечает с ошибками: часть данных может не сохраняться.",
     "backup": "свежая копия не создана: откат может потерять данные.",
+    "billing": "оплата прошла, а доступ не выдан: нужен ручной разбор.",
 }
 
 GOOD_TEXT = {
@@ -35,6 +37,7 @@ GOOD_TEXT = {
     "queue": "снова в порядке: неудачных заданий нет.",
     "database": "снова отвечает нормально.",
     "backup": "снова создаётся.",
+    "billing": "снова в порядке: оплаченные заказы получают доступ.",
 }
 
 
@@ -57,6 +60,9 @@ def subsystem_states(snapshot: dict) -> dict[str, str]:
     backup = snapshot.get("backup")
     if backup is not None:
         states["backup"] = "ok" if backup.get("last_backup_at") else "bad"
+    billing = snapshot.get("billing")
+    if billing is not None:
+        states["billing"] = "bad" if (billing.get("awaiting_access") or 0) > 0 else "ok"
     return states
 
 

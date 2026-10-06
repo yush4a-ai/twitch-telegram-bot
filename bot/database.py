@@ -1670,6 +1670,39 @@ class Database:
         )
         return self._billing_order_from_row(await cursor.fetchone())
 
+    async def list_orders_needing_entitlement_review(
+        self, *, limit: int = 20, retry_before: float | None = None,
+    ) -> list[BillingOrder]:
+        """Заказы, где деньги подтверждены, а доступ так и не выдан.
+
+        Нужны владельцу для видимости и воркеру для повторной выдачи.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("invalid review limit")
+        sql = (
+            "SELECT " + _BILLING_ORDER_READ_FIELDS + " FROM billing_orders "
+            "WHERE entitlement_state IN ('review','failed') "
+            "AND financial_status = 'confirmed' AND grant_id IS NULL"
+        )
+        params: list[float | int] = []
+        if retry_before is not None:
+            if not isinstance(retry_before, (int, float)) or not math.isfinite(retry_before):
+                raise ValueError("invalid retry time")
+            sql += " AND (entitlement_updated_at IS NULL OR entitlement_updated_at <= ?)"
+            params.append(retry_before)
+        sql += " ORDER BY created_at, order_id LIMIT ?"
+        params.append(limit)
+        cursor = await self.conn.execute(sql, tuple(params))
+        return [BillingOrder(*row) for row in await cursor.fetchall()]
+
+    async def count_orders_needing_entitlement_review(self) -> int:
+        cursor = await self.conn.execute(
+            "SELECT COUNT(*) FROM billing_orders "
+            "WHERE entitlement_state IN ('review','failed') "
+            "AND financial_status = 'confirmed' AND grant_id IS NULL"
+        )
+        return (await cursor.fetchone())[0]
+
     async def get_billing_payment(self, order_id: str) -> PaymentRecord | None:
         cursor = await self.conn.execute(
             "SELECT provider,payment_id,order_id,status,units,currency,captured_at,refunded_at "

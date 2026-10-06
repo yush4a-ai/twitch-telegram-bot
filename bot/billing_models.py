@@ -152,6 +152,9 @@ class BillingOrder:
     access_expires_at: float | None = None
     product_snapshot_json: str | None = None
     checkout_url: str | None = None
+    entitlement_state: str = "none"
+    entitlement_error: str | None = None
+    entitlement_updated_at: float | None = None
 
     @property
     def subject(self) -> BillingSubject:

@@ -601,6 +601,14 @@ async def _run_billing_reconcile(service, *, interval: float = 300.0) -> None:
             applied = await service.apply_stars_transactions(now=time.time())
             if applied:
                 logger.info("Восстановлено оплат звёздами: %s", applied)
+            # Оплата могла подтвердиться, а доступ не выдаться (например, разошлись
+            # условия заказа): такие заказы повторяем, но не чаще, чем раз в две
+            # итерации воркера, чтобы не заваливать журнал.
+            recovered = await service.retry_pending_entitlements(
+                now=time.time(), quiet_seconds=interval * 2,
+            )
+            if recovered:
+                logger.info("Повторно выдано доступов: %s", recovered)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -987,8 +995,24 @@ async def main() -> None:
                     owner_alerter = OwnerAlerter(
                         _make_owner_alert_sender(bot, owner_chat_id) if owner_chat_id else None,
                     )
+
+                    async def _owner_snapshot_collect():
+                        """Снимок панели плюс то, что видит только владелец.
+
+                        Оплата без доступа — тихая авария: деньги списаны, человек
+                        без подписки. Она обязана попадать в оповещения.
+                        """
+                        snapshot = await admin_snapshot.collect()
+                        try:
+                            snapshot["billing"] = {
+                                "awaiting_access": await db.count_orders_needing_entitlement_review(),
+                            }
+                        except Exception:
+                            logger.exception("Не удалось посчитать заказы без доступа")
+                        return snapshot
+
                     owner_alert_task = asyncio.create_task(
-                        _run_owner_alerts(owner_alerter, admin_snapshot.collect),
+                        _run_owner_alerts(owner_alerter, _owner_snapshot_collect),
                         name="owner-alerts",
                     )
                     # Срок хранения переписки: старое удаляется вместе с файлами.

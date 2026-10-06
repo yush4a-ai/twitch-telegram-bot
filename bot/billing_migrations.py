@@ -16,6 +16,12 @@ ORDER_COLUMNS = {
     "access_expires_at": "REAL",
     "product_snapshot_json": "TEXT",
     "checkout_url": "TEXT",
+    # Выдача доступа отделена от факта оплаты: подтверждённые деньги могут
+    # прийти раньше, чем получится выдать доступ, и это состояние должно быть
+    # видно владельцу и повторяемо (аудит A1).
+    "entitlement_state": "TEXT NOT NULL DEFAULT 'none'",
+    "entitlement_error": "TEXT",
+    "entitlement_updated_at": "REAL",
 }
 
 
@@ -129,3 +135,24 @@ async def migrate_plus_payments(conn, *, now: float) -> None:
         )
         await conn.execute("CREATE TABLE billing_worker_lease(provider TEXT PRIMARY KEY,owner TEXT,lease_until REAL) WITHOUT ROWID")
         await conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES ('r11_004_payment_reconciliation',?)", (now,))
+
+    cursor = await conn.execute("SELECT 1 FROM schema_migrations WHERE version='r11_006_entitlement_recovery'")
+    if await cursor.fetchone() is None:
+        columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(billing_orders)")).fetchall()}
+        for name in ("entitlement_state", "entitlement_error", "entitlement_updated_at"):
+            if name not in columns:
+                await conn.execute(f"ALTER TABLE billing_orders ADD COLUMN {name} {ORDER_COLUMNS[name]}")
+        # Заказ с истёкшим счётом больше не считается активным: иначе человек,
+        # просто не оплативший счёт, не смог бы купить подписку никогда.
+        await conn.execute("DROP INDEX IF EXISTS idx_payment_buyer_active")
+        await conn.execute(
+            "CREATE UNIQUE INDEX idx_payment_buyer_active ON billing_orders(telegram_user_id) "
+            "WHERE provider IN ('platega','telegram_stars') AND status='pending' "
+            "AND financial_status IN ('pending','manual_review')"
+        )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_billing_orders_entitlement_review "
+            "ON billing_orders(entitlement_state,entitlement_updated_at) "
+            "WHERE entitlement_state IN ('review','failed')"
+        )
+        await conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES ('r11_006_entitlement_recovery',?)", (now,))

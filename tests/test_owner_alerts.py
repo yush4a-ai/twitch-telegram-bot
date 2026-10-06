@@ -5,13 +5,17 @@ from unittest.mock import AsyncMock
 from bot.owner_alerts import OwnerAlerter, subsystem_states
 
 
-def snapshot(*, twitch="ok", failed_jobs=0, database_error=False, backup_at=1000.0):
-    return {
+def snapshot(*, twitch="ok", failed_jobs=0, database_error=False, backup_at=1000.0,
+             awaiting_access=None):
+    data = {
         "twitch": {"state": twitch},
         "queues": {"failed_jobs": failed_jobs},
         "errors": {"database": "ошибка" if database_error else None},
         "backup": {"last_backup_at": backup_at},
     }
+    if awaiting_access is not None:
+        data["billing"] = {"awaiting_access": awaiting_access}
+    return data
 
 
 class StateTests(unittest.TestCase):
@@ -21,6 +25,13 @@ class StateTests(unittest.TestCase):
         self.assertEqual(states["queue"], "ok")
         self.assertEqual(states["database"], "ok")
         self.assertEqual(states["backup"], "ok")
+
+    def test_a_paid_order_without_access_raises_the_billing_alarm(self):
+        """Владелец должен узнать, что деньги взяты, а доступ не выдан."""
+        self.assertEqual(subsystem_states(snapshot(awaiting_access=2))["billing"], "bad")
+        self.assertEqual(subsystem_states(snapshot(awaiting_access=0))["billing"], "ok")
+        # Без данных тревоги нет: снимок мог быть собран до появления раздела.
+        self.assertNotIn("billing", subsystem_states(snapshot()))
 
     def test_unknown_data_is_not_treated_as_failure(self):
         states = subsystem_states({})

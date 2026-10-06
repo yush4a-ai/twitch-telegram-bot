@@ -48,6 +48,7 @@ class GrowthSchemaTests(unittest.IsolatedAsyncioTestCase):
                             "r11_003_entitlement_beneficiary",
                             "r11_004_payment_reconciliation",
                             "r11_005_channel_intent_reasons",
+                            "r11_006_entitlement_recovery",
                             "r3_001_observations", "r3_002_notification_jobs",
                             "r3_003_live_update_revision",
                             "r4_001_streamer_access",
