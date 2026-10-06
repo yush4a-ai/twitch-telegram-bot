@@ -5,8 +5,8 @@
 освобождаются только истёкшие сессии.
 """
 
-import time
 import unittest
+from unittest.mock import patch
 
 from bot.admin_auth import AdminAccess
 from tests.test_admin_telegram_auth import BOT_TOKEN, KEY, OWNER_ID, signed_webapp
@@ -32,12 +32,16 @@ class AdminSessionPoolTests(unittest.TestCase):
 
     def test_expired_sessions_free_the_pool_again(self):
         access = AdminAccess(KEY, enabled=True, secure_cookie=False,
-                             owner_id=OWNER_ID, bot_token=BOT_TOKEN, session_ttl=0.01)
-        for _ in range(32):
+                             owner_id=OWNER_ID, bot_token=BOT_TOKEN)
+        # Время задаётся явно: с реальным TTL в миллисекунды тест нестабилен,
+        # потому что 32 подписи могут создаваться дольше самого TTL.
+        with patch("bot.admin_auth.time.monotonic", return_value=1000.0):
+            for _ in range(32):
+                self.assertIsNotNone(access.login_webapp(signed_webapp(OWNER_ID)))
+            self.assertIsNone(access.login_webapp(signed_webapp(OWNER_ID)))
+        with patch("bot.admin_auth.time.monotonic",
+                   return_value=1000.0 + access.session_ttl + 1):
             self.assertIsNotNone(access.login_webapp(signed_webapp(OWNER_ID)))
-        self.assertIsNone(access.login_webapp(signed_webapp(OWNER_ID)))
-        time.sleep(0.02)
-        self.assertIsNotNone(access.login_webapp(signed_webapp(OWNER_ID)))
 
 
 if __name__ == "__main__":
