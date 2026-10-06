@@ -1,0 +1,58 @@
+#!/bin/sh
+# Защита от публикации личных данных владельца.
+#
+# В локальной истории остались коммиты с персональными данными (полное имя,
+# ИНН, личная почта). На GitHub они не попадали, но достижимы из старой рабочей
+# ветки. Этот hook не даёт выложить их случайно: push отклоняется, если
+# отправляемая ссылка или любой из отправляемых коммитов ведёт к известным
+# небезопасным коммитам.
+#
+# Установка (локально, один раз):
+#   cp scripts/git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# Обход (только осознанно, после устранения причины):
+#   ALLOW_PII_PUSH=1 git push ...
+
+set -eu
+
+if [ "${ALLOW_PII_PUSH:-0}" = "1" ]; then
+    echo "pre-push: защита отключена переменной ALLOW_PII_PUSH=1" >&2
+    exit 0
+fi
+
+UNSAFE_COMMITS="022779b 216c97c"
+
+is_unsafe_ref() {
+    case "$1" in
+        refs/heads/autonomous/twitchsignal-roadmap) return 0 ;;
+        refs/heads/backup/pre-pd-cleanup) return 0 ;;
+        refs/tags/pre-pd-cleanup-20261005) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "${local_ref:-}" ] || continue
+    case "$local_sha" in
+        0000000000000000000000000000000000000000) continue ;;
+    esac
+    if is_unsafe_ref "$local_ref"; then
+        echo "pre-push: ОТКАЗ — ссылка $local_ref помечена как небезопасная (содержит личные данные в истории)." >&2
+        status=1
+        continue
+    fi
+    for unsafe in $UNSAFE_COMMITS; do
+        if git merge-base --is-ancestor "$unsafe" "$local_sha" 2>/dev/null; then
+            echo "pre-push: ОТКАЗ — $local_ref содержит небезопасный коммит $unsafe (личные данные владельца)." >&2
+            echo "pre-push: используйте чистую ветку remediation/*, созданную от безопасной базы." >&2
+            status=1
+            break
+        fi
+    done
+done
+
+if [ "$status" -ne 0 ]; then
+    echo "pre-push: публикация остановлена. Подробности: docs/audits/payment-security-remediation-2026-10-06/PII-REMEDIATION.md" >&2
+    exit 1
+fi
+exit 0
