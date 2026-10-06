@@ -15,6 +15,7 @@ from .category_alert_store import CategoryAlertPreference, CategoryAlertStore
 from .database import Database
 from .deep_links import TWITCH_LOGIN_RE
 from .mini_app_auth import verified_payload
+from .mini_app_limits import RequestBudget
 from .viewer_reminders import ReminderInFlightError, ViewerReminderService
 from .viewer_folders import FolderConflict, FolderLimit, FolderNameTaken, ViewerFolderService
 from .viewer_history import ViewerHistoryService
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 _SEARCH_WINDOW_SECONDS = 10.0
 _SEARCH_WINDOW_LIMIT = 6
 _NAMES_TIMEOUT = 5.0
+# Правки списка каналов (отписка и её отмена) без ограничения позволяли одному
+# человеку нагружать запись в базу; лимит щедрый, но конечный.
+_WRITE_BUDGET = RequestBudget(per_user=60, window_seconds=60.0, global_limit=600)
 
 
 class _FollowLookup:
@@ -527,6 +531,8 @@ def install_mini_app_viewer_routes(
         user_id, values, error = await read(request)
         if error is not None:
             return error
+        if not _WRITE_BUDGET.admit(user_id):
+            return web.json_response({"error": "rate_limited"}, status=429)
         login = normalize_twitch_login(values.get("login"))
         if login is None:
             return web.json_response({"error": "invalid_login"}, status=400)
@@ -547,6 +553,8 @@ def install_mini_app_viewer_routes(
         user_id, values, error = await read(request)
         if error is not None:
             return error
+        if not _WRITE_BUDGET.admit(user_id):
+            return web.json_response({"error": "rate_limited"}, status=429)
         token = values.get('undo_token')
         if set(values) != {'init_data', 'undo_token'} or not isinstance(token, str) or len(token) != 43:
             return web.json_response({'error': 'invalid_undo'}, status=400)

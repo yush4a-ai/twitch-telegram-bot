@@ -12,10 +12,17 @@ from aiohttp import web
 from .billing import BillingService
 from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
+from .mini_app_limits import RequestBudget
 from .mini_app_auth import verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
 from .plan_catalog import catalog_payload, BillingRuntimePolicy, PAYMENT_UNAVAILABLE_MESSAGE
 from .subscription_state import SubscriptionService
+
+# Подготовка покупки и проверка статуса — дорогие пути: подпись, обращения к
+# базе, у звёзд ещё и внешний вызов. Ограничение на пользователя не даёт одному
+# человеку занять сервис, общий предохранитель защищает остальных.
+_PURCHASE_BUDGET = RequestBudget(per_user=120, window_seconds=60.0, global_limit=1200)
+_STATUS_BUDGET = RequestBudget(per_user=240, window_seconds=60.0, global_limit=2400)
 
 
 def install_mini_app_billing_routes(
@@ -57,6 +64,8 @@ def install_mini_app_billing_routes(
         user_id, values, error = await read(request)
         if error is not None:
             return error
+        if not _PURCHASE_BUDGET.admit(user_id):
+            return web.json_response({"error": "rate_limited"}, status=429)
         if (set(values) != {"init_data", "product", "method", "request_key"}
             or not isinstance(values.get("product"), str)
             or values["product"] not in {"viewer_plus", "streamer_plus"}
@@ -100,6 +109,8 @@ def install_mini_app_billing_routes(
         user_id, values, error = await read(request)
         if error is not None:
             return error
+        if not _STATUS_BUDGET.admit(user_id):
+            return web.json_response({"error": "rate_limited"}, status=429)
         if (set(values) != {"init_data", "order_id"}
             or not isinstance(values.get("order_id"), str)
             or re.fullmatch(r"[0-9a-f]{32}", values["order_id"]) is None):

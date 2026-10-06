@@ -2,8 +2,12 @@
 import asyncio
 from aiohttp import web
 from .mini_app_auth import verified_payload
+from .mini_app_limits import RequestBudget
 from .streamer_community import check_community_permission
 from .mini_app_viewer import normalize_twitch_login
+
+# Отчёты — самое дорогое чтение мини-аппа: до двух запросов к базе на канал.
+_REPORTS_BUDGET = RequestBudget(per_user=30, window_seconds=60.0, global_limit=300)
 
 
 def install_report_routes(app,db,bot_token,bot):
@@ -29,6 +33,7 @@ def install_report_routes(app,db,bot_token,bot):
     async def reports(request):
         user,values,status=await verified_payload(request,bot_token)
         if status!=200:return web.json_response({'error':'unauthorized'},status=status)
+        if not _REPORTS_BUDGET.admit(user):return web.json_response({'error':'rate_limited'},status=429)
         if set(values)!={'init_data'}:return web.json_response({'error':'invalid_settings'},status=400)
         if request.match_info['report_role']=='viewer':
             items=[await item(user,user,login,login,False) for login in await db.list_channels(user)]
