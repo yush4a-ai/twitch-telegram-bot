@@ -22,7 +22,7 @@ class PaymentChannelModelTests(unittest.TestCase):
 
         self.assertFalse(channels["stars"].enabled)
         self.assertFalse(channels["external"].enabled)
-        self.assertFalse(channels["mock"].enabled)
+        self.assertFalse(channels["sandbox"].enabled)
         self.assertEqual(channels["stars"].reason, "mode_offline")
 
     def test_provider_credentials_alone_never_open_the_bank_channel(self):
@@ -67,8 +67,8 @@ class PaymentChannelModelTests(unittest.TestCase):
             refund_policy_approved=True,
         ))
 
-        self.assertFalse(offline["mock"].enabled)
-        self.assertTrue(sandbox["mock"].enabled)
+        self.assertFalse(offline["sandbox"].enabled)
+        self.assertTrue(sandbox["sandbox"].enabled)
 
 
 if __name__ == "__main__":

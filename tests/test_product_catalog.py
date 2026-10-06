@@ -44,17 +44,26 @@ class ProductCatalogTests(unittest.TestCase):
                 self.assertFalse(offline.enabled)
                 self.assertEqual(offline.reason_code, "payments_unavailable")
         ready = policy_type(mode="sandbox", target_verified=True, allow_invoice=True,
-                            period_approved=True, refund_policy_approved=True)
+                            period_approved=True, refund_policy_approved=True,
+                            allow_public_stars=True)
         self.assertTrue(plan_catalog.checkout_readiness("viewer_plus", "stars", ready).enabled)
+        # Публичная оплата звёздами открывается только явным разрешением владельца.
+        not_public = policy_type(mode="sandbox", target_verified=True, allow_invoice=True,
+                                 period_approved=True, refund_policy_approved=True)
+        closed = plan_catalog.checkout_readiness("viewer_plus", "stars", not_public)
+        self.assertFalse(closed.enabled)
+        self.assertEqual(closed.reason_code, "stars_unavailable")
         # Внешние способы (СБП, карта) включаются отдельным флагом провайдера.
         self.assertFalse(plan_catalog.checkout_readiness("viewer_plus", "sbp", ready).enabled)
         # Ни одного флага недостаточно, чтобы оплата открылась.
         for missing, reason in (("target_verified", "target_unverified"),
                                 ("period_approved", "period_unapproved"),
                                 ("refund_policy_approved", "policy_unapproved"),
-                                ("allow_invoice", "stars_unavailable")):
+                                ("allow_invoice", "stars_unavailable"),
+                                ("allow_public_stars", "stars_unavailable")):
             values = {"mode": "sandbox", "target_verified": True, "allow_invoice": True,
-                      "period_approved": True, "refund_policy_approved": True}
+                      "period_approved": True, "refund_policy_approved": True,
+                      "allow_public_stars": True}
             values[missing] = False
             with self.subTest(missing=missing):
                 result = plan_catalog.checkout_readiness("viewer_plus", "stars", policy_type(**values))
