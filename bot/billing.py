@@ -90,6 +90,49 @@ class BillingService:
         year, month = (date.year + 1, 1) if date.month == 12 else (date.year, date.month + 1)
         return date.replace(year=year, month=month, day=min(date.day, calendar.monthrange(year, month)[1])).timestamp()
 
+    async def _cancel_stale_unresolved(
+        self, user_id: int, *, now: float, grace_seconds: float = 300.0
+    ) -> int:
+        """Закрывает попытки, по которым счёт так и не создался.
+
+        Иначе один сбой навсегда блокирует покупку: незакрытый заказ заставляет
+        следующую попытку ответить «платёж уже в процессе». Трогаем только те
+        заказы, где провайдер не выдал ни ссылки, ни идентификатора платежа —
+        оплатить по ним физически нечего.
+        """
+        cutoff = now - grace_seconds
+        async with self._store.transaction() as conn:
+            cursor = await conn.execute(
+                "SELECT o.order_id FROM billing_orders o "
+                "WHERE o.telegram_user_id = ? AND o.provider = 'telegram_stars' "
+                "AND o.status = 'pending' "
+                "AND o.financial_status IN ('pending', 'manual_review') "
+                "AND o.created_at <= ? AND COALESCE(o.checkout_url, '') = '' "
+                "AND EXISTS(SELECT 1 FROM billing_payment_attempts a "
+                "WHERE a.order_id = o.order_id AND a.state = 'creation_unknown' "
+                "AND a.provider_reference IS NULL) "
+                "LIMIT 10",
+                (user_id, cutoff),
+            )
+            order_ids = [row[0] for row in await cursor.fetchall()]
+            for order_id in order_ids:
+                await conn.execute(
+                    "UPDATE billing_orders SET status='cancelled',"
+                    "financial_status='canceled',closed_at=? WHERE order_id=?",
+                    (now, order_id),
+                )
+                await conn.execute(
+                    "UPDATE billing_payment_attempts SET state='done',lease_until=NULL,"
+                    "next_reconcile_at=NULL WHERE order_id=? AND state='creation_unknown'",
+                    (order_id,),
+                )
+                await conn.execute(
+                    "INSERT INTO billing_audit(order_id,action,happened_at) "
+                    "VALUES (?,'order_cancelled_stale',?)",
+                    (order_id, now),
+                )
+        return len(order_ids)
+
     async def prepare_payment(self, user_id: int, product_id: str, method: str,
                               request_key: str, *, now: float) -> CheckoutResult:
         self._check_now(now)
@@ -99,6 +142,9 @@ class BillingService:
         # одного факта наличия провайдера и ключей для оплаты недостаточно.
         if self._runtime_policy.mode == "offline" or not self._runtime_policy.target_verified:
             return CheckoutResult("unavailable", reason_code="payments_unavailable")
+        # Перед новой покупкой снимаем собственные зависшие попытки: счёт по ним
+        # не создавался, и держать их дальше значит блокировать оплату навсегда.
+        await self._cancel_stale_unresolved(user_id, now=now)
         product = self._catalog(product_id)
         if not self._period_ready(product.period_rule, product.period_rule_version) or self._terms_version is None:
             return CheckoutResult("unavailable", reason_code="payments_unavailable")

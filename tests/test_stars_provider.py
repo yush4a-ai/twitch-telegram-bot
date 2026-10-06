@@ -154,6 +154,26 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sender.links[0]["currency"], "XTR")
         self.assertEqual(sender.invoices, [])
 
+    async def test_stale_failed_invoice_does_not_block_the_next_purchase(self):
+        """Сбой создания счёта не должен навсегда закрывать оплату."""
+        broken = FakeSender()
+        broken.error = ValueError("invoice link failed")
+        broken_service = self.make_service(provider=TelegramStarsProvider(broken, POLICY))
+
+        first = await broken_service.prepare_payment(101, "viewer_plus", "stars", "broken-key", now=100)
+        self.assertEqual(first.state, "creation_unknown")
+
+        # Сразу же купить нельзя: неизвестно, создался ли счёт.
+        second = await broken_service.prepare_payment(101, "viewer_plus", "stars", "retry-key", now=120)
+        self.assertEqual(second.state, "unavailable")
+        self.assertEqual(second.reason_code, "payment_in_progress")
+
+        # Через окно ожидания заказ закрывается сам, и покупка снова доступна.
+        third = await self.service.prepare_payment(101, "viewer_plus", "stars", "retry-key-2", now=500)
+
+        self.assertEqual(third.state, "pending")
+        self.assertEqual(third.hosted_url, None)
+
     async def test_xtr_tbd_disabled_runtime_and_client_paid_cannot_send_invoice_or_grant(self):
         for policy, catalog in ((first_release_payment_policy(), fixture_product), (POLICY, get_product)):
             with self.subTest(policy=policy.mode, xtr=catalog("viewer_plus").xtr):
