@@ -1,3 +1,4 @@
+/* Архив макетов 02.10.2026, цена неактуальна: Streamer Plus — 300 ₽/месяц (D-063), значение 200 ₽ ниже оставлено как история. */
 /* Shared DESIGN catalog. Not a server entitlement or live purchase configuration. */
 (()=>{
  const features={
