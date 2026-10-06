@@ -32,11 +32,16 @@ class BillingRuntimePolicy:
     # Публичная покупка звёздами в боте. Отдельный флаг: наличие провайдера и
     # ключей не должно само по себе открывать оплату живым людям.
     allow_public_stars: bool = False
+    # Запрет банковского канала со стороны production-контракта: значение
+    # `PRODUCTION_PAYMENT_POLICY=off` обязано что-то значить, но не должно
+    # выключать звёзды Telegram — это отдельный канал.
+    external_blocked_by_contract: bool = False
 
     def __post_init__(self):
         if self.mode not in {"offline", "sandbox"} or any(type(value) is not bool for value in (
             self.target_verified, self.allow_external_create, self.allow_invoice,
             self.period_approved, self.refund_policy_approved, self.allow_public_stars,
+            self.external_blocked_by_contract,
         )):
             raise ValueError("invalid billing runtime policy")
 
@@ -45,6 +50,60 @@ class BillingRuntimePolicy:
 class CheckoutReadiness:
     enabled: bool
     reason_code: str | None
+
+
+@dataclass(frozen=True)
+class PaymentChannel:
+    """Один канал приёма денег: включён или нет, и по какой причине."""
+
+    enabled: bool
+    reason: str | None = None
+
+
+def payment_channels(policy: BillingRuntimePolicy) -> dict[str, PaymentChannel]:
+    """Три независимых канала: звёзды Telegram, внешние платежи, тестовый контур.
+
+    Запрет банковского канала со стороны production-контракта
+    (`PRODUCTION_PAYMENT_POLICY=off`) живёт в самой политике
+    (`external_blocked_by_contract`), потому что витрина, подготовка платежа и
+    провайдер должны видеть одно и то же состояние без дополнительных
+    параметров.
+    """
+    if not isinstance(policy, BillingRuntimePolicy):
+        raise ValueError("invalid billing runtime policy")
+
+    def closed(reason: str) -> PaymentChannel:
+        return PaymentChannel(False, reason)
+
+    common = None
+    if policy.mode == "offline":
+        common = "mode_offline"
+    elif not policy.target_verified:
+        common = "target_unverified"
+    elif not policy.period_approved:
+        common = "period_unapproved"
+    elif not policy.refund_policy_approved:
+        common = "policy_unapproved"
+
+    if common is not None:
+        stars = closed(common)
+        external = closed(common)
+        mock = closed(common)
+    else:
+        if not policy.allow_invoice:
+            stars = closed("invoice_disabled")
+        elif not policy.allow_public_stars:
+            stars = closed("public_stars_disabled")
+        else:
+            stars = PaymentChannel(True)
+        if policy.external_blocked_by_contract:
+            external = closed("contract_disabled")
+        elif not policy.allow_external_create:
+            external = closed("external_disabled")
+        else:
+            external = PaymentChannel(True)
+        mock = PaymentChannel(True)
+    return {"stars": stars, "external": external, "mock": mock}
 
 
 _FEATURES = MappingProxyType({

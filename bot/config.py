@@ -13,12 +13,17 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-def first_release_payment_policy():
+def first_release_payment_policy(*, contract_policy: str | None = None):
     """Платёжная политика из переменных окружения.
 
     По умолчанию всё выключено: без явных флагов денежные операции невозможны,
     даже если ключи провайдера заданы. Включение — осознанное действие владельца
     через переменные, а не побочный эффект окружения.
+
+    ``contract_policy`` — значение production-контракта. Значение ``off``
+    запрещает банковский канал (СБП и карта): контракт обязан что-то значить.
+    Звёзды Telegram остаются отдельным каналом и управляются своим флагом
+    `BILLING_PUBLIC_STARS`.
     """
     from .plan_catalog import BillingRuntimePolicy
 
@@ -28,14 +33,22 @@ def first_release_payment_policy():
     mode = os.getenv("BILLING_MODE", "offline").strip().lower()
     if mode not in {"offline", "sandbox"}:
         raise ConfigError("BILLING_MODE должен быть offline или sandbox")
+    allow_external = flag("BILLING_ALLOW_EXTERNAL")
+    blocked_by_contract = contract_policy == "off"
+    if blocked_by_contract and allow_external:
+        logger.warning(
+            "Контракт запрещает внешние платежи: BILLING_ALLOW_EXTERNAL игнорируется"
+        )
+        allow_external = False
     return BillingRuntimePolicy(
         mode=mode,
         target_verified=flag("BILLING_TARGET_VERIFIED"),
-        allow_external_create=flag("BILLING_ALLOW_EXTERNAL"),
+        allow_external_create=allow_external,
         allow_invoice=flag("BILLING_ALLOW_INVOICE"),
         period_approved=flag("BILLING_PERIOD_APPROVED"),
         refund_policy_approved=flag("BILLING_REFUND_APPROVED"),
         allow_public_stars=flag("BILLING_PUBLIC_STARS"),
+        external_blocked_by_contract=blocked_by_contract,
     )
 
 PREVIEW_INITIAL_DELAY_SECONDS = 75

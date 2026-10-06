@@ -10,9 +10,27 @@ from cryptography.fernet import Fernet
 from bot.config import load_config, ConfigError
 
 
+def outside_repository_tempdir() -> str:
+    """Каталог для контракта: он обязан лежать вне репозитория.
+
+    В некоторых средах системный временный каталог указывает внутрь рабочей
+    копии, и тогда проверка допуска справедливо отказывает. Тест сам выбирает
+    подходящий каталог, чтобы проверялось именно требование «вне репозитория».
+    """
+    root = Path(__file__).resolve().parents[1]
+    for candidate in (os.environ.get("TEMP"), os.environ.get("TMP"),
+                      os.environ.get("TMPDIR"), tempfile.gettempdir()):
+        if not candidate:
+            continue
+        path = Path(candidate).resolve()
+        if path.is_dir() and not path.is_relative_to(root):
+            return str(path)
+    raise RuntimeError("нет доступного временного каталога вне репозитория")
+
+
 class AdmissionTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
+        self.tmp = tempfile.TemporaryDirectory(dir=outside_repository_tempdir())
         self.addCleanup(self.tmp.cleanup)
         self.file = Path(self.tmp.name) / 'operator.json'
         self.contract = dict(project_id='11111111-1111-4111-8111-111111111111',
