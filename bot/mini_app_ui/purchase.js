@@ -14,6 +14,15 @@ export function createPurchaseFeature(api,getRouter,telegram) {
     catch{if(!disposed)error='Не удалось загрузить способы оплаты. Попробуйте ещё раз.';}
     finally{clearTimeout(timer);if(token===generation&&!disposed){loading=false;refresh();}}
   }
+  function availabilityText(reason,fallback){
+    // Каждая причина отказа — своим текстом: «подключаем платёжную систему»
+    // вместо «счёт уже создан» сбивало с толку и в боте, и в приложении.
+    if(reason==='payment_in_progress')return 'У вас уже есть неоплаченный счёт. Он действует 15 минут: оплатите его в чате с ботом или подождите и попробуйте снова.';
+    if(reason==='already_active')return 'Подписка уже действует — продлевать не нужно.';
+    if(reason==='upgrade_unapproved')return 'Смена тарифа пока недоступна. Напишите в поддержку: /paysupport';
+    if(typeof fallback==='string'&&fallback)return fallback;
+    return 'Оплата сейчас недоступна.';
+  }
   async function choose(id, method) {
     const current=purchase(id);if(current.busy||disposed)return;
     if(current.method!==method)current.requestKey=null;
@@ -37,12 +46,19 @@ export function createPurchaseFeature(api,getRouter,telegram) {
           current.message='Открыли страницу оплаты. После оплаты вернитесь в приложение.';
         }
         if(typeof result.order_id==='string'&&result.order_id)getRouter().openDetail({name:'purchase-order',id:result.order_id});
+      }else if(result?.state==='pending'){
+        current.message='Счёт создан и отправлен в чат с ботом — оплатите его там.';
+        current.failed=true;
       }else{
         current.message=typeof result?.message==='string'?result.message:'Оплата сейчас недоступна.';
         current.failed=true;
       }
     }catch(cause){
-      if(cause instanceof ApiError&&cause.status===503&&cause.data?.state==='unavailable'&&cause.data?.payment_request_created===false&&typeof cause.data?.message==='string')current.message=cause.data.message;
+      const data=cause instanceof ApiError?cause.data:null;
+      if(data&&data.state==='unavailable'&&data.payment_request_created===false){
+        current.message=availabilityText(data.reason_code,data.message);
+        current.failed=true;
+      }
       else{current.message='Нет связи. Попробуйте ещё раз.';current.failed=true;}
     }finally{clearTimeout(timer);requests.delete(request);current.busy=false;refresh();}
   }

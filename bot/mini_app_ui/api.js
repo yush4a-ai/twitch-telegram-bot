@@ -34,9 +34,13 @@ export function createApi(initData, {onAuthExpired=null, timeoutMs=10000}={}) {
       let result;
       try { result = await response.json(); }
       catch { result = { error: 'invalid_response' }; }
-      if (response.status === 401) {
-        // Подпись Telegram живёт 10 минут. Сообщаем один раз: приложение должно
-        // перезагрузиться, чтобы клиент выдал свежую подпись.
+      // Подпись Telegram живёт 10 минут: и «нет подписи» (401), и «подпись не
+      // прошла проверку» (403 с error=unauthorized) означают одно — приложению
+      // нужно перезагрузиться за свежей подписью. Иначе человек после долгой
+      // оплаты видел «нет связи» вместо выданного доступа.
+      const authExpiredResponse = response.status === 401
+        || (response.status === 403 && result && result.error === 'unauthorized');
+      if (authExpiredResponse) {
         if (!authExpired && typeof onAuthExpired === 'function') {
           authExpired = true;
           onAuthExpired();

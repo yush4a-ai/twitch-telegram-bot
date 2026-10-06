@@ -117,6 +117,23 @@ def payment_message(payload, *, buyer=101, chat_id=None, refund=False, charge="s
         **{"refunded_payment" if refund else "successful_payment": payment})
 
 
+class BothTransportsSender(FakeSender):
+    """Отправитель как настоящий бот: умеет и сообщение, и ссылку.
+
+    Прежний двойник умел только ссылку, поэтому ошибка «мини-апп получает
+    сообщение вместо ссылки» не ловилась тестами.
+    """
+
+    def __init__(self, link="https://t.me/invoice/both"):
+        super().__init__()
+        self.link = link
+        self.links = []
+
+    async def create_invoice_link(self, **fields):
+        self.links.append(fields)
+        return self.link
+
+
 class StarsContracts(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -141,6 +158,26 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         attempt = await (await self.db.conn.execute("SELECT attempt_id FROM billing_payment_attempts WHERE order_id=?", (order.order_id,))).fetchone()
         payload = self.provider.invoice_payload(order.order_id, attempt[0])
         return order, payload
+
+    async def test_bot_gets_an_invoice_message_and_the_mini_app_gets_a_link(self):
+        """Бот продаёт счётом-сообщением, мини-апп — ссылкой для openInvoice."""
+        sender = BothTransportsSender()
+        provider = TelegramStarsProvider(sender, POLICY)
+        service = self.make_service(provider=provider)
+
+        bot_result = await service.prepare_payment(
+            101, "viewer_plus", "stars", "bot-transport", now=100)
+        self.assertEqual(bot_result.state, "pending")
+        self.assertIsNone(bot_result.hosted_url)
+        self.assertEqual(len(sender.invoices), 1)
+        self.assertEqual(sender.links, [])
+
+        app_result = await service.prepare_payment(
+            202, "viewer_plus", "stars", "app-transport", now=100, prefer_link=True)
+
+        self.assertEqual(app_result.state, "pending")
+        self.assertEqual(app_result.hosted_url, sender.link)
+        self.assertEqual(len(sender.links), 1)
 
     async def test_bot_gets_an_invoice_message_with_a_pay_button(self):
         """Цифровой товар продаётся счётом-сообщением, а не ссылкой.

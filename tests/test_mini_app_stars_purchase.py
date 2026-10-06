@@ -67,6 +67,23 @@ def stars_message(payload, *, refund=False, charge=CHARGE_ID, buyer=BUYER_ID):
                    **{"refunded_payment" if refund else "successful_payment": payment})
 
 
+class BotLikeStarsSender(FakeStarsSender):
+    """Отправитель как настоящий бот: умеет и сообщение, и ссылку.
+
+    Именно такого двойника не хватало: старый умел только ссылку, поэтому
+    регрессия «мини-апп получает счёт-сообщение и остаётся без payment_url»
+    проходила незамеченной.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.invoice_messages = []
+
+    async def send_invoice(self, **fields):
+        self.invoice_messages.append(fields)
+        return SimpleNamespace(message_id=70)
+
+
 class MiniAppStarsPurchaseTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.directory = tempfile.TemporaryDirectory()
@@ -127,6 +144,22 @@ class MiniAppStarsPurchaseTests(unittest.IsolatedAsyncioTestCase):
             "SELECT attempt_id FROM billing_payment_attempts WHERE order_id=?", (order.order_id,),
         )).fetchone())[0]
         return order, self.provider.invoice_payload(order.order_id, attempt_id)
+
+    async def test_mini_app_route_takes_the_link_and_never_sends_a_chat_invoice(self):
+        """Мини-апп должен получать ссылку, а не сообщение со счётом в чате."""
+        sender = BotLikeStarsSender()
+        provider = TelegramStarsProvider(sender, STARS_POLICY)
+        service = self.make_service(provider=provider)
+        base = await self.server(service=service)
+
+        status, body = await self.prepare(base, request_key="app-link-1")
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["state"], "pending")
+        self.assertIsInstance(body["payment_url"], str)
+        self.assertTrue(body["payment_url"].startswith("https://"))
+        self.assertEqual(len(sender.invoice_calls), 1)
+        self.assertEqual(sender.invoice_messages, [])
 
     async def test_catalog_reports_stars_ready_when_policy_is_on(self):
         """Каталог считает готовность по действующей политике.
