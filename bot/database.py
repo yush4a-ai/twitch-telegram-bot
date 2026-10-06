@@ -2131,6 +2131,50 @@ class Database:
         return status == "cancelled" and cursor.rowcount == 1
 
     @_serialized
+    async def clean_transient_data(
+        self, *, now: float, update_inbox_days: float = 7.0, expired_order_days: float = 30.0,
+        batch: int = 500,
+    ) -> dict[str, int]:
+        """Убирает служебные данные, не трогая финансовые записи.
+
+        Удаляются только: завершённые записи журнала апдейтов Telegram и
+        неоплаченные закрытые заказы (без подтверждённого платежа, без выданного
+        доступа). Оплаченный заказ, заказ с подтверждённым платежом или выданным
+        доступом сохраняется всегда. Срок хранения денежных документов — решение
+        владельца, поэтому здесь его нет.
+        """
+        for value in (update_inbox_days, expired_order_days):
+            if not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                raise ValueError("invalid retention window")
+        if type(batch) is not int or not 1 <= batch <= 5000:
+            raise ValueError("invalid cleanup batch")
+        updates_cutoff = now - update_inbox_days * 86400
+        cursor = await self.conn.execute(
+            "DELETE FROM telegram_update_inbox WHERE (bot_id, update_id) IN ("
+            "SELECT bot_id, update_id FROM telegram_update_inbox "
+            "WHERE status IN ('done','unknown') AND updated_at <= ? LIMIT ?)",
+            (updates_cutoff, batch),
+        )
+        updates = max(cursor.rowcount, 0)
+        orders_cutoff = now - expired_order_days * 86400
+        cursor = await self.conn.execute(
+            "SELECT o.order_id FROM billing_orders o "
+            "WHERE o.status IN ('expired','cancelled') AND o.grant_id IS NULL "
+            "AND COALESCE(o.closed_at, o.created_at) <= ? "
+            "AND NOT EXISTS(SELECT 1 FROM billing_provider_facts f WHERE f.order_id = o.order_id) "
+            "LIMIT ?",
+            (orders_cutoff, batch),
+        )
+        order_ids = [row[0] for row in await cursor.fetchall()]
+        for order_id in order_ids:
+            await self.conn.execute("DELETE FROM billing_payment_attempts WHERE order_id=?", (order_id,))
+            await self.conn.execute("DELETE FROM billing_payment_refunds WHERE order_id=?", (order_id,))
+            await self.conn.execute("DELETE FROM billing_audit WHERE order_id=?", (order_id,))
+            await self.conn.execute("DELETE FROM billing_orders WHERE order_id=?", (order_id,))
+        await self.conn.commit()
+        return {"updates": updates, "orders": len(order_ids)}
+
+    @_serialized
     async def expire_pending_billing_orders(self, *, now: float) -> int:
         if not isinstance(now, (int, float)) or not math.isfinite(now):
             raise ValueError("invalid expiry time")

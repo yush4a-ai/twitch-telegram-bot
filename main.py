@@ -617,6 +617,27 @@ async def _run_billing_reconcile(service, *, interval: float = 300.0) -> None:
         await asyncio.sleep(interval)
 
 
+async def _run_transient_cleanup(db, *, interval: float = 86400.0) -> None:
+    """Убирает служебный мусор: журнал апдейтов и брошенные неоплаченные заказы.
+
+    Финансовые записи не трогаются: заказ с подтверждённым платежом или выданным
+    доступом сохраняется независимо от возраста.
+    """
+    while True:
+        try:
+            removed = await db.clean_transient_data(now=time.time())
+            if removed["updates"] or removed["orders"]:
+                logger.info(
+                    "Очистка служебных данных: апдейтов %s, заказов %s",
+                    removed["updates"], removed["orders"],
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Очистка служебных данных не удалась")
+        await asyncio.sleep(interval)
+
+
 async def _run_owner_alerts(alerter: OwnerAlerter, collect, *, interval: float = 300.0) -> None:
     """Редкая проверка подсистем: оповещения не срочные, панель не должна спамить."""
     while True:
@@ -841,6 +862,7 @@ async def main() -> None:
             backup_task: asyncio.Task | None = None
             owner_alert_task: asyncio.Task | None = None
             retention_task: asyncio.Task | None = None
+            transient_task: asyncio.Task | None = None
             notification_worker: NotificationWorker | None = None
             broadcast_worker: BroadcastWorker | None = None
             try:
@@ -1025,6 +1047,11 @@ async def main() -> None:
                         ),
                         name="dialogue-retention",
                     )
+                    # Служебный мусор: журнал апдейтов и брошенные счета.
+                    transient_task = asyncio.create_task(
+                        _run_transient_cleanup(db),
+                        name="transient-cleanup",
+                    )
 
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=False), "Удаление webhook"
@@ -1063,6 +1090,7 @@ async def main() -> None:
                 if owner_alert_task is not None:
                     await _cancel_task(owner_alert_task, "Owner alerts")
                 await _cancel_task(retention_task, "Dialogue retention")
+                await _cancel_task(transient_task, "Transient cleanup")
                 await _shutdown_preview_runtime(
                     preview_manager, preview_capture_service
                 )
