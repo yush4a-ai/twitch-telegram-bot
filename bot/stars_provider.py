@@ -122,12 +122,26 @@ class TelegramStarsProvider:
         title = "Viewer Plus" if snapshot.product.product_id == "viewer_plus" else "Streamer Plus"
         description = "Подписка на 1 месяц"
         prices = [LabeledPrice(label=title, amount=snapshot.money.amount_minor)]
-        # Mini App открывает счёт по ссылке (createInvoiceLink). Если клиент умеет
-        # только отправлять счёт сообщением, сохраняем прежний путь: он остаётся
-        # рабочим для чата с ботом.
+        # Telegram проводит оплату цифровых товаров счётом-сообщением: у него
+        # есть кнопка «Оплатить», открывающая платёжную форму. Ссылка на счёт
+        # для звёзд такую форму не открывает («payment method is not available»),
+        # поэтому ссылку оставляем только тем клиентам, кто не умеет отправлять
+        # счёт сообщением (например, мини-аппу).
+        send_invoice = getattr(self._sender, "send_invoice", None)
         create_link = getattr(self._sender, "create_invoice_link", None)
         hosted_url = None
-        if callable(create_link):
+        if callable(send_invoice):
+            try:
+                await asyncio.wait_for(send_invoice(
+                    chat_id=snapshot.telegram_user_id, title=title,
+                    description=description, payload=payload, provider_token="",
+                    currency="XTR", prices=prices, start_parameter="subscription",
+                    protect_content=True), timeout=5)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                raise PaymentCreationUnknown("invoice outcome unknown; do not resend") from None
+        elif callable(create_link):
             try:
                 # createInvoiceLink не принимает start_parameter (в отличие от
                 # sendInvoice): лишний аргумент ломал вызов ещё до Telegram.
@@ -143,14 +157,7 @@ class TelegramStarsProvider:
                 raise PaymentCreationUnknown("invalid invoice link")
             hosted_url = link
         else:
-            try:
-                await asyncio.wait_for(self._sender.send_invoice(chat_id=snapshot.telegram_user_id, title=title,
-                    description=description, payload=payload, provider_token="", currency="XTR",
-                    prices=prices, start_parameter="subscription", protect_content=True), timeout=5)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                raise PaymentCreationUnknown("invoice outcome unknown; do not resend") from None
+            raise PaymentCreationUnknown("no invoice transport")
         # sendInvoice возвращает сообщение, а не идентификатор списания.
         return CheckoutSession(snapshot.order_id, None, hosted_url, "pending", snapshot.checkout_expires_at)
 

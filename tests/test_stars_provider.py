@@ -56,12 +56,8 @@ class FakeSender:
         return True
 
 
-class LinkFakeSender(FakeSender):
-    """Отправитель с createInvoiceLink — как настоящий бот.
-
-    Сигнатура намеренно повторяет aiogram: ``start_parameter`` здесь не
-    принимается, и лишний аргумент ломал создание счёта ещё до Telegram.
-    """
+class LinkOnlySender(FakeSender):
+    """Клиент без счёта-сообщения: умеет только ссылку (как мини-апп)."""
 
     def __init__(self, link="https://t.me/$fixture-invoice-link"):
         super().__init__()
@@ -75,6 +71,12 @@ class LinkFakeSender(FakeSender):
             "provider_token": provider_token, "currency": currency, "prices": prices,
         })
         return self.link
+
+
+class LinkOnlyCardSender(LinkOnlySender):
+    """Тот же клиент, но без возможности отправить счёт сообщением."""
+
+    send_invoice = None
 
 
 class FakeSession(BaseSession):
@@ -140,9 +142,26 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         payload = self.provider.invoice_payload(order.order_id, attempt[0])
         return order, payload
 
-    async def test_real_bot_invoice_link_is_created_without_start_parameter(self):
-        """Настоящий бот создаёт счёт ссылкой: лишний аргумент ломал оплату."""
-        sender = LinkFakeSender()
+    async def test_bot_gets_an_invoice_message_with_a_pay_button(self):
+        """Цифровой товар продаётся счётом-сообщением, а не ссылкой.
+
+        Ссылка на счёт звёздами не открывает платёжную форму: Telegram отвечает
+        «payment method is not available for the selected product».
+        """
+        sender = LinkOnlySender()
+        provider = TelegramStarsProvider(sender, POLICY)
+        service = self.make_service(provider=provider)
+
+        result = await service.prepare_payment(101, "viewer_plus", "stars", "bot-key", now=100)
+
+        self.assertEqual(result.state, "pending")
+        self.assertIsNone(result.hosted_url)
+        self.assertEqual(len(sender.invoices), 1)
+        self.assertEqual(sender.invoices[0]["currency"], "XTR")
+        self.assertEqual(sender.links, [])
+
+    async def test_link_is_used_only_when_the_client_cannot_send_an_invoice(self):
+        sender = LinkOnlyCardSender()
         provider = TelegramStarsProvider(sender, POLICY)
         service = self.make_service(provider=provider)
 
@@ -151,8 +170,6 @@ class StarsContracts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.state, "pending")
         self.assertEqual(result.hosted_url, sender.link)
         self.assertEqual(len(sender.links), 1)
-        self.assertEqual(sender.links[0]["currency"], "XTR")
-        self.assertEqual(sender.invoices, [])
 
     async def test_stale_failed_invoice_does_not_block_the_next_purchase(self):
         """Сбой создания счёта не должен навсегда закрывать оплату."""
