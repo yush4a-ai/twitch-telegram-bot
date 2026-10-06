@@ -29,6 +29,57 @@ def benefits(product):
     return '\n\n'.join(groups)
 
 
+def stars_checkout_ready(billing_service) -> bool:
+    """Можно ли сейчас продавать звёздами в боте.
+
+    Нужен явный флаг владельца: наличие провайдера и утверждённых условий само
+    по себе оплату не открывает.
+    """
+    policy = getattr(billing_service, "runtime_policy", None)
+    policy = policy() if callable(policy) else policy
+    return bool(
+        policy is not None
+        and getattr(policy, "allow_public_stars", False)
+        and getattr(policy, "allow_invoice", False)
+        and getattr(policy, "mode", "offline") != "offline"
+        and getattr(policy, "target_verified", False)
+    )
+
+
+def payment_status_text(billing_service) -> str:
+    if stars_checkout_ready(billing_service):
+        return ("Telegram Stars — доступно: счёт придёт в этот чат.\n"
+                "СБП и банковская карта — подключим позже.")
+    return PAYMENT_UNAVAILABLE_MESSAGE
+
+
+def checkout_view(result, back: str):
+    """Что показать после попытки создать счёт звёздами."""
+    state = getattr(result, "state", "unavailable")
+    reason = getattr(result, "reason_code", None)
+    hosted = getattr(result, "hosted_url", None)
+    if state == "pending" and hosted:
+        text = ("<b>Счёт готов</b>\n\nОплатите звёздами по кнопке ниже. "
+                "После оплаты доступ включится автоматически.")
+        rows = [[InlineKeyboardButton(text="Оплатить звёздами", url=hosted)],
+                [InlineKeyboardButton(text="← Назад", callback_data=back)]]
+        return text, InlineKeyboardMarkup(inline_keyboard=rows)
+    if state == "pending":
+        text = ("<b>Счёт отправлен</b>\n\nПроверьте сообщение со счётом в этом чате. "
+                "После оплаты доступ включится автоматически.")
+    elif reason == "already_active":
+        text = ("<b>Подписка уже действует</b>\n\n"
+                "Продлевать не нужно: доступ активен до конца оплаченного периода.")
+    elif state in {"creation_unknown", "manual_review"}:
+        text = ("<b>Не удалось создать счёт</b>\n\n"
+                "Повторно счёт не отправляем, чтобы не списать дважды. "
+                "Напишите в поддержку: /paysupport")
+    else:
+        text = ("<b>Оплата недоступна</b>\n\n" + PAYMENT_UNAVAILABLE_MESSAGE
+                + "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")
+    return text, back_keyboard(back)
+
+
 def product_route(data, action):
     parts=(data or '').split(':')
     if len(parts) not in {3,4} or parts[:2]!=['plus',action]:
@@ -74,7 +125,7 @@ async def access_label(db,user_id,product_id,active,now):
     return 'Активна' if not kinds or 'active' in kinds else 'Тестовый доступ'
 
 
-async def cb_plus(callback,state,db,config=None,oauth_server=None):
+async def cb_plus(callback,state,db,config=None,billing_service=None,oauth_server=None):
     if not await private_callback(callback): return
     actor=callback.from_user.id
     await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server,message=callback.message)
@@ -109,12 +160,12 @@ async def cb_plus(callback,state,db,config=None,oauth_server=None):
         if product['includes']: text+='В Стример Plus включены все возможности Зритель Plus.\n\n'
         text+=benefits(product)
         if product['includes']: text+='\n\n<b>Возможности зрителя</b>\n'+benefits(product_view('viewer_plus'))
-        text+='\n\n<b>Оплата</b>\n'+PAYMENT_UNAVAILABLE_MESSAGE
+        text+='\n\n<b>Оплата</b>\n'+payment_status_text(billing_service)
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source))
     await callback.answer()
 
 
-async def cb_buy(callback,state,db,oauth_server=None):
+async def cb_buy(callback,state,db,billing_service=None,oauth_server=None):
     if not await private_callback(callback): return
     try:
         product_id,source=product_route(callback.data,'buy')
@@ -128,7 +179,7 @@ async def cb_buy(callback,state,db,oauth_server=None):
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
         "<b>Выберите способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
-        +PAYMENT_UNAVAILABLE_MESSAGE+"\n\nАвтопродление выключено.",
+        +payment_status_text(billing_service)+"\n\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
 
@@ -139,8 +190,19 @@ async def cb_payment_method(callback,state,billing_service):
     if (len(parts)!=4 or parts[2]!=data.get('purchase_nonce') or data.get('purchase_expires_at',0)<=time.time()
         or parts[3] not in {m['id'] for m in catalog_payload()['methods']}):
         await callback.answer('Выбор оплаты устарел. Откройте тариф заново.',show_alert=True);return
-    result=billing_service.public_purchase(data['purchase_product'],parts[3])
+    product_id=data['purchase_product'];method=parts[3]
+    back=f"plus:show:{product_id}:{data.get('purchase_source','more')}"
+    if method=='stars' and stars_checkout_ready(billing_service):
+        # Единственный открытый способ: звёзды. Счёт создаётся на сервере, а
+        # права выдаются только после подтверждения оплаты от Telegram.
+        result=await billing_service.prepare_payment(
+            callback.from_user.id,product_id,'stars',
+            request_key=data['purchase_nonce'],now=time.time())
+        await state.clear()
+        text,rows=checkout_view(result,back)
+        await edit_menu(callback.message,text,reply_markup=rows)
+        await callback.answer();return
+    result=billing_service.public_purchase(product_id,method)
     await state.clear()
-    back=f"plus:show:{data['purchase_product']}:{data.get('purchase_source','more')}"
     await edit_menu(callback.message,'<b>Оплата недоступна</b>\n\n'+html.escape(result['message'])+'\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>',reply_markup=back_keyboard(back))
     await callback.answer()

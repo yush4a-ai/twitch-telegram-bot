@@ -29,11 +29,14 @@ class BillingRuntimePolicy:
     allow_invoice: bool = False
     period_approved: bool = False
     refund_policy_approved: bool = False
+    # Публичная покупка звёздами в боте. Отдельный флаг: наличие провайдера и
+    # ключей не должно само по себе открывать оплату живым людям.
+    allow_public_stars: bool = False
 
     def __post_init__(self):
         if self.mode not in {"offline", "sandbox"} or any(type(value) is not bool for value in (
             self.target_verified, self.allow_external_create, self.allow_invoice,
-            self.period_approved, self.refund_policy_approved,
+            self.period_approved, self.refund_policy_approved, self.allow_public_stars,
         )):
             raise ValueError("invalid billing runtime policy")
 

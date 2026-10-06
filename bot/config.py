@@ -35,6 +35,7 @@ def first_release_payment_policy():
         allow_invoice=flag("BILLING_ALLOW_INVOICE"),
         period_approved=flag("BILLING_PERIOD_APPROVED"),
         refund_policy_approved=flag("BILLING_REFUND_APPROVED"),
+        allow_public_stars=flag("BILLING_PUBLIC_STARS"),
     )
 
 PREVIEW_INITIAL_DELAY_SECONDS = 75

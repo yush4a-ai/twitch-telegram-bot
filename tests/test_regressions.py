@@ -7911,7 +7911,7 @@ class DeepLinkPersonalTrackingTests(unittest.IsolatedAsyncioTestCase):
 
 
 class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
-    VIDEO_LINK = '🎬 <a href="https://t.me/paver_video_bot">Предложить видео</a>'
+    """Персональная ссылка «Предложить видео» убрана из постов навсегда."""
 
     async def asyncSetUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory()
@@ -7953,10 +7953,6 @@ class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
 
         await main_module._reconcile_telegram_channels(bot, self.db, cache)
 
-        self.assertTrue(cache.include_video_submission_link(-1001))
-        self.assertFalse(cache.include_video_submission_link(-1002))
-        self.assertFalse(cache.include_video_submission_link(-1003))
-
     async def test_membership_event_updates_cache_without_second_lookup(self) -> None:
         cache = TelegramChannelUsernameCache()
         event = SimpleNamespace(
@@ -7966,9 +7962,9 @@ class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
 
         await on_bot_membership_changed(event, self.db, cache)
 
-        self.assertTrue(cache.include_video_submission_link(-1004))
+        self.assertEqual(cache.get(-1004), "papapavertv")
 
-    async def test_papapaver_channel_initial_text_has_static_video_link(self) -> None:
+    async def test_papapaver_channel_text_has_no_video_link(self) -> None:
         await self.db.add_channel(-1005, "paverpapa")
         await self.db.register_telegram_channel(-1005, "PapaPaver")
         cache = TelegramChannelUsernameCache()
@@ -7982,9 +7978,8 @@ class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
             await self.poller._check_streams()
 
         text = self.telegram.send_message.await_args.args[1]
-        self.assertIn(self.VIDEO_LINK, text)
+        self.assertNotIn("Предложить видео", text)
         self.assertIn("Подключить уведомления</a>", text)
-        self.assertLess(text.index("Подключить уведомления"), text.index("Предложить видео"))
         self.assertNotIn("paverpapa</a>", text)
 
     async def test_other_channel_streamer_and_private_group_are_unchanged(self) -> None:
@@ -8018,22 +8013,20 @@ class VideoSubmissionLinkTests(unittest.IsolatedAsyncioTestCase):
         )
 
         content = await self.poller.build_preview_content(observation, destination)
-        self.assertIn(self.VIDEO_LINK, content.html)
+        self.assertNotIn("Предложить видео", content.html)
         self.assertIn("Подключить уведомления", content.html)
 
         updated = await self.poller._build_live_text(
             "paverpapa", "Updated", "Game", 42, None,
             include_track_link=True,
-            include_video_submission_link=True,
             is_channel=True,
         )
-        self.assertIn(self.VIDEO_LINK, updated)
+        self.assertNotIn("Предложить видео", updated)
 
     async def test_caption_limit_remains_safe_with_video_link(self) -> None:
         text = await self.poller._build_live_text(
             "paverpapa", "x" * 2000, "Game", 42, None,
             include_track_link=True,
-            include_video_submission_link=True,
             is_channel=True,
         )
         self.assertLessEqual(len(text.encode("utf-16-le")) // 2, 1024)

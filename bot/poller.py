@@ -79,9 +79,6 @@ class TelegramChannelUsernameCache:
     def get(self, chat_id: int) -> str | None:
         return self._usernames.get(chat_id)
 
-    def include_video_submission_link(self, chat_id: int) -> bool:
-        return self.get(chat_id) == "papapavertv"
-
 MESSAGE_TEMPLATE = (
     "🔴 <b>{channel_name}</b>\n\n<b>{title}</b>{collab_line}\n\n"
     "🎮 {game_name}\n"
@@ -1037,9 +1034,6 @@ class StreamPoller:
             for chat_id in chat_ids:
                 include_track_link = chat_id in telegram_channel_ids
                 thumbnail_destination = chat_id > 0 or include_track_link
-                include_video_submission_link = (
-                    self._telegram_channel_username_cache.get(chat_id) == "papapavertv"
-                )
                 (
                     was_live,
                     last_stream_id,
@@ -1176,7 +1170,6 @@ class StreamPoller:
                                 title, stream.viewer_count,
                                 game_name, return_note,
                                 include_track_link=include_track_link,
-                                include_video_submission_link=include_video_submission_link,
                             )
                             if update_result is LivePostUpdateResult.STALE_TARGET:
                                 continue
@@ -1218,7 +1211,6 @@ class StreamPoller:
                                     game_name,
                                     return_note,
                                     include_track_link=include_track_link,
-                                    include_video_submission_link=include_video_submission_link,
                                 )
                                 message_kind = "text"
                     elif (
@@ -1264,7 +1256,6 @@ class StreamPoller:
                                     chat_id, login, title, stream.viewer_count, game_name, return_note,
                                     silent=True,
                                     include_track_link=include_track_link,
-                                    include_video_submission_link=include_video_submission_link,
                                 ) if await self._viewer_allows_private_alert(
                                     chat_id, login, title, game_name,
                                 ) else None
@@ -1361,7 +1352,6 @@ class StreamPoller:
                                 await self._notify(
                                     chat_id, login, title, stream.viewer_count, game_name, return_note,
                                     include_track_link=include_track_link,
-                                    include_video_submission_link=include_video_submission_link,
                                 ) if await self._viewer_allows_private_alert(
                                     chat_id, login, title, game_name,
                                 ) else None
@@ -2399,7 +2389,6 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool = False,
-        include_video_submission_link: bool = False,
         is_channel: bool = False,
     ) -> str:
         clean_title, collab_logins = _split_twitch_mentions(_strip_links(title))
@@ -2449,11 +2438,6 @@ class StreamPoller:
             text += (
                 f'\n\n🔔 <a href="{subscribe_url}">'
                 "Подключить уведомления</a>"
-            )
-        if include_video_submission_link and is_channel:
-            text += (
-                '\n🎬 <a href="https://t.me/paver_video_bot">'
-                "Предложить видео</a>"
             )
         return text
 
@@ -2533,15 +2517,11 @@ class StreamPoller:
         if await self._private_alert_in_quiet_hours(job.chat_id, job.twitch_login):
             raise NotificationRetryAfter(60.0)
         include_track_link = await self._db.is_telegram_channel(job.chat_id)
-        include_video_submission_link = (
-            self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
-        )
         last_end = await self._db.get_last_stream_end(job.chat_id, job.twitch_login)
         message_id = await self._notify(
             job.chat_id, job.twitch_login, title, viewers, game_name,
             _build_return_note(last_end),
             include_track_link=include_track_link,
-            include_video_submission_link=include_video_submission_link,
             direct=True,
         )
         if message_id is None:
@@ -2674,14 +2654,10 @@ class StreamPoller:
             await self._db.get_last_stream_end(job.chat_id, job.twitch_login)
         )
         include_track_link = await self._db.is_telegram_channel(job.chat_id)
-        include_video_submission_link = (
-            self._telegram_channel_username_cache.get(job.chat_id) == "papapavertv"
-        )
         result = await self._edit(
             job.chat_id, state.message_id, job.twitch_login,
             job.logical_stream_id, title, viewers, game_name, return_note,
             include_track_link=include_track_link,
-            include_video_submission_link=include_video_submission_link,
             require_live=True,
             propagate_retry_after=True,
         )
@@ -2694,7 +2670,6 @@ class StreamPoller:
                 job.chat_id, job.twitch_login, job.logical_stream_id,
                 state.message_id, title, viewers, game_name, return_note,
                 include_track_link=include_track_link,
-                include_video_submission_link=include_video_submission_link,
             )
             if replacement is None:
                 raise RuntimeError("queued live replacement retry later")
@@ -2864,7 +2839,6 @@ class StreamPoller:
         *,
         silent: bool = False,
         include_track_link: bool = False,
-        include_video_submission_link: bool = False,
         direct: bool = False,
         respect_viewer_filter: bool = True,
     ) -> int | None:
@@ -2890,7 +2864,6 @@ class StreamPoller:
                 login, title, game_name, viewer_count, return_note,
                 include_track_link=include_track_link,
                 is_channel=include_track_link,
-                include_video_submission_link=include_video_submission_link,
             )
         keyboard = await self._build_keyboard(login)
         base_content = LivePostContent(html=text, reply_markup=keyboard)
@@ -2985,9 +2958,6 @@ class StreamPoller:
             viewer_count,
             return_note,
             include_track_link=include_track_link,
-            include_video_submission_link=(
-                self._telegram_channel_username_cache.get(chat_id) == "papapavertv"
-            ),
             private_chat=chat_id > 0,
             chat_id=chat_id,
         )
@@ -3059,7 +3029,6 @@ class StreamPoller:
         return_note: str | None = None,
         *,
         include_track_link: bool = False,
-        include_video_submission_link: bool = False,
         require_live: bool | None = None,
         propagate_retry_after: bool = False,
     ) -> LivePostUpdateResult:
@@ -3078,7 +3047,6 @@ class StreamPoller:
                 viewer_count,
                 return_note,
                 include_track_link=include_track_link,
-                include_video_submission_link=include_video_submission_link,
                 private_chat=chat_id > 0,
                 chat_id=chat_id,
             ),
@@ -3095,7 +3063,6 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool,
-        include_video_submission_link: bool = False,
         private_chat: bool = False,
         chat_id: int | None = None,
     ) -> LivePostContent:
@@ -3112,7 +3079,6 @@ class StreamPoller:
                     login, title, game_name, viewer_count, return_note,
                     include_track_link=include_track_link,
                     is_channel=include_track_link,
-                    include_video_submission_link=include_video_submission_link,
                 ),
                 reply_markup=await self._build_keyboard(login),
             )
@@ -3138,10 +3104,6 @@ class StreamPoller:
             observation.viewer_count,
             _build_return_note(destination.last_stream_ended_at),
             include_track_link=destination.include_track_link,
-            include_video_submission_link=(
-                self._telegram_channel_username_cache.get(destination.chat_id)
-                == "papapavertv"
-            ),
             private_chat=(destination.chat_id > 0 and not destination.include_track_link),
             chat_id=destination.chat_id,
         )
@@ -3158,7 +3120,6 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool,
-        include_video_submission_link: bool = False,
     ) -> int | None:
         async with self._live_post_updater.serialized(chat_id, message_id):
             state = await self._db.get_live_post_state(chat_id, login)
@@ -3185,6 +3146,5 @@ class StreamPoller:
                 return_note,
                 silent=True,
                 include_track_link=include_track_link,
-                include_video_submission_link=include_video_submission_link,
                 respect_viewer_filter=False,
             )
