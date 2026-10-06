@@ -221,6 +221,25 @@ class DigestEligibilityTests(unittest.IsolatedAsyncioTestCase):
     async def test_private_chat_without_live_video_goes_to_the_digest(self):
         self.assertTrue(await self.poller(enabled=True)._digest_eligible(101, "alpha"))
 
+    async def test_channel_selected_for_live_video_never_becomes_a_digest_line(self):
+        """Избранный канал приходит отдельно: во время выхода в эфир бот ещё не
+        знает идентификатор нового эфира, поэтому решаем по выбору и подписке."""
+        import time as _time
+
+        now = _time.time()
+        await self.db.add_channel(101, "alpha")
+        await self.db.issue_test_viewer_plus(
+            101, "digest-test", starts_at=now - 5, expires_at=now + 3600,
+            issued_by=425785231, now=now,
+        )
+        await self.db.replace_video_selection(
+            101, [("1001", "alpha")], expected_version=0, now=now
+        )
+
+        self.assertFalse(await self.poller(enabled=True)._digest_eligible(101, "alpha"))
+        # Другой канал того же человека по-прежнему идёт в сводку.
+        self.assertTrue(await self.poller(enabled=True)._digest_eligible(101, "beta"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4151,6 +4151,25 @@ class Database:
         )
         return [self._preview_destination_from_row(row) for row in await cursor.fetchall()]
 
+    async def has_active_video_selection(self, chat_id: int, twitch_login: str) -> bool:
+        """Выбран ли канал для живого видео и есть ли действующая подписка.
+
+        Отдельно от ``get_preview_destination_state``: там выбор сверяется с
+        ``last_broadcaster_id``, а во время выхода в эфир бот ещё не записал
+        идентификатор нового эфира — и проверка ошибочно решала, что живого
+        видео нет. Для решения «отдельным сообщением или сводкой» достаточно
+        самого выбора и активного гранта.
+        """
+        now = time.time()
+        cursor = await self.conn.execute(
+            "SELECT 1 FROM viewer_video_selections v "
+            "WHERE v.telegram_user_id = ?2 AND v.twitch_login = ?3 AND "
+            + effective_viewer_predicate("v.telegram_user_id", "?1")
+            + " LIMIT 1",
+            (now, chat_id, twitch_login),
+        )
+        return await cursor.fetchone() is not None
+
     async def get_preview_destination_state(
         self, chat_id: int, twitch_login: str
     ) -> PreviewDestinationState | None:

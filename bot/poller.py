@@ -2778,17 +2778,20 @@ class StreamPoller:
     async def _digest_eligible(self, chat_id: int, login: str) -> bool:
         """Собирать ли это уведомление в сводку вместо отдельного сообщения.
 
-        Сводка — только для личных чатов и только когда у человека нет живого
-        видео по этому каналу: каналы с превью продолжают приходить отдельно.
+        Сводка — только для личных чатов и только когда канал не выбран для
+        живого видео: избранные каналы продолжают приходить отдельно. Проверяем
+        именно выбор и подписку: идентификатор нового эфира записывается позже,
+        и решение по нему ошибочно отправляло избранный канал в сводку.
         """
         if not self._notification_digest_enabled or chat_id <= 0:
             return False
         try:
-            state = await self._db.get_preview_destination_state(chat_id, login)
+            if await self._db.has_active_video_selection(chat_id, login):
+                return False
         except Exception:
-            # Не смогли проверить право — ведём себя как раньше, отдельным сообщением.
+            # Не смогли проверить — ведём себя как раньше, отдельным сообщением.
             return False
-        return state is None or not getattr(state, "preview_enabled", False)
+        return True
 
     def _build_digest_message(
         self, entries: list[tuple[int, str, str, str | None, int]], total: int
