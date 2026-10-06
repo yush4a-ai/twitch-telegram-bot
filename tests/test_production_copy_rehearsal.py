@@ -169,6 +169,7 @@ asyncio.run(run())'''
                 'mini_010_viewer_favorites','mini_011_viewer_undo','prep_001_telegram_update_inbox',
                 'r10_001_billing_subjects','r11_001_plus_payment_orders','r11_002_plus_payment_events',
                 'r11_003_entitlement_beneficiary','r11_004_payment_reconciliation','r11_005_channel_intent_reasons',
+                'r11_006_entitlement_recovery',
                 'r3_001_observations','r3_002_notification_jobs','r3_003_live_update_revision',
                 'r4_001_streamer_access','r4_002_streamer_communities','r4_003_streamer_templates',
                 'r4_004_streamer_stats','r5_001_billing_ledger','r7_001_viewer_filters','r8_001_growth_attribution'])))
