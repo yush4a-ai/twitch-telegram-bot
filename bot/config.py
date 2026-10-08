@@ -23,14 +23,17 @@ def first_release_payment_policy(*, contract_policy: str | None = None):
 
     ``contract_policy`` — значение production-контракта. Значение ``off``
     запрещает банковский канал (СБП и карта): контракт обязан что-то значить.
-    Звёзды Telegram остаются отдельным каналом и управляются своим флагом
-    `BILLING_PUBLIC_STARS`.
+    Значение ``external_admitted`` разрешает канал, но ключи, транспорт и флаги
+    всё равно нужны. Звёзды Telegram остаются отдельным каналом и управляются
+    своим флагом `BILLING_PUBLIC_STARS`.
     """
     from .plan_catalog import BillingRuntimePolicy
 
     def flag(name: str) -> bool:
         return os.getenv(name, "0").strip().lower() in {"1", "true", "yes", "on"}
 
+    if contract_policy is not None and contract_policy not in PAYMENT_POLICIES:
+        raise ConfigError("Контракт допуска: неизвестная платёжная политика")
     mode = os.getenv("BILLING_MODE", "offline").strip().lower()
     if mode not in {"offline", "sandbox"}:
         raise ConfigError("BILLING_MODE должен быть offline или sandbox")
@@ -64,6 +67,10 @@ DEFAULT_PLATEGA_HOSTS = frozenset({"pay.platega.io"})
 DEFAULT_PLATEGA_STATUS_METHODS = (("SBPQR", "sbp"),)
 PLATEGA_SECRET_MIN = 16
 PLATEGA_SECRET_MAX = 512
+# Допустимые платёжные политики production-контракта: `off` закрывает банковский
+# канал, `external_admitted` разрешает его — но ключи, транспорт и флаги владельца
+# всё равно обязательны.
+PAYMENT_POLICIES = frozenset({"off", "external_admitted"})
 
 
 @dataclass(frozen=True)

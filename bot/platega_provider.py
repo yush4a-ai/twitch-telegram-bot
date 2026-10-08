@@ -170,6 +170,24 @@ class PlategaProvider:
         if self._policy.mode != "sandbox" or not self._policy.target_verified:
             raise PermissionError("provider operations disabled by runtime policy")
 
+    async def probe_credentials(self) -> bool:
+        """Проверяет ключи чтением балансов: денег не трогает.
+
+        Это единственная операция до включения банковского канала. Она нужна,
+        чтобы владелец сразу увидел, принял ли провайдер ключи из личного
+        кабинета, не создавая при этом ни одного платежа. Секреты не печатаются
+        ни при успехе, ни при отказе.
+        """
+        if not self.money_capable:
+            return False
+        try:
+            data = await self._request("GET", "/balance/all")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return False
+        return isinstance(data, dict)
+
     async def close(self) -> None:
         closer = getattr(self._transport, "close", None)
         if callable(closer):

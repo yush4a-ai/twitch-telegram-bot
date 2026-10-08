@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 from cryptography.fernet import Fernet
-from .config import ConfigError
+from .config import ConfigError, PAYMENT_POLICIES
 
 
 @dataclass(frozen=True)
@@ -92,7 +92,7 @@ def load_production_admission(*, railway, db_path, public_url):
             or type(contract.queue_enabled) is not bool
             or contract.writer_policy != 'exclusive_lock'
             or contract.queue_policy != 'lease_fenced_v1'
-            or contract.payment_policy != 'off'
+            or contract.payment_policy not in PAYMENT_POLICIES
             or contract.login_client_policy != 'peer_shared_fail_safe'):
         raise ConfigError('Production contract: invalid identity/writer/queue/payment policy')
     for name in ('mount_path', 'db_path'):
@@ -111,7 +111,7 @@ def load_production_admission(*, railway, db_path, public_url):
         'RAILWAY_VOLUME_MOUNT_PATH': contract.mount_path, 'DB_PATH': contract.db_path,
         'PUBLIC_URL': contract.public_url, 'OWNER_CHAT_ID': str(contract.owner_chat_id),
         'ADMIN_TELEGRAM_BOT_USERNAME': contract.bot_username, 'PRODUCTION_REPLICA_COUNT': '1',
-        'PRODUCTION_PAYMENT_POLICY': 'off', 'PRODUCTION_WRITER_POLICY': 'exclusive_lock',
+        'PRODUCTION_PAYMENT_POLICY': contract.payment_policy, 'PRODUCTION_WRITER_POLICY': 'exclusive_lock',
         'PRODUCTION_QUEUE_POLICY': 'lease_fenced_v1', 'PRODUCTION_LOGIN_CLIENT_POLICY': 'peer_shared_fail_safe',
         'PRODUCTION_QUEUE_ENABLED': '1' if contract.queue_enabled else '0',
         'NOTIFICATION_QUEUE_ENABLED': '1' if contract.queue_enabled else '0',

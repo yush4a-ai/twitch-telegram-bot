@@ -176,6 +176,22 @@ class PlategaTransportTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(ValueError):
                     live.remember_buyer(bad_user, "@buyer")
 
+    async def test_credentials_probe_reads_balances_without_creating_payments(self):
+        session = FakeSession(FakeResponse(200, json.dumps({"balances": []}).encode()))
+        live = adapter(PlategaHttpTransport(session=session))
+        self.assertIs(await live.probe_credentials(), True)
+        call = session.calls[0]
+        self.assertEqual(call["method"], "GET")
+        self.assertEqual(call["url"], PLATEGA_API_BASE + "/balance/all")
+        self.assertNotIn(SECRET, call["url"])
+
+        rejected = FakeSession(FakeResponse(401, b""))
+        self.assertIs(
+            await adapter(PlategaHttpTransport(session=rejected)).probe_credentials(), False)
+        offline = adapter(PlategaHttpTransport(session=FakeSession()),
+                          policy=BillingRuntimePolicy())
+        self.assertIs(await offline.probe_credentials(), False)
+
     async def test_transport_closes_only_the_session_it_owns(self):
         session = FakeSession()
         shared = PlategaHttpTransport(session=session)

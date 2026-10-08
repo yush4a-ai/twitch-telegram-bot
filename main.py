@@ -631,6 +631,20 @@ async def _run_billing_reconcile(service, *extra_services, interval: float = 300
         await asyncio.sleep(interval)
 
 
+async def _probe_platega_credentials(provider) -> None:
+    """Тихая проверка ключей кассы: балансы читаются, платежи не создаются."""
+    try:
+        accepted = await provider.probe_credentials()
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        accepted = False
+    if accepted:
+        logger.info("Platega: ключи приняты, баланс доступен")
+    else:
+        logger.warning("Platega: ключи не подтверждены проверкой баланса")
+
+
 async def _run_transient_cleanup(db, *, interval: float = 86400.0) -> None:
     """Убирает служебный мусор: журнал апдейтов и брошенные неоплаченные заказы.
 
@@ -700,6 +714,7 @@ async def main() -> None:
     bot: Bot | None = None
     billing_service: BillingService | None = None
     bank_billing_service: BillingService | None = None
+    platega_probe_task: asyncio.Task | None = None
     writer_lock = None
     try:
         if contract is not None:
@@ -773,6 +788,11 @@ async def main() -> None:
         )
         if platega_provider is not None:
             logger.info("Банковский канал: провайдер Platega подключён, ожидается подтверждение оплат")
+            # Проверка ключей не создаёт платежей и не печатает секретов: владелец
+            # видит в журнале, принял ли провайдер ключи из личного кабинета.
+            platega_probe_task = asyncio.create_task(
+                _probe_platega_credentials(platega_provider), name="platega-credentials",
+            )
         dp["billing_service"] = billing_service
         dp["bank_billing_service"] = bank_billing_service
         dp["channel_username_cache"] = channel_username_cache
@@ -1147,6 +1167,8 @@ async def main() -> None:
             await _safe_cleanup("Billing worker", billing_service.close())
         if bank_billing_service is not None:
             await _safe_cleanup("Bank billing worker", bank_billing_service.close())
+        if platega_probe_task is not None:
+            await _cancel_task(platega_probe_task, "Platega credential probe")
         if bot is not None:
             await _safe_cleanup("Telegram session", bot.session.close())
         if db is not None:

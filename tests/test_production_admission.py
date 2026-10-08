@@ -95,6 +95,19 @@ class AdmissionTests(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ConfigError):
                 self.load(contract_changes=change)
 
+    def test_contract_can_admit_the_bank_channel_by_exact_policy(self):
+        """Канал открывает только точное значение контракта, а не любое иное."""
+        with self.assertRaises(ConfigError):
+            self.load({'PRODUCTION_PAYMENT_POLICY': 'external_admitted'})
+        c = self.load({'PRODUCTION_PAYMENT_POLICY': 'external_admitted',
+                       'BILLING_ALLOW_EXTERNAL': '1'},
+                      {'payment_policy': 'external_admitted'})
+        from bot.config import first_release_payment_policy
+        policy = first_release_payment_policy(
+            contract_policy=c.production_contract.payment_policy)
+        self.assertTrue(policy.allow_external_create)
+        self.assertFalse(policy.external_blocked_by_contract)
+
     def test_queue_requires_separate_matching_opt_in(self):
         with self.assertRaises(ConfigError):
             self.load({'NOTIFICATION_QUEUE_ENABLED': '1'})

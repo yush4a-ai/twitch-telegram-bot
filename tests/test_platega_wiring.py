@@ -5,7 +5,9 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from bot.config import ConfigError, first_release_payment_policy, platega_settings
+from bot.config import (
+    PAYMENT_POLICIES, ConfigError, first_release_payment_policy, platega_settings,
+)
 from bot.platega_runtime import build_platega_provider
 from bot.plan_catalog import BillingRuntimePolicy
 from tests.test_platega_provider import MERCHANT, SECRET
@@ -80,6 +82,28 @@ class PlategaSettingsTests(unittest.TestCase):
 
 
 class PlategaProviderWiringTests(unittest.IsolatedAsyncioTestCase):
+    async def test_contract_can_admit_the_bank_channel_explicitly(self):
+        """`external_admitted` — единственный способ открыть канал по контракту."""
+        with patch.dict(os.environ, {
+            "BILLING_MODE": "sandbox", "BILLING_TARGET_VERIFIED": "1",
+            "BILLING_ALLOW_EXTERNAL": "1", "BILLING_PERIOD_APPROVED": "1",
+            "BILLING_REFUND_APPROVED": "1",
+        }, clear=True):
+            admitted = first_release_payment_policy(contract_policy="external_admitted")
+            closed = first_release_payment_policy(contract_policy="off")
+            with self.assertRaises(ConfigError):
+                first_release_payment_policy(contract_policy="unlimited")
+
+        self.assertIn("external_admitted", PAYMENT_POLICIES)
+        self.assertTrue(admitted.allow_external_create)
+        self.assertFalse(admitted.external_blocked_by_contract)
+        self.assertFalse(closed.allow_external_create)
+        self.assertTrue(closed.external_blocked_by_contract)
+        provider = build_platega_provider(config(), admitted)
+        self.assertIsNotNone(provider)
+        await provider.close()
+        self.assertIsNone(build_platega_provider(config(), closed))
+
     async def test_production_contract_off_keeps_the_bank_channel_shut(self):
         """Контракт допуска с `off` сильнее ключей и флагов владельца."""
         with patch.dict(os.environ, {
