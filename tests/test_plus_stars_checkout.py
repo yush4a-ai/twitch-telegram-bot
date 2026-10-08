@@ -97,7 +97,10 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
 
         text = self.msg.edit_text.await_args.args[0]
         self.assertIn("Telegram Stars", text)
-        self.assertIn("подключим позже", text)
+        # Банковский канал не подключён: страница говорит об этом прямо, а не
+        # обещает будущее подключение.
+        self.assertIn("СБП и банковская карта: пока недоступны.", text)
+        self.assertNotIn("позже", text)
         self.assertNotIn(PAYMENT_UNAVAILABLE_MESSAGE, text)
 
     async def test_real_bot_with_the_owner_flag_is_ready(self):

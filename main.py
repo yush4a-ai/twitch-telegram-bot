@@ -587,33 +587,47 @@ def _make_owner_alert_sender(bot: Bot, owner_chat_id: int):
     return send
 
 
-async def _run_billing_reconcile(service, *, interval: float = 300.0) -> None:
-    """Сверка оплат звёздами и закрытие просроченных счетов.
+async def _run_billing_reconcile(service, *extra_services, interval: float = 300.0) -> None:
+    """Сверка оплат и закрытие просроченных счетов.
 
-    Telegram мог не доставить сообщение об оплате — тогда оплату восстанавливают
-    по истории транзакций. Заодно закрываются счета с истёкшим сроком: оплатить
-    их уже нельзя, а незакрытый заказ блокировал бы человеку следующую покупку.
+    Telegram мог не доставить сообщение об оплате, а внешняя касса — уведомление:
+    тогда оплату восстанавливают по официальному статусу у провайдера. Заодно
+    закрываются счета с истёкшим сроком: оплатить их уже нельзя, а незакрытый
+    заказ блокировал бы человеку следующую покупку.
     """
+    services = [item for item in (service, *extra_services) if item is not None]
     while True:
-        try:
-            expired = await service.expire_pending(now=time.time())
-            if expired:
-                logger.info("Закрыто просроченных счетов: %s", expired)
-            applied = await service.apply_stars_transactions(now=time.time())
-            if applied:
-                logger.info("Восстановлено оплат звёздами: %s", applied)
-            # Оплата могла подтвердиться, а доступ не выдаться (например, разошлись
-            # условия заказа): такие заказы повторяем, но не чаще, чем раз в две
-            # итерации воркера, чтобы не заваливать журнал.
-            recovered = await service.retry_pending_entitlements(
-                now=time.time(), quiet_seconds=interval * 2,
-            )
-            if recovered:
-                logger.info("Повторно выдано доступов: %s", recovered)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            logger.exception("Сверка оплат звёздами не удалась")
+        for item in services:
+            try:
+                now = time.time()
+                expired = await item.expire_pending(now=now)
+                if expired:
+                    logger.info("Закрыто просроченных счетов: %s", expired)
+                applied = await item.apply_stars_transactions(now=now)
+                if applied:
+                    logger.info("Восстановлено оплат звёздами: %s", applied)
+                # Пришедшее уведомление кассы само по себе не деньги: оплату
+                # подтверждает канонический запрос статуса к провайдеру.
+                provider = getattr(item, "_provider", None)
+                if callable(getattr(provider, "get_payment_status", None)):
+                    summary = await item.reconcile_due(now=time.time(), limit=10)
+                    if summary.attempted:
+                        logger.info(
+                            "Сверка платежей: проверено %s, выдано %s, на проверке %s",
+                            summary.attempted, summary.applied, summary.manual,
+                        )
+                # Оплата могла подтвердиться, а доступ не выдаться (например, разошлись
+                # условия заказа): такие заказы повторяем, но не чаще, чем раз в две
+                # итерации воркера, чтобы не заваливать журнал.
+                recovered = await item.retry_pending_entitlements(
+                    now=time.time(), quiet_seconds=interval * 2,
+                )
+                if recovered:
+                    logger.info("Повторно выдано доступов: %s", recovered)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("Сверка оплат не удалась")
         await asyncio.sleep(interval)
 
 
@@ -685,6 +699,7 @@ async def main() -> None:
     db = None
     bot: Bot | None = None
     billing_service: BillingService | None = None
+    bank_billing_service: BillingService | None = None
     writer_lock = None
     try:
         if contract is not None:
@@ -740,7 +755,26 @@ async def main() -> None:
                 frozenset({config.owner_chat_id}) if config.owner_chat_id else frozenset()
             ),
         )
+        # Банковский канал (СБП и карта) — отдельный провайдер и отдельный сервис:
+        # ключи сами ничего не включают, нужен явный флаг владельца и объявленный
+        # транспорт. До этого сервиса нет, и способ остаётся недоступным.
+        from bot.platega_runtime import build_platega_provider
+        platega_provider = build_platega_provider(config, payment_policy)
+        bank_billing_service = (
+            BillingService(
+                db, platega_provider, runtime_policy=payment_policy,
+                access_policy=AccessPeriodPolicy(PLUS_PERIOD_RULE, PLUS_PERIOD_VERSION),
+                terms_version=PLUS_TERMS_VERSION,
+                merchant_actor_ids=(
+                    frozenset({config.owner_chat_id}) if config.owner_chat_id else frozenset()
+                ),
+            )
+            if platega_provider is not None else None
+        )
+        if platega_provider is not None:
+            logger.info("Банковский канал: провайдер Platega подключён, ожидается подтверждение оплат")
         dp["billing_service"] = billing_service
+        dp["bank_billing_service"] = bank_billing_service
         dp["channel_username_cache"] = channel_username_cache
         setup_middlewares(
             dp, db=db, media_dir=str(Path(config.db_path).parent / "media"))
@@ -858,6 +892,8 @@ async def main() -> None:
                 mini_app_billing_service=(
                     billing_service if getattr(config, "mini_app_enabled", False) else None
                 ),
+                # Реальная касса: этот сервис принимает callback и продаёт СБП/карту.
+                payment_service=bank_billing_service,
                 streamer_environment=environment_label(config.oauth_public_base_url),
             )
             follow_listener_task: asyncio.Task | None = None
@@ -1017,7 +1053,7 @@ async def main() -> None:
                     # Сверка оплат: сообщение об успешной оплате приходит один раз,
                     # и потерянное сообщение нельзя оставлять без последствий.
                     billing_task = asyncio.create_task(
-                        _run_billing_reconcile(billing_service),
+                        _run_billing_reconcile(billing_service, bank_billing_service),
                         name="billing-reconcile",
                     )
                     # Оповещения владельцу: только когда подсистема меняет состояние.
@@ -1109,6 +1145,8 @@ async def main() -> None:
     finally:
         if billing_service is not None:
             await _safe_cleanup("Billing worker", billing_service.close())
+        if bank_billing_service is not None:
+            await _safe_cleanup("Bank billing worker", bank_billing_service.close())
         if bot is not None:
             await _safe_cleanup("Telegram session", bot.session.close())
         if db is not None:

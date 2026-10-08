@@ -1,4 +1,4 @@
-"""Strict Platega adapter. This release accepts only injected local transports."""
+"""Strict Platega adapter: only declared transports, and only under policy."""
 
 from __future__ import annotations
 
@@ -88,10 +88,30 @@ def _money(amount: object, currency: object) -> Money:
 
 class PlategaProvider:
     provider_id = "platega"
+    # Возврат и сверку ведёт владелец: провайдер умеет сверяться по статусу.
+    can_reconcile = True
+    # Платёжка требует имя покупателя в metadata: без него платёж не создаётся.
+    requires_buyer_name = True
 
     @property
     def network_free(self):
         return getattr(self._transport, "network_free", False) is True
+
+    @property
+    def _trusted_transport(self) -> bool:
+        """Транспорт объявлен явно: локальный контракт или выбранный сетевой API."""
+        return (getattr(self._transport, "trusted_contract", None) is True
+                or getattr(self._transport, "network_free", None) is True)
+
+    @property
+    def money_capable(self) -> bool:
+        """Готов ли контракт к денежным операциям в текущем окружении.
+
+        Одного наличия ключей и адреса недостаточно: нужен объявленный транспорт
+        и включённая владельцем денежная политика.
+        """
+        return bool(self._trusted_transport and self._policy.mode == "sandbox"
+                    and self._policy.target_verified)
 
     def __init__(self, transport: ProviderTransport, merchant_id: str, secret: str, *,
                  hosted_hosts: frozenset[str], runtime_policy: BillingRuntimePolicy,
@@ -123,15 +143,41 @@ class PlategaProvider:
         self._status_methods = MappingProxyType(names)
         self._created: set[str] = set()
         self._refunds: dict[tuple[str, str], RefundOutcome] = {}
+        # Имена покупателей приходят из подписанных данных Telegram и живут
+        # только в памяти процесса: они нужны для metadata конкретного платежа.
+        self._buyers: dict[int, str] = {}
 
-    def _local_gate(self):
-        if (getattr(self._transport, "network_free", None) is not True
-                or self._policy.mode != "sandbox" or not self._policy.target_verified):
-            raise PermissionError("only verified local provider contracts are enabled")
+    def remember_buyer(self, user_id: int, name: str) -> None:
+        """Запоминает подтверждённое display name покупателя перед созданием счёта."""
+        if type(user_id) is not int or user_id <= 0:
+            raise ValueError("invalid buyer id")
+        if (not isinstance(name, str) or not name.strip() or len(name) > 256
+                or any(ord(char) < 32 for char in name)):
+            raise ValueError("invalid buyer display name")
+        if len(self._buyers) >= 4096:
+            # Переполнение памяти не должно останавливать приём оплат.
+            for key in list(self._buyers)[:2048]:
+                self._buyers.pop(key, None)
+        self._buyers[user_id] = name
+
+    def has_buyer_name(self, user_id) -> bool:
+        return (type(user_id) is int
+                and (user_id in self._buyers or user_id in self._names))
+
+    def _gate(self):
+        if not self._trusted_transport:
+            raise PermissionError("only declared provider contracts are enabled")
+        if self._policy.mode != "sandbox" or not self._policy.target_verified:
+            raise PermissionError("provider operations disabled by runtime policy")
+
+    async def close(self) -> None:
+        closer = getattr(self._transport, "close", None)
+        if callable(closer):
+            await closer()
 
     async def _request(self, method: str, path: str, *, payload: dict | None = None,
                        now: float | None = None) -> dict:
-        self._local_gate()
+        self._gate()
         response = await asyncio.wait_for(self._transport.request(method, path, json=payload,
             headers={"X-MerchantId": self._merchant, "X-Secret": self._secret,
                      "Content-Type": "application/json", "Accept": "application/json"}, timeout=5), timeout=5)
@@ -195,7 +241,7 @@ class PlategaProvider:
         return value
 
     async def create_payment(self, snapshot: ServerOrderSnapshot, attempt_id: str) -> CheckoutSession:
-        self._local_gate()
+        self._gate()
         if (not self._policy.allow_external_create or not self._policy.period_approved
                 or not self._policy.refund_policy_approved):
             raise PermissionError("payment creation is unavailable")
@@ -224,7 +270,7 @@ class PlategaProvider:
             raise PaymentVerificationError("invalid checkout interval")
         if self._return_url is None or self._failed_url is None:
             raise PaymentVerificationError("configured return locations required")
-        name = self._names.get(snapshot.telegram_user_id)
+        name = self._buyers.get(snapshot.telegram_user_id) or self._names.get(snapshot.telegram_user_id)
         if not isinstance(name, str) or not 1 <= len(name) <= 256 or any(ord(char) < 32 for char in name):
             raise PaymentVerificationError("verified buyer display name required")
         if attempt_id in self._created:
@@ -310,7 +356,7 @@ class PlategaProvider:
         return ProviderNotice(self.provider_id, transaction, status, key)
 
     async def refund_payment(self, reference: str, request_id: str) -> RefundOutcome:
-        self._local_gate()
+        self._gate()
         if not self._policy.refund_policy_approved:
             raise PermissionError("refund policy is unavailable")
         reference = _uuid(reference)

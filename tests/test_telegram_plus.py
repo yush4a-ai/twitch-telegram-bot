@@ -111,3 +111,29 @@ class TelegramPlusTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(result,{'state':'unavailable','message':PAYMENT_UNAVAILABLE_MESSAGE,'payment_request_created':False})
         with self.assertRaises(ValueError): BillingService.public_purchase('fake','stars')
         with self.assertRaises(ValueError): BillingService.public_purchase('viewer_plus','crypto')
+
+
+class PaymentStatusCopyTests(unittest.TestCase):
+    """Текст про способы оплаты обязан совпадать с фактической готовностью."""
+
+    def test_bank_channel_copy_follows_the_real_readiness(self):
+        from bot.handlers.telegram_plus import bank_channel_ready, payment_status_text
+
+        ready_policy = BillingRuntimePolicy("sandbox", True, True, False, True, True)
+        bank = SimpleNamespace(runtime_policy=ready_policy, public_callback_ready=lambda: True)
+        closed = SimpleNamespace(runtime_policy=BillingRuntimePolicy(),
+                                 public_callback_ready=lambda: False)
+        unadmitted = SimpleNamespace(runtime_policy=ready_policy,
+                                     public_callback_ready=lambda: False)
+
+        self.assertTrue(bank_channel_ready(bank))
+        self.assertFalse(bank_channel_ready(closed))
+        self.assertFalse(bank_channel_ready(unadmitted))
+        self.assertFalse(bank_channel_ready(None))
+
+        self.assertEqual(payment_status_text(None, None), PAYMENT_UNAVAILABLE_MESSAGE)
+        bank_only = payment_status_text(None, bank)
+        self.assertIn('СБП и банковская карта: в приложении.', bank_only)
+        self.assertNotIn('позже', bank_only)
+        self.assertNotIn('подключим', bank_only)
+        self.assertIn('Stars: пока недоступны.', bank_only)

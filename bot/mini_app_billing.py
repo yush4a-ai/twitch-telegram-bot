@@ -13,7 +13,7 @@ from .billing import BillingService
 from .billing_provider import MockPaymentProvider, VerifiedPaymentEvent
 from .database import Database
 from .mini_app_limits import RequestBudget
-from .mini_app_auth import verified_payload
+from .mini_app_auth import verified_identity_payload, verified_payload
 from .viewer_trial import TrialAlreadyUsed, ViewerTrialService
 from .plan_catalog import catalog_payload, BillingRuntimePolicy, PAYMENT_UNAVAILABLE_MESSAGE
 from .subscription_state import SubscriptionService
@@ -29,6 +29,7 @@ def install_mini_app_billing_routes(
     app: web.Application, db: Database, bot_token: str, *,
     test_enabled: bool = False, test_user_ids: frozenset[int] = frozenset(),
     live_service: BillingService | None = None,
+    external_service: BillingService | None = None,
 ) -> None:
     # This secret never leaves the server. No real payment provider is wired here.
     provider = MockPaymentProvider(hashlib.sha256(
@@ -38,7 +39,9 @@ def install_mini_app_billing_routes(
     # Публичная покупка идёт через живой сервис (Telegram Stars). Он передаётся
     # снаружи только когда денежная политика включена владельцем; иначе покупка
     # честно отвечает «недоступно», а QA-маршруты продолжают работать на mock.
+    # Банковский канал обслуживает отдельный сервис: у него свой провайдер.
     public_service = live_service
+    bank_service = external_service
     trial = ViewerTrialService(db)
     subscriptions = SubscriptionService(db,test_user_ids=test_user_ids if test_enabled else frozenset())
 
@@ -61,9 +64,10 @@ def install_mini_app_billing_routes(
         return order, None
 
     async def prepare(request: web.Request):
-        user_id, values, error = await read(request)
-        if error is not None:
-            return error
+        identity, values, status = await verified_identity_payload(request, bot_token)
+        if status != 200 or identity is None:
+            return web.json_response({"error": "unauthorized"}, status=status or 401)
+        user_id = identity.id
         if not _PURCHASE_BUDGET.admit(user_id):
             return web.json_response({"error": "rate_limited"}, status=429)
         if (set(values) != {"init_data", "product", "method", "request_key"}
@@ -74,18 +78,28 @@ def install_mini_app_billing_routes(
             or not isinstance(values.get("request_key"), str)
             or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", values["request_key"]) is None):
             return web.json_response({"error": "invalid_purchase_request"}, status=400)
-        if not public_service:
+        # Звёзды и банковский канал — разные провайдеры и разные сервисы.
+        chosen = public_service if values["method"] == "stars" else (bank_service or public_service)
+        if not chosen:
             # Денежная политика выключена: покупка недоступна, заказ не создаётся.
             return web.json_response(
                 BillingService.public_purchase(values["product"], values["method"]), status=503,
             )
+        # Приложение разрешает только выбранный провайдер: чужой способ ответит отказом.
+        if values["method"] != "stars" and chosen is not bank_service:
+            return web.json_response(
+                BillingService.public_purchase(values["product"], values["method"]), status=503,
+            )
         try:
-            result = await public_service.prepare_payment(
+            result = await chosen.prepare_payment(
                 user_id, values["product"], values["method"], values["request_key"],
                 now=time.time(),
                 # Мини-апп открывает оплату окном Telegram, поэтому ему нужна
                 # ссылка на счёт, а не сообщение в чате с ботом.
                 prefer_link=True,
+                # Имя покупателя приходит из подписанных данных Telegram: внешняя
+                # касса требует его в metadata, выдумывать нельзя.
+                buyer_name=identity.display_name or identity.username,
             )
         except PermissionError:
             return web.json_response({"error": "twitch_required"}, status=403)
@@ -136,8 +150,9 @@ def install_mini_app_billing_routes(
             return web.json_response({"error": "invalid_catalog_request"}, status=400)
         # Готовность способов считается по действующей политике: без этого каталог
         # всегда показывал бы «оплата недоступна», даже когда она включена.
+        active = public_service or bank_service
         policy = (
-            public_service.runtime_policy if public_service is not None else BillingRuntimePolicy()
+            active.runtime_policy if active is not None else BillingRuntimePolicy()
         )
         return web.json_response(catalog_payload(policy))
 

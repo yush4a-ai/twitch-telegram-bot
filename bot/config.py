@@ -2,6 +2,7 @@ import os
 import json
 import posixpath
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -50,6 +51,83 @@ def first_release_payment_policy(*, contract_policy: str | None = None):
         allow_public_stars=flag("BILLING_PUBLIC_STARS"),
         external_blocked_by_contract=blocked_by_contract,
     )
+
+_UUID = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z"
+)
+_HOST = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)+\Z")
+_METHOD_KEY = re.compile(r"[A-Za-z0-9_]{1,40}\Z")
+PLATEGA_METHODS = frozenset({"sbp", "bank_card"})
+DEFAULT_PLATEGA_HOSTS = frozenset({"pay.platega.io"})
+# В документации Platega метод СБП в ответе о статусе записан как SBPQR;
+# строковое имя карточного метода публичная схема не подтверждает.
+DEFAULT_PLATEGA_STATUS_METHODS = (("SBPQR", "sbp"),)
+PLATEGA_SECRET_MIN = 16
+PLATEGA_SECRET_MAX = 512
+
+
+@dataclass(frozen=True)
+class PlategaSettings:
+    """Настройки реальной кассы: значения живут в окружении, а не в коде."""
+
+    merchant_id: str | None = None
+    secret: str | None = None
+    hosted_hosts: frozenset[str] = DEFAULT_PLATEGA_HOSTS
+    status_methods: tuple[tuple[str, str], ...] = DEFAULT_PLATEGA_STATUS_METHODS
+
+
+def _platega_hosts(raw: str | None) -> frozenset[str]:
+    if raw is None:
+        return DEFAULT_PLATEGA_HOSTS
+    values = [item.strip() for item in raw.split(",") if item.strip()]
+    if not values or any(
+        _HOST.fullmatch(value) is None or value != value.lower() for value in values
+    ):
+        raise ConfigError("PLATEGA_HOSTED_HOSTS должен содержать домены через запятую")
+    return frozenset(values)
+
+
+def _platega_status_methods(raw: str | None) -> tuple[tuple[str, str], ...]:
+    if raw is None:
+        return DEFAULT_PLATEGA_STATUS_METHODS
+    pairs: list[tuple[str, str]] = []
+    for item in raw.split(","):
+        name, separator, value = item.strip().partition(":")
+        if (not separator or _METHOD_KEY.fullmatch(name) is None
+                or value not in PLATEGA_METHODS
+                or any(existing == name for existing, _ in pairs)):
+            raise ConfigError(
+                "PLATEGA_STATUS_METHODS должен содержать пары вида SBPQR:sbp"
+            )
+        pairs.append((name, value))
+    if not pairs:
+        raise ConfigError("PLATEGA_STATUS_METHODS не может быть пустым")
+    return tuple(pairs)
+
+
+def platega_settings() -> PlategaSettings:
+    """Читает ключи Platega и проверяет формат до запуска.
+
+    Ключи сами по себе ничего не включают: они описывают, чем можно
+    пользоваться, если владелец отдельно разрешил банковский канал.
+    """
+    merchant = (os.getenv("PLATEGA_MERCHANT_ID") or "").strip() or None
+    secret = (os.getenv("PLATEGA_SECRET") or "").strip() or None
+    if merchant is not None and _UUID.fullmatch(merchant) is None:
+        raise ConfigError("PLATEGA_MERCHANT_ID должен быть UUID из личного кабинета")
+    if secret is not None and not (
+        PLATEGA_SECRET_MIN <= len(secret) <= PLATEGA_SECRET_MAX and secret.isascii()
+    ):
+        raise ConfigError(
+            "PLATEGA_SECRET должен быть ASCII-строкой длиной 16..512 символов"
+        )
+    return PlategaSettings(
+        merchant_id=merchant,
+        secret=secret,
+        hosted_hosts=_platega_hosts(os.getenv("PLATEGA_HOSTED_HOSTS")),
+        status_methods=_platega_status_methods(os.getenv("PLATEGA_STATUS_METHODS")),
+    )
+
 
 PREVIEW_INITIAL_DELAY_SECONDS = 75
 # Зрительский режим: хватает последних секунд, поэтому и ждать почти нечего.
@@ -385,6 +463,11 @@ class Config:
     legal_retention: str | None = None
     legal_refund_policy: str | None = None
     legal_chargeback_policy: str | None = None
+    # Реальная касса Platega: ключи и адреса из личного кабинета владельца.
+    platega_merchant_id: str | None = None
+    platega_secret: str | None = None
+    platega_hosted_hosts: frozenset[str] = DEFAULT_PLATEGA_HOSTS
+    platega_status_methods: tuple[tuple[str, str], ...] = DEFAULT_PLATEGA_STATUS_METHODS
     # Периодические онлайн-копии рабочей базы: интервал и сколько копий хранить.
     backup_interval_seconds: int = 24 * 60 * 60
     backup_retention: int = 5
@@ -492,6 +575,7 @@ def load_config() -> Config:
     )
     # Верхняя граница не даёт случайной настройкой забить диск копиями.
     backup_retention = min(20, _positive_int("BACKUP_RETENTION", "5"))
+    platega = platega_settings()
     return Config(
         telegram_bot_token=_require("TELEGRAM_BOT_TOKEN"),
         twitch_client_id=_require("TWITCH_CLIENT_ID"),
@@ -525,6 +609,10 @@ def load_config() -> Config:
         legal_retention=os.getenv("LEGAL_RETENTION") or None,
         legal_refund_policy=os.getenv("LEGAL_REFUND_POLICY") or None,
         legal_chargeback_policy=os.getenv("LEGAL_CHARGEBACK_POLICY") or None,
+        platega_merchant_id=platega.merchant_id,
+        platega_secret=platega.secret,
+        platega_hosted_hosts=platega.hosted_hosts,
+        platega_status_methods=platega.status_methods,
         backup_interval_seconds=backup_interval_seconds,
         backup_retention=backup_retention,
     )

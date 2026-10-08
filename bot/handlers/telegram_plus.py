@@ -47,10 +47,35 @@ def stars_checkout_ready(billing_service) -> bool:
     )
 
 
-def payment_status_text(billing_service) -> str:
-    if stars_checkout_ready(billing_service):
+def bank_channel_ready(bank_billing_service) -> bool:
+    """Готов ли банковский канал: СБП и карта продаются в приложении.
+
+    Проверяем сам сервис, а не ключи: маршрут уведомлений и провайдер должны
+    быть действительно подключены, иначе обещание способа оплаты было бы ложным.
+    """
+    if bank_billing_service is None:
+        return False
+    policy = getattr(bank_billing_service, "runtime_policy", None)
+    policy = policy() if callable(policy) else policy
+    ready = getattr(bank_billing_service, "public_callback_ready", None)
+    return bool(
+        callable(ready) and ready()
+        and getattr(policy, "allow_external_create", False)
+    )
+
+
+def payment_status_text(billing_service, bank_billing_service=None) -> str:
+    stars = stars_checkout_ready(billing_service)
+    bank = bank_channel_ready(bank_billing_service)
+    if stars and bank:
         return ("Telegram Stars: доступно, счёт придёт в этот чат.\n"
-                "СБП и банковская карта: подключим позже.")
+                "СБП и банковская карта: в приложении.")
+    if stars:
+        return ("Telegram Stars: доступно, счёт придёт в этот чат.\n"
+                "СБП и банковская карта: пока недоступны.")
+    if bank:
+        return ("СБП и банковская карта: в приложении.\n"
+                "Telegram Stars: пока недоступны.")
     return PAYMENT_UNAVAILABLE_MESSAGE
 
 
@@ -146,7 +171,7 @@ async def access_label(db,user_id,product_id,active,now):
     return 'Активна' if not kinds or 'active' in kinds else 'Тестовый доступ'
 
 
-async def cb_plus(callback,state,db,config=None,billing_service=None,oauth_server=None):
+async def cb_plus(callback,state,db,config=None,billing_service=None,oauth_server=None,bank_billing_service=None):
     if not await private_callback(callback): return
     actor=callback.from_user.id
     await cancel_ui(state,actor_id=actor,db=db,oauth_server=oauth_server,message=callback.message)
@@ -181,12 +206,12 @@ async def cb_plus(callback,state,db,config=None,billing_service=None,oauth_serve
         if product['includes']: text+='В Стример Plus включены все возможности Зритель Plus.\n\n'
         text+=benefits(product)
         if product['includes']: text+='\n\n<b>Возможности зрителя</b>\n'+benefits(product_view('viewer_plus'))
-        text+='\n\n<b>Оплата</b>\n'+payment_status_text(billing_service)
+        text+='\n\n<b>Оплата</b>\n'+payment_status_text(billing_service, bank_billing_service)
         await edit_menu(callback.message,text,reply_markup=offer_keyboard(product,source,config))
     await callback.answer()
 
 
-async def cb_buy(callback,state,db,billing_service=None,oauth_server=None,config=None):
+async def cb_buy(callback,state,db,billing_service=None,oauth_server=None,config=None,bank_billing_service=None):
     if not await private_callback(callback): return
     try:
         product_id,source=product_route(callback.data,'buy')
@@ -201,7 +226,7 @@ async def cb_buy(callback,state,db,billing_service=None,oauth_server=None,config
     rows.append([InlineKeyboardButton(text='← Назад',callback_data=f'plus:show:{product_id}:{source}')])
     await edit_menu(callback.message,f"<b>{html.escape(product['title'])}</b>\n<b>{product['price_label']} / {product['period_label'].removeprefix('1 ')}</b>\n\n"
         "<b>Выберите способ оплаты</b>\n<blockquote>Telegram Stars: через Telegram.\nСБП и банковская карта: через Platega.</blockquote>\n\n"
-        +payment_status_text(billing_service)+"\n\nАвтопродление выключено.",
+        +payment_status_text(billing_service, bank_billing_service)+"\n\nАвтопродление выключено.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
     await callback.answer()
 

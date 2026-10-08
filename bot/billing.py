@@ -83,9 +83,26 @@ class BillingService:
         return self._runtime_policy
 
     def _local_runtime(self) -> bool:
-        return (self._provider is not None and self._provider.provider_id in {"platega", "telegram_stars"}
-                and getattr(self._provider, "network_free", False) is True
-                and self._runtime_policy.mode == "sandbox" and self._runtime_policy.target_verified)
+        """Готов ли сервис к денежным операциям в текущем окружении.
+
+        Провайдер объявляет готовность сам (``money_capable``): у звёзд это
+        сетевой Bot API, у Platega — выбранный владельцем транспорт. Наличие
+        ключей или адреса само по себе ничего не включает.
+        """
+        provider = self._provider
+        if provider is None or provider.provider_id not in {"platega", "telegram_stars"}:
+            return False
+        ready = getattr(provider, "money_capable", None)
+        if ready is None:
+            ready = getattr(provider, "network_free", False)
+        return (ready is True and self._runtime_policy.mode == "sandbox"
+                and self._runtime_policy.target_verified)
+
+    def public_callback_ready(self) -> bool:
+        """Можно ли принимать уведомления провайдера из внешней сети."""
+        return (self._local_runtime()
+                and self._provider.provider_id == "platega"
+                and callable(getattr(self._provider, "handle_callback", None)))
 
     def _period_ready(self, rule: str, version: str | None) -> bool:
         return (self._local_runtime() and self._runtime_policy.period_approved
@@ -114,10 +131,11 @@ class BillingService:
         там оплата могла пройти, и её зачтёт сверка.
         """
         cutoff = now - grace_seconds
+        provider_id = self._provider.provider_id if self._provider is not None else "telegram_stars"
         async with self._store.transaction() as conn:
             cursor = await conn.execute(
                 "SELECT o.order_id FROM billing_orders o "
-                "WHERE o.telegram_user_id = ? AND o.provider = 'telegram_stars' "
+                "WHERE o.telegram_user_id = ? AND o.provider = ? "
                 "AND o.status = 'pending' "
                 "AND o.financial_status IN ('pending', 'manual_review') "
                 "AND NOT EXISTS(SELECT 1 FROM billing_payment_attempts a "
@@ -129,7 +147,7 @@ class BillingService:
                 "  OR o.checkout_expires_at <= ?"
                 ") "
                 "LIMIT 10",
-                (user_id, cutoff, now),
+                (user_id, provider_id, cutoff, now),
             )
             order_ids = [row[0] for row in await cursor.fetchall()]
             for order_id in order_ids:
@@ -152,7 +170,8 @@ class BillingService:
 
     async def prepare_payment(self, user_id: int, product_id: str, method: str,
                               request_key: str, *, now: float,
-                              prefer_link: bool = False) -> CheckoutResult:
+                              prefer_link: bool = False,
+                              buyer_name: str | None = None) -> CheckoutResult:
         self._check_now(now)
         if type(user_id) is not int or user_id <= 0 or method not in {"sbp", "bank_card", "stars"}:
             raise ValueError("invalid purchase request")
@@ -172,6 +191,20 @@ class BillingService:
                 or (method == "stars" and not self._runtime_policy.allow_invoice)
                 or (method != "stars" and not self._runtime_policy.allow_external_create)):
             return CheckoutResult("unavailable", reason_code="payments_unavailable")
+        # Внешняя платёжка требует имя покупателя в metadata. Имя приходит из
+        # подписанных данных Telegram; выдумывать его нельзя, поэтому без имени
+        # счёт не создаётся и деньги не списываются.
+        remember = getattr(self._provider, "remember_buyer", None)
+        if buyer_name is not None and callable(remember):
+            try:
+                remember(user_id, buyer_name)
+            except ValueError:
+                logger.warning("Покупка: имя покупателя отклонено проверкой")
+        if getattr(self._provider, "requires_buyer_name", False):
+            known = getattr(self._provider, "has_buyer_name", None)
+            if not (callable(known) and known(user_id)):
+                logger.warning("Покупка недоступна: нет подтверждённого имени покупателя")
+                return CheckoutResult("unavailable", reason_code="payments_unavailable")
         existing = await self._db.get_billing_order_by_request_key(request_key)
         if existing is not None:
             if (existing.telegram_user_id, existing.plan, existing.method, existing.provider) != (user_id, product_id, method, provider_id):
@@ -612,6 +645,9 @@ class BillingService:
 
     async def close(self):
         await self._reconciler.close()
+        closer = getattr(self._provider, "close", None)
+        if callable(closer):
+            await closer()
 
     async def create_checkout(
         self, telegram_user_id: int, request_key: str, duration_seconds: int,

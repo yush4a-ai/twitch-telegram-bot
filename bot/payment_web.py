@@ -1,4 +1,4 @@
-"""Reserved callback route; this release mounts it only in a local contract app."""
+"""Callback провайдера: локальный контракт или публичный маршрут по допуску."""
 
 import ipaddress
 import sqlite3
@@ -7,17 +7,31 @@ import time
 from aiohttp import web
 
 
-def install_payment_routes(app: web.Application, service=None, *, local_contract_enabled=False) -> bool:
-    if local_contract_enabled is not True or service is None or not service._local_runtime():
+def install_payment_routes(app: web.Application, service=None, *,
+                           local_contract_enabled=False, public_callback=False) -> bool:
+    """Монтирует приём уведомлений провайдера.
+
+    Два независимых режима. Локальный контракт (`local_contract_enabled`)
+    обслуживает только loopback — это тестовый контур. Публичный маршрут
+    (`public_callback`) открыт внешней сети и включается только тогда, когда
+    владелец разрешил банковский канал: подлинность запроса подтверждают
+    заголовки провайдера, а не адрес отправителя.
+    """
+    if service is None:
+        return False
+    loopback_only = local_contract_enabled is True and service._local_runtime()
+    public = public_callback is True and service.public_callback_ready()
+    if not (loopback_only or public):
         return False
 
     async def callback(request):
-        try:
-            local = request.remote is not None and ipaddress.ip_address(request.remote).is_loopback
-        except ValueError:
-            local = False
-        if not local:
-            raise web.HTTPNotFound()
+        if loopback_only:
+            try:
+                local = request.remote is not None and ipaddress.ip_address(request.remote).is_loopback
+            except ValueError:
+                local = False
+            if not local:
+                raise web.HTTPNotFound()
         if request.content_type != "application/json":
             return web.json_response({"error": "invalid_content_type"}, status=415)
         try:

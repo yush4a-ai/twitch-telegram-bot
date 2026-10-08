@@ -203,6 +203,9 @@ class OAuthCallbackServer:
         mini_app_billing_test_enabled: bool = False,
         mini_app_billing_test_user_ids: frozenset[int] = frozenset(),
         mini_app_billing_service=None,
+        # Реальная касса: отдельный сервис, потому что денежная политика звёзд и
+        # банковского канала живёт в своём провайдере.
+        payment_service=None,
         streamer_environment: str = "",
         mini_app_owner_config=None,
     ) -> None:
@@ -230,6 +233,7 @@ class OAuthCallbackServer:
         self._mini_app_billing_test_enabled = mini_app_billing_test_enabled
         self._mini_app_billing_test_user_ids = mini_app_billing_test_user_ids
         self._mini_app_billing_service = mini_app_billing_service
+        self._payment_service = payment_service
         self._streamer_environment = streamer_environment
         self._mini_app_owner_config = mini_app_owner_config
         self._preview_observer = None
@@ -279,8 +283,9 @@ class OAuthCallbackServer:
 
     async def start(self) -> None:
         app = web.Application()
-        # No monetary provider or callback is enabled for this first release.
-        install_payment_routes(app)
+        # Приём уведомлений реальной кассы: маршрут открывается только тогда,
+        # когда владелец разрешил банковский канал и провайдер объявлен.
+        install_payment_routes(app, self._payment_service, public_callback=True)
         app.router.add_get(REDIRECT_PATH, self._handle_callback)
         app.router.add_get("/twitch/result", self._handle_result_page)
         app.router.add_get("/twitch/result/status", self._handle_result_status)
@@ -315,6 +320,7 @@ class OAuthCallbackServer:
                 billing_test_enabled=self._mini_app_billing_test_enabled,
                 billing_test_user_ids=self._mini_app_billing_test_user_ids,
                 billing_service=self._mini_app_billing_service,
+                external_billing_service=self._payment_service,
                 preview_status_provider=self._mini_app_preview_status,
                 owner_config=self._mini_app_owner_config,
             )
