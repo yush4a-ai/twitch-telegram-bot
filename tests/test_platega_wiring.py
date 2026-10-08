@@ -5,7 +5,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from bot.config import ConfigError, platega_settings
+from bot.config import ConfigError, first_release_payment_policy, platega_settings
 from bot.platega_runtime import build_platega_provider
 from bot.plan_catalog import BillingRuntimePolicy
 from tests.test_platega_provider import MERCHANT, SECRET
@@ -80,6 +80,22 @@ class PlategaSettingsTests(unittest.TestCase):
 
 
 class PlategaProviderWiringTests(unittest.IsolatedAsyncioTestCase):
+    async def test_production_contract_off_keeps_the_bank_channel_shut(self):
+        """Контракт допуска с `off` сильнее ключей и флагов владельца."""
+        with patch.dict(os.environ, {
+            "BILLING_MODE": "sandbox", "BILLING_TARGET_VERIFIED": "1",
+            "BILLING_ALLOW_EXTERNAL": "1", "BILLING_PERIOD_APPROVED": "1",
+            "BILLING_REFUND_APPROVED": "1",
+        }, clear=True):
+            blocked = first_release_payment_policy(contract_policy="off")
+            allowed = first_release_payment_policy()
+
+        self.assertFalse(blocked.allow_external_create)
+        self.assertTrue(allowed.allow_external_create)
+        self.assertIsNone(build_platega_provider(config(), blocked))
+        provider = build_platega_provider(config(), allowed)
+        self.assertIsNotNone(provider)
+        await provider.close()
     def test_no_provider_without_credentials_or_explicit_permission(self):
         self.assertIsNone(build_platega_provider(config(), BillingRuntimePolicy()))
         self.assertIsNone(build_platega_provider(
