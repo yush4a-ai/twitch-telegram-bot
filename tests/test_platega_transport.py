@@ -177,6 +177,14 @@ class PlategaTransportTests(unittest.IsolatedAsyncioTestCase):
                     live.remember_buyer(bad_user, "@buyer")
 
     async def test_credentials_probe_reads_balances_without_creating_payments(self):
+        # Реальный ответ провайдера — список балансов, а не объект: рабочие ключи
+        # не должны выглядеть отклонёнными только из-за формы ответа.
+        listed = FakeSession(FakeResponse(200, json.dumps(
+            [{"amount": 0, "currency": "RUB"}, {"amount": 0, "currency": "USD"}]).encode()))
+        self.assertIs(
+            await adapter(PlategaHttpTransport(session=listed)).probe_credentials(), True)
+        self.assertEqual(listed.calls[0]["url"], PLATEGA_API_BASE + "/balance/all")
+
         session = FakeSession(FakeResponse(200, json.dumps({"balances": []}).encode()))
         live = adapter(PlategaHttpTransport(session=session))
         self.assertIs(await live.probe_credentials(), True)
@@ -188,6 +196,9 @@ class PlategaTransportTests(unittest.IsolatedAsyncioTestCase):
         rejected = FakeSession(FakeResponse(401, b""))
         self.assertIs(
             await adapter(PlategaHttpTransport(session=rejected)).probe_credentials(), False)
+        broken = FakeSession(FakeResponse(200, b"not json"))
+        self.assertIs(
+            await adapter(PlategaHttpTransport(session=broken)).probe_credentials(), False)
         offline = adapter(PlategaHttpTransport(session=FakeSession()),
                           policy=BillingRuntimePolicy())
         self.assertIs(await offline.probe_credentials(), False)

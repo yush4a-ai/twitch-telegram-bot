@@ -61,14 +61,18 @@ def _reject_constant(_value):
     raise PaymentVerificationError("nonfinite JSON number")
 
 
-def _json(body: bytes, maximum: int) -> dict:
+def _json_any(body: bytes, maximum: int):
     if not isinstance(body, bytes) or not 1 <= len(body) <= maximum:
         raise PaymentVerificationError("invalid provider body size")
     try:
-        values = json.loads(body.decode("utf-8"), object_pairs_hook=_strict_pairs,
-                           parse_float=Decimal, parse_constant=_reject_constant)
+        return json.loads(body.decode("utf-8"), object_pairs_hook=_strict_pairs,
+                          parse_float=Decimal, parse_constant=_reject_constant)
     except (UnicodeError, ValueError, TypeError, RecursionError):
         raise PaymentVerificationError("invalid provider JSON") from None
+
+
+def _json(body: bytes, maximum: int) -> dict:
+    values = _json_any(body, maximum)
     if not isinstance(values, dict):
         raise PaymentVerificationError("invalid provider object")
     return values
@@ -177,16 +181,31 @@ class PlategaProvider:
         чтобы владелец сразу увидел, принял ли провайдер ключи из личного
         кабинета, не создавая при этом ни одного платежа. Секреты не печатаются
         ни при успехе, ни при отказе.
+
+        Провайдер отдаёт балансы списком, а не объектом, поэтому ответ
+        разбирается без требования словаря — иначе рабочие ключи выглядели бы
+        как отклонённые.
         """
         if not self.money_capable:
             return False
         try:
-            data = await self._request("GET", "/balance/all")
+            response = await asyncio.wait_for(self._transport.request(
+                "GET", "/balance/all", json=None,
+                headers={"X-MerchantId": self._merchant, "X-Secret": self._secret,
+                         "Accept": "application/json"}, timeout=5), timeout=5)
         except asyncio.CancelledError:
             raise
         except Exception:
             return False
-        return isinstance(data, dict)
+        if (not isinstance(response, ProviderHttpResponse) or type(response.status) is not int
+                or response.status != 200 or not isinstance(response.body, bytes)
+                or not 1 <= len(response.body) <= 65536):
+            return False
+        try:
+            values = _json_any(response.body, 65536)
+        except PaymentVerificationError:
+            return False
+        return isinstance(values, (dict, list))
 
     async def close(self) -> None:
         closer = getattr(self._transport, "close", None)
