@@ -123,6 +123,34 @@ class AdminPeopleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(card["limits"]["channels"]["limit"], 200)
         self.assertEqual([item["plan"] for item in card["grants"]], ["streamer_plus"])
 
+    async def test_person_card_gives_own_orders_without_service_fields(self):
+        """Панели нужны заказы: после возврата грант исчезает, а заказ остаётся."""
+        await self.profile(111, username="alex", display_name="Alex")
+        await self.profile(222, username="bob", display_name="Bob")
+        order_id = "a" * 32
+        await self.db.create_billing_order(order_id, "req-111", 111, 600,
+                                           now=self.now, plan="viewer_plus")
+        await self.db.conn.execute(
+            "UPDATE billing_orders SET provider='telegram_stars',status='paid',"
+            "financial_status='confirmed',method='stars',currency='XTR',units=100,grant_id=? "
+            "WHERE order_id=?", ("g" * 32, order_id))
+        other = "b" * 32
+        await self.db.create_billing_order(other, "req-222", 222, 600,
+                                           now=self.now, plan="viewer_plus")
+        await self.db.conn.commit()
+
+        card = await self.db.person_card(111, now=self.now)
+
+        self.assertEqual([item["order_id"] for item in card["orders"]], [order_id])
+        order = card["orders"][0]
+        self.assertEqual(
+            (order["provider"], order["status"], order["financial_status"],
+             order["currency"], order["units"]),
+            ("telegram_stars", "paid", "confirmed", "XTR", 100))
+        for hidden in ("product_snapshot_json", "checkout_url", "checkout_reference",
+                       "request_key", "terms_version"):
+            self.assertNotIn(hidden, order)
+
     async def test_search_escapes_like_wildcards(self):
         await self.profile(111, username="alex", display_name="Alex")
         await self.profile(222, username="bob", display_name="Bob")

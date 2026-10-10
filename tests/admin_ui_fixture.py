@@ -1,6 +1,7 @@
 """Local-only synthetic dashboard for repeatable browser checks."""
 
 import asyncio
+import os
 import signal
 import time
 from types import SimpleNamespace
@@ -14,7 +15,7 @@ FIXTURE_KEY = "local-browser-fixture-key-32-chars-minimum"
 
 async def main() -> None:
     server = OAuthCallbackServer(
-        "http://127.0.0.1/twitch/callback", "127.0.0.1", 0,
+        "http://127.0.0.1/twitch/callback", "127.0.0.1", int(os.environ.get("FIXTURE_PORT", "0")),
         admin_access=AdminAccess(FIXTURE_KEY, enabled=True, secure_cookie=False, owner_id=425785231),
     )
 
@@ -90,6 +91,18 @@ async def main() -> None:
              "starts_at": time.time() - 3600, "expires_at": time.time() + 3 * 86400},
         ],
         "limits": {"channels": {"used": 38, "limit": 200}, "video": {"used": 3, "limit": 5}},
+        "orders": [
+            {"order_id": "a" * 32, "provider": "telegram_stars", "plan": "viewer_plus",
+             "subject_kind": "viewer", "status": "paid", "financial_status": "confirmed",
+             "units": 100, "currency": "XTR", "created_at": time.time() - 5 * 86400,
+             "paid_at": time.time() - 5 * 86400, "closed_at": None, "grant_id": "g1",
+             "access_expires_at": time.time() + 12 * 86400},
+            {"order_id": "b" * 32, "provider": "telegram_stars", "plan": "viewer_plus",
+             "subject_kind": "viewer", "status": "refunded", "financial_status": "refunded",
+             "units": 100, "currency": "XTR", "created_at": time.time() - 40 * 86400,
+             "paid_at": time.time() - 40 * 86400, "closed_at": time.time() - 39 * 86400,
+             "grant_id": "g0", "access_expires_at": time.time() - 10 * 86400},
+        ],
     }
     history = [
         {"action": "grant", "happened_at": time.time() - 3600, "actor_telegram_id": 425785231,
@@ -120,6 +133,31 @@ async def main() -> None:
     async def revoke_manual_access(*args, **kwargs):
         return {"grant_id": "g1", "action": "revoke", "source": "manual"}
 
+    class RefundDatabase:
+        """Заглушка базы панели: возврат ищет заказ по идентификатору."""
+
+        def __init__(self, row):
+            self._row = row
+            fixture = self
+
+            class Cursor:
+                async def fetchone(self_inner):
+                    return fixture._row
+
+            class Conn:
+                async def execute(self_inner, sql, params=()):
+                    return Cursor()
+
+            self.conn = Conn()
+
+    class RefundStub:
+        """Заглушка денежного сервиса: денег не двигает, исход фиксированный."""
+
+        provider_id = "telegram_stars"
+
+        async def request_payment_refund(self, actor_id, order_id, request_key, *, now):
+            return SimpleNamespace(state="accepted", provider_reference="fixture")
+
     async def access_overview(now):
         return {"active_total": 428, "viewer": 401, "streamer": 27,
                 "by_source": {"test": 96, "paid": 300, "mock": 32}, "expiring_7d": 18}
@@ -137,7 +175,11 @@ async def main() -> None:
     )
     directory = SimpleNamespace(access_overview=access_overview,
                                 active_grants=active_grants, history=history_events)
-    server.set_admin_services(people=services, directory=directory)
+    server.set_admin_services(
+        people=services, directory=directory,
+        database=RefundDatabase(("telegram_stars", "paid", "confirmed")),
+        billing={"telegram_stars": RefundStub()},
+    )
     await server.start()
     port = server._runner.addresses[0][1]
     print(f"Local synthetic admin fixture listening on http://127.0.0.1:{port}/admin", flush=True)

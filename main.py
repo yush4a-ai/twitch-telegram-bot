@@ -1069,6 +1069,14 @@ async def main() -> None:
                         people=db, directory=admin_directory, database=db,
                         chat_sender=_make_chat_sender(bot),
                         media_dir=str(Path(config.db_path).parent / "media"),
+                        # Возврат оплаты из панели идёт в тот сервис, который принял
+                        # платёж: у звёзд и банковского канала свои провайдеры.
+                        billing={
+                            key: service for key, service in (
+                                ("telegram_stars", billing_service),
+                                ("platega", bank_billing_service),
+                            ) if service is not None
+                        },
                     )
                     # Сверка оплат: сообщение об успешной оплате приходит один раз,
                     # и потерянное сообщение нельзя оставлять без последствий.

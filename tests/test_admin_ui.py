@@ -252,6 +252,26 @@ class AdminUiRoutesTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("selectedGrant", script)
         self.assertIn("grant-target-grant", script)
 
+    async def test_refund_action_is_limited_to_confirmed_payments(self):
+        await self.login()
+        async with self.session.get(self.base + "/admin") as response:
+            html = await response.text()
+        async with self.session.get(self.base + "/admin/panel.js") as response:
+            script = await response.text()
+
+        self.assertIn('id="refund-dialog"', html)
+        self.assertIn('id="refund-summary"', html)
+        self.assertIn('id="refund-open"', html)
+        self.assertIn('id="person-orders"', html)
+        self.assertIn("/admin/api/access/refund", script)
+        # Кнопка возврата появляется только при подтверждённой оплате известного
+        # провайдера: ручные и незавершённые покупки возвращать нельзя.
+        self.assertIn("function refundableOrder(order)", script)
+        self.assertIn("order.financial_status === 'confirmed'", script)
+        self.assertIn("order.status === 'paid'", script)
+        self.assertIn("nothing_to_refund", script)
+        self.assertIn("refund_unknown", script)
+
     async def test_search_reacts_to_typing_and_keeps_focus(self):
         await self.login()
         async with self.session.get(self.base + "/admin/panel.js") as response:

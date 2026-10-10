@@ -248,12 +248,13 @@ class OAuthCallbackServer:
 
     def set_admin_services(
         self, *, people=None, directory=None, database=None, chat_sender=None,
-        media_dir=None,
+        media_dir=None, billing=None,
     ) -> None:
         """Каталог людей и доступов, база рассылок, ответы в чате и каталог картинок.
 
         Провайдеры появляются после старта сервера, поэтому панель спрашивает
-        их на каждом запросе, а не запоминает сейчас.
+        их на каждом запросе, а не запоминает сейчас. ``billing`` — денежные
+        сервисы по провайдеру: они нужны панели для возврата оплаты.
         """
         self._admin_services = {
             "people": people,
@@ -261,6 +262,7 @@ class OAuthCallbackServer:
             "database": database,
             "chat_sender": chat_sender,
             "media_dir": media_dir,
+            "billing": billing,
         }
 
     def set_preview_observer(self, observer) -> None:
@@ -305,6 +307,7 @@ class OAuthCallbackServer:
                 database_provider=lambda: (self._admin_services or {}).get("database"),
                 chat_sender_provider=lambda: (self._admin_services or {}).get("chat_sender"),
                 media_dir_provider=lambda: (self._admin_services or {}).get("media_dir"),
+                billing_services_provider=lambda: (self._admin_services or {}).get("billing"),
             )
         if self._streamer_access is not None and self._streamer_db is not None:
             install_streamer_routes(app, self._streamer_access, self._streamer_db, self._streamer_bot,

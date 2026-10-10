@@ -118,6 +118,7 @@ def install_admin_routes(
     database_provider=None,
     chat_sender_provider=None,
     media_dir_provider=None,
+    billing_services_provider=None,
 ) -> None:
     if not access.enabled:
         return
@@ -138,6 +139,12 @@ def install_admin_routes(
 
     def _media_dir():
         return media_dir_provider() if callable(media_dir_provider) else media_dir_provider
+
+    def _billing_services():
+        """Денежные сервисы по провайдеру: звёзды и банковский канал живут отдельно."""
+        services = (billing_services_provider() if callable(billing_services_provider)
+                    else billing_services_provider)
+        return services if isinstance(services, dict) else {}
 
     def _authorized(request: web.Request) -> bool:
         return access.authenticated(request.cookies.get("ts_admin"))
@@ -403,6 +410,7 @@ def install_admin_routes(
                      "reason", "reason_note", "comment"}
     REVOKE_FIELDS = {"request_key", "grant_id", "expected_expires_at",
                      "reason", "reason_note", "comment"}
+    REFUND_FIELDS = {"request_key", "order_id"}
 
     async def access_grant(request: web.Request) -> web.Response:
         denied = _denied(request)
@@ -503,6 +511,64 @@ def install_admin_routes(
         except (KeyError, TypeError, ValueError):
             return web.json_response({"error": "invalid_request"}, status=400)
         return web.json_response(result)
+
+    async def access_refund(request: web.Request) -> web.Response:
+        """Возврат оплаты: единственный способ снять оплаченное право.
+
+        Ручные права отзываются отдельной операцией; оплаченные — только
+        возвратом денег через того же провайдера, который принял платёж. Иначе
+        владелец мог бы забрать оплаченный доступ, не вернув деньги.
+        """
+        denied = _denied(request)
+        if denied is not None:
+            return denied
+        database = _database()
+        services = _billing_services()
+        if database is None or not services:
+            return web.json_response({"error": "unavailable"}, status=503)
+        guard = _write_guard(request)
+        if guard is not None:
+            return guard
+        if request.content_type != "application/json":
+            return web.json_response({"error": "invalid_content_type"}, status=415)
+        payload = await _write_body(request, REFUND_FIELDS)
+        if payload is None:
+            return web.json_response({"error": "invalid_request"}, status=400)
+        order_id = payload.get("order_id")
+        request_key = payload.get("request_key")
+        if (not isinstance(order_id, str) or re.fullmatch(r"[0-9a-f]{32}", order_id) is None
+                or not isinstance(request_key, str)
+                or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request_key) is None):
+            return web.json_response({"error": "invalid_request"}, status=400)
+        if not _consume_request_mark(request):
+            return web.json_response({"error": "csrf_denied"}, status=403)
+        try:
+            row = await (await database.conn.execute(
+                "SELECT provider, status, financial_status FROM billing_orders WHERE order_id=?",
+                (order_id,),
+            )).fetchone()
+        except Exception:
+            return web.json_response({"error": "unavailable"}, status=503)
+        if row is None:
+            return web.json_response({"error": "order_not_found"}, status=404)
+        provider, status, financial_status = row[0], row[1], row[2]
+        if status != "paid" or financial_status != "confirmed":
+            # Возвращать нечего: оплата уже вернулась, отменена или не состоялась.
+            return web.json_response({"error": "nothing_to_refund"}, status=409)
+        service = services.get(provider)
+        if service is None:
+            return web.json_response({"error": "unavailable"}, status=503)
+        try:
+            outcome = await service.request_payment_refund(
+                access.owner_id, order_id, request_key, now=time.time())
+        except PermissionError:
+            return web.json_response({"error": "owner_not_configured"}, status=403)
+        except ValueError:
+            return web.json_response({"error": "invalid_request"}, status=400)
+        except Exception:
+            return web.json_response({"error": "refund_unknown"}, status=503)
+        state = getattr(outcome, "state", "unknown")
+        return web.json_response({"state": state, "order_id": order_id})
 
     # --- Рассылки и переписка ------------------------------------------------
 
@@ -932,6 +998,7 @@ def install_admin_routes(
     app.router.add_post("/admin/api/access/grant", access_grant)
     app.router.add_post("/admin/api/access/extend", access_extend)
     app.router.add_post("/admin/api/access/revoke", access_revoke)
+    app.router.add_post("/admin/api/access/refund", access_refund)
     app.router.add_get("/admin/api/broadcasts", api_broadcasts)
     app.router.add_post("/admin/api/broadcasts", api_broadcast_save)
     app.router.add_post("/admin/api/broadcasts/{campaign_id}/send", api_broadcast_send)

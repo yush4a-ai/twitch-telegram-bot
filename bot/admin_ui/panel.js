@@ -4,6 +4,19 @@ const VIEWS = ['overview', 'users', 'access', 'campaigns', 'system', 'growth', '
 const STATE_LABELS = { ok: 'Работает', degraded: 'Сбой', disabled: 'Отключён', unverified: 'Не проверена', unknown: 'Нет данных' };
 const SOURCE_LABELS = { test: 'тестовый доступ', manual: 'ручная выдача', paid: 'оплата', mock: 'проверка оплаты' };
 const ACTION_LABELS = { grant: 'Выдан', revoke: 'Отозван', extend: 'Продлён' };
+const PROVIDER_LABELS = { telegram_stars: 'звёзды', platega: 'СБП или карта' };
+const ORDER_STATE_LABELS = {
+  confirmed: 'оплачено', refunded: 'возвращено', canceled: 'отменено',
+  pending: 'ожидает оплаты', manual_review: 'нужна проверка',
+};
+const REFUND_STATES = {
+  accepted: 'платёжная система приняла возврат',
+  refunded: 'возврат сделан ранее',
+  declined: 'платёжная система отклонила возврат',
+  unsupported: 'для этой покупки возврат недоступен',
+  manual_control_required: 'провайдер требует ручного контроля возврата',
+  unknown: 'провайдер ещё не подтвердил результат',
+};
 // Совпадает с SNAPSHOT_PAGE в bot/admin_metrics.py.
 const ROW_LIMIT = 20;
 let lastSuccess = 0;
@@ -705,6 +718,11 @@ function renderPerson(card, events) {
       + (hasStreamer ? ' · Viewer Plus включён' : '')
     : 'Действующих прав нет');
   put('person-expiry', grants.length ? stamp(grants[0].expires_at) : 'Нет данных');
+  const orders = card.orders || [];
+  put('person-orders', orders.length
+    ? orders.map((item) => `${planLabel(item.plan)} · ${PROVIDER_LABELS[item.provider] || item.provider} · ${ORDER_STATE_LABELS[item.financial_status] || item.financial_status}`).join(', ')
+    : 'Оплат нет');
+  $('refund-open').hidden = paidOrders(orders).length === 0;
   put('person-activity', card.last_active_at ? stamp(card.last_active_at) : 'Нет данных');
   const limits = card.limits || {};
   const channels = limits.channels || {};
@@ -907,6 +925,79 @@ function updateRevokeSummary() {
   put('revoke-summary', `${planLabel(manual.plan)} завершится сейчас. ${left}`);
 }
 
+function refundableOrder(order) {
+  // Возврат возможен только по подтверждённой оплате известного провайдера.
+  return (order.provider === 'telegram_stars' || order.provider === 'platega')
+    && order.status === 'paid' && order.financial_status === 'confirmed';
+}
+
+function paidOrders(source) {
+  const orders = source || (currentPerson || {}).orders || [];
+  return orders.filter(refundableOrder);
+}
+
+function selectedRefund() {
+  const chosen = $('refund-order').value;
+  return paidOrders().find((item) => item.order_id === chosen);
+}
+
+function refundAmount(order) {
+  return order.currency === 'XTR'
+    ? `${number.format(order.units)} звёзд`
+    : `${number.format(Math.round(order.units / 100))} ₽`;
+}
+
+function updateRefundSummary() {
+  const order = selectedRefund();
+  if (!order) {
+    put('refund-summary', 'Оплаченных покупок нет — возвращать нечего.');
+    return;
+  }
+  put('refund-summary', `Вернём ${refundAmount(order)} за ${planLabel(order.plan)} и закроем доступ по этой покупке.`);
+}
+
+async function submitRefund(event) {
+  event.preventDefault();
+  const order = selectedRefund();
+  if (!order) {
+    showError('refund-error', 'Оплаченной покупки нет: возвращать нечего.');
+    return;
+  }
+  const button = $('refund-submit');
+  button.disabled = true;
+  try {
+    const response = await postWrite('/admin/api/access/refund', {
+      request_key: `admin-refund-${order.order_id}-${Date.now().toString(36)}`,
+      order_id: order.order_id,
+    });
+    if (!response.ok) {
+      let code = response.status === 409 ? 'conflict' : 'denied';
+      try {
+        const payload = await response.json();
+        if (payload && typeof payload.error === 'string') code = payload.error;
+      } catch (_) {
+        // Ответ без тела: остаётся код по статусу.
+      }
+      showError('refund-error', WRITE_ERRORS[code] || `Не удалось выполнить возврат (${code}).`);
+      return;
+    }
+    let state = 'unknown';
+    try {
+      const payload = await response.json();
+      if (payload && typeof payload.state === 'string') state = payload.state;
+    } catch (_) {
+      // Тело не прочиталось: показываем честный «результат не подтверждён».
+    }
+    $('refund-dialog').open && $('refund-dialog').close();
+    await refresh();
+    if (currentPerson) await showPerson(String(currentPerson.user_id));
+    await loadPeople();
+    showReceipt(`Возврат по покупке ${planLabel(order.plan)}: ${REFUND_STATES[state] || 'провайдер не подтвердил результат'}.`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function postWrite(path, body) {
   // Метка одноразовая и живёт ограниченно, а рядом идут автообновления снапшота:
   // берём свежую прямо перед записью, иначе запись падает с «сессия устарела».
@@ -943,12 +1034,16 @@ const WRITE_ERRORS = {
   unauthorized: 'Сессия закончилась. Войдите заново через Telegram.',
   unavailable: 'Сервер не смог выполнить действие. Повторите позже.',
   invalid_content_type: 'Сервер не принял формат запроса. Обновите страницу панели.',
+  order_not_found: 'Покупка не найдена. Обновите карточку и повторите.',
+  nothing_to_refund: 'Возвращать нечего: оплата уже вернулась, отменена или не подтверждена.',
+  refund_unknown: 'Возврат отправлен, провайдер ещё не подтвердил результат. Проверьте историю операции перед повтором.',
 };
 
 async function handleWriteResult(response, errorId, successText) {
   if (response.ok) {
     $('grant-dialog').open && $('grant-dialog').close();
     $('revoke-dialog').open && $('revoke-dialog').close();
+    $('refund-dialog').open && $('refund-dialog').close();
     await refresh();
     if (currentPerson) await showPerson(String(currentPerson.user_id));
     await loadPeople();
@@ -1680,6 +1775,25 @@ $('revoke-open').addEventListener('click', () => {
   $('revoke-dialog').showModal();
 });
 $('revoke-cancel').addEventListener('click', () => $('revoke-dialog').close());
+$('refund-open').addEventListener('click', () => {
+  $('refund-error').hidden = true;
+  $('grant-dialog').close();
+  $('revoke-dialog').close();
+  const select = $('refund-order');
+  select.replaceChildren();
+  for (const order of paidOrders()) {
+    const option = document.createElement('option');
+    option.value = order.order_id;
+    option.textContent = `${planLabel(order.plan)} · ${PROVIDER_LABELS[order.provider] || order.provider} · ${stamp(order.created_at)}`;
+    select.append(option);
+  }
+  put('refund-target', `Получатель: ${currentPerson.display_name || currentPerson.username || currentPerson.user_id}`);
+  updateRefundSummary();
+  $('refund-dialog').showModal();
+});
+$('refund-cancel').addEventListener('click', () => $('refund-dialog').close());
+$('refund-form').addEventListener('submit', submitRefund);
+$('refund-order').addEventListener('change', updateRefundSummary);
 $('grant-form').addEventListener('submit', submitGrant);
 $('revoke-form').addEventListener('submit', submitRevoke);
 for (const field of ['grant-plan', 'grant-expiry', 'grant-reason', 'grant-note']) {

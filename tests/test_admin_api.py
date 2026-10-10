@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 import aiohttp
 
 from bot.admin_auth import AdminAccess
+from bot.billing_provider import RefundOutcome
 from bot.database import AccessConflict, AccessDenied
 from bot.oauth import OAuthCallbackServer
 
@@ -295,6 +296,191 @@ class AdminWriteApiTests(unittest.IsolatedAsyncioTestCase):
             headers={"X-Admin-CSRF": await self.csrf(), "Origin": self.base},
         ) as response:
             self.assertEqual(response.status, 400)
+
+
+class _FakeBillingDatabase:
+    """Минимальная база для панели: она только читает заказ по grant_id."""
+
+    def __init__(self, row):
+        self._row = row
+        self.queries: list[tuple[str, tuple]] = []
+        database = self
+
+        class Cursor:
+            async def fetchone(self_inner):
+                return database._row
+
+        class Conn:
+            async def execute(self_inner, sql, params=()):
+                database.queries.append((sql, params))
+                return Cursor()
+
+        self.conn = Conn()
+
+
+class _RefundService:
+    """Заглушка денежного сервиса: записывает вызов и возвращает исход."""
+
+    provider_id = "telegram_stars"
+
+    def __init__(self, outcome):
+        self.outcome = outcome
+        self.calls: list[tuple] = []
+
+    async def request_payment_refund(self, actor_id, order_id, request_key, *, now):
+        self.calls.append((actor_id, order_id, request_key, now))
+        if isinstance(self.outcome, BaseException):
+            raise self.outcome
+        return self.outcome
+
+
+class AdminRefundApiTests(unittest.IsolatedAsyncioTestCase):
+    """Возврат оплаты: единственный способ снять оплаченное право."""
+
+    async def asyncSetUp(self):
+        self.server = OAuthCallbackServer(
+            "https://example.test/twitch/callback", "127.0.0.1", 0,
+            admin_access=AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=425785231),
+        )
+
+        async def snapshot():
+            return {"environment": "local"}
+
+        self.people = SimpleNamespace(
+            search_people=AsyncMock(return_value=[]),
+            person_card=AsyncMock(return_value=None),
+            person_history=AsyncMock(return_value=[]),
+        )
+        self.refund = _RefundService(RefundOutcome("accepted", "tx-1"))
+        self.database = _FakeBillingDatabase(("telegram_stars", "paid", "confirmed"))
+        self.server.set_admin_snapshot_provider(snapshot)
+        self.services = {"telegram_stars": self.refund}
+        self.server.set_admin_services(
+            people=self.people, directory=None, database=self.database, billing=self.services)
+        await self.server.start()
+        self.session = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(unsafe=True))
+        self.base = f"http://127.0.0.1:{self.server._runner.addresses[0][1]}"
+
+    async def asyncTearDown(self):
+        await self.session.close()
+        await self.server.stop()
+
+    async def login(self):
+        async with self.session.post(
+            self.base + "/admin/emergency/login", data={"access_key": KEY},
+            allow_redirects=False,
+        ):
+            pass
+
+    async def csrf(self):
+        async with self.session.get(self.base + "/admin/api/snapshot") as response:
+            return (await response.json())["csrf"]
+
+    async def refund_request(self, **overrides):
+        body = {"request_key": "refund-1", "order_id": "a" * 32}
+        body.update(overrides)
+        headers = {"X-Admin-CSRF": await self.csrf(), "Origin": self.base}
+        return await self.session.post(
+            self.base + "/admin/api/access/refund", json=body, headers=headers)
+
+    async def test_refund_calls_the_service_that_took_the_payment(self):
+        await self.login()
+        async with await self.refund_request() as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(await response.json(),
+                             {"state": "accepted", "order_id": "a" * 32})
+
+        self.assertEqual(len(self.refund.calls), 1)
+        actor, order_id, request_key, _now = self.refund.calls[0]
+        self.assertEqual((actor, order_id, request_key), (425785231, "a" * 32, "refund-1"))
+        self.assertIsInstance(_now, float)
+        self.assertEqual(
+            self.database.queries[0][1], ("a" * 32,),
+            "заказ ищется по идентификатору из запроса, а не по данным клиента",
+        )
+
+    async def test_refund_requires_session_csrf_and_exact_fields(self):
+        await self.login()
+        headers = {"Origin": self.base}
+        async with self.session.post(
+            self.base + "/admin/api/access/refund",
+            json={"request_key": "refund-1", "order_id": "a" * 32}, headers=headers,
+        ) as response:
+            self.assertEqual(response.status, 403)
+
+        async with self.session.post(
+            self.base + "/admin/api/access/refund",
+            json={"request_key": "refund-1", "order_id": "bad"},
+            headers={"X-Admin-CSRF": await self.csrf(), "Origin": self.base},
+        ) as response:
+            self.assertEqual(response.status, 400)
+        async with self.session.post(
+            self.base + "/admin/api/access/refund",
+            json={"request_key": "refund-1", "order_id": "a" * 32, "amount": 150},
+            headers={"X-Admin-CSRF": await self.csrf(), "Origin": self.base},
+        ) as response:
+            self.assertEqual(response.status, 400)
+        self.assertEqual(self.refund.calls, [])
+
+    async def test_refund_refuses_when_there_is_nothing_to_refund(self):
+        await self.login()
+        for row in (("telegram_stars", "paid", "refunded"),
+                    ("telegram_stars", "pending", "pending"),
+                    ("telegram_stars", "cancelled", "canceled")):
+            self.database._row = row
+            async with await self.refund_request() as response:
+                self.assertEqual(response.status, 409)
+                self.assertEqual(await response.json(), {"error": "nothing_to_refund"})
+        self.database._row = None
+        async with await self.refund_request() as response:
+            self.assertEqual(response.status, 404)
+            self.assertEqual(await response.json(), {"error": "order_not_found"})
+        self.assertEqual(self.refund.calls, [])
+
+    async def test_refund_reports_unknown_outcome_without_lying(self):
+        await self.login()
+        self.refund.outcome = RuntimeError("provider timeout")
+        async with await self.refund_request() as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual(await response.json(), {"error": "refund_unknown"})
+
+        self.refund.outcome = RefundOutcome("accepted", "tx-1")
+        self.database._row = ("platega", "paid", "confirmed")
+        async with await self.refund_request() as response:
+            self.assertEqual(response.status, 503)
+            self.assertEqual(await response.json(), {"error": "unavailable"})
+        self.assertEqual(len(self.refund.calls), 1)
+
+    async def test_refund_is_unavailable_without_billing_services(self):
+        server = OAuthCallbackServer(
+            "https://example.test/twitch/callback", "127.0.0.1", 0,
+            admin_access=AdminAccess(KEY, enabled=True, secure_cookie=False, owner_id=425785231),
+        )
+
+        async def snapshot():
+            return {"environment": "local"}
+
+        server.set_admin_snapshot_provider(snapshot)
+        server.set_admin_services(people=self.people, directory=None, database=self.database)
+        await server.start()
+        try:
+            base = f"http://127.0.0.1:{server._runner.addresses[0][1]}"
+            async with self.session.post(
+                base + "/admin/emergency/login", data={"access_key": KEY}, allow_redirects=False,
+            ):
+                pass
+            async with self.session.get(base + "/admin/api/snapshot") as response:
+                token = (await response.json())["csrf"]
+            async with self.session.post(
+                base + "/admin/api/access/refund",
+                json={"request_key": "refund-1", "order_id": "a" * 32},
+                headers={"X-Admin-CSRF": token, "Origin": base},
+            ) as response:
+                self.assertEqual(response.status, 503)
+                self.assertEqual(await response.json(), {"error": "unavailable"})
+        finally:
+            await server.stop()
+        self.assertEqual(self.refund.calls, [])
 
 
 if __name__ == "__main__":

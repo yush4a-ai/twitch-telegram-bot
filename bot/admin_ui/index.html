@@ -171,6 +171,7 @@
                 <div><dt>Twitch</dt><dd id="person-twitch">Не подключён</dd></div>
                 <div><dt>Действующие права</dt><dd id="person-grants">Нет данных</dd></div>
                 <div><dt>Срок</dt><dd id="person-expiry">Нет данных</dd></div>
+                <div><dt>Оплаты</dt><dd id="person-orders">Нет данных</dd></div>
                 <div><dt>Последняя активность</dt><dd id="person-activity">Нет данных</dd></div>
               </dl>
               <div class="metric-grid compact" id="card-limits">
@@ -180,6 +181,7 @@
               <div class="card-actions">
                 <button class="button button-primary" id="grant-open" type="button">Изменить доступ</button>
                 <button class="button button-danger" id="revoke-open" type="button">Отозвать доступ</button>
+                <button class="button button-danger" id="refund-open" type="button" hidden>Вернуть оплату</button>
               </div>
               <h3 class="subheading">История</h3>
               <ul class="history-list" id="person-history"><li class="empty-line">Нет данных</li></ul>
@@ -503,6 +505,21 @@
       <div class="dialog-actions">
         <button class="button" type="button" id="revoke-cancel">Отмена</button>
         <button class="button button-danger-solid" type="submit" id="revoke-submit">Отозвать</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="admin-dialog" id="refund-dialog" aria-labelledby="refund-dialog-title">
+    <form id="refund-form">
+      <h2 id="refund-dialog-title">Вернуть оплату</h2>
+      <p class="panel-text" id="refund-target">Получатель не выбран</p>
+      <p class="grant-summary" id="refund-summary">Возврат закроет доступ по этой покупке.</p>
+      <label class="field-label" for="refund-order" id="refund-order-label">Покупка</label>
+      <select id="refund-order"></select>
+      <p class="grant-error" id="refund-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="button" type="button" id="refund-cancel">Отмена</button>
+        <button class="button button-danger-solid" type="submit" id="refund-submit">Вернуть оплату</button>
       </div>
     </form>
   </dialog>

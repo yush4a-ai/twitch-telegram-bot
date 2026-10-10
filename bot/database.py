@@ -5973,6 +5973,21 @@ class Database:
             (telegram_user_id,),
         )
         video_used = int((await cursor.fetchone())[0])
+        # Заказы нужны панели для возврата оплаты: после возврата оплаченный
+        # грант исчезает из списка прав, а заказ остаётся и хранит исход.
+        cursor = await self.conn.execute(
+            "SELECT order_id,provider,plan,subject_kind,status,financial_status,units,currency,"
+            "created_at,paid_at,closed_at,grant_id,access_expires_at FROM billing_orders "
+            "WHERE telegram_user_id=? ORDER BY created_at DESC,order_id DESC LIMIT 20",
+            (telegram_user_id,),
+        )
+        orders = [
+            {"order_id": row[0], "provider": row[1], "plan": row[2], "subject_kind": row[3],
+             "status": row[4], "financial_status": row[5], "units": row[6], "currency": row[7],
+             "created_at": row[8], "paid_at": row[9], "closed_at": row[10], "grant_id": row[11],
+             "access_expires_at": row[12]}
+            for row in await cursor.fetchall()
+        ]
         return {
             "user_id": profile[0],
             "username": profile[1],
@@ -5981,6 +5996,7 @@ class Database:
             "first_seen_at": profile[4],
             "last_active_at": profile[5],
             "grants": grants,
+            "orders": orders,
             "twitch_login": identity[0] if identity else None,
             "limits": {
                 "channels": channels,
