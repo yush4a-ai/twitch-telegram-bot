@@ -9,7 +9,7 @@
 import json
 import unittest
 
-from bot.billing_provider import PaymentVerificationError, ProviderHttpResponse
+from bot.billing_provider import PaymentCreationUnknown, PaymentVerificationError, ProviderHttpResponse
 from bot.platega_provider import PlategaProvider
 from bot.platega_transport import PLATEGA_API_BASE, PlategaHttpTransport
 from bot.plan_catalog import BillingRuntimePolicy
@@ -175,6 +175,31 @@ class PlategaTransportTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(user=bad_user):
                 with self.assertRaises(ValueError):
                     live.remember_buyer(bad_user, "@buyer")
+
+    async def test_missing_provider_expiry_falls_back_to_the_order_deadline(self):
+        # Реальный ответ Platega приходит с пустым expiresIn: это не ошибка,
+        # иначе рабочий платёж превращался бы в «неизвестный исход».
+        for expires in ("", None):
+            with self.subTest(expires=expires):
+                body = created_body()
+                if expires is None:
+                    body.pop("expiresIn")
+                else:
+                    body["expiresIn"] = expires
+                session = FakeSession(FakeResponse(200, json.dumps(body).encode()))
+                checkout = await adapter(
+                    PlategaHttpTransport(session=session),
+                    buyer_names={101: "@verified_buyer"}).create_payment(snapshot(), ATTEMPT)
+                self.assertEqual(checkout.checkout_expires_at, 1000)
+                self.assertEqual(checkout.status, "pending")
+                self.assertTrue(checkout.hosted_url.startswith("https://pay.platega.io/"))
+
+        broken = created_body()
+        broken["expiresIn"] = "soon"
+        session = FakeSession(FakeResponse(200, json.dumps(broken).encode()))
+        with self.assertRaises(PaymentCreationUnknown):
+            await adapter(PlategaHttpTransport(session=session),
+                          buyer_names={101: "@verified_buyer"}).create_payment(snapshot(), ATTEMPT)
 
     async def test_credentials_probe_reads_balances_without_creating_payments(self):
         # Реальный ответ провайдера — список балансов, а не объект: рабочие ключи

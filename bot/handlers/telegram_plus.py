@@ -79,6 +79,9 @@ def payment_status_text(billing_service, bank_billing_service=None) -> str:
     return PAYMENT_UNAVAILABLE_MESSAGE
 
 
+METHOD_LABELS = {"sbp": "СБП", "bank_card": "банковская карта"}
+
+
 def checkout_view(result, back: str):
     """Что показать после попытки создать счёт звёздами."""
     state = getattr(result, "state", "unavailable")
@@ -100,6 +103,27 @@ def checkout_view(result, back: str):
         text = ("<b>Не удалось создать счёт</b>\n\n"
                 "Повторно счёт не отправляем, чтобы не списать дважды. "
                 "Напишите в поддержку: /paysupport")
+    else:
+        text = ("<b>Оплата недоступна</b>\n\n" + PAYMENT_UNAVAILABLE_MESSAGE
+                + "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")
+    return text, back_keyboard(back)
+
+
+def external_checkout_view(result, back: str, method: str):
+    """Что показать после попытки создать счёт через банковский канал."""
+    state = getattr(result, "state", "unavailable")
+    hosted = getattr(result, "hosted_url", None)
+    label = METHOD_LABELS.get(method, "Банковский канал")
+    if state == "pending" and hosted:
+        text = (f"<b>Счёт готов</b>\n\nОплата: {label}. Откройте оплату по кнопке ниже. "
+                "После оплаты доступ включится автоматически.")
+        rows = [[InlineKeyboardButton(text="Перейти к оплате", url=hosted)],
+                [InlineKeyboardButton(text="← Назад", callback_data=back)]]
+        return text, InlineKeyboardMarkup(inline_keyboard=rows)
+    if state in {"creation_unknown", "manual_review"}:
+        text = ("<b>Проверяем платёж</b>\n\n"
+                "Платёжный сервис не подтвердил счёт сразу. Повторно счёт не создаём, "
+                "чтобы не списать дважды: статус проверит сверка, доступ включится после оплаты.")
     else:
         text = ("<b>Оплата недоступна</b>\n\n" + PAYMENT_UNAVAILABLE_MESSAGE
                 + "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")
@@ -250,7 +274,7 @@ async def cb_payment_method(callback,state,billing_service=None,config=None,db=N
     await callback.answer()
 
 
-async def cb_accept_terms(callback,state,billing_service=None,db=None,config=None):
+async def cb_accept_terms(callback,state,billing_service=None,db=None,config=None,bank_billing_service=None):
     """Подтверждение условий: единственная точка создания счёта из бота."""
     if not await private_callback(callback): return
     parts=(callback.data or '').split(':');data=await state.get_data()
@@ -269,6 +293,19 @@ async def cb_accept_terms(callback,state,billing_service=None,db=None,config=Non
             request_key=data['purchase_nonce'],now=time.time())
         await state.clear()
         text,rows=checkout_view(result,back)
+        await edit_menu(callback.message,text,reply_markup=rows)
+        await callback.answer();return
+    if method!='stars' and bank_channel_ready(bank_billing_service):
+        # СБП и карта: счёт создаёт банковский сервис, доступ включается только
+        # после подтверждения оплаты провайдером.
+        buyer=(getattr(callback.from_user,'full_name',None)
+               or getattr(callback.from_user,'username',None))
+        result=await bank_billing_service.prepare_payment(
+            callback.from_user.id,product_id,method,
+            request_key=data['purchase_nonce'],now=time.time(),
+            buyer_name=buyer)
+        await state.clear()
+        text,rows=external_checkout_view(result,back,method)
         await edit_menu(callback.message,text,reply_markup=rows)
         await callback.answer();return
     result=billing_service.public_purchase(product_id,method)

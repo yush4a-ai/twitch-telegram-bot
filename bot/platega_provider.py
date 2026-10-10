@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import logging
 import math
 import re
 import time
@@ -23,6 +24,9 @@ from .billing_provider import (
     _strict_pairs,
 )
 from .plan_catalog import BillingRuntimePolicy
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderTransport(Protocol):
@@ -331,17 +335,28 @@ class PlategaProvider:
                 raise PaymentVerificationError("wrong creation merchant")
             url = self._hosted_url(data.get("redirect", data.get("url")))
             expires = data.get("expiresIn")
-            if not isinstance(expires, str) or re.fullmatch(r"[0-9]{2}:[0-5][0-9]:[0-5][0-9]", expires) is None:
-                raise PaymentVerificationError("invalid checkout expiry")
-            hours, minutes, seconds = map(int, expires.split(":"))
-            duration = hours * 3600 + minutes * 60 + seconds
-            if not 0 < duration <= 86400:
-                raise PaymentVerificationError("invalid checkout expiry")
-            return CheckoutSession(snapshot.order_id, reference, url, "pending",
-                min(snapshot.checkout_expires_at, snapshot.created_at + duration))
+            if expires in (None, ""):
+                # Провайдер не всегда называет срок счёта: тогда действует срок
+                # заказа, который уже зафиксирован сервером.
+                expiry = snapshot.checkout_expires_at
+            else:
+                if (not isinstance(expires, str)
+                        or re.fullmatch(r"[0-9]{2}:[0-5][0-9]:[0-5][0-9]", expires) is None):
+                    raise PaymentVerificationError("invalid checkout expiry")
+                hours, minutes, seconds = map(int, expires.split(":"))
+                duration = hours * 3600 + minutes * 60 + seconds
+                if not 0 < duration <= 86400:
+                    raise PaymentVerificationError("invalid checkout expiry")
+                expiry = min(snapshot.checkout_expires_at, snapshot.created_at + duration)
+            return CheckoutSession(snapshot.order_id, reference, url, "pending", expiry)
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as error:
+            # Причина без секретов: иначе отказ провайдера неотличим от таймаута.
+            logger.warning(
+                "Platega: создание платежа не подтверждено (%s: %s)",
+                type(error).__name__, str(error)[:120],
+            )
             raise PaymentCreationUnknown("creation outcome unknown; do not repeat POST") from None
 
     async def get_payment_status(self, reference: str, *, now: float | None = None) -> VerifiedPaymentEvidence:

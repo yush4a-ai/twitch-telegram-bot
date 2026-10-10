@@ -79,6 +79,46 @@ class StarsCheckoutTests(unittest.IsolatedAsyncioTestCase):
         return BillingService(self.db, self.provider, runtime_policy=policy,
                               terms_version="2026-10-01")
 
+    def bank_service(self, *, ready=True):
+        """Банковский сервис: счёт создаётся только когда канал допущен."""
+        policy = ready_policy(allow_external_create=ready)
+        return SimpleNamespace(
+            runtime_policy=policy,
+            public_callback_ready=lambda: ready,
+            prepare_payment=AsyncMock(return_value=CheckoutResult(
+                "pending", "a" * 32, "https://pay.platega.io/pay")),
+        )
+
+    async def test_bank_method_creates_a_real_checkout_in_the_bot(self):
+        billing = self.service(ready_policy())
+        bank = self.bank_service()
+        await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db,
+                     billing, None, CONFIG, bank)
+        await cb_payment_method(self.cb(self.pick_method("СБП")), self.state, billing)
+        accept = next(b.callback_data for b in self.buttons() if b.text == "Я принимаю условия")
+        await cb_accept_terms(self.cb(accept), self.state, billing, None, CONFIG, bank)
+
+        bank.prepare_payment.assert_awaited_once()
+        args = bank.prepare_payment.await_args
+        self.assertEqual((args.args[0], args.args[1], args.args[2]), (101, "viewer_plus", "sbp"))
+        self.assertIn("buyer_name", args.kwargs)
+        text = self.msg.edit_text.await_args.args[0]
+        self.assertIn("Счёт готов", text)
+        self.assertIn("СБП", text)
+        url = next(button.url for button in self.buttons() if button.url)
+        self.assertTrue(url.startswith("https://pay.platega.io/"))
+
+    async def test_bank_method_without_a_service_stays_unavailable(self):
+        billing = self.service(ready_policy())
+        await cb_buy(self.cb("plus:buy:viewer_plus"), self.state, self.db,
+                     billing, None, CONFIG, None)
+        await cb_payment_method(self.cb(self.pick_method("СБП")), self.state, billing)
+        accept = next(b.callback_data for b in self.buttons() if b.text == "Я принимаю условия")
+        await cb_accept_terms(self.cb(accept), self.state, billing, None, CONFIG, None)
+
+        text = self.msg.edit_text.await_args.args[0]
+        self.assertIn("Оплата недоступна", text)
+
     async def test_stars_is_ready_only_with_the_owner_flag(self):
         self.assertTrue(stars_checkout_ready(self.service(ready_policy())))
         self.assertFalse(
