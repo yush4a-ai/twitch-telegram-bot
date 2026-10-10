@@ -19,7 +19,7 @@ from uuid import UUID
 
 from .billing_models import BillingSubject, Money, ProductSnapshot, ServerOrderSnapshot, VerifiedPaymentEvidence
 from .billing_provider import (
-    CheckoutSession, PaymentCreationUnknown, PaymentVerificationError,
+    CheckoutSession, PaymentCreationRejected, PaymentCreationUnknown, PaymentVerificationError,
     ProviderHttpResponse, ProviderNotice, ProviderRateLimited, RefundOutcome,
     _strict_pairs,
 )
@@ -27,6 +27,15 @@ from .plan_catalog import BillingRuntimePolicy
 
 
 logger = logging.getLogger(__name__)
+
+
+class ProviderRequestRejected(PaymentVerificationError):
+    """Ненулевой ответ провайдера с телом: нужен, чтобы отличить отказ от таймаута."""
+
+    def __init__(self, status: int, body: bytes):
+        super().__init__("provider request rejected")
+        self.status = status
+        self.body = body
 
 
 class ProviderTransport(Protocol):
@@ -237,6 +246,9 @@ class PlategaProvider:
                     seconds = 300
             raise ProviderRateLimited(max(1, seconds))
         if response.status != 200:
+            if 400 <= response.status < 500:
+                # Тело нужно, чтобы отличить отказ в способе оплаты от прочего.
+                raise ProviderRequestRejected(response.status, response.body)
             raise PaymentVerificationError("provider request not successful")
         return _json(response.body, 65536)
 
@@ -353,6 +365,14 @@ class PlategaProvider:
             return CheckoutSession(snapshot.order_id, reference, url, "pending", expiry)
         except asyncio.CancelledError:
             raise
+        except ProviderRequestRejected as error:
+            # Провайдер отказал явно: счёт не создан, повтор POST не поможет.
+            reason = "method_unavailable" if self._method_rejected(error) else "rejected"
+            logger.warning(
+                "Platega: провайдер отказал в создании счёта (%s, http %s)",
+                reason, error.status,
+            )
+            raise PaymentCreationRejected(reason) from None
         except Exception as error:
             # Причина без секретов: иначе отказ провайдера неотличим от таймаута.
             logger.warning(
@@ -360,6 +380,22 @@ class PlategaProvider:
                 type(error).__name__, str(error)[:120],
             )
             raise PaymentCreationUnknown("creation outcome unknown; do not repeat POST") from None
+
+    @staticmethod
+    def _method_rejected(error: "ProviderRequestRejected") -> bool:
+        """Отличает «способ оплаты не разрешён» от прочих отказов провайдера."""
+        try:
+            body = _json_any(error.body, 65536)
+        except PaymentVerificationError:
+            return False
+        if not isinstance(body, dict):
+            return False
+        if body.get("code") == "Common:VAL_0001":
+            return True
+        data = body.get("data")
+        return isinstance(data, list) and any(
+            isinstance(item, dict) and item.get("key") == "paymentMethod" for item in data
+        )
 
     async def get_payment_status(self, reference: str, *, now: float | None = None) -> VerifiedPaymentEvidence:
         reference = _uuid(reference)
@@ -393,7 +429,11 @@ class PlategaProvider:
             money = Money(gross.amount_minor - commission_minor, gross.currency)
         method = self._status_methods.get(data.get("paymentMethod")) if isinstance(data.get("paymentMethod"), str) else None
         if method is None:
-            raise PaymentVerificationError("unknown canonical method")
+            # Способ в статусе может быть новым для нас (например, после включения
+            # карт). Сумма, заказ и привязка важнее названия способа, поэтому
+            # зачисление не блокируем, но незнакомое значение фиксируем в журнале.
+            logger.warning("Platega: незнакомый способ в статусе (%s)", repr(data.get("paymentMethod"))[:32])
+            method = "unknown"
         payload = data.get("payload")
         if not isinstance(payload, str):
             raise PaymentVerificationError("canonical correlation missing")

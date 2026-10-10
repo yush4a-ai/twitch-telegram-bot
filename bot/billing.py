@@ -21,6 +21,7 @@ from .billing_models import (
 )
 from .billing_provider import (
     CheckoutSession,
+    PaymentCreationRejected,
     PaymentProvider,
     PaymentVerificationError,
     RefundOutcome,
@@ -252,6 +253,12 @@ class BillingService:
         except asyncio.CancelledError:
             await asyncio.shield(self._mark_creation_unknown(attempt_id))
             raise
+        except PaymentCreationRejected as error:
+            # Провайдер отказал явно: счёт не создан и списаний нет. Заказ
+            # закрываем, чтобы он не блокировал человеку следующую покупку.
+            await self._close_rejected_creation(attempt_id, snapshot.order_id)
+            return CheckoutResult("unavailable", snapshot.order_id,
+                                  reason_code=getattr(error, "reason", "payment_rejected"))
         except Exception:
             await self._mark_creation_unknown(attempt_id)
             return CheckoutResult("creation_unknown", snapshot.order_id)
@@ -271,6 +278,17 @@ class BillingService:
     async def _mark_creation_unknown(self, attempt_id):
         async with self._store.transaction() as conn:
             await conn.execute("UPDATE billing_payment_attempts SET state=CASE WHEN state='creating' THEN 'creation_unknown' ELSE state END WHERE attempt_id=?", (attempt_id,))
+
+    async def _close_rejected_creation(self, attempt_id: str, order_id: str) -> None:
+        """Явный отказ провайдера: попытка и заказ закрываются, деньги не списаны."""
+        at = time.time()
+        async with self._store.transaction() as conn:
+            await conn.execute(
+                "UPDATE billing_payment_attempts SET state='failed',next_reconcile_at=NULL,lease_until=NULL "
+                "WHERE attempt_id=?", (attempt_id,))
+            await conn.execute(
+                "UPDATE billing_orders SET status='cancelled',financial_status='canceled',closed_at=? "
+                "WHERE order_id=? AND status='pending'", (at, order_id))
 
     async def accept_provider_notice(self, body: bytes, headers: Mapping[str, str], *, now: float):
         self._check_now(now)
@@ -362,7 +380,11 @@ class BillingService:
                 and type(order.beneficiary_telegram_user_id) is int and order.telegram_user_id > 0
                 and ((order.plan == "viewer_plus" and order.subject == BillingSubject("viewer", str(order.telegram_user_id)) and order.broadcaster_id is None)
                      or (order.plan == "streamer_plus" and order.subject == BillingSubject("streamer", order.broadcaster_id))))
-            if (not frozen_valid or (evidence.money.amount_minor, evidence.money.currency, evidence.method) != (order.units, order.currency, order.method)
+            # Незнакомое название способа в статусе не мешает зачислению: сумма,
+            # валюта и привязка к заказу проверяются строго.
+            method_matches = evidence.method == order.method or evidence.method == "unknown"
+            if (not frozen_valid or (evidence.money.amount_minor, evidence.money.currency) != (order.units, order.currency)
+                    or not method_matches
                     or attempt.method != order.method):
                 await conn.execute(
                     "INSERT OR IGNORE INTO billing_provider_quarantine(provider,transaction_id,payload_digest,order_hint,raw_status,amount_minor,currency,method,observed_at) VALUES (?,?,?,?,?,?,?,?,?)",

@@ -21,6 +21,18 @@ class PaymentCreationUnknown(Exception):
     """An external create may have happened; do not repeat its POST."""
 
 
+class PaymentCreationRejected(Exception):
+    """Провайдер явно отказал в создании счёта: повтор не поможет.
+
+    Отказ не является неизвестным исходом: счёт не создан и списаний нет,
+    поэтому заказ закрывается, а не уходит в ручную проверку.
+    """
+
+    def __init__(self, reason: str):
+        super().__init__(reason)
+        self.reason = reason
+
+
 class ProviderRateLimited(Exception):
     def __init__(self, retry_after: float):
         super().__init__("provider rate limit")

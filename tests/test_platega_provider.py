@@ -8,7 +8,7 @@ from decimal import Decimal
 from multidict import CIMultiDict
 
 from bot.billing_models import BillingSubject, Money, ServerOrderSnapshot
-from bot.billing_provider import PaymentCreationUnknown, PaymentVerificationError, ProviderHttpResponse, ProviderRateLimited
+from bot.billing_provider import PaymentCreationRejected, PaymentCreationUnknown, PaymentVerificationError, ProviderHttpResponse, ProviderRateLimited
 from bot.platega_provider import PlategaProvider
 from bot.plan_catalog import BillingRuntimePolicy, get_product
 
@@ -125,6 +125,31 @@ class PlategaProviderTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(PaymentVerificationError):
             adapter.handle_callback(extra, headers)
 
+    async def test_provider_rejection_is_not_an_unknown_outcome(self):
+        """Отказ провайдера отличается от неизвестного исхода: повтор не нужен."""
+        rejection = {"code": "Common:VAL_0001", "type": 4001, "message": "Wrong input parameters",
+                     "data": [{"key": "paymentMethod", "message": "Card"}]}
+        adapter = provider(FakeTransport(response(rejection, status=400)))
+        with self.assertRaises(PaymentCreationRejected) as caught:
+            await adapter.create_payment(snapshot("bank_card", "viewer_plus"), ATTEMPT)
+        self.assertEqual(caught.exception.reason, "method_unavailable")
+
+        other = provider(FakeTransport(response({"message": "bad request"}, status=400)))
+        with self.assertRaises(PaymentCreationRejected) as caught_other:
+            await other.create_payment(snapshot(), ATTEMPT)
+        self.assertEqual(caught_other.exception.reason, "rejected")
+
+        broken = provider(FakeTransport(response({}, status=500)))
+        with self.assertRaises(PaymentCreationUnknown):
+            await broken.create_payment(snapshot(), ATTEMPT)
+
+    async def test_unknown_status_method_does_not_block_the_payment(self):
+        """Новое название способа в статусе не мешает зачислению оплаты."""
+        adapter = provider(FakeTransport(response(status_body(paymentMethod="SOMETHING_NEW"))))
+        evidence = await adapter.get_payment_status(TRANSACTION)
+        self.assertEqual((evidence.method, evidence.status), ("unknown", "confirmed"))
+        self.assertEqual(evidence.money.amount_minor, 15000)
+
     async def test_provider_commission_is_subtracted_before_matching_the_order(self):
         # Покупатель платит сумму заказа плюс комиссию: заказу соответствует
         # сумма без комиссии, иначе подтверждённая оплата уходит в ручную проверку.
@@ -210,7 +235,7 @@ class PlategaProviderTests(unittest.IsolatedAsyncioTestCase):
             (ORDER, ATTEMPT, Money(15000, "RUB"), "sbp", "confirmed"))
         self.assertEqual(transport.calls[0][:2], ("GET", "/transaction/" + TRANSACTION))
         for body in (status_body(mechantId="foreign"), status_body(id=MERCHANT),
-                     status_body(paymentMethod="UNKNOWN"), status_body(status="SOMETHING_NEW"),
+                     status_body(status="SOMETHING_NEW"),
                      status_body(paymentDetails={"amount": True, "currency": "RUB"}),
                      status_body(paymentDetails={"amount": 150.001, "currency": "RUB"}),
                      status_body(paymentDetails={"amount": 150, "currency": "USD"}),

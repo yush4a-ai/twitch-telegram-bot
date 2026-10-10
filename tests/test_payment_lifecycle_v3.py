@@ -9,7 +9,7 @@ from pathlib import Path
 
 from bot.billing import BillingService
 from bot.billing_models import AccessPeriodPolicy, BillingSubject, Money, PaymentAttempt, ServerOrderSnapshot, VerifiedPaymentEvidence
-from bot.billing_provider import CheckoutSession, ProviderNotice, ProviderRateLimited, RefundOutcome
+from bot.billing_provider import CheckoutSession, PaymentCreationRejected, ProviderNotice, ProviderRateLimited, RefundOutcome
 from bot.billing_store import BillingStore
 from bot.database import Database
 from bot.plan_catalog import BillingRuntimePolicy, get_product
@@ -109,6 +109,19 @@ class PaymentLifecycleV3Tests(PaymentFixture):
         with self.assertRaises(PermissionError):
             await self.service.prepare_payment(202, "streamer_plus", "sbp", "foreign", now=100)
         self.assertEqual(self.provider.calls, [])
+
+    async def test_rejected_creation_closes_the_order_instead_of_parking_it(self):
+        """Явный отказ провайдера: заказ закрыт, повторная покупка не блокируется."""
+        self.provider.create_error = PaymentCreationRejected("method_unavailable")
+        result = await self.service.prepare_payment(101, "viewer_plus", "sbp", "rejected-1", now=100)
+
+        self.assertEqual((result.state, result.reason_code), ("unavailable", "method_unavailable"))
+        order = await self.db.get_billing_order(result.order_id)
+        self.assertEqual((order.status, order.financial_status), ("cancelled", "canceled"))
+        attempt = await (await self.db.conn.execute(
+            "SELECT state FROM billing_payment_attempts WHERE order_id=?", (result.order_id,))).fetchone()
+        self.assertEqual(attempt[0], "failed")
+        self.assertEqual(await self.count("entitlement_grants"), 0)
 
     async def test_callback_before_create_response_and_duplicate_apply_have_one_grant(self):
         async def callback(snapshot, attempt_id):

@@ -112,6 +112,7 @@ def checkout_view(result, back: str):
 def external_checkout_view(result, back: str, method: str):
     """Что показать после попытки создать счёт через банковский канал."""
     state = getattr(result, "state", "unavailable")
+    reason = getattr(result, "reason_code", None)
     hosted = getattr(result, "hosted_url", None)
     label = METHOD_LABELS.get(method, "Банковский канал")
     if state == "pending" and hosted:
@@ -124,6 +125,14 @@ def external_checkout_view(result, back: str, method: str):
         text = ("<b>Проверяем платёж</b>\n\n"
                 "Платёжный сервис не подтвердил счёт сразу. Повторно счёт не создаём, "
                 "чтобы не списать дважды: статус проверит сверка, доступ включится после оплаты.")
+    elif reason == "method_unavailable":
+        text = ("<b>Способ пока недоступен</b>\n\n"
+                "Платёжный сервис не разрешает этот способ оплаты. Выберите СБП или звёзды."
+                "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")
+    elif reason == "payment_rejected":
+        text = ("<b>Способ отклонён</b>\n\n"
+                "Платёжный сервис отклонил оплату этим способом. Попробуйте другой способ."
+                "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")
     else:
         text = ("<b>Оплата недоступна</b>\n\n" + PAYMENT_UNAVAILABLE_MESSAGE
                 + "\n\n<blockquote>Платёж не создан. Деньги не списаны.</blockquote>")

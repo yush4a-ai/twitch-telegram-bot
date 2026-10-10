@@ -16,6 +16,8 @@ export function availabilityText(reason, fallback) {
   if (reason === 'payment_in_progress') return 'У вас уже есть неоплаченный счёт. Он действует 15 минут: оплатите его в чате с ботом или подождите и попробуйте снова.';
   if (reason === 'already_active') return 'Подписка уже действует, продлевать не нужно.';
   if (reason === 'upgrade_unapproved') return 'Смена тарифа пока недоступна. Напишите в поддержку: /paysupport';
+  if (reason === 'method_unavailable') return 'Этот способ оплаты пока недоступен у платёжного сервиса. Выберите другой способ.';
+  if (reason === 'payment_rejected') return 'Платёжный сервис отклонил оплату этим способом. Попробуйте другой способ.';
   if (typeof fallback === 'string' && fallback) return fallback;
   return 'Оплата сейчас недоступна.';
 }
