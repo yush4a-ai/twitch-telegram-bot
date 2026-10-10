@@ -118,7 +118,15 @@ def assert_expected_additions(before, after, expected):
             if added:
                 additions['columns'][name] = added
     if additions != expected:
-        raise ValueError('Unapproved schema additions')
+        # Показываем, что именно не утверждено: без этого непонятно, регрессия
+        # это или просто устаревший список.
+        unexpected = {
+            "tables": sorted(name for name, columns in additions["tables"].items()
+                             if expected["tables"].get(name) != columns),
+            "columns": sorted(name for name, columns in additions["columns"].items()
+                              if expected["columns"].get(name) != columns),
+        }
+        raise ValueError("Unapproved schema additions: " + json.dumps(unexpected, sort_keys=True)[:600])
     return additions
 
 
