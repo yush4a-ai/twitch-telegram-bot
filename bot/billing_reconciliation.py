@@ -73,8 +73,10 @@ class PaymentReconciler:
             attempt = await (await conn.execute(
                 "SELECT attempt_id,provider_reference,reconcile_count FROM billing_payment_attempts "
                 "WHERE provider=? AND provider_reference IS NOT NULL AND state IN ('pending','reconciling','creation_unknown') "
-                "AND next_reconcile_at<=? AND (lease_until IS NULL OR lease_until<=?) "
-                "ORDER BY next_reconcile_at,created_at LIMIT 1",
+                "AND order_id IN (SELECT order_id FROM billing_orders WHERE status='pending') "
+                "AND COALESCE(next_reconcile_at,created_at)<=? "
+                "AND (lease_until IS NULL OR lease_until<=?) "
+                "ORDER BY COALESCE(next_reconcile_at,created_at),created_at LIMIT 1",
                 (service._provider.provider_id, now, now),
             )).fetchone()
             recheck = False
@@ -83,6 +85,7 @@ class PaymentReconciler:
                 attempt = await (await conn.execute(
                     "SELECT attempt_id,provider_reference,reconcile_count FROM billing_payment_attempts "
                     "WHERE provider=? AND provider_reference IS NOT NULL AND state='manual_review' "
+                    "AND order_id IN (SELECT order_id FROM billing_orders WHERE status='pending') "
                     "AND next_reconcile_at IS NOT NULL AND next_reconcile_at<=? AND reconcile_count<? "
                     "AND (lease_until IS NULL OR lease_until<=?) "
                     "ORDER BY next_reconcile_at LIMIT 1",

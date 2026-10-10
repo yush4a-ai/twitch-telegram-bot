@@ -229,6 +229,18 @@ class PaymentLifecycleV3Tests(PaymentFixture):
         self.assertEqual(len(self.provider.get_calls), 8)
         self.assertEqual(await self.count("entitlement_grants"), 0)
 
+    async def test_unknown_creation_is_retried_by_reconciliation(self):
+        """Неизвестный исход создания с известной ссылкой обязан перепроверяться."""
+        await self.checkout()
+        await self.service._mark_creation_unknown("attempt-missing")
+        await self.db.conn.execute(
+            "UPDATE billing_payment_attempts SET next_reconcile_at=NULL,state='creation_unknown'")
+        await self.db.conn.commit()
+
+        summary = await self.service.reconcile_due(now=101, limit=10)
+        self.assertEqual(summary.attempted, 1)
+        self.assertEqual(await self.count("entitlement_grants"), 1)
+
     async def test_manual_review_is_rechecked_and_the_paid_order_is_granted_later(self):
         """Ручная проверка не тупик: когда сверка сходится позже, доступ выдаётся."""
         await self.checkout()

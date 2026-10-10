@@ -276,8 +276,13 @@ class BillingService:
         return CheckoutResult("pending", snapshot.order_id, checkout.hosted_url)
 
     async def _mark_creation_unknown(self, attempt_id):
+        # Ставим время перепроверки: иначе попытка с неизвестным исходом создания
+        # не попадёт в сверку и оплата останется неподтверждённой навсегда.
+        retry_at = time.time() + 5
         async with self._store.transaction() as conn:
-            await conn.execute("UPDATE billing_payment_attempts SET state=CASE WHEN state='creating' THEN 'creation_unknown' ELSE state END WHERE attempt_id=?", (attempt_id,))
+            await conn.execute(
+                "UPDATE billing_payment_attempts SET state=CASE WHEN state='creating' THEN 'creation_unknown' ELSE state END,"
+                "next_reconcile_at=COALESCE(next_reconcile_at,?) WHERE attempt_id=?", (retry_at, attempt_id))
 
     async def _close_rejected_creation(self, attempt_id: str, order_id: str) -> None:
         """Явный отказ провайдера: попытка и заказ закрываются, деньги не списаны."""
