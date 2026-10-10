@@ -3,6 +3,7 @@
 import json
 import unittest
 from dataclasses import replace
+from decimal import Decimal
 
 from multidict import CIMultiDict
 
@@ -94,6 +95,31 @@ class PlategaProviderTests(unittest.IsolatedAsyncioTestCase):
                                             "status": "PENDING", "expiresIn": "00:10:00"}))
         self.assertEqual((await provider(transport).create_payment(snapshot(), ATTEMPT)).hosted_url, "https://pay.platega.io/pay")
         self.assertEqual(transport.calls[0][1], "/transaction/process")
+
+    async def test_provider_commission_is_subtracted_before_matching_the_order(self):
+        # Покупатель платит сумму заказа плюс комиссию: заказу соответствует
+        # сумма без комиссии, иначе подтверждённая оплата уходит в ручную проверку.
+        body = status_body(paymentDetails={"amount": 162.75, "currency": "RUB"},
+                           comission=12.75)
+        evidence = await provider(FakeTransport(response(body))).get_payment_status(TRANSACTION)
+        self.assertEqual((evidence.money.amount_minor, evidence.money.currency), (15000, "RUB"))
+
+        plain = await provider(FakeTransport(response(status_body()))).get_payment_status(TRANSACTION)
+        self.assertEqual(plain.money.amount_minor, 15000)
+
+        # Streamer Plus за 300 ₽: та же комиссия 8,5% (25,50 ₽), заказу
+        # соответствует 300 ₽. Проверка не требует реальной оплаты.
+        streamer = status_body(paymentDetails={"amount": 325.5, "currency": "RUB"},
+                               comission=25.5)
+        adapter = provider(FakeTransport(response(streamer)))
+        evidence = await adapter.get_payment_status(TRANSACTION)
+        self.assertEqual(evidence.money.amount_minor, 30000)
+
+        for bad in (200.0, -1.0, "12.75"):
+            with self.subTest(commission=bad):
+                broken = provider(FakeTransport(response(status_body(comission=bad))))
+                with self.assertRaises(PaymentVerificationError):
+                    await broken.get_payment_status(TRANSACTION)
 
     async def test_provider_merchant_id_inside_the_hosted_link_is_allowed(self):
         # Platega сама добавляет идентификатор мерчанта в ссылку оплаты: это не

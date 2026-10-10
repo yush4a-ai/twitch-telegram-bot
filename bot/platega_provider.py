@@ -373,7 +373,24 @@ class PlategaProvider:
         details = data.get("paymentDetails")
         if not isinstance(details, dict) or set(details) != {"amount", "currency"}:
             raise PaymentVerificationError("canonical payment details missing")
-        money = _money(details["amount"], details["currency"])
+        gross = _money(details["amount"], details["currency"])
+        # Покупатель платит сумму заказа плюс комиссию провайдера, а в статусе
+        # приходит общая сумма. Для сверки с заказом вычитаем комиссию, иначе
+        # подтверждённая оплата навсегда уходила бы в ручную проверку.
+        commission = data.get("comission")
+        if commission in (None, 0):
+            money = gross
+        else:
+            if (type(commission) not in (int, Decimal)
+                    or not Decimal(commission).is_finite() or Decimal(commission) < 0):
+                raise PaymentVerificationError("invalid provider commission")
+            commission_minor = Decimal(commission) * 100
+            if commission_minor != commission_minor.to_integral_value():
+                raise PaymentVerificationError("invalid provider commission")
+            commission_minor = int(commission_minor)
+            if commission_minor > gross.amount_minor:
+                raise PaymentVerificationError("invalid provider commission")
+            money = Money(gross.amount_minor - commission_minor, gross.currency)
         method = self._status_methods.get(data.get("paymentMethod")) if isinstance(data.get("paymentMethod"), str) else None
         if method is None:
             raise PaymentVerificationError("unknown canonical method")
