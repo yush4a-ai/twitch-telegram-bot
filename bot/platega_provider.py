@@ -260,7 +260,9 @@ class PlategaProvider:
         except ValueError as error:
             raise PaymentVerificationError("invalid hosted URL") from error
         decoded = unquote(value)
-        if not valid or self._secret in decoded or self._merchant in decoded or "\\" in decoded:
+        # Идентификатор мерчанта провайдер вставляет в ссылку оплаты сам: это не
+        # секрет и не повод отбрасывать рабочий счёт. Секрет в ссылке недопустим.
+        if not valid or self._secret in decoded or "\\" in decoded:
             raise PaymentVerificationError("invalid hosted URL")
         return value
 

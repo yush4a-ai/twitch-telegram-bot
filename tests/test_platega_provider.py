@@ -95,6 +95,17 @@ class PlategaProviderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await provider(transport).create_payment(snapshot(), ATTEMPT)).hosted_url, "https://pay.platega.io/pay")
         self.assertEqual(transport.calls[0][1], "/transaction/process")
 
+    async def test_provider_merchant_id_inside_the_hosted_link_is_allowed(self):
+        # Platega сама добавляет идентификатор мерчанта в ссылку оплаты: это не
+        # секрет, и рабочий счёт нельзя из-за него отбрасывать.
+        transport = FakeTransport(response({"transactionId": TRANSACTION,
+            "redirect": "https://pay.platega.io/checkout?mh=" + MERCHANT,
+            "status": "PENDING", "expiresIn": ""}))
+        checkout = await provider(transport).create_payment(snapshot(), ATTEMPT)
+        self.assertEqual(checkout.hosted_url, "https://pay.platega.io/checkout?mh=" + MERCHANT)
+        self.assertNotIn(SECRET, checkout.hosted_url)
+        self.assertEqual(checkout.checkout_expires_at, 1000)
+
     async def test_schema_auth_and_unknown_creation_fail_closed(self):
         for bad_url in ("http://pay.platega.io/", "https://pay.platega.io.attacker.test/",
                         "https://user:password@pay.platega.io/", "https://127.0.0.1/pay", "javascript:alert(1)",
