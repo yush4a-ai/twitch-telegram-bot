@@ -1,10 +1,14 @@
 """Callback провайдера: локальный контракт или публичный маршрут по допуску."""
 
 import ipaddress
+import logging
 import sqlite3
 import time
 
 from aiohttp import web
+
+
+logger = logging.getLogger(__name__)
 
 
 def install_payment_routes(app: web.Application, service=None, *,
@@ -43,7 +47,12 @@ def install_payment_routes(app: web.Application, service=None, *,
                 if len(body) > 8192:
                     return web.json_response({"error": "body_too_large"}, status=413)
             receipt = await service.accept_provider_notice(bytes(body), request.headers, now=time.time())
-        except (ValueError, PermissionError):
+        except (ValueError, PermissionError) as error:
+            # Причина без значений: иначе отказ неотличим от чужого запроса.
+            logger.warning(
+                "Уведомление провайдера отклонено: %s: %s",
+                type(error).__name__, str(error)[:120],
+            )
             return web.json_response({"error": "invalid_callback"}, status=403)
         except (OverflowError, sqlite3.Error, RuntimeError):
             return web.json_response({"error": "callback_not_stored"}, status=503)

@@ -395,14 +395,18 @@ class PlategaProvider:
         if (not merchant.isascii() or not secret.isascii()
                 or not hmac.compare_digest(merchant, self._merchant)
                 or not hmac.compare_digest(secret, self._secret)):
+            # Имена заголовков, без значений: иначе отказ неотличим от чужого запроса.
+            logger.warning("Platega callback: отклонён по заголовкам (%s)", sorted(normalized))
             raise PaymentVerificationError("invalid provider authentication")
         data = _json(body, 8192)
         if not {"id", "amount", "currency", "status"} <= set(data) <= {"id", "amount", "currency", "status", "paymentMethod"}:
+            logger.warning("Platega callback: неожиданные поля (%s)", sorted(data))
             raise PaymentVerificationError("invalid callback fields")
         transaction = _uuid(data["id"])
         _money(data["amount"], data["currency"])
         status = data["status"]
         if not isinstance(status, str) or status not in {"CONFIRMED", "CANCELED", "CHARGEBACKED"}:
+            logger.warning("Platega callback: неизвестный статус (%s)", repr(status)[:32])
             raise PaymentVerificationError("unknown callback status")
         if "paymentMethod" in data and (type(data["paymentMethod"]) is not int or data["paymentMethod"] not in _METHODS.values()):
             raise PaymentVerificationError("invalid callback method")

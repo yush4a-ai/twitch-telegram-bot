@@ -614,7 +614,7 @@ async def _run_billing_reconcile(service, *extra_services, interval: float = 300
                     if summary.attempted:
                         logger.info(
                             "Сверка платежей: проверено %s, выдано %s, на проверке %s",
-                            summary.attempted, summary.applied, summary.manual,
+                            summary.attempted, summary.applied, summary.manual_review,
                         )
                 # Оплата могла подтвердиться, а доступ не выдаться (например, разошлись
                 # условия заказа): такие заказы повторяем, но не чаще, чем раз в две
