@@ -300,10 +300,14 @@ class AdminSnapshot:
             interval = float(preview.get("interval_seconds") or 300.0)
             stale_after = max(600.0, interval * 3)
             success_age = preview.get("last_success_age_seconds")
+            observation_age = preview.get("latest_observation_age_seconds")
             failures = int(preview.get("consecutive_provider_failures") or 0)
             preview_mode = "smart" if preview.get("manager_running") else "simple"
             if success_age is not None and success_age <= stale_after:
                 preview_state = "ok"
+            elif observation_age is None or observation_age > stale_after:
+                # Эфиров не было: собирать превью не из чего, и это не сбой.
+                preview_state = "unknown"
             elif failures >= 3 or preview.get("last_error"):
                 preview_state = "degraded"
             elif success_age is None:

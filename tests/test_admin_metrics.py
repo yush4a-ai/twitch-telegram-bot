@@ -155,11 +155,12 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse([item for item in result["attention"] if item["kind"] == "preview"])
 
     async def test_preview_degraded_when_builds_stopped_for_too_long(self):
-        """Сбой — это когда сборок нет дольше трёх циклов."""
+        """Сбой — это когда сборок нет дольше трёх циклов, а эфиры идут."""
         self.preview.health_snapshot.return_value.update({
             "enabled": True,
             "manager_running": True,
             "last_success_age_seconds": 4000.0,
+            "latest_observation_age_seconds": 60.0,
             "interval_seconds": 300,
             "consecutive_provider_failures": 0,
             "last_error": None,
@@ -168,6 +169,26 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["preview"]["state"], "degraded")
         detail = next(item["detail"] for item in result["attention"] if item["kind"] == "preview")
         self.assertIn("ч назад", detail)
+
+    async def test_preview_is_not_a_failure_while_no_stream_is_live(self):
+        """Без эфиров собирать нечего: владелец не должен видеть ложный сбой."""
+        self.preview.health_snapshot.return_value.update({
+            "enabled": True,
+            "manager_running": True,
+            "last_success_age_seconds": 4000.0,
+            "latest_observation_age_seconds": None,
+            "interval_seconds": 300,
+            "consecutive_provider_failures": 0,
+            "last_error": None,
+        })
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["state"], "unknown")
+        self.assertFalse([item for item in result["attention"] if item["kind"] == "preview"])
+
+        self.preview.health_snapshot.return_value["latest_observation_age_seconds"] = 30 * 3600.0
+        result = await self.build().collect()
+        self.assertEqual(result["preview"]["state"], "unknown")
+        self.assertFalse([item for item in result["attention"] if item["kind"] == "preview"])
 
     async def test_preview_age_uses_manager_monotonic_clock(self):
         manager = PreviewManager(
