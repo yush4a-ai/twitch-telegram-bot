@@ -96,6 +96,35 @@ class PlategaProviderTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await provider(transport).create_payment(snapshot(), ATTEMPT)).hosted_url, "https://pay.platega.io/pay")
         self.assertEqual(transport.calls[0][1], "/transaction/process")
 
+    def test_callback_accepts_the_provider_payload_binding(self):
+        """Провайдер присылает нашу привязку к заказу: она проверяется, а не отбрасывается."""
+        adapter = provider(FakeTransport())
+        headers = {"X-MerchantId": MERCHANT, "X-Secret": SECRET}
+        body = json.dumps({
+            "id": TRANSACTION, "amount": 162.75, "currency": "RUB",
+            "status": "CONFIRMED", "paymentMethod": 2,
+            "payload": json.dumps({"order_id": ORDER, "attempt_id": ATTEMPT}, separators=(",", ":")),
+        }).encode()
+        notice = adapter.handle_callback(body, headers)
+        self.assertEqual((notice.transaction_id, notice.raw_status), (TRANSACTION, "CONFIRMED"))
+
+        for bad_payload in ("not json", json.dumps({"order_id": ORDER}),
+                            json.dumps({"order_id": "x", "attempt_id": ATTEMPT})):
+            with self.subTest(payload=bad_payload):
+                broken = json.dumps({
+                    "id": TRANSACTION, "amount": 150, "currency": "RUB",
+                    "status": "CONFIRMED", "payload": bad_payload,
+                }).encode()
+                with self.assertRaises(PaymentVerificationError):
+                    adapter.handle_callback(broken, headers)
+
+        extra = json.dumps({
+            "id": TRANSACTION, "amount": 150, "currency": "RUB",
+            "status": "CONFIRMED", "unexpected": 1,
+        }).encode()
+        with self.assertRaises(PaymentVerificationError):
+            adapter.handle_callback(extra, headers)
+
     async def test_provider_commission_is_subtracted_before_matching_the_order(self):
         # Покупатель платит сумму заказа плюс комиссию: заказу соответствует
         # сумма без комиссии, иначе подтверждённая оплата уходит в ручную проверку.

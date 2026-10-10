@@ -416,9 +416,18 @@ class PlategaProvider:
             logger.warning("Platega callback: отклонён по заголовкам (%s)", sorted(normalized))
             raise PaymentVerificationError("invalid provider authentication")
         data = _json(body, 8192)
-        if not {"id", "amount", "currency", "status"} <= set(data) <= {"id", "amount", "currency", "status", "paymentMethod"}:
+        allowed = {"id", "amount", "currency", "status", "paymentMethod", "payload"}
+        if not {"id", "amount", "currency", "status"} <= set(data) <= allowed:
             logger.warning("Platega callback: неожиданные поля (%s)", sorted(data))
             raise PaymentVerificationError("invalid callback fields")
+        if "payload" in data:
+            # Провайдер возвращает нашу привязку к заказу: проверяем её, а не
+            # доверяем как есть.
+            correlation = _json(data["payload"].encode("utf-8"), 512) if isinstance(data["payload"], str) else None
+            if (correlation is None or set(correlation) != {"order_id", "attempt_id"}
+                    or any(not isinstance(value, str) or _HEX_ID.fullmatch(value) is None
+                           for value in correlation.values())):
+                raise PaymentVerificationError("invalid callback correlation")
         transaction = _uuid(data["id"])
         _money(data["amount"], data["currency"])
         status = data["status"]
