@@ -6918,6 +6918,22 @@ class Database:
             for row in await cursor.fetchall()
         ]
 
+    async def billing_attention(self, now: float | None = None) -> dict[str, int]:
+        """Оплаты, которые требуют внимания владельца, а не тихого ожидания.
+
+        Ручная проверка означает, что подтверждение провайдера не сошлось с
+        заказом: человек мог заплатить, а доступ не выдан. Молчать об этом нельзя.
+        """
+        snapshot_at = time.time() if now is None else now
+        cursor = await self.conn.execute(
+            "SELECT "
+            "(SELECT COUNT(*) FROM billing_payment_attempts WHERE state='manual_review'), "
+            "(SELECT COUNT(*) FROM billing_provider_quarantine WHERE observed_at>=?)",
+            (snapshot_at - 86400,),
+        )
+        manual_review, quarantined = await cursor.fetchone()
+        return {"manual_review": int(manual_review or 0), "quarantined_24h": int(quarantined or 0)}
+
     async def health_snapshot(self, now: float | None = None) -> dict[str, int | float | None]:
         """Дешёвая read-only диагностика очередей и SQLite storage.
 

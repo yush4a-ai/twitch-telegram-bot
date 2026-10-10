@@ -229,6 +229,31 @@ class PaymentLifecycleV3Tests(PaymentFixture):
         self.assertEqual(len(self.provider.get_calls), 8)
         self.assertEqual(await self.count("entitlement_grants"), 0)
 
+    async def test_manual_review_is_rechecked_and_the_paid_order_is_granted_later(self):
+        """Ручная проверка не тупик: когда сверка сходится позже, доступ выдаётся."""
+        await self.checkout()
+        good = self.provider.evidence[TX]
+        self.provider.evidence[TX] = TimeoutError()
+        at = 101
+        for _ in range(12):
+            await self.service.reconcile_due(now=at, limit=10)
+            state, count, next_at = await (await self.db.conn.execute(
+                "SELECT state,reconcile_count,next_reconcile_at FROM billing_payment_attempts")).fetchone()
+            if state == "manual_review":
+                break
+            at = max(at + 1, int(next_at or 0)) + 1
+        self.assertEqual((state, count), ("manual_review", 8))
+        self.assertIsNotNone(next_at)
+        self.assertEqual(await self.count("entitlement_grants"), 0)
+        # Владелец должен видеть застрявшую оплату, а не узнавать о ней случайно.
+        self.assertEqual((await self.db.billing_attention(now=at))["manual_review"], 1)
+
+        self.provider.evidence[TX] = good
+        summary = await self.service.reconcile_due(now=next_at, limit=10)
+        self.assertEqual(summary.attempted, 1)
+        self.assertEqual(await self.count("entitlement_grants"), 1)
+        self.assertEqual((await self.db.get_billing_order(good.order_id)).status, "paid")
+
     async def test_apply_transaction_failure_rolls_back_fact_grant_order_and_reopens(self):
         await self.checkout()
         await self.db.conn.execute("CREATE TEMP TRIGGER fail_paid BEFORE INSERT ON entitlement_grants BEGIN SELECT RAISE(ABORT,'paid failure'); END")

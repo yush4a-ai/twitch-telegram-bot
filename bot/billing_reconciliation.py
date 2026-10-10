@@ -10,6 +10,12 @@ from .billing_provider import PaymentVerificationError, ProviderRateLimited
 
 BACKOFF = (5, 15, 30, 60, 120, 300, 300, 300)
 
+# Ручная проверка не должна быть тупиком: подтверждённая оплата обязана дойти до
+# человека, даже если первый раз сверка не сошлась (например, изменились правила
+# суммы или провайдер отдал неполные данные). Перепроверяем редко и не бесконечно.
+MANUAL_RECHECK_SECONDS = 3600
+MANUAL_RECHECK_LIMIT = 24
+
 
 class PaymentReconciler:
     def __init__(self, service):
@@ -71,11 +77,24 @@ class PaymentReconciler:
                 "ORDER BY next_reconcile_at,created_at LIMIT 1",
                 (service._provider.provider_id, now, now),
             )).fetchone()
+            recheck = False
+            if attempt is None:
+                # Отложенная перепроверка того, что ушло в ручную проверку.
+                attempt = await (await conn.execute(
+                    "SELECT attempt_id,provider_reference,reconcile_count FROM billing_payment_attempts "
+                    "WHERE provider=? AND provider_reference IS NOT NULL AND state='manual_review' "
+                    "AND next_reconcile_at IS NOT NULL AND next_reconcile_at<=? AND reconcile_count<? "
+                    "AND (lease_until IS NULL OR lease_until<=?) "
+                    "ORDER BY next_reconcile_at LIMIT 1",
+                    (service._provider.provider_id, now, MANUAL_RECHECK_LIMIT, now),
+                )).fetchone()
+                recheck = attempt is not None
             if attempt is None:
                 return None
             attempt_id, reference, count = attempt
-            if count >= 8:
-                await conn.execute("UPDATE billing_payment_attempts SET state='manual_review',lease_until=NULL,next_reconcile_at=NULL WHERE attempt_id=?", (attempt_id,))
+            if not recheck and count >= 8:
+                await conn.execute("UPDATE billing_payment_attempts SET state='manual_review',lease_until=NULL,next_reconcile_at=? WHERE attempt_id=?",
+                    (now + MANUAL_RECHECK_SECONDS, attempt_id))
                 return None
             await conn.execute("UPDATE billing_payment_attempts SET state='reconciling',reconcile_count=?,lease_until=? WHERE attempt_id=?", (count+1, now+10, attempt_id))
             return (None, reference, None, count+1, attempt_id)
@@ -89,7 +108,13 @@ class PaymentReconciler:
                 attempt_id = candidate.attempt_id
         if state == "pending" and count >= 8:
             state = "manual_review"
-        next_at = now + (delay if delay is not None else BACKOFF[min(count-1, 7)]) if state == "pending" else None
+        if state == "pending":
+            next_at = now + (delay if delay is not None else BACKOFF[min(count-1, 7)])
+        elif state == "manual_review" and key is None and count < MANUAL_RECHECK_LIMIT:
+            # Попытка вернётся на перепроверку: иначе оплата зависнет навсегда.
+            next_at = now + MANUAL_RECHECK_SECONDS
+        else:
+            next_at = None
         async with service._store.transaction() as conn:
             if key is not None:
                 await conn.execute("UPDATE billing_provider_inbox SET state=?,next_reconcile_at=?,lease_until=NULL WHERE provider=? AND event_key=?", (state, next_at, service._provider.provider_id, key))

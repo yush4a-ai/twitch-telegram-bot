@@ -70,6 +70,7 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         self.db.count_active_since = AsyncMock(return_value=7)
         self.db.count_first_seen_since = AsyncMock(return_value=3)
         self.db.activity_by_day = AsyncMock(return_value=[{"date": 0.0, "users": 2}])
+        self.db.billing_attention = AsyncMock(return_value={"manual_review": 0, "quarantined_24h": 0})
         self.poller = Mock(health_snapshot=Mock(return_value={"running": True, "stopping": False, "last_successful_cycle_age_seconds": 2.0, "stale_after_seconds": 180.0, "last_cycle_duration_seconds": 0.8, "last_cycle_error": None}))
         self.eventsub = Mock(health_snapshot=Mock(return_value={"running": True, "configured_logins": 1, "ready_logins": 1, "last_error": None}))
         self.tokens = Mock(health_snapshot=Mock(return_value={"auth_blocked_logins": 0}))
@@ -82,6 +83,21 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
             db_path=":memory:", telegram_polling_provider=lambda: polling,
             environment="staging", directory=directory,
         )
+
+    async def test_manual_review_payments_raise_attention(self):
+        """Оплата, застрявшая в ручной проверке, не должна быть незаметной."""
+        self.db.billing_attention = AsyncMock(return_value={"manual_review": 2, "quarantined_24h": 1})
+        result = await self.build().collect()
+
+        self.assertEqual(result["billing"]["manual_review"], 2)
+        item = next(item for item in result["attention"] if item["kind"] == "billing")
+        self.assertIn("2", item["title"])
+
+    async def test_no_manual_review_means_no_billing_attention(self):
+        result = await self.build().collect()
+
+        self.assertEqual(result["billing"]["manual_review"], 0)
+        self.assertFalse([item for item in result["attention"] if item["kind"] == "billing"])
 
     async def test_separate_states_and_unknown_delivery(self):
         result = await self.build().collect()

@@ -101,9 +101,17 @@ def _msk_midnight(now: float) -> float:
 
 def _attention(queues: dict | None, errors: dict, preview_state: str | None,
                eventsub: dict | None = None, blocked_logins: list[str] | None = None,
-               preview_age: float | None = None) -> list[dict]:
+               preview_age: float | None = None, billing: dict | None = None) -> list[dict]:
     """До трёх проблем, отсортированных по влиянию на людей."""
     items: list[dict] = []
+    if billing and (billing.get("manual_review") or 0) > 0:
+        items.append({
+            "kind": "billing",
+            "severity": "warn",
+            "title": f"Оплат на ручной проверке: {billing['manual_review']}",
+            "detail": "Подтверждение оплаты не сошлось с заказом. Сверка повторит проверку; "
+                      "если доступ не выдан, посмотрите журнал платежей.",
+        })
     if errors.get("database"):
         items.append({
             "kind": "database",
@@ -346,6 +354,13 @@ class AdminSnapshot:
             funnel = None
             database_failed = True
 
+        billing = None
+        if callable(getattr(self._db, "billing_attention", None)):
+            try:
+                billing = await asyncio.wait_for(self._db.billing_attention(now), 2.0)
+            except Exception:
+                billing = None
+
         resources, self._previous_cpu = _resources(self._db_path, self._previous_cpu)
         if queues is not None:
             resources["db_file_bytes"] = queues.get("db_file_bytes")
@@ -447,9 +462,11 @@ class AdminSnapshot:
             "backup": backup,
             "deliveries": deliveries,
             "activity": activity,
+            "billing": billing,
             "attention": _attention(
                 queues, errors, preview_state, eventsub, blocked_logins,
                 preview_age=(preview.get("last_success_age_seconds") if preview else None),
+                billing=billing,
             ),
             "errors": errors,
             "resources": resources,
