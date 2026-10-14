@@ -64,6 +64,11 @@ from bot.oauth import (
     evaluate_runtime_health,
 )
 from bot.poller import StreamPoller, TelegramChannelUsernameCache
+from bot.polling_policy import (
+    POLLING_RESTART_DELAY_SECONDS,
+    POLLING_RESTART_LIMIT,
+    should_restart_polling,
+)
 from bot.notification_queue import NotificationQueue
 from bot.notification_worker import NotificationWorker
 from bot.broadcast_worker import BroadcastWorker
@@ -1127,21 +1132,36 @@ async def main() -> None:
                 await _with_startup_retry(
                     lambda: bot.delete_webhook(drop_pending_updates=False), "Удаление webhook"
                 )
-                polling_task = asyncio.create_task(
-                    dp.start_polling(bot, close_bot_session=False)
-                )
-                done, _pending = await asyncio.wait(
-                    {polling_task, poller_task, follow_listener_task},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                for task, name in (
-                    (poller_task, "StreamPoller"),
-                    (follow_listener_task, "FollowEventListener"),
-                ):
-                    if task in done:
-                        await task
-                        raise RuntimeError(f"{name} неожиданно завершился")
-                await polling_task
+                polling_restarts = 0
+                while True:
+                    polling_task = asyncio.create_task(
+                        dp.start_polling(bot, close_bot_session=False)
+                    )
+                    done, _pending = await asyncio.wait(
+                        {polling_task, poller_task, follow_listener_task},
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    for task, name in (
+                        (poller_task, "StreamPoller"),
+                        (follow_listener_task, "FollowEventListener"),
+                    ):
+                        if task in done:
+                            await task
+                            raise RuntimeError(f"{name} неожиданно завершился")
+                    error = None
+                    if polling_task.done() and not polling_task.cancelled():
+                        error = polling_task.exception()
+                    if error is None:
+                        break
+                    polling_restarts += 1
+                    if not should_restart_polling(error, polling_restarts):
+                        raise error
+                    logger.error(
+                        "Приём апдейтов упал (%s); перезапуск %s/%s через %sс",
+                        type(error).__name__, polling_restarts,
+                        POLLING_RESTART_LIMIT, POLLING_RESTART_DELAY_SECONDS,
+                    )
+                    await asyncio.sleep(POLLING_RESTART_DELAY_SECONDS)
             finally:
                 # Draining начался: снимаем provider, чтобы /healthz сразу отдавал
                 # 503 и балансировщик перестал считать инстанс здоровым, пока

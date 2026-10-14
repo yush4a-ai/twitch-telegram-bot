@@ -1,5 +1,7 @@
 """Durable ingress; ordinary ambiguous effects are quarantined, never guessed."""
 import asyncio
+import json
+import logging
 import signal
 from contextlib import suppress
 from aiogram import Dispatcher
@@ -7,6 +9,50 @@ from aiogram.dispatcher.dispatcher import DEFAULT_BACKOFF_CONFIG
 from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.methods import TelegramMethod
 from aiogram.types import Update
+
+
+logger = logging.getLogger(__name__)
+
+
+def dump_update(update) -> str:
+    """Сохраняет апдейт так, чтобы один странный апдейт не ронял весь приём.
+
+    Telegram иногда присылает то, что aiogram не может сериализовать (например,
+    служебный объект `Default` внутри поля). Раньше это валило задачу polling, и
+    бот падал по кругу, пока апдейт не переставал приходить. Теперь такой апдейт
+    сохраняется безопасным представлением, а имена проблемных полей попадают в
+    журнал, чтобы причину было видно.
+    """
+    try:
+        return update.model_dump_json()
+    except Exception as error:
+        broken = []
+        for name in sorted(getattr(update, "model_fields_set", ()) or ()):
+            value = getattr(update, name, None)
+            if value is None:
+                continue
+            dumper = getattr(value, "model_dump_json", None)
+            if not callable(dumper):
+                continue
+            try:
+                dumper()
+            except Exception:
+                broken.append(name)
+        logger.error(
+            "Апдейт %s не сериализуется (%s); проблемные поля: %s",
+            getattr(update, "update_id", "?"), type(error).__name__,
+            ", ".join(broken) if broken else "не определены",
+        )
+        try:
+            payload = update.model_dump(mode="python")
+        except Exception:
+            payload = {"update_id": getattr(update, "update_id", None)}
+        return json.dumps({
+            "update_id": getattr(update, "update_id", None),
+            "fields": sorted(getattr(update, "model_fields_set", ()) or ()),
+            "unserializable": broken,
+            "payload": payload,
+        }, default=str, ensure_ascii=False)
 
 
 def update_kind(update):
@@ -31,7 +77,7 @@ class ReplayDispatcher(Dispatcher):
         async for update in super()._listen_updates(bot, *args, **kwargs):
             # This executes BEFORE yielding to aiogram, hence BEFORE its next offset ACK.
             await self.workflow_data['db'].receive_telegram_update(
-                bot.id, update.update_id, update_kind(update), update.model_dump_json())
+                bot.id, update.update_id, update_kind(update), dump_update(update))
             yield update
 
     async def _process_update(self, bot, update, call_answer=True, **kwargs):
@@ -41,7 +87,7 @@ class ReplayDispatcher(Dispatcher):
     async def _dispatch_durable_update(self, bot, update, call_answer=True, **kwargs):
         db = self.workflow_data['db']
         kind = update_kind(update)
-        await db.receive_telegram_update(bot.id, update.update_id, kind, update.model_dump_json())
+        await db.receive_telegram_update(bot.id, update.update_id, kind, dump_update(update))
         if not await db.claim_telegram_update(bot.id, update.update_id):
             return True
         outcome = {'failed': False}

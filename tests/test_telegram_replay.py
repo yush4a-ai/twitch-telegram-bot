@@ -1,4 +1,5 @@
 import asyncio
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,41 @@ def ordinary(uid, text='/start'):
     return Update.model_validate({'update_id': uid, 'message': {'message_id': uid,
         'date': 1700000000, 'chat': {'id': 101, 'type': 'private'},
         'from': {'id': 101, 'is_bot': False, 'first_name': 'A'}, 'text': text}})
+
+
+class DumpUpdateTests(unittest.TestCase):
+    """Один странный апдейт не должен ронять приём апдейтов целиком."""
+
+    def test_ordinary_update_round_trips(self):
+        from bot.telegram_replay import dump_update
+
+        payload = json.loads(dump_update(ordinary(7)))
+        self.assertEqual(payload['update_id'], 7)
+        self.assertEqual(payload['message']['text'], '/start')
+
+    def test_unserializable_update_is_stored_with_diagnostics(self):
+        from pydantic_core import PydanticSerializationError
+        from bot.telegram_replay import dump_update
+
+        class Broken:
+            def model_dump_json(self):
+                raise PydanticSerializationError('unknown type')
+
+        class Awkward:
+            update_id = 652
+            model_fields_set = {'update_id', 'message'}
+            message = Broken()
+
+            def model_dump_json(self):
+                raise PydanticSerializationError('unknown type')
+
+            def model_dump(self, mode='python'):
+                return {'update_id': 652, 'message': {'ok': True}}
+
+        payload = json.loads(dump_update(Awkward()))
+        self.assertEqual(payload['update_id'], 652)
+        self.assertEqual(payload['unserializable'], ['message'])
+        self.assertEqual(payload['payload']['update_id'], 652)
 
 
 class UpdateKindTests(unittest.TestCase):
