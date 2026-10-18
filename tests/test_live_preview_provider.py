@@ -364,6 +364,42 @@ class ProviderOpenTests(ProviderTestCase):
 
 
 class ArtifactFlowTests(ProviderTestCase):
+    async def test_a_broken_analyzer_still_gives_a_video(self) -> None:
+        """Разбор моментов упал — показываем последние секунды, а не фото."""
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, FakeSnapshot(sequence=1))
+        )
+        analyzer = FakeAnalyzer(RuntimeError("ffmpeg output gone"))
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
+        )
+        session, _source, _analyzer, _renderer = await self._session(
+            handle, analyzer=analyzer, renderer=renderer,
+        )
+
+        artifact = await session.create_artifact(self.request)
+
+        self.assertIsNotNone(artifact)
+        self.assertEqual(len(renderer.calls), 1)
+
+    async def test_a_failed_analysis_status_still_gives_a_video(self) -> None:
+        """Анализ вернул ошибку — тоже показываем простой фрагмент."""
+        handle = FakeCaptureHandle(
+            SnapshotAcquireResult(SnapshotStatus.READY, FakeSnapshot(sequence=1))
+        )
+        analyzer = FakeAnalyzer(AnalysisResult(AnalysisStatus.PROCESS_FAILED))
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
+        )
+        session, _source, _analyzer, _renderer = await self._session(
+            handle, analyzer=analyzer, renderer=renderer,
+        )
+
+        artifact = await session.create_artifact(self.request)
+
+        self.assertIsNotNone(artifact)
+        self.assertEqual(len(renderer.calls), 1)
+
     async def test_repeated_refreshes_reuse_handle_and_request_exact_window(self) -> None:
         handle = FakeCaptureHandle(
             SnapshotAcquireResult(SnapshotStatus.EMPTY),
@@ -659,9 +695,12 @@ class ArtifactOwnershipTests(ProviderTestCase):
 
 class SnapshotCleanupTests(ProviderTestCase):
     async def test_analyzer_failure_releases_snapshot_once_without_reset(self) -> None:
-        snapshot = FakeSnapshot()
+        snapshot = FakeSnapshot(sequence=1)
         handle = FakeCaptureHandle(
             SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
         )
         session, source, _analyzer, _renderer = await self._session(
             handle,
@@ -670,11 +709,14 @@ class SnapshotCleanupTests(ProviderTestCase):
                     AnalysisStatus.TIMEOUT, diagnostic_code="analysis_timeout"
                 )
             ),
+            renderer,
         )
 
-        with self.assertRaises(LivePreviewProviderError):
-            await session.create_artifact(self.request)
+        # Разбор упал, но это не повод остаться без видео: показываем простой
+        # фрагмент и по-прежнему освобождаем снапшот ровно один раз.
+        artifact = await session.create_artifact(self.request)
 
+        self.assertIsNotNone(artifact)
         self.assertEqual(snapshot.release_calls, 1)
         self.assertEqual(handle.close_calls, 0)
         self.assertEqual(len(source.open_calls), 1)
@@ -704,21 +746,26 @@ class SnapshotCleanupTests(ProviderTestCase):
         self.assertEqual(len(source.open_calls), 1)
 
     async def test_unexpected_analyzer_exception_releases_and_is_sanitized(self) -> None:
-        snapshot = FakeSnapshot()
+        snapshot = FakeSnapshot(sequence=1)
         handle = FakeCaptureHandle(
             SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
+        )
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
         )
         session, _source, _analyzer, _renderer = await self._session(
             handle,
             FakeAnalyzer(RuntimeError("https://secret/path/private.ts")),
+            renderer,
         )
 
-        with self.assertRaises(LivePreviewProviderError) as raised:
-            await session.create_artifact(self.request)
+        artifact = await session.create_artifact(self.request)
 
+        # Сбой разбора не роняет показ и не тащит в текст закрытые адреса.
+        self.assertIsNotNone(artifact)
         self.assertEqual(snapshot.release_calls, 1)
-        self.assertNotIn("secret", str(raised.exception))
-        self.assertNotIn("private.ts", str(raised.exception))
+        self.assertNotIn("secret", str(artifact))
+        self.assertNotIn("private.ts", str(artifact))
 
     async def test_unexpected_renderer_exception_releases_and_is_sanitized(self) -> None:
         snapshot = FakeSnapshot()
@@ -993,20 +1040,25 @@ class FailureMappingTests(ProviderTestCase):
                 diagnostic_code="unexpected_error",
             ),
         )
-        snapshots = tuple(FakeSnapshot() for _ in statuses)
+        snapshots = tuple(FakeSnapshot(sequence=index) for index, _ in enumerate(statuses))
         handle = FakeCaptureHandle(
             *(
                 SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
                 for snapshot in snapshots
             )
         )
+        renderer = FakeRenderer(*(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
+            for _ in statuses
+        ))
         session, source, _analyzer, _renderer = await self._session(
-            handle, FakeAnalyzer(*statuses)
+            handle, FakeAnalyzer(*statuses), renderer,
         )
 
         for _ in statuses:
-            with self.assertRaises(LivePreviewProviderError):
-                await session.create_artifact(self.request)
+            # Неудачный разбор не ломает превью: отдаём простой фрагмент.
+            artifact = await session.create_artifact(self.request)
+            self.assertIsNotNone(artifact)
 
         self.assertTrue(all(snapshot.release_calls == 1 for snapshot in snapshots))
         self.assertEqual(handle.close_calls, 0)
@@ -1055,7 +1107,7 @@ class FailureMappingTests(ProviderTestCase):
                 diagnostic_code="unexpected_error",
             ),
         )
-        snapshots = tuple(FakeSnapshot() for _ in statuses)
+        snapshots = tuple(FakeSnapshot(sequence=index) for index, _ in enumerate(statuses))
         handle = FakeCaptureHandle(
             *(
                 SnapshotAcquireResult(SnapshotStatus.READY, snapshot)
@@ -1586,15 +1638,22 @@ class ProviderDiagnosticPhaseTests(ProviderTestCase):
         self.assertEqual(str(raised.exception), "live preview artifact provider failed")
 
     async def test_analysis_failure_exposes_only_safe_phase(self) -> None:
-        snapshot = FakeSnapshot()
+        snapshot = FakeSnapshot(sequence=1)
         handle = FakeCaptureHandle(SnapshotAcquireResult(SnapshotStatus.READY, snapshot))
-        session, _source, _analyzer, _renderer = await self._session(
-            handle, FakeAnalyzer(RuntimeError("C:/secret/input.ts"))
+        renderer = FakeRenderer(
+            RenderResult(RenderStatus.SUCCESS, artifact=FakeRenderedPreview(duration_seconds=6.0))
         )
-        with self.assertRaises(LivePreviewProviderError) as raised:
-            await session.create_artifact(self.request)
-        self.assertEqual(raised.exception.phase, "analysis")
+        session, _source, _analyzer, _renderer = await self._session(
+            handle, FakeAnalyzer(RuntimeError("C:/secret/input.ts")), renderer,
+        )
+
+        artifact = await session.create_artifact(self.request)
+
+        # Ошибки разбора больше не превращаются в отказ: показываем фрагмент,
+        # и закрытые пути в результат не попадают.
+        self.assertIsNotNone(artifact)
         self.assertEqual(snapshot.release_calls, 1)
+        self.assertNotIn("secret", str(artifact))
 
 
     async def test_render_failure_exposes_only_safe_phase(self) -> None:

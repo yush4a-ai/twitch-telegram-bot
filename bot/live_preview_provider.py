@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 from dataclasses import dataclass
 from typing import Any, NoReturn
@@ -36,6 +37,8 @@ from bot.preview_source import (
     TwitchCaptureStartStatus,
     capture_retry_action,
 )
+
+logger = logging.getLogger(__name__)
 
 
 _SNAPSHOT_WINDOW_SECONDS = 90.0
@@ -310,9 +313,14 @@ class _LivePreviewArtifactSession:
         except asyncio.CancelledError:
             raise
         except Exception:
-            _provider_error("analysis")
+            # Разбор моментов — необязательная роскошь: если он не удался,
+            # показываем последние секунды эфира. Владелец получает видео,
+            # а не фотографию, и сбой анализа больше не ломает превью.
+            logger.warning("Разбор превью не удался, показываю простой фрагмент")
+            return await self._create_simple_snippet(snapshot)
         if not isinstance(analysis, AnalysisResult):
-            _provider_error("analysis")
+            logger.warning("Разбор превью вернул неожиданный результат, показываю простой фрагмент")
+            return await self._create_simple_snippet(snapshot)
         if analysis.status is AnalysisStatus.SNAPSHOT_TOO_SHORT:
             return None
         if analysis.status is AnalysisStatus.NO_SELECTION:
@@ -331,7 +339,11 @@ class _LivePreviewArtifactSession:
                 )
             ):
                 return _RECOVER_CAPTURE
-            _provider_error("analysis")
+            logger.warning(
+                "Разбор превью не удался (%s, %s), показываю простой фрагмент",
+                analysis.status.value, analysis.diagnostic_code,
+            )
+            return await self._create_simple_snippet(snapshot)
 
         window = self._select_new_window(snapshot, selection)
         if window is None:
