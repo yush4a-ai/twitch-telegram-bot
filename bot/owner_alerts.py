@@ -25,7 +25,7 @@ SUBSYSTEM_TITLES = {
 }
 
 BAD_TEXT = {
-    "twitch": "каналы требуют авторизации: уведомления о стримах могут не уходить.",
+    "twitch": "связь нестабильна или нужна авторизация: уведомления о стримах могут опаздывать.",
     "queue": "есть неудачные задания: часть уведомлений не доставлена.",
     "database": "отвечает с ошибками: часть данных может не сохраняться.",
     "backup": "свежая копия не создана: откат может потерять данные.",
@@ -73,31 +73,44 @@ class OwnerAlerter:
         *,
         cooldown: float = DEFAULT_COOLDOWN_SECONDS,
         clock: Callable[[], float] = time.time,
+        confirmations: int = 2,
     ) -> None:
         self._send = send
         self._cooldown = cooldown
         self._clock = clock
         self._previous: dict[str, str] = {}
         self._sent_at: dict[str, float] = {}
+        # Состояние, которое мы увидели один раз и ещё не подтвердили вторым
+        # циклом. Без этого любая разовая заминка поднимала тревогу, а через
+        # пять минут приходило «снова работает» (жалоба владельца).
+        self._pending: dict[str, str] = {}
+        self._confirmations = max(1, int(confirmations))
 
     async def inspect(self, snapshot: dict) -> list[str]:
-        """Отправляет сообщения о переходах. Возвращает список отправленных."""
+        """Отправляет сообщения о подтверждённых переходах."""
         if self._send is None:
             return []
         now = self._clock()
         delivered: list[str] = []
         for subsystem, state in subsystem_states(snapshot).items():
-            previous = self._previous.get(subsystem)
-            self._previous[subsystem] = state
-            if previous == state:
+            confirmed = self._previous.get(subsystem)
+            if state == confirmed:
+                self._pending.pop(subsystem, None)
                 continue
+            if self._pending.get(subsystem) != state:
+                # Первое наблюдение нового состояния: ждём подтверждения.
+                self._pending[subsystem] = state
+                if self._confirmations > 1:
+                    continue
+            self._pending.pop(subsystem, None)
+            self._previous[subsystem] = state
             if state == "bad":
                 # Повтор о незакрытом сбое — отдельным методом, не чаще раза в час.
                 last = self._sent_at.get(subsystem, 0.0)
-                if previous is not None and now - last < self._cooldown:
+                if confirmed is not None and now - last < self._cooldown:
                     continue
                 text = f"{SUBSYSTEM_TITLES[subsystem]}: {BAD_TEXT[subsystem]}"
-            elif previous == "bad":
+            elif confirmed == "bad":
                 text = f"{SUBSYSTEM_TITLES[subsystem]}: {GOOD_TEXT[subsystem]}"
             else:
                 continue

@@ -220,6 +220,27 @@ def _resources(db_path: str, previous: tuple[float, float] | None) -> tuple[dict
     }, (wall, cpu)
 
 
+async def _resilient(call, *, first_timeout: float = 2.0, second_timeout: float = 6.0):
+    """Проверка с второй попыткой: медленная, но рабочая база — не сбой.
+
+    Первый таймаут короткий (панель должна отвечать быстро), второй щедрый
+    (контейнеру бывает нужно больше времени). Ошибкой считается только двойная
+    неудача, иначе владелец получал ложные тревоги на каждом медленном запросе.
+    """
+    try:
+        return await asyncio.wait_for(call(), first_timeout), False
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+    try:
+        return await asyncio.wait_for(call(), second_timeout), False
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        return None, True
+
+
 class AdminSnapshot:
     def __init__(
         self,
@@ -326,33 +347,22 @@ class AdminSnapshot:
         audience = live = queues = growth = None
         people = None
         database_failed = False
-        try:
-            audience = await asyncio.wait_for(self._db.get_bot_stats(), 2.0)
-        except Exception:
-            database_failed = True
+        audience, audience_failed = await _resilient(self._db.get_bot_stats)
+        database_failed = database_failed or audience_failed
         try:
             # Сколько людей приходит, возвращается и где останавливается.
-            collected = await asyncio.wait_for(collect_audience(self._db), 2.0)
+            collected, _ = await _resilient(collect_audience, self._db)
             people = {**collected.as_dict(), "funnel": list(audience_funnel(collected))}
         except Exception:
             people = None
-        try:
-            live = await asyncio.wait_for(self._db.get_admin_live_streams(), 2.0)
-        except Exception:
-            database_failed = True
-        try:
-            queues = await asyncio.wait_for(self._db.health_snapshot(now), 2.0)
-        except Exception:
-            database_failed = True
-        try:
-            growth = await asyncio.wait_for(self._db.growth_funnel_snapshot(), 2.0)
-        except Exception:
-            database_failed = True
-        try:
-            funnel = await asyncio.wait_for(self._db.growth_funnel_report(now=now), 2.0)
-        except Exception:
-            funnel = None
-            database_failed = True
+        live, live_failed = await _resilient(self._db.get_admin_live_streams)
+        database_failed = database_failed or live_failed
+        queues, queues_failed = await _resilient(lambda: self._db.health_snapshot(now))
+        database_failed = database_failed or queues_failed
+        # Аналитика ниже — не показатель здоровья базы: её сбой не должен
+        # превращаться в тревогу «часть данных может не сохраняться».
+        growth, _ = await _resilient(self._db.growth_funnel_snapshot)
+        funnel, _ = await _resilient(lambda: self._db.growth_funnel_report(now=now))
 
         billing = None
         if callable(getattr(self._db, "billing_attention", None)):

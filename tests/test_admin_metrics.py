@@ -263,7 +263,9 @@ class AdminSnapshotTests(unittest.IsolatedAsyncioTestCase):
         result = await self.build().collect()
         self.assertIsNone(result["growth"])
         self.assertEqual(result["telegram"]["state"], "ok")
-        self.assertEqual(result["errors"]["database"], "unavailable")
+        # Сбой аналитики не признак сломанной базы: иначе владелец получал
+        # тревогу «часть данных может не сохраняться» из-за пустой витрины.
+        self.assertIsNone(result["errors"]["database"])
         self.assertNotIn("secret", str(result))
 
 

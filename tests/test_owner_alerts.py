@@ -55,7 +55,12 @@ class OwnerAlerterTests(unittest.IsolatedAsyncioTestCase):
             self.sent.append(text)
 
         self.clock = [1000.0]
-        self.alerter = OwnerAlerter(send, cooldown=3600.0, clock=lambda: self.clock[0])
+        # Здесь проверяются сами переходы и кулдаун, поэтому гистерезис
+        # (два подтверждения подряд) отключён; он проверяется отдельно в
+        # tests/test_owner_alerts_anti_flap.py.
+        self.alerter = OwnerAlerter(
+            send, cooldown=3600.0, clock=lambda: self.clock[0], confirmations=1,
+        )
 
     async def test_transition_to_failure_sends_one_message(self):
         delivered = await self.alerter.inspect(snapshot(twitch="degraded"))
