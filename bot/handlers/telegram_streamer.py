@@ -32,12 +32,42 @@ async def cb_streamer(callback,db,config=None,state=None,oauth_server=None):
             text+='\n\n<b>Следующий шаг</b>\nВыберите Telegram-канал, затем настройте публикации.'
         items=[('Telegram-канал','streamer:channel'),('Настройки публикаций','streamer:posts'),
                ('Проверить готовность','streamer:readiness'),
+               ('Отвязать Twitch','streamer:unlink'),
                ('Тариф для стримера','plus:show:streamer_plus:streamer'),('Назад','menu:home')]
     else:
         text="<b>Ваш Twitch-канал</b>\n\n<blockquote>Подключите Twitch, чтобы бот мог создавать публикации о ваших эфирах.</blockquote>\n\nЗатем выберите свой Telegram-канал."
         items=[('Подключить Twitch','streamer:connect'),('Что получит стример?','streamer:benefits'),('Назад','menu:home')]
     await edit_menu(callback.message,text,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t,callback_data=c)] for t,c in items]))
+    await callback.answer()
+
+
+async def cb_streamer_unlink(callback,db):
+    if not await private_callback(callback): return
+    identity=await db.get_streamer_identity(callback.from_user.id)
+    if not identity:
+        await cb_streamer(callback,db); return
+    await edit_menu(callback.message,
+        f"<b>Отвязать Twitch?</b>\n\n<blockquote>Сейчас подключён <b>{html.escape(identity[1])}</b>.</blockquote>\n\n"
+        "Публикации о ваших эфирах остановятся, Telegram-канал останется на месте.\n"
+        "Оплаченный Streamer Plus сохранится и переедет на новый канал, который вы подключите.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Да, отвязать',callback_data='streamer:unlink-yes')],
+            [InlineKeyboardButton(text='Отмена',callback_data='menu:streamer')]]))
+    await callback.answer()
+
+
+async def cb_streamer_unlink_confirm(callback,db):
+    if not await private_callback(callback): return
+    removed=await db.unlink_streamer_identity(callback.from_user.id,now=time.time())
+    if removed:
+        text=("<b>Twitch отвязан</b>\n\n<blockquote>Теперь можно подключить другой канал.</blockquote>\n\n"
+              "Оплаченный Streamer Plus переедет на него автоматически.")
+    else:
+        text="<b>Привязки уже нет</b>\n\nМожно сразу подключить канал."
+    await edit_menu(callback.message,text,reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Подключить Twitch',callback_data='streamer:connect')],
+        [InlineKeyboardButton(text='Назад',callback_data='menu:streamer')]]))
     await callback.answer()
 
 

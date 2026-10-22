@@ -58,7 +58,7 @@ def build_navigation_router():
     from .telegram_add import cb_confirm_add, cb_pick_add
     router.callback_query.register(cb_confirm_add,F.data.startswith("addconfirm:"))
     router.callback_query.register(cb_pick_add,F.data.startswith("addpick:"))
-    from .telegram_streamer import cb_streamer, cb_streamer_connect, cb_streamer_check, cb_streamer_channel, cb_streamer_posts, cb_streamer_benefits
+    from .telegram_streamer import cb_streamer, cb_streamer_connect, cb_streamer_check, cb_streamer_channel, cb_streamer_posts, cb_streamer_benefits, cb_streamer_unlink, cb_streamer_unlink_confirm
     router.callback_query.register(cb_streamer,F.data == 'menu:streamer')
     router.callback_query.register(cb_streamer_connect,F.data == 'streamer:connect')
     router.callback_query.register(cb_streamer_check,F.data == 'streamer:check')
@@ -69,6 +69,8 @@ def build_navigation_router():
     router.callback_query.register(cb_streamer_readiness,F.data == 'streamer:readiness')
     router.callback_query.register(cb_streamer_posts,F.data == 'streamer:posts')
     router.callback_query.register(cb_streamer_benefits,F.data == 'streamer:benefits')
+    router.callback_query.register(cb_streamer_unlink,F.data == 'streamer:unlink')
+    router.callback_query.register(cb_streamer_unlink_confirm,F.data == 'streamer:unlink-yes')
     from .telegram_plus import cb_plus, cb_buy, cb_payment_method, cb_accept_terms
     router.callback_query.register(cb_plus,(F.data == 'menu:plus') | F.data.startswith('plus:show:'))
     router.callback_query.register(cb_buy,F.data.startswith('plus:buy:'))

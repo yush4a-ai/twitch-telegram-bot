@@ -2420,7 +2420,67 @@ class Database:
             (broadcaster_id, telegram_user_id, twitch_login.lower(), verified_at),
         )
         await self.conn.commit()
+        await self._move_streamer_plus_to_new_channel(
+            telegram_user_id, broadcaster_id, verified_at,
+        )
         return True
+
+    @_serialized
+    async def unlink_streamer_identity(
+        self, telegram_user_id: int, *, now: float,
+    ) -> bool:
+        """Снимает привязку Twitch, чтобы можно было подключить другой канал.
+
+        Оплаченный Streamer Plus не удаляется: при следующей привязке он
+        переедет на новый канал того же человека (см. ниже).
+        """
+        if type(telegram_user_id) is not int or telegram_user_id <= 0:
+            raise ValueError("invalid Telegram user ID")
+        if not isinstance(now, (int, float)) or not math.isfinite(now):
+            raise ValueError("invalid unlink time")
+        cursor = await self.conn.execute(
+            "DELETE FROM streamer_identities WHERE telegram_user_id=?",
+            (telegram_user_id,),
+        )
+        changed = cursor.rowcount == 1
+        await self.conn.commit()
+        return changed
+
+    async def _move_streamer_plus_to_new_channel(
+        self, telegram_user_id: int, broadcaster_id: str, now: float,
+    ) -> None:
+        """Переносит активный Streamer Plus на новый канал того же человека.
+
+        Человек оплатил подписку, а не конкретный ник: если канал заблокировали
+        и он подключил другой, оплаченный срок должен остаться с ним. Чужие
+        гранты и гранты каналов, которые всё ещё привязаны к кому-то, не трогаем.
+        """
+        cursor = await self.conn.execute(
+            "SELECT grant_id, subject_id FROM entitlement_grants "
+            "WHERE subject_kind='streamer' AND plan='streamer_plus' "
+            "AND beneficiary_telegram_user_id=? AND revoked_at IS NULL AND expires_at>?",
+            (telegram_user_id, now),
+        )
+        grants = await cursor.fetchall()
+        if not grants:
+            return
+        cursor = await self.conn.execute("SELECT broadcaster_id FROM streamer_identities")
+        taken = {row[0] for row in await cursor.fetchall()}
+        moved = False
+        for grant_id, subject_id in grants:
+            if subject_id == broadcaster_id or subject_id in taken:
+                continue
+            await self.conn.execute(
+                "UPDATE entitlement_grants SET subject_id=? WHERE grant_id=?",
+                (broadcaster_id, grant_id),
+            )
+            await self.conn.execute(
+                "INSERT INTO entitlement_events(grant_id,action,actor_telegram_id,happened_at) "
+                "VALUES (?,'grant',0,?)", (grant_id, now),
+            )
+            moved = True
+        if moved:
+            await self.conn.commit()
 
     async def get_streamer_identity(self, telegram_user_id: int) -> tuple[str, str] | None:
         cursor = await self.conn.execute(
