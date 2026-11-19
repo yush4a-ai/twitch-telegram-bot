@@ -36,7 +36,10 @@
       "access_starts_at",
       "access_expires_at",
       "product_snapshot_json",
-      "checkout_url"
+      "checkout_url",
+      "entitlement_state",
+      "entitlement_error",
+      "entitlement_updated_at"
     ],
     "billing_payment_attempts": [
       "attempt_id",
@@ -124,6 +127,43 @@
       "owner",
       "lease_until"
     ],
+    "broadcast_campaigns": [
+      "id",
+      "title",
+      "body",
+      "image_path",
+      "image_bytes",
+      "button_text",
+      "button_url",
+      "state",
+      "audience_total",
+      "sent_count",
+      "unreachable_count",
+      "failed_count",
+      "created_at",
+      "started_at",
+      "finished_at",
+      "created_by",
+      "request_key"
+    ],
+    "broadcast_leases": [
+      "campaign_id",
+      "user_id",
+      "leased_at"
+    ],
+    "broadcast_optouts": [
+      "user_id",
+      "opted_out_at",
+      "reason"
+    ],
+    "broadcast_recipients": [
+      "campaign_id",
+      "user_id",
+      "state",
+      "error_code",
+      "telegram_message_id",
+      "updated_at"
+    ],
     "category_alert_delivery_state": [
       "telegram_user_id",
       "broadcaster_id",
@@ -164,12 +204,38 @@
       "to_category_name",
       "observed_at"
     ],
+    "dialogue_messages": [
+      "id",
+      "user_id",
+      "direction",
+      "body",
+      "image_path",
+      "telegram_message_id",
+      "delivery",
+      "created_at",
+      "request_key",
+      "attachment"
+    ],
+    "dialogue_state": [
+      "user_id",
+      "last_message_at",
+      "last_direction",
+      "unread_count",
+      "owner_read_at"
+    ],
     "entitlement_events": [
       "id",
       "grant_id",
       "action",
       "actor_telegram_id",
-      "happened_at"
+      "happened_at",
+      "reason",
+      "reason_note",
+      "comment",
+      "previous_grant_id",
+      "previous_expires_at",
+      "new_expires_at",
+      "request_key"
     ],
     "entitlement_grants": [
       "grant_id",
@@ -197,6 +263,17 @@
       "code",
       "owner_user_id",
       "created_at"
+    ],
+    "notification_digest": [
+      "id",
+      "chat_id",
+      "twitch_login",
+      "logical_stream_id",
+      "title",
+      "game_name",
+      "viewer_count",
+      "queued_at",
+      "sent_at"
     ],
     "notification_jobs": [
       "id",
@@ -304,6 +381,15 @@
       "created_at",
       "updated_at"
     ],
+    "telegram_user_profiles": [
+      "user_id",
+      "username",
+      "display_name",
+      "language_code",
+      "first_seen_at",
+      "profile_seen_at",
+      "last_active_at"
+    ],
     "viewer_alert_filters": [
       "telegram_user_id",
       "twitch_login",
@@ -395,6 +481,9 @@
     "tracked_channels": [
       "added_at",
       "last_broadcaster_id"
+    ],
+    "twitch_user_tokens": [
+      "telegram_user_id"
     ]
   }
 }

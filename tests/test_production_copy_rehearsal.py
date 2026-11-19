@@ -161,8 +161,11 @@ asyncio.run(run())'''
         authorization.write_text(json.dumps(dict(authorized_isolated_copy=True, source_kind='synthetic_fixture',
             source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(), old_artifact_sha=old_sha,
             new_artifact_sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),
+            # Reviewed additions from the historical synthetic artifact to the current schema.
             expected_additions=json.loads((REPO/'tests/fixtures/production_legacy_additions.json').read_text()),
             expected_schema_versions=[
+                'admin_001_profiles','admin_002_known_people','admin_003_broadcasts_and_dialogues',
+                'admin_004_broadcast_leases','admin_005_dialogue_attachments','admin_006_notification_digest',
                 'mini_001_viewer_preferences','mini_002_category_alerts','mini_003_category_delivery',
                 'mini_004_streamer_intents','mini_005_viewer_reminders','mini_006_viewer_folders',
                 'mini_007_viewer_history','mini_008_streamer_presets','mini_009_viewer_trial',

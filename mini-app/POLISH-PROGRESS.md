@@ -17,3 +17,11 @@ Copy gate: stop-slop по изменённым surface/copy и пакету. Т�
 
 Q05 complete: guard full1462PASS/2skipped/3274subtests989.84s на3189fa83b1b78ff4f741831dd53aff8f73ceccb4. Deployment36e6e769-fa8a-4554-8551-7450b1cd87ea activeSUCCESS. Actual smoke185artifactSHA/14HTTPassets+/app/5auth401/Bot8859004067/system menu/paymentOFF/integrity/FK/25migrations/currentproductioncompare PASS. Logs bounded37/0credentialmatches. Native/signedliveAPI/ownerOAuth/outbound/realpayments NOT TESTED; legal/support/bank NOT READY.
 FINAL-REPORT/COMPARISON/SCREEN-REVIEW/MANUAL-CHECK готовы. Ветка остаётся autonomous/twitchsignal-roadmap безpush/merge. Только последующий evidence/docs commit; published SHA остаётся3189fa8. Последний шаг пользователя — визуальная приёмка в Telegram на устройстве.
+
+## Полноэкранный запуск — 19.11.2026
+
+Меню чата и кнопка «Открыть приложение» ведут на `/app`. При открытии Telegram с Bot API 8.0+ получает один запрос fullscreen после `ready()`. Если клиент отказывает, молчит или не поддерживает fullscreen, приложение разворачивается на доступную высоту. Уже активный fullscreen и выход из него учитываются, в том числе при перезагрузке текущей страницы. Вход с проверкой подписи, безопасные отступы и реакция на клавиатуру входят в проверку.
+
+Порядок работы. Воспроизвести запуск на тестовом SDK, изменить общий адаптер, затем проверить `/app` на локальной фикстуре и записать результат в STATUS и DECISIONS.
+
+Адаптер изменён и проверен локально на `autonomous/twitchsignal-roadmap` от `834d866`. Приёмка в Telegram на устройстве открыта. [Результаты проверок](../docs/STATUS.md#полноэкранный-запуск-mini-app-локально--19112026).

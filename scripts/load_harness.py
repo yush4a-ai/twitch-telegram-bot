@@ -72,6 +72,11 @@ def _peak_rss_bytes() -> int | None:
         except (AttributeError, OSError, ValueError):
             pass
         return None
+    if sys.platform == "darwin":
+        import resource
+
+        # macOS reports ru_maxrss in bytes.
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     try:
         for line in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
             if line.startswith("VmHWM:"):

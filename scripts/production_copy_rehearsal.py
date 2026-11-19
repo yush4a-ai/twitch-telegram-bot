@@ -194,7 +194,8 @@ def _offline_open(artifact, path, root):
     output = _new_destination(root, Path(root)/(path.stem+'-open.json'))
     env = {key: value for key, value in os.environ.items()
            if key in {'PATH', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'TOKEN_ENCRYPTION_KEY'}}
-    env.update(PYTHONPATH=str(artifact), PYTHONIOENCODING='utf-8')
+    # Preserve the same OS temporary root for the child containment check.
+    env.update(PYTHONPATH=str(artifact), PYTHONIOENCODING='utf-8', TMPDIR=tempfile.gettempdir())
     # Same isolated runner imports Database from the exact exported artifact.
     command = [sys.executable, str(Path(__file__).resolve()), 'offline-open',
                '--db', str(path), '--output', str(output)]

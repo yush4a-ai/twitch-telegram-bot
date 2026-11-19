@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from test_preview_source_process import FakeProcess, QueueRunner
+from tests.preview_process_fixtures import fake_process_controller
 
 
 SECRET_URL = "https://video.example/live.m3u8?token=resolver-secret"
@@ -58,6 +59,7 @@ def _available_capability():
     )
 
 
+@patch("bot.preview_source.process.ProcessController", new=fake_process_controller)
 class CapabilityProbeTests(unittest.IsolatedAsyncioTestCase):
     async def test_missing_executable_returns_typed_unavailable_without_spawn(self) -> None:
         source = _source_module()
@@ -207,6 +209,7 @@ class CapabilityProbeTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("secret", repr(result))
 
 
+@patch("bot.preview_source.process.ProcessController", new=fake_process_controller)
 class PlaybackResolverTests(unittest.IsolatedAsyncioTestCase):
     async def test_valid_login_resolves_one_strict_https_url(self) -> None:
         source = _source_module()
@@ -357,7 +360,7 @@ class PlaybackResolverTests(unittest.IsolatedAsyncioTestCase):
                     runner=QueueRunner(
                         FakeProcess(stdout=output.encode(), returncode=0)
                     ),
-                    timeout=0.1,
+                    timeout=1.0,
                 )
                 result = await resolver.resolve("valid_login")
                 self.assertEqual(

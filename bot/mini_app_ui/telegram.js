@@ -1,7 +1,11 @@
+const FULLSCREEN_FALLBACK_MS = 1000;
+
 export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
   const sdk = window.Telegram?.WebApp;
   const viewport = window.visualViewport || null;
   let viewportFrame = 0;
+  let fullscreenFallback = null;
+  let wasFullscreen = Boolean(sdk?.isFullscreen);
   let backAttached = false;
   let disposed = false;
   const themeListeners = new Set();
@@ -24,16 +28,52 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
     onThemeChange(snapshot);
     for (const listener of themeListeners) listener(snapshot);
   };
+  function clearFullscreenFallback() {
+    clearTimeout(fullscreenFallback);
+    fullscreenFallback = null;
+  }
+  function expandAfterFullscreenFailure() {
+    if (fullscreenFallback === null) return;
+    clearFullscreenFallback();
+    if (!sdk.isFullscreen) safeCall('expand');
+  }
+  function handleFullscreenChanged() {
+    if (sdk.isFullscreen || wasFullscreen) clearFullscreenFallback();
+    if (wasFullscreen && !sdk.isFullscreen) {
+      // Preserve the exit if this page reloads to refresh Telegram authorization.
+      try { window.history.replaceState({ ...window.history.state, telegramFullscreenExited: true }, ''); } catch {}
+    }
+    wasFullscreen = sdk.isFullscreen;
+    applyLayout();
+  }
+  function handleFullscreenFailed(event) {
+    if (event?.error === 'ALREADY_FULLSCREEN') {
+      wasFullscreen = true;
+      clearFullscreenFallback();
+    } else {
+      expandAfterFullscreenFailure();
+    }
+    applyLayout();
+  }
+  function openAtFullHeight() {
+    if (sdk.isFullscreen || window.history.state?.telegramFullscreenExited) return;
+    if (typeof sdk.requestFullscreen !== 'function' || !sdk.isVersionAtLeast?.('8.0')) {
+      safeCall('expand');
+      return;
+    }
+    // The SDK sends a native event. Some clients never report the result.
+    fullscreenFallback = setTimeout(expandAfterFullscreenFailure, FULLSCREEN_FALLBACK_MS);
+    try { sdk.requestFullscreen(); } catch { expandAfterFullscreenFailure(); }
+  }
   if (sdk) {
-    safeCall('ready');
-    safeCall('expand');
     safeCall('onEvent', 'themeChanged', handleTheme);
     safeCall('onEvent', 'safeAreaChanged', applyLayout);
     safeCall('onEvent', 'contentSafeAreaChanged', applyLayout);
     safeCall('onEvent', 'viewportChanged', applyLayout);
-    safeCall('onEvent', 'fullscreenChanged', applyLayout);
-    safeCall('onEvent', 'fullscreenFailed', applyLayout);
-    safeCall('requestFullscreen');
+    safeCall('onEvent', 'fullscreenChanged', handleFullscreenChanged);
+    safeCall('onEvent', 'fullscreenFailed', handleFullscreenFailed);
+    safeCall('ready');
+    openAtFullHeight();
     handleTheme();
     applyLayout();
   }
@@ -155,8 +195,9 @@ export function createTelegramAdapter(onBack, onThemeChange = () => {}) {
       safeCall('offEvent','safeAreaChanged', applyLayout);
       safeCall('offEvent','contentSafeAreaChanged', applyLayout);
       safeCall('offEvent','viewportChanged', applyLayout);
-      safeCall('offEvent','fullscreenChanged', applyLayout);
-      safeCall('offEvent','fullscreenFailed', applyLayout);
+      safeCall('offEvent','fullscreenChanged', handleFullscreenChanged);
+      safeCall('offEvent','fullscreenFailed', handleFullscreenFailed);
+      clearFullscreenFallback();
       viewport?.removeEventListener('resize', scheduleViewport);
       viewport?.removeEventListener('scroll', scheduleViewport);
       window.removeEventListener('orientationchange', scheduleViewport);

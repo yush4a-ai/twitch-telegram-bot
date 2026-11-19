@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from bot.preview_analysis import HighlightSelection, HighlightWindow
 from bot.preview_capture import SegmentRecord
+from tests.preview_process_fixtures import fake_process_controller
 
 
 def _renderer():
@@ -343,6 +344,7 @@ class FiltergraphTests(unittest.TestCase):
         self.assertIn("concat=n=2:v=1:a=0", joined)
 
 
+@patch("bot.preview_render.process.ProcessController", new=fake_process_controller)
 class RendererLifecycleTests(unittest.IsolatedAsyncioTestCase):
     @staticmethod
     def _retained_preview(root: Path, index: int):

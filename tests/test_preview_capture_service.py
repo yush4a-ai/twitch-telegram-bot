@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 from bot import preview_capture as capture
 from bot.preview_capture import service as capture_service
 from bot.config import ConfigError, load_config
+from tests.preview_process_fixtures import fake_process_controller
 
 
 CORE_ENV = {
@@ -379,6 +380,7 @@ class ProgressWatchdogTests(unittest.TestCase):
         self.assertTrue(watchdog.expired)
 
 
+@patch("bot.preview_capture.service.ProcessController", new=fake_process_controller)
 class CaptureServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_atomic_tmp_rename_during_scan_is_not_disk_pressure(self) -> None:
         with TemporaryDirectory() as parent:

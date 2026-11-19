@@ -13,6 +13,7 @@ import sqlite3
 import tempfile
 import time
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 from bot.database import PreviewDestinationState
@@ -89,6 +90,26 @@ def _open_child_handle(pid: int) -> int:
     return handle
 
 
+class _DarwinRusage(ctypes.Structure):
+    # RUSAGE_INFO_V0 from macOS <sys/resource.h>.
+    _fields_ = [
+        ("uuid", ctypes.c_uint8 * 16),
+        ("user_time", ctypes.c_uint64),
+        ("system_time", ctypes.c_uint64),
+        ("wakeups_pageins_wired", ctypes.c_uint64 * 4),
+        ("resident_size", ctypes.c_uint64),
+        ("footprint_start_exit", ctypes.c_uint64 * 3),
+    ]
+
+
+@cache
+def _darwin_pid_rusage():
+    proc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True).proc_pid_rusage
+    proc.argtypes = (ctypes.c_int, ctypes.c_int, ctypes.POINTER(_DarwinRusage))
+    proc.restype = ctypes.c_int
+    return proc
+
+
 def _child_usage(pid: int, retained_handle: int | None = None, *, exited: bool = False) -> tuple[int, float]:
     """Current working set and user+kernel CPU for a local encoder process."""
     if os.name == "nt":
@@ -126,6 +147,11 @@ def _child_usage(pid: int, retained_handle: int | None = None, *, exited: bool =
         finally:
             if retained_handle is None:
                 kernel.CloseHandle(handle)
+    if os.uname().sysname == "Darwin":
+        usage = _DarwinRusage()
+        if _darwin_pid_rusage()(pid, 0, ctypes.byref(usage)) != 0:
+            raise OSError(ctypes.get_errno(), "encoder process measurement unavailable")
+        return usage.resident_size, (usage.user_time + usage.system_time) / 1_000_000_000
     if os.path.exists(f"/proc/{pid}/statm"):
         with open(f"/proc/{pid}/statm", encoding="ascii") as handle:
             rss_pages = int(handle.read().split()[1])

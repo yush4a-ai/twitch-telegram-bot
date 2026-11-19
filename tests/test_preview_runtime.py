@@ -755,15 +755,18 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(manager.health_snapshot()["consecutive_provider_failures"], 1)
+        await _wait_until(lambda: any(deadline == self.clock() + 60 for deadline, _ in self.clock.sleeps))
         await self.clock.advance(59)
         self.assertEqual(len(self.provider.create_calls), 1)
         manager.observe_cycle((self.observation(),))
         await _settle()
         await self.clock.advance(1)
+        await _wait_until(lambda: len(self.provider.create_calls) == 2)
         self.assertEqual(len(self.provider.create_calls), 2)
         await _wait_until(
             lambda: manager.health_snapshot()["consecutive_provider_failures"] == 2
         )
+        await _wait_until(lambda: any(deadline == self.clock() + 120 for deadline, _ in self.clock.sleeps))
         await self.clock.advance(119)
         self.assertEqual(len(self.provider.create_calls), 2)
         manager.observe_cycle((self.observation(),))
@@ -1089,6 +1092,7 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         await _wait_until(lambda: len(self.updater.calls) == 1)
         self.assertEqual([call["target"].chat_id for call in self.updater.calls], [101])
 
+        await _wait_until(lambda: any(deadline == self.clock() + 300 for deadline, _ in self.clock.sleeps))
         await self.clock.advance(299)
         manager.observe_cycle((self.observation(),))
         await _settle()

@@ -103,10 +103,13 @@ class AdmissionTests(unittest.TestCase):
                        'BILLING_ALLOW_EXTERNAL': '1'},
                       {'payment_policy': 'external_admitted'})
         from bot.config import first_release_payment_policy
-        policy = first_release_payment_policy(
-            contract_policy=c.production_contract.payment_policy)
+        with patch.dict(os.environ, {'BILLING_ALLOW_EXTERNAL': '1'}, clear=True):
+            policy = first_release_payment_policy(contract_policy=c.production_contract.payment_policy)
+            blocked = first_release_payment_policy(contract_policy=self.contract['payment_policy'])
         self.assertTrue(policy.allow_external_create)
         self.assertFalse(policy.external_blocked_by_contract)
+        self.assertFalse(blocked.allow_external_create)
+        self.assertTrue(blocked.external_blocked_by_contract)
 
     def test_queue_requires_separate_matching_opt_in(self):
         with self.assertRaises(ConfigError):
@@ -122,9 +125,12 @@ class AdmissionTests(unittest.TestCase):
                 self.load({'PUBLIC_URL': url}, {'public_url': url})
 
     def test_money_secrets_cannot_enable_first_release_policy(self):
-        c = self.load({'PLATEGA_SECRET': 'local', 'STARS_ENABLED': '1', 'BILLING_MODE': 'sandbox'})
         from bot.config import first_release_payment_policy
-        policy = first_release_payment_policy()
+        inputs = {'PLATEGA_SECRET': 'local-fixture-secret', 'STARS_ENABLED': '1', 'BILLING_MODE': 'sandbox'}
+        c = self.load(inputs)
+        with patch.dict(os.environ, inputs, clear=True):
+            policy = first_release_payment_policy(contract_policy=c.production_contract.payment_policy)
+        self.assertEqual(policy.mode, 'sandbox')
         self.assertFalse(policy.allow_external_create)
         self.assertFalse(policy.allow_invoice)
 

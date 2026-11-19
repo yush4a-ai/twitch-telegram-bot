@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
+from tests.preview_process_fixtures import fake_process_controller
+
 
 def _process():
     try:
@@ -89,6 +91,7 @@ class RenderProcessRunnerTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(kwargs["start_new_session"])
 
 
+@patch("bot.preview_render.process.ProcessController", new=fake_process_controller)
 class RenderProcessExecutorTests(unittest.IsolatedAsyncioTestCase):
     async def test_success_reaps_and_leaves_no_background_work(self) -> None:
         process = _process()

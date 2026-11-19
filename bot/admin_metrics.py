@@ -345,16 +345,14 @@ class AdminSnapshot:
                 preview_state = "degraded"
 
         audience = live = queues = growth = None
-        people = None
         database_failed = False
         audience, audience_failed = await _resilient(self._db.get_bot_stats)
         database_failed = database_failed or audience_failed
-        try:
-            # Сколько людей приходит, возвращается и где останавливается.
-            collected, _ = await _resilient(collect_audience, self._db)
-            people = {**collected.as_dict(), "funnel": list(audience_funnel(collected))}
-        except Exception:
-            people = None
+        # Use the same timestamp for the audience and the other snapshot metrics.
+        collected, _ = await _resilient(lambda: collect_audience(self._db, now=now))
+        people = None if collected is None else {
+            **collected.as_dict(), "funnel": list(audience_funnel(collected)),
+        }
         live, live_failed = await _resilient(self._db.get_admin_live_streams)
         database_failed = database_failed or live_failed
         queues, queues_failed = await _resilient(lambda: self._db.health_snapshot(now))

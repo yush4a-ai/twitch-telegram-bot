@@ -10,6 +10,8 @@ from collections import deque
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+from tests.preview_process_fixtures import fake_process_controller
+
 
 def _process():
     try:
@@ -75,6 +77,7 @@ class LineParser:
         return tuple(self.lines)
 
 
+@patch("bot.preview_analysis.process.ProcessController", new=fake_process_controller)
 class AnalysisProcessRunnerTests(unittest.IsolatedAsyncioTestCase):
     async def test_spawn_uses_exec_fixed_argv_and_separate_bounded_pipes(self) -> None:
         process = _process()
