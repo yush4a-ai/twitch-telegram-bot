@@ -20,16 +20,8 @@ function launch(options = {}) {
   const events = new Map();
   const timers = new Map();
   const styles = new Map();
-  const history = {
-    state: options.history ?? null,
-    replaceState(state) { this.state = state; },
-  };
   let timerId = 0;
-  globalThis.setTimeout = (callback, ms) => {
-    assert.ok(ms > 0 && ms <= 1500, 'fallback must be bounded');
-    timers.set(++timerId, callback);
-    return timerId;
-  };
+  globalThis.setTimeout = callback => { timers.set(++timerId, callback); return timerId; };
   globalThis.clearTimeout = id => timers.delete(id);
   globalThis.requestAnimationFrame = callback => { callback(); return 0; };
   globalThis.document = { documentElement: { style: { setProperty: (name, value) => styles.set(name, value) } } };
@@ -38,48 +30,60 @@ function launch(options = {}) {
   const sdk = {
     initData: 'signed-fixture-data',
     isFullscreen: options.fullscreen ?? false,
-    // The official SDK starts with isExpanded=true before the first viewport event.
-    isExpanded: true,
-    viewportHeight: 580,
+    viewportHeight: options.height ?? 580,
     isVersionAtLeast(version) { assert.equal(version, '8.0'); return options.legacy !== true; },
     ready() { calls.push('ready'); },
-    expand() { calls.push('expand'); this.viewportHeight = 740; emit('viewportChanged'); },
-    requestFullscreen() {
-      calls.push('fullscreen');
-      assert.ok(events.has('fullscreenFailed') && events.has('fullscreenChanged'));
-      if (options.legacy || options.throwOnRequest) throw Error('WebAppMethodUnsupported');
-      if (options.refused) emit('fullscreenFailed', { error: 'UNSUPPORTED' });
-    },
+    expand() { calls.push('expand'); },
+    requestFullscreen() { calls.push('fullscreen'); },
+    exitFullscreen() { calls.push('exit'); },
     onEvent(name, callback) { events.set(name, callback); },
     offEvent(name, callback) { if (events.get(name) === callback) events.delete(name); },
   };
-  if (options.withoutMethod) delete sdk.requestFullscreen;
   const viewport = Object.assign(new EventTarget(), { height: 844, offsetTop: 0 });
   globalThis.window = Object.assign(new EventTarget(), {
     Telegram: options.browser ? undefined : { WebApp: sdk },
-    visualViewport: viewport, innerHeight: 844, history,
+    visualViewport: viewport, innerHeight: 844, history: { state: null },
   });
   const adapter = createTelegramAdapter(() => {});
   const expire = () => { for (const callback of [...timers.values()]) callback(); };
   const fullscreen = active => { sdk.isFullscreen = active; emit('fullscreenChanged'); };
-  return { calls, events, timers, styles, history, sdk, viewport, adapter, emit, expire, fullscreen };
+  return { calls, events, timers, styles, sdk, viewport, adapter, emit, expire, fullscreen };
 }
 
 const cases = {
-  success() {
+  'supported client opens at its chosen height'() {
     const app = launch();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
-    assert.equal(app.adapter.initData, 'signed-fixture-data');
-    app.sdk.viewportHeight = 844;
-    app.fullscreen(true);
     app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
+    assert.deepEqual(app.calls, ['ready']);
+    assert.equal(app.adapter.initData, 'signed-fixture-data');
+    assert.equal(app.styles.get('--viewport-height'), '580px');
+  },
+  'legacy client opens at its chosen height'() {
+    const app = launch({ legacy: true });
+    app.expire();
+    assert.deepEqual(app.calls, ['ready']);
+    assert.equal(app.styles.get('--viewport-height'), '580px');
+  },
+  'client already in fullscreen'() {
+    const app = launch({ fullscreen: true, height: 844 });
+    app.expire();
+    assert.deepEqual(app.calls, ['ready']);
     assert.equal(app.styles.get('--viewport-height'), '844px');
+  },
+  'manual fullscreen, safe areas and keyboard'() {
+    const app = launch();
+    app.sdk.viewportHeight = 844;
     app.sdk.safeAreaInset = { top: 44, bottom: 20 };
     app.sdk.contentSafeAreaInset = { top: 42, bottom: 4 };
-    app.emit('safeAreaChanged');
-    app.emit('contentSafeAreaChanged');
+    app.fullscreen(true);
+    assert.equal(app.styles.get('--viewport-height'), '844px');
     assert.equal(app.styles.get('--top-inset'), 'calc(max(44px, env(safe-area-inset-top, 0px)) + 42px)');
+    app.sdk.safeAreaInset.bottom = 24;
+    app.emit('safeAreaChanged');
+    assert.equal(app.styles.get('--bottom-inset'), 'calc(max(24px, env(safe-area-inset-bottom, 0px)) + 4px)');
+    app.sdk.contentSafeAreaInset.bottom = 6;
+    app.emit('contentSafeAreaChanged');
+    assert.equal(app.styles.get('--bottom-inset'), 'calc(max(24px, env(safe-area-inset-bottom, 0px)) + 6px)');
     app.viewport.height = 520;
     app.viewport.offsetTop = 24;
     app.viewport.dispatchEvent(new Event('resize'));
@@ -89,63 +93,19 @@ const cases = {
     app.viewport.offsetTop = 0;
     app.viewport.dispatchEvent(new Event('resize'));
     assert.equal(app.styles.get('--keyboard-inset'), '0px');
-  },
-  'already fullscreen on entry'() {
-    const app = launch({ fullscreen: true });
-    app.expire();
-    assert.deepEqual(app.calls, ['ready']);
-  },
-  'already fullscreen reported by native client'() {
-    const app = launch();
-    app.emit('fullscreenFailed', { error: 'ALREADY_FULLSCREEN' });
-    app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
-  },
-  'client refusal'() {
-    const app = launch({ refused: true });
-    app.emit('fullscreenFailed', { error: 'UNSUPPORTED' });
-    app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen', 'expand']);
-    assert.equal(app.styles.get('--viewport-height'), '740px');
-  },
-  'client does not respond'() {
-    const app = launch();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
-    app.expire();
-    app.emit('fullscreenFailed', { error: 'UNSUPPORTED' });
-    assert.deepEqual(app.calls, ['ready', 'fullscreen', 'expand']);
-  },
-  'legacy client exposes unsupported method'() {
-    assert.deepEqual(launch({ legacy: true }).calls, ['ready', 'expand']);
-  },
-  'client lacks method'() {
-    assert.deepEqual(launch({ withoutMethod: true }).calls, ['ready', 'expand']);
-  },
-  'bridge throws'() {
-    const app = launch({ throwOnRequest: true });
-    app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen', 'expand']);
-  },
-  'user exits fullscreen'() {
-    const app = launch({ history: { existing: true } });
-    app.fullscreen(true);
+    app.sdk.viewportHeight = 580;
     app.fullscreen(false);
     app.emit('viewportChanged');
     app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
-    const reload = launch({ history: app.history.state });
-    reload.expire();
-    assert.equal(reload.history.state.existing, true);
-    assert.deepEqual(reload.calls, ['ready']);
-    assert.deepEqual(launch().calls, ['ready', 'fullscreen']);
+    assert.deepEqual(app.calls, ['ready']);
+    assert.equal(app.styles.get('--viewport-height'), '580px');
   },
-  'page closes during launch'() {
+  'page disposes its listeners'() {
     const app = launch();
     app.adapter.dispose();
     assert.equal(app.events.size, 0);
     assert.equal(app.timers.size, 0);
-    app.expire();
-    assert.deepEqual(app.calls, ['ready', 'fullscreen']);
+    assert.deepEqual(app.calls, ['ready']);
   },
   'plain browser'() {
     const app = launch({ browser: true });
@@ -162,7 +122,7 @@ for (const [name, run] of Object.entries(cases)) {
 """
 
 
-def test_telegram_fullscreen_launch():
+def test_telegram_launch_keeps_the_client_window():
     node = shutil.which("node")
     assert node, "Node is required to run the Mini App adapter"
     result = subprocess.run(

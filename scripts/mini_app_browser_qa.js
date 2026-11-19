@@ -48,7 +48,7 @@ const initData = new URLSearchParams(fields).toString();
     await page.goto(target, { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Сейчас в эфире' }).waitFor();
     const sdk = await page.evaluate(() => ({ ready: window.__miniAppFixture.ready, expand: window.__miniAppFixture.expand, fullscreen: window.__miniAppFixture.fullscreen }));
-    if (sdk.ready !== 1 || sdk.expand !== 1 || sdk.fullscreen !== 1) throw new Error(`SDK lifecycle: ${JSON.stringify(sdk)}`);
+    if (sdk.ready !== 1 || sdk.expand !== 0 || sdk.fullscreen !== 0) throw new Error(`SDK lifecycle: ${JSON.stringify(sdk)}`);
     const insets = await page.evaluate(() => {
       window.Telegram.WebApp.safeAreaInset = { top: 12, bottom: 22 };
       window.Telegram.WebApp.contentSafeAreaInset = { top: 16, bottom: 10 };
