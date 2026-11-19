@@ -75,7 +75,7 @@ class _Updater:
 class _RateLimitedUpdater(_Updater):
     async def apply_animation(self, *, target, animation, **kwargs):
         self.calls.append((target.chat_id, animation))
-        return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+        return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER, retry_after=5.0)
 
 
 class _Clock:

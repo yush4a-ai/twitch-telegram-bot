@@ -6,6 +6,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from aiogram.exceptions import TelegramNetworkError, TelegramRetryAfter
+
 os.environ.setdefault("PYTHON_DOTENV_DISABLED", "1")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "unit-test-token-never-used")
 os.environ.setdefault("TWITCH_CLIENT_ID", "unit-test-client")
@@ -138,6 +140,48 @@ class PrivateThumbnailLifecycleTests(unittest.IsolatedAsyncioTestCase):
         await self._poll(101, 1000.0, _stream())
         self.bot.edit_message_media.reset_mock()
         await self._poll(101, 1301.0, _stream(viewers=72))
+        self.bot.edit_message_media.assert_awaited_once()
+
+    async def test_failed_photo_refresh_retries_only_the_affected_chat(self) -> None:
+        for chat_id in (101, 102):
+            await self._track(chat_id)
+        await self._poll(101, 900.0, _stream())
+        self.bot.edit_message_media.reset_mock()
+
+        async def refresh(**kwargs):
+            if kwargs["chat_id"] == 101:
+                raise TelegramNetworkError(SimpleNamespace(), "offline")
+            return SimpleNamespace()
+
+        self.bot.edit_message_media.side_effect = refresh
+        await self._poll(101, 1200.0, _stream())
+        self.assertCountEqual(
+            [call.kwargs["chat_id"] for call in self.bot.edit_message_media.await_args_list],
+            [101, 102],
+        )
+
+        self.bot.edit_message_media.reset_mock(side_effect=True)
+        await self._poll(101, 1260.0, _stream())
+        self.bot.edit_message_media.assert_awaited_once()
+        self.assertEqual(self.bot.edit_message_media.await_args.kwargs["chat_id"], 101)
+
+        self.bot.edit_message_media.reset_mock()
+        await self._poll(101, 1500.0, _stream())
+        self.bot.edit_message_media.assert_awaited_once()
+        self.assertEqual(self.bot.edit_message_media.await_args.kwargs["chat_id"], 102)
+
+    async def test_photo_refresh_respects_telegram_retry_after(self) -> None:
+        await self._track(101)
+        await self._poll(101, 900.0, _stream())
+        self.bot.edit_message_media.side_effect = TelegramRetryAfter(
+            SimpleNamespace(), "flood control", retry_after=420,
+        )
+        await self._poll(101, 1200.0, _stream())
+        self.bot.edit_message_media.reset_mock(side_effect=True)
+
+        await self._poll(101, 1500.0, _stream())
+        self.bot.edit_message_media.assert_not_awaited()
+        await self._poll(101, 1620.0, _stream())
         self.bot.edit_message_media.assert_awaited_once()
 
     async def test_refresh_keeps_video_and_restores_unentitled_animation_to_photo(self) -> None:

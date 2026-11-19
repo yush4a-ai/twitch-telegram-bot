@@ -274,10 +274,12 @@ class LivePostUpdater:
                     media=media,
                     reply_markup=content.reply_markup,
                 )
-            except TelegramRetryAfter:
+            except TelegramRetryAfter as error:
                 if propagate_retry_after:
                     raise
-                return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
+                return LivePostMediaResult(
+                    LivePostMediaStatus.RETRY_LATER, retry_after=float(error.retry_after),
+                )
             except TelegramNetworkError:
                 return LivePostMediaResult(LivePostMediaStatus.RETRY_LATER)
             except TelegramBadRequest as error:
@@ -362,7 +364,14 @@ class LivePostUpdater:
                 return LivePostMediaResult(LivePostMediaStatus.SKIPPED_DISABLED)
 
             if state.media_transition_pending:
-                reconciled = await self._reconcile_pending_locked(target, content)
+                try:
+                    reconciled = await self._reconcile_pending_locked(
+                        target, content, propagate_retry_after=True,
+                    )
+                except TelegramRetryAfter as error:
+                    return LivePostMediaResult(
+                        LivePostMediaStatus.RETRY_LATER, retry_after=float(error.retry_after),
+                    )
                 if reconciled is not LivePostUpdateResult.UPDATED:
                     return LivePostMediaResult(
                         self._media_status_from_reconciliation(reconciled)
@@ -467,9 +476,14 @@ class LivePostUpdater:
                                 LivePostMediaStatus.STATE_CONFLICT
                             )
                         return LivePostMediaResult(LivePostMediaStatus.APPLIED)
-                    reconciled = await self._reconcile_pending_locked(
-                        target, content
-                    )
+                    try:
+                        reconciled = await self._reconcile_pending_locked(
+                            target, content, propagate_retry_after=True,
+                        )
+                    except TelegramRetryAfter as error:
+                        return LivePostMediaResult(
+                            LivePostMediaStatus.RETRY_LATER, retry_after=float(error.retry_after),
+                        )
                     state = await db.get_live_post_state(
                         target.chat_id, target.twitch_login
                     )

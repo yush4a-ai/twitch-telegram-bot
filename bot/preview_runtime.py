@@ -643,7 +643,6 @@ class PreviewManager:
 
                 record.consecutive_failures = 0
                 self._refresh_provider_failures()
-                self._last_success_at = self._clock()
                 if artifact is not None:
                     try:
                         if self._is_current(record.token):
@@ -1044,15 +1043,15 @@ class PreviewManager:
                 )
                 continue
             if result.status is LivePostMediaStatus.RETRY_LATER:
-                if self._send_budget is not None:
-                    self._send_budget.defer_preview(result.retry_after or 5.0)
-                return
-            if (
-                isinstance(artifact, LocalAnimation)
-                and result.status is LivePostMediaStatus.APPLIED
-                and result.file_id
-            ):
-                cached_file_id = result.file_id
+                if result.retry_after is not None:
+                    if self._send_budget is not None:
+                        self._send_budget.defer_preview(result.retry_after)
+                    return
+                continue
+            if result.status is LivePostMediaStatus.APPLIED:
+                self._last_success_at = self._clock()
+                if isinstance(artifact, LocalAnimation) and result.file_id:
+                    cached_file_id = result.file_id
 
     def _latest_observation_for(
         self,

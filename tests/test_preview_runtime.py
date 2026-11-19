@@ -12,12 +12,15 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from aiogram.exceptions import TelegramNetworkError
+
 from bot.config import ConfigError, load_config
 from bot.database import Database
 from bot.live_post import (
     LivePostContent,
     LivePostMediaResult,
     LivePostMediaStatus,
+    LivePostUpdater,
     LocalAnimation,
     TelegramAnimation,
 )
@@ -829,11 +832,33 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.provider.default_outcome = None
         manager = self.manager(interval=300)
         await self.start_online(manager)
-        await _wait_until(lambda: len(self.provider.create_calls) == 1)
+        await _wait_until(lambda: any(deadline >= self.clock() + 300 for deadline, _ in self.clock.sleeps))
 
         self.assertEqual(manager.health_snapshot()["consecutive_provider_failures"], 0)
+        self.assertIsNone(manager.health_snapshot()["last_success_age_seconds"])
+        self.assertEqual(self.updater.calls, [])
         await self.clock.advance(299)
         self.assertEqual(len(self.provider.create_calls), 1)
+
+    async def test_video_freshness_requires_successful_telegram_edit(self) -> None:
+        await self.seed(101)
+        artifact = TelegramAnimation("test-file", duration_seconds=6.0)
+        self.provider.outcomes.extend((artifact, None, artifact))
+        self.updater.results.extend((
+            LivePostMediaResult(LivePostMediaStatus.APPLIED),
+            LivePostMediaResult(LivePostMediaStatus.REJECTED),
+        ))
+        manager = self.manager(interval=30)
+        await self.start_online(manager)
+
+        for expected_age in (0.0, 30.0, 60.0):
+            await _wait_until(lambda: any(deadline >= self.clock() + 30 for deadline, _ in self.clock.sleeps))
+            self.assertEqual(manager.health_snapshot()["last_success_age_seconds"], expected_age)
+            if expected_age < 60.0:
+                await self.clock.advance(30)
+                manager.observe_cycle((self.observation(),))
+                await _settle()
+        self.assertEqual(len(self.updater.calls), 2)
 
     async def test_hung_provider_times_out_and_releases_global_slot(self) -> None:
         await self.seed(101)
@@ -1134,14 +1159,14 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(self.provider.released, [artifact])
 
-    async def test_retry_later_stops_wave_then_next_artifact_retries_local_upload(self) -> None:
+    async def test_telegram_retry_after_stops_wave_then_next_artifact_retries_upload(self) -> None:
         await self.seed(101, message_id=701)
         await self.seed(102, message_id=702)
         artifact = LocalAnimation(Path("artifact.mp4"), duration_seconds=6.0)
         self.provider.default_outcome = artifact
         self.updater.results.extend(
             [
-                LivePostMediaResult(LivePostMediaStatus.RETRY_LATER),
+                LivePostMediaResult(LivePostMediaStatus.RETRY_LATER, retry_after=5.0),
                 LivePostMediaResult(LivePostMediaStatus.APPLIED, "second-file"),
             ]
         )
@@ -1162,6 +1187,33 @@ class PreviewRuntimeCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             self.updater.calls[2]["animation"],
             TelegramAnimation("second-file", duration_seconds=6.0),
+        )
+
+    async def test_repeated_network_error_in_one_chat_keeps_updating_the_other(self) -> None:
+        await self.seed(101, message_id=701, kind="animation")
+        await self.seed(102, message_id=702, kind="animation")
+        self.provider.default_outcome = TelegramAnimation("test-file", duration_seconds=6.0)
+
+        async def edit_media(**kwargs):
+            if kwargs["chat_id"] == 101:
+                raise TelegramNetworkError(SimpleNamespace(), "offline")
+            return SimpleNamespace(animation=SimpleNamespace(file_id="test-file"))
+
+        bot = SimpleNamespace(
+            edit_message_caption=AsyncMock(),
+            edit_message_media=AsyncMock(side_effect=edit_media),
+        )
+        manager = self.manager(interval=30, updater=LivePostUpdater(bot, self.db))
+        await self.start_online(manager)
+
+        await _wait_until(lambda: any(deadline >= self.clock() + 30 for deadline, _ in self.clock.sleeps))
+        await self.clock.advance(30)
+        manager.observe_cycle((self.observation(),))
+        await _wait_until(lambda: len(self.provider.released) == 2)
+
+        self.assertEqual(
+            [call.kwargs["chat_id"] for call in bot.edit_message_media.await_args_list],
+            [101, 102, 101, 102],
         )
 
     async def test_applied_without_file_id_keeps_local_input_for_next_target(self) -> None:

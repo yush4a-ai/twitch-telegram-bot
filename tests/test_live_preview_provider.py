@@ -1134,6 +1134,24 @@ class FailureMappingTests(ProviderTestCase):
 
 
 class CaptureRecoveryTests(ProviderTestCase):
+    async def test_private_capture_keeps_480p_on_immediate_and_deferred_reopen(self) -> None:
+        for reason in (CaptureEndReason.STALLED, CaptureEndReason.DISK_PRESSURE):
+            with self.subTest(reason=reason):
+                old_handle = FakeCaptureHandle(outcome=CaptureOutcome(reason))
+                new_handle = FakeCaptureHandle(SnapshotAcquireResult(SnapshotStatus.EMPTY))
+                source = FakeSource(_started(old_handle), _started(new_handle))
+                provider = LivePreviewArtifactProvider(source, FakeAnalyzer(), FakeRenderer())
+                session = await provider.open_session(self.key, max_height=480)
+                self.addAsyncCleanup(session.close)
+                request = _request(self.key, simple_audience=True)
+
+                with self.assertRaises(LivePreviewProviderError):
+                    await session.create_artifact(request)
+                self.assertIsNone(await session.create_artifact(request))
+
+                self.assertEqual(source.open_max_heights, [480, 480])
+                self.assertEqual(new_handle.acquire_calls, [15.0])
+
     async def test_stalled_and_process_exit_each_fresh_resolve_once(self) -> None:
         for reason in (CaptureEndReason.STALLED, CaptureEndReason.PROCESS_EXIT):
             with self.subTest(reason=reason):
@@ -1536,6 +1554,36 @@ class CumulativePreviewCycleTests(ProviderTestCase):
 
         self.assertIsNone(repeated)
         self.assertEqual(len(renderer.calls), 1)
+
+    async def test_stale_highlight_uses_fresh_tail_and_keeps_accumulating(self) -> None:
+        def snapshot(first_sequence: int) -> FakeSnapshot:
+            result = FakeSnapshot()
+            result.records = tuple(
+                SimpleNamespace(sequence=sequence, duration_seconds=10.0)
+                for sequence in range(first_sequence, first_sequence + 9)
+            )
+            result.actual_duration_seconds = 90.0
+            return result
+
+        snapshots = (snapshot(100), snapshot(103))
+        handle = FakeCaptureHandle(
+            *(SnapshotAcquireResult(SnapshotStatus.READY, item) for item in snapshots)
+        )
+        renderer = CycleRenderer()
+        session, _, _, _ = await self._session(
+            handle, FakeAnalyzer(self._success(), self._success()), renderer,
+        )
+        self.addAsyncCleanup(session.close)
+
+        first = await session.create_artifact(self.request)
+        self.assertIsInstance(first, LocalAnimation)
+        await session.release_artifact(first)
+        second = await session.create_artifact(self.request)
+
+        self.assertIsInstance(second, LocalAnimation)
+        self.assertEqual(second.duration_seconds, 12.0)
+        self.assertEqual(renderer.calls[-1][1].windows, (HighlightWindow(84.0, 6.0, 0.0),))
+        await session.release_artifact(second)
 
     async def test_release_keeps_cycle_snippets_until_reset_and_close_cleans_them(self) -> None:
         session, _snapshots, _analyzer, renderer = await self._cycle_session(

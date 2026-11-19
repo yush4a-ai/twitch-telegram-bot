@@ -164,6 +164,7 @@ class LivePreviewArtifactProvider:
             renderer=self._renderer,
             key=key,
             handle=result.handle,
+            max_height=max_height,
         )
 
 
@@ -210,12 +211,14 @@ class _LivePreviewArtifactSession:
         renderer: PreviewRenderer,
         key: PreviewSessionKey,
         handle: Any,
+        max_height: int | None,
     ) -> None:
         self._source = source
         self._analyzer = analyzer
         self._renderer = renderer
         self._key = key
         self._handle: Any | None = handle
+        self._max_height = max_height
         self._closed = False
         self._terminal = False
         self._leases: dict[int, tuple[PreviewArtifact, Any | None]] = {}
@@ -347,7 +350,9 @@ class _LivePreviewArtifactSession:
 
         window = self._select_new_window(snapshot, selection)
         if window is None:
-            return None
+            window = self._fresh_tail_window(snapshot)
+            if window is None:
+                return None
         selection = HighlightSelection((window,))
 
         try:
@@ -436,15 +441,10 @@ class _LivePreviewArtifactSession:
         обслуживается на тех же ресурсах. Кадр может быть спокойным или тёмным:
         это и есть прямой эфир.
         """
-        try:
-            duration = float(snapshot.actual_duration_seconds)
-        except (AttributeError, TypeError, ValueError, OverflowError):
+        window = self._tail_window(snapshot)
+        if window is None:
             return None
-        if not math.isfinite(duration) or duration <= 0:
-            return None
-        length = min(_SIMPLE_SNIPPET_SECONDS, duration)
-        start = max(0.0, duration - length)
-        selection = HighlightSelection((HighlightWindow(start, length, 0.0),))
+        selection = HighlightSelection((window,))
         try:
             rendered = await self._renderer.render(snapshot, selection)
         except asyncio.CancelledError:
@@ -576,7 +576,8 @@ class _LivePreviewArtifactSession:
     async def _open_deferred_capture(self) -> None:
         try:
             result = await self._source.open(
-                self._key.twitch_login, self._key.physical_stream_id
+                self._key.twitch_login, self._key.physical_stream_id,
+                max_height=self._max_height,
             )
         except asyncio.CancelledError:
             raise
@@ -613,7 +614,8 @@ class _LivePreviewArtifactSession:
             return
         try:
             result = await self._source.open(
-                self._key.twitch_login, self._key.physical_stream_id
+                self._key.twitch_login, self._key.physical_stream_id,
+                max_height=self._max_height,
             )
         except asyncio.CancelledError:
             raise
@@ -695,6 +697,26 @@ class _LivePreviewArtifactSession:
             candidates,
             key=lambda item: (float(item.score), float(item.start_seconds)),
         )
+
+    def _fresh_tail_window(self, snapshot: Any) -> HighlightWindow | None:
+        window = self._tail_window(snapshot)
+        if window is None or window.duration_seconds < _SIMPLE_SNIPPET_SECONDS:
+            return None
+        position = self._snapshot_position(snapshot, window.start_seconds)
+        if self._capture_cutoff is None or position is None or position <= self._capture_cutoff:
+            return None
+        return window
+
+    @staticmethod
+    def _tail_window(snapshot: Any) -> HighlightWindow | None:
+        try:
+            duration = float(snapshot.actual_duration_seconds)
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            return None
+        if not math.isfinite(duration) or duration <= 0:
+            return None
+        length = min(_SIMPLE_SNIPPET_SECONDS, duration)
+        return HighlightWindow(duration - length, length, 0.0)
 
     @staticmethod
     def _snapshot_position(

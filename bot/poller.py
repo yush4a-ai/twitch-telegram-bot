@@ -426,7 +426,7 @@ class StreamPoller:
         self._last_cycle_error: str | None = None
         self._last_logged_cycle_error: str | None = None
         self._telegram_retry_sleep_budget = TELEGRAM_RETRY_SLEEP_BUDGET_SECONDS
-        self._thumbnail_refresh: dict[str, tuple[str, float]] = {}
+        self._thumbnail_refresh: dict[str, dict[int, tuple[str, float]]] = {}
         self._live_post_updater = live_post_updater or LivePostUpdater(bot, db)
         self._preview_observer = preview_observer
         self._telegram_channel_username_cache = (
@@ -1010,22 +1010,18 @@ class StreamPoller:
         for login in logins:
             chat_ids = chats_by_login.get(login, ())
             stream = live_streams.get(login)
+            previous_refreshes = self._thumbnail_refresh.get(login, {})
+            thumbnail_refreshes = {
+                chat_id: previous_refreshes[chat_id]
+                for chat_id in chat_ids if chat_id in previous_refreshes
+            }
             if stream is None:
-                self._thumbnail_refresh.pop(login, None)
                 thumbnail_url = None
-                thumbnail_refresh_due = False
             else:
                 refresh_bucket = int(now // stream_thumbnail.REFRESH_SECONDS)
                 thumbnail_url = stream_thumbnail.build_url(
                     stream.thumbnail_url, refresh_bucket
                 )
-                previous_refresh = self._thumbnail_refresh.get(login)
-                thumbnail_refresh_due = bool(thumbnail_url) and (
-                    previous_refresh is None
-                    or previous_refresh[0] != stream.stream_id
-                    or now - previous_refresh[1] >= stream_thumbnail.REFRESH_SECONDS
-                )
-            thumbnail_attempted = False
             category_offline_observed = False
             sampled_chat_ids: dict[str, list[int]] = {}
             update_requests: list[tuple[int, str, str, int, str | None]] = []
@@ -1051,6 +1047,11 @@ class StreamPoller:
                 ) = states[(chat_id, login)]
 
                 if stream is not None:
+                    refreshed_stream, refresh_at = thumbnail_refreshes.get(chat_id, (None, 0.0))
+                    thumbnail_refresh_due = bool(thumbnail_url) and (
+                        refreshed_stream != stream.stream_id or now >= refresh_at
+                    )
+                    photo_result = None
                     # После падения процесс мог не успеть зафиксировать offline. Если
                     # Twitch уже выдал новый id за пределами reconnect-window, сначала
                     # переводим старую logical session в финализацию. Иначе новый id
@@ -1185,7 +1186,6 @@ class StreamPoller:
                                     and thumbnail_url is not None
                                     and message_kind != "video"
                                 ):
-                                    thumbnail_attempted = True
                                     photo_result = await self._refresh_thumbnail(
                                         chat_id,
                                         message_id,
@@ -1404,7 +1404,6 @@ class StreamPoller:
                         and thumbnail_url is not None
                         and message_kind == "text"
                     ):
-                        thumbnail_attempted = True
                         photo_result = await self._refresh_thumbnail(
                             chat_id,
                             message_id,
@@ -1432,6 +1431,7 @@ class StreamPoller:
                         )
                     await self._db.record_viewer_sample(chat_id, login, stream.viewer_count)
                     sampled_chat_ids.setdefault(effective_stream_id, []).append(chat_id)
+                    media_url = None
                     if (
                         self._notification_queue_enabled and notify_enabled
                         and message_id is not None
@@ -1442,11 +1442,20 @@ class StreamPoller:
                             and message_kind != "video"
                             else None
                         )
-                        if media_url is not None:
-                            thumbnail_attempted = True
                         update_requests.append((
                             chat_id, login, effective_stream_id, message_id, media_url,
                         ))
+                    retry_after = photo_result.retry_after if photo_result is not None else None
+                    if thumbnail_refresh_due and (
+                        media_url is not None
+                        or retry_after is not None
+                        or (photo_result is not None and
+                            photo_result.status is not LivePostMediaStatus.RETRY_LATER)
+                    ):
+                        thumbnail_refreshes[chat_id] = (
+                            stream.stream_id,
+                            now + max(stream_thumbnail.REFRESH_SECONDS, retry_after or 0.0),
+                        )
                     # Внутри одной логической сессии исходный снимок фолловеров нельзя
                     # обновлять: иначе итог станет разницей лишь с последним poll/reconnect.
                     effective_followers_at_start = (
@@ -1502,12 +1511,10 @@ class StreamPoller:
                     update_requests, now=now
                 )
 
-            if (
-                stream is not None
-                and thumbnail_refresh_due
-                and thumbnail_attempted
-            ):
-                self._thumbnail_refresh[login] = (stream.stream_id, now)
+            if stream is not None and thumbnail_refreshes:
+                self._thumbnail_refresh[login] = thumbnail_refreshes
+            else:
+                self._thumbnail_refresh.pop(login, None)
 
         if paused_media and (
             self._paused_media_cleanup_task is None

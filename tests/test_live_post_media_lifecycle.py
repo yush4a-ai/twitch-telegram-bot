@@ -516,6 +516,24 @@ class LivePostUpdaterP2BTests(unittest.IsolatedAsyncioTestCase):
         self.bot.send_message.assert_not_awaited()
         self.bot.delete_message.assert_not_awaited()
 
+    async def test_pending_animation_reconciliation_preserves_telegram_retry_after(self) -> None:
+        self.assertTrue(await self.db.begin_animation_transition(101, "channel", "logical-1", 701))
+        self.bot.edit_message_caption.side_effect = TelegramRetryAfter(
+            SimpleNamespace(), "retry", retry_after=17,
+        )
+
+        result = await self._updater().apply_animation(
+            target=self._target(),
+            animation=self._local_animation(),
+            is_current_physical_stream=lambda: True,
+            build_content=self._build_content,
+        )
+
+        self.assertEqual(result.status, self._status("RETRY_LATER"))
+        self.assertEqual(result.retry_after, 17)
+        self.assertEqual(await self._stored_state(), (701, "text", 1))
+        self.bot.edit_message_media.assert_not_awaited()
+
     async def test_media_network_ambiguity_leaves_durable_pending(self) -> None:
         self.bot.edit_message_media.side_effect = TelegramNetworkError(
             SimpleNamespace(), "offline"
