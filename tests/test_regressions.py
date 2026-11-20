@@ -2052,8 +2052,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
-            mark_stats_sent=AsyncMock(),
-            clear_finished_session=AsyncMock(),
+            finalize_report_session=AsyncMock(),
         )
         poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
         poller._send_stats = AsyncMock(return_value=True)
@@ -2061,8 +2060,7 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
         await poller._send_pending_stats()
 
         poller._send_stats.assert_awaited_once()
-        db.mark_stats_sent.assert_awaited_once_with(1, "channel")
-        db.clear_finished_session.assert_awaited_once_with(1, "channel")
+        db.finalize_report_session.assert_awaited_once_with(1, "channel", "stream-1")
 
     async def test_failed_channel_report_stays_pending(self) -> None:
         db = SimpleNamespace(
@@ -2081,15 +2079,14 @@ class TelegramChannelReportTests(unittest.IsolatedAsyncioTestCase):
             resolve_post_recipient=AsyncMock(return_value=1),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
             get_quiet_hours=AsyncMock(return_value=None),
-            mark_stats_sent=AsyncMock(),
-            clear_finished_session=AsyncMock(),
+            finalize_report_session=AsyncMock(),
         )
         poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
         poller._send_stats = AsyncMock(return_value=False)
 
         await poller._send_pending_stats()
 
-        db.mark_stats_sent.assert_not_awaited()
+        db.finalize_report_session.assert_not_awaited()
 
 
 class LivePreviewSettingTests(unittest.IsolatedAsyncioTestCase):
@@ -3221,8 +3218,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
             get_auto_report_enabled=AsyncMock(return_value=True),
             resolve_post_recipient=AsyncMock(return_value=None),
             get_quiet_hours_exempt=AsyncMock(return_value=False),
-            mark_stats_sent=AsyncMock(),
-            clear_finished_session=AsyncMock(),
+            finalize_report_session=AsyncMock(),
         )
         poller = StreamPoller(SimpleNamespace(), db, SimpleNamespace(), 60)
         poller._send_stats = AsyncMock(return_value=True)
@@ -3230,7 +3226,7 @@ class DeliveryStateTests(unittest.IsolatedAsyncioTestCase):
         await poller._send_pending_stats()
 
         self.assertFalse(poller._send_stats.await_args.kwargs["deliver"])
-        db.mark_stats_sent.assert_awaited_once_with(-100, "channel")
+        db.finalize_report_session.assert_awaited_once_with(-100, "channel", "stream")
 
     async def test_failed_quiet_hours_digest_is_reported_as_not_sent(self) -> None:
         db = SimpleNamespace(
@@ -3374,6 +3370,30 @@ class PersistentReportDeliveryTests(unittest.IsolatedAsyncioTestCase):
     async def _run_pending(self, poller: StreamPoller) -> None:
         with patch("bot.poller.time.time", return_value=2801.0):
             await poller._send_pending_stats()
+
+    async def test_finishing_orphan_report_preserves_new_stream_after_resubscribe(self) -> None:
+        db = Database(":memory:")
+        await db.connect()
+        self.addAsyncCleanup(db.close)
+        await self._seed_session(db, stream_id="old-stream", report_format="brief")
+        await db.create_report_delivery(1, "channel", "old-stream", 1, "brief", "Old report", None, 1000)
+        self.assertTrue(await db.remove_channel(1, "channel"))
+        await db.add_channel(1, "channel")
+        await db.set_auto_report_enabled(1, "channel", True)
+        await db.set_live_state(1, "channel", True, "new-stream", title="New stream",
+                                stream_started_at="2026-01-01T01:00:00Z")
+        poller, bot = self._poller(db)
+
+        await self._run_pending(poller)
+
+        self.assertTrue((await db.get_report_delivery(1, "channel", "old-stream", 1)).complete)
+        bot.send_message.assert_awaited_once()
+        await db.set_live_state(1, "channel", False, "new-stream", title="New stream",
+                                offline_since=1000, stream_started_at="2026-01-01T01:00:00Z")
+        self.assertEqual([row[8] for row in await db.pending_stats()], ["new-stream"])
+        await self._run_pending(poller)
+        self.assertTrue((await db.get_report_delivery(1, "channel", "new-stream", 1)).complete)
+        self.assertEqual(bot.send_message.await_count, 2)
 
     async def test_full_success_persists_complete_delivery(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -6846,6 +6866,7 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             stop=Mock(),
             shutdown=AsyncMock(side_effect=RuntimeError("cleanup failed")),
         )
+        worker = SimpleNamespace(start=Mock(), stop=AsyncMock())
         oauth_server = SimpleNamespace(
             start=AsyncMock(), stop=AsyncMock(), set_health_provider=Mock(),
             set_preview_observer=Mock(),
@@ -6864,6 +6885,7 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
             patch.object(main_module, "ChatListener", return_value=SimpleNamespace()),
             patch.object(main_module, "FollowEventListener", return_value=follow_listener),
             patch.object(main_module, "StreamPoller", return_value=poller),
+            patch.object(main_module, "_make_notification_worker", return_value=worker),
             patch.object(main_module, "OAuthCallbackServer", return_value=oauth_server),
         ):
             with self.assertRaisesRegex(RuntimeError, "poller crash"):
@@ -6871,6 +6893,8 @@ class AsyncStartupHardeningTests(unittest.IsolatedAsyncioTestCase):
 
         poller.stop.assert_called_once()
         poller.shutdown.assert_awaited_once()
+        worker.start.assert_called_once()
+        worker.stop.assert_awaited_once()
         follow_listener.stop.assert_awaited_once()
         oauth_server.stop.assert_awaited_once()
         oauth_server.set_preview_observer.assert_called_once()

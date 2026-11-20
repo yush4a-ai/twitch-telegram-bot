@@ -156,3 +156,13 @@ async def migrate_plus_payments(conn, *, now: float) -> None:
             "WHERE entitlement_state IN ('review','failed')"
         )
         await conn.execute("INSERT INTO schema_migrations(version,applied_at) VALUES ('r11_006_entitlement_recovery',?)", (now,))
+
+    await conn.execute(
+        "CREATE TABLE IF NOT EXISTS billing_stars_reconciliation ("
+        "bot_id INTEGER PRIMARY KEY CHECK(bot_id>0), "
+        "next_offset INTEGER NOT NULL CHECK(next_offset>=0), last_complete_at REAL)"
+    )
+    await conn.execute(
+        "INSERT OR IGNORE INTO schema_migrations(version,applied_at) "
+        "VALUES ('r11_007_stars_reconciliation_cursor',?)", (now,),
+    )

@@ -41,6 +41,26 @@ class BillingStore:
                 await conn.rollback()
                 raise
 
+    async def stars_reconciliation_progress(self, bot_id: int) -> tuple[int, float | None]:
+        cursor = await self.db.conn.execute(
+            "SELECT next_offset,last_complete_at FROM billing_stars_reconciliation WHERE bot_id=?",
+            (bot_id,),
+        )
+        row = await cursor.fetchone()
+        return (row[0], row[1]) if row else (0, None)
+
+    async def save_stars_reconciliation_progress(
+        self, bot_id: int, next_offset: int, *, completed_at: float | None,
+    ) -> None:
+        async with self.transaction() as conn:
+            await conn.execute(
+                "INSERT INTO billing_stars_reconciliation(bot_id,next_offset,last_complete_at) "
+                "VALUES (?,?,?) ON CONFLICT(bot_id) DO UPDATE SET "
+                "next_offset=excluded.next_offset, "
+                "last_complete_at=COALESCE(excluded.last_complete_at,last_complete_at)",
+                (bot_id, next_offset, completed_at),
+            )
+
     async def create_order(self, snapshot: ServerOrderSnapshot, request_key: str,
                            attempt: PaymentAttempt, *, duration_seconds: int = 0,
                            enforce_payment_guard: bool = False):

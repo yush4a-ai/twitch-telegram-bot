@@ -650,7 +650,7 @@ async def _probe_platega_credentials(provider) -> None:
         logger.warning("Platega: ключи не подтверждены проверкой баланса")
 
 
-async def _run_transient_cleanup(db, *, interval: float = 86400.0) -> None:
+async def _run_transient_cleanup(db, *, stars_bot_id: int, interval: float = 86400.0) -> None:
     """Убирает служебный мусор: журнал апдейтов и брошенные неоплаченные заказы.
 
     Финансовые записи не трогаются: заказ с подтверждённым платежом или выданным
@@ -658,7 +658,7 @@ async def _run_transient_cleanup(db, *, interval: float = 86400.0) -> None:
     """
     while True:
         try:
-            removed = await db.clean_transient_data(now=time.time())
+            removed = await db.clean_transient_data(now=time.time(), stars_bot_id=stars_bot_id)
             if removed["updates"] or removed["orders"]:
                 logger.info(
                     "Очистка служебных данных: апдейтов %s, заказов %s",
@@ -689,15 +689,15 @@ async def _run_owner_alerts(alerter: OwnerAlerter, collect, *, interval: float =
 
 def _make_notification_worker(
     config, db, poller: StreamPoller, send_budget: TelegramSendBudget | None = None,
-) -> NotificationWorker | None:
+) -> NotificationWorker:
     if (getattr(config, 'production_contract', None) is not None
             and not getattr(config, 'production_admitted', False)):
         raise ConfigError('Production queue требует успешный getMe admission')
-    if not getattr(config, "notification_queue_enabled", False):
-        return None
+    full_queue_enabled = getattr(config, "notification_queue_enabled", False)
     return NotificationWorker(
-        NotificationQueue(db), poller.send_queued_job,
+        NotificationQueue(db, viewer_plus_only=not full_queue_enabled), poller.send_queued_job,
         max_concurrency=4, per_chat_interval=1.0,
+        idle_interval=1.0 if full_queue_enabled else 5.0,
         send_budget=send_budget,
     )
 
@@ -1012,8 +1012,7 @@ async def main() -> None:
                     poller.set_preview_observer(preview_manager)
                     dp["preview_manager"] = preview_manager
                 oauth_server.set_preview_observer(preview_manager)
-                if notification_worker is not None:
-                    notification_worker.start()
+                notification_worker.start()
                 # Рассылки владельца идут своим отправителем поверх того же бюджета:
                 # очередь уведомлений о стримах от них не зависит.
                 broadcast_worker = BroadcastWorker(
@@ -1125,7 +1124,7 @@ async def main() -> None:
                     )
                     # Служебный мусор: журнал апдейтов и брошенные счета.
                     transient_task = asyncio.create_task(
-                        _run_transient_cleanup(db),
+                        _run_transient_cleanup(db, stars_bot_id=bot.id),
                         name="transient-cleanup",
                     )
 

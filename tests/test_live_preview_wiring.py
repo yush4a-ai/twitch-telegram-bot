@@ -727,6 +727,7 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
             stop=Mock(),
             shutdown=AsyncMock(),
         )
+        notification_worker = SimpleNamespace(start=Mock(), stop=AsyncMock())
 
         def create_poller(*_args, **kwargs):
             self.assertIs(kwargs["preview_observer"], manager)
@@ -761,6 +762,7 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
             patch.object(application, "ChatListener", return_value=SimpleNamespace()),
             patch.object(application, "FollowEventListener", return_value=follow_listener),
             patch.object(application, "StreamPoller", side_effect=create_poller),
+            patch.object(application, "_make_notification_worker", return_value=notification_worker),
             patch.object(application, "OAuthCallbackServer", return_value=oauth_server),
             patch.object(application, "_build_preview_runtime", new=build_mock),
             patch.object(
@@ -777,6 +779,8 @@ class LivePreviewWiringTests(unittest.IsolatedAsyncioTestCase):
         build_mock.assert_awaited_once()
         start_mock.assert_awaited_once_with(manager, capture_service)
         shutdown_mock.assert_awaited_once_with(manager, capture_service)
+        notification_worker.start.assert_called_once()
+        notification_worker.stop.assert_awaited_once()
         oauth_server.set_preview_observer.assert_called_once_with(manager)
         menu_button = bot.set_chat_menu_button.await_args.kwargs["menu_button"]
         self.assertIsInstance(menu_button, application.MenuButtonCommands)

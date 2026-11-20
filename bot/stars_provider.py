@@ -39,6 +39,12 @@ class PrecheckoutDecision:
     error_message: str | None = None
 
 
+@dataclass(frozen=True)
+class StarTransactionPage:
+    payments: tuple[tuple[str, str, int, float], ...]
+    transaction_count: int
+
+
 class TelegramStarsProvider:
     provider_id = "telegram_stars"
     can_reconcile = True
@@ -52,6 +58,11 @@ class TelegramStarsProvider:
         # РєРѕРїРёС‚СЊСЃСЏ РІРµС‡РЅРѕ РѕРЅР° РЅРµ РјРѕР¶РµС‚ вЂ” РёРЅР°С‡Рµ РїРѕСЃР»Рµ 4096 СЃС‡РµС‚РѕРІ РїСЂРѕРґР°Р¶Рё РІСЃС‚Р°СЋС‚.
         self._attempts: dict[str, float] = {}
         self._refunds = {}
+
+    @property
+    def bot_id(self) -> int | None:
+        bot_id = self._sender.id if isinstance(self._sender, Bot) else getattr(self._sender, "bot_id", None)
+        return bot_id if type(bot_id) is int and bot_id > 0 else None
 
     def _prune_attempts(self, now: float, *, ttl: float = 3600.0) -> None:
         expired = [key for key, stamp in self._attempts.items() if now - stamp > ttl]
@@ -214,49 +225,37 @@ class TelegramStarsProvider:
         # sendInvoice РІРѕР·РІСЂР°С‰Р°РµС‚ СЃРѕРѕР±С‰РµРЅРёРµ, Р° РЅРµ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃРїРёСЃР°РЅРёСЏ.
         return CheckoutSession(snapshot.order_id, None, hosted_url, "pending", snapshot.checkout_expires_at)
 
-    async def star_transactions(self, *, limit: int = 30, pages: int = 5):
-        """РћРїР»Р°С‡РµРЅРЅС‹Рµ Р·РІС‘Р·РґРЅС‹Рµ СЃС‡РµС‚Р° Р±РѕС‚Р°: (charge_id, payload, amount, date).
-
-        Telegram РїСЂРёСЃС‹Р»Р°РµС‚ СЃРѕРѕР±С‰РµРЅРёРµ РѕР± РѕРїР»Р°С‚Рµ РѕРґРёРЅ СЂР°Р·. Р•СЃР»Рё РѕРЅРѕ РїРѕС‚РµСЂСЏР»РѕСЃСЊ,
-        РѕРїР»Р°С‚Р° РѕСЃС‚Р°С‘С‚СЃСЏ РІ РёСЃС‚РѕСЂРёРё С‚СЂР°РЅР·Р°РєС†РёР№ вЂ” РїРѕ РЅРµР№ РїР»Р°С‚С‘Р¶ РјРѕР¶РЅРѕ РІРѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ.
-        РЎРїРёСЃРѕРє РѕС‚РґР°С‘С‚СЃСЏ РїРѕСЃС‚СЂР°РЅРёС‡РЅРѕ Рё РІ С…СЂРѕРЅРѕР»РѕРіРёС‡РµСЃРєРѕРј РїРѕСЂСЏРґРєРµ, РїРѕСЌС‚РѕРјСѓ С‡РёС‚Р°РµРј
-        СЃС‚СЂР°РЅРёС†С‹ РґРѕ РєРѕРЅС†Р°: РёРЅР°С‡Рµ СЃРІРµР¶РёРµ РѕРїР»Р°С‚С‹ РѕСЃС‚Р°Р»РёСЃСЊ Р±С‹ Р·Р° РѕРєРЅРѕРј РІС‹Р±РѕСЂРєРё.
-        """
+    async def star_transaction_page(self, *, limit: int, offset: int) -> StarTransactionPage | None:
+        """Read one chronological page and count all rows for the next offset."""
         getter = getattr(self._sender, "get_star_transactions", None)
         if not callable(getter):
-            return []
-        page_size = max(1, min(100, limit))
-        collected = []
-        offset = 0
-        for _page in range(max(1, pages)):
+            return None
+        try:
+            result = await asyncio.wait_for(getter(limit=limit, offset=offset), timeout=10)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return None
+        transactions = getattr(result, "transactions", None)
+        if not isinstance(transactions, (list, tuple)) or len(transactions) > limit:
+            return None
+        payments = []
+        for transaction in transactions:
+            source = getattr(transaction, "source", None)
+            payload = getattr(source, "invoice_payload", None)
+            charge = getattr(transaction, "id", None)
+            amount = getattr(transaction, "amount", None)
+            moment = getattr(transaction, "date", None)
+            if (not isinstance(payload, str) or not payload.startswith("ts1:")
+                    or not isinstance(charge, str) or type(amount) is not int
+                    or amount <= 0 or moment is None):
+                continue
             try:
-                result = await asyncio.wait_for(
-                    getter(limit=page_size, offset=offset), timeout=10
-                )
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                return collected
-            transactions = list(getattr(result, "transactions", None) or ())
-            for transaction in transactions:
-                source = getattr(transaction, "source", None)
-                payload = getattr(source, "invoice_payload", None)
-                charge = getattr(transaction, "id", None)
-                amount = getattr(transaction, "amount", None)
-                moment = getattr(transaction, "date", None)
-                if (not isinstance(payload, str) or not payload.startswith("ts1:")
-                        or not isinstance(charge, str) or type(amount) is not int
-                        or amount <= 0 or moment is None):
-                    continue
-                try:
-                    observed = float(moment.timestamp())
-                except (AttributeError, TypeError, ValueError, OverflowError):
-                    observed = 0.0
-                collected.append((charge, payload, amount, observed))
-            if len(transactions) < page_size:
-                break
-            offset += page_size
-        return collected
+                observed = float(moment.timestamp())
+            except (AttributeError, TypeError, ValueError, OverflowError):
+                observed = 0.0
+            payments.append((charge, payload, amount, observed))
+        return StarTransactionPage(tuple(payments), len(transactions))
 
     def validate_precheckout(self, query, order, *, now):
         self._require_ready()

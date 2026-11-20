@@ -70,6 +70,7 @@ class BillingService:
         self._catalog = catalog
         self._merchant_actor_ids = merchant_actor_ids
         self._terms_version = terms_version
+        self._stars_scan_lock = asyncio.Lock()
         from .billing_reconciliation import PaymentReconciler
         self._reconciler = PaymentReconciler(self)
 
@@ -307,25 +308,44 @@ class BillingService:
         return await self._store.accept_notice(notice, hashlib.sha256(body).hexdigest(), now=now)
 
     async def apply_stars_transactions(self, *, now: float, limit: int = 30) -> int:
-        """Подтягивает оплаты звёздами, о которых Telegram не сообщил.
-
-        Сообщение об успешной оплате приходит один раз: если оно потерялось,
-        человек остаётся без доступа, хотя деньги списаны. Сверяемся с
-        официальным списком транзакций бота и применяем найденные оплаты тем же
-        путём, что и обычное подтверждение.
-        """
+        """Восстанавливает пропущенные оплаты по хронологической истории Stars."""
         self._check_now(now)
         provider = self._provider
-        if provider is None or getattr(provider, "provider_id", None) != "telegram_stars":
+        if provider is None or provider.provider_id != "telegram_stars" or not self._local_runtime():
             return 0
-        lister = getattr(provider, "star_transactions", None)
-        if not callable(lister):
+        read_page = getattr(provider, "star_transaction_page", None)
+        bot_id = getattr(provider, "bot_id", None)
+        if not callable(read_page) or bot_id is None:
             return 0
-        if not await self._db.has_stars_orders_awaiting_reconciliation(now=now):
-            # Нечего восстанавливать: не тревожим платёжный API Telegram.
-            return 0
+        page_size = max(1, min(100, limit))
+        async with self._stars_scan_lock:
+            offset, last_complete_at = await self._store.stars_reconciliation_progress(bot_id)
+            if not await self._db.has_stars_orders_awaiting_reconciliation(
+                now=now, last_complete_at=last_complete_at,
+            ):
+                return 0
+            applied = 0
+            for _ in range(5):
+                page = await read_page(limit=page_size, offset=offset)
+                if page is None:
+                    break
+                applied += await self._apply_stars_payments(page.payments, now=now)
+                # Сначала фиксируем платежи. Повтор страницы после сбоя безопасен.
+                offset += page.transaction_count
+                complete = page.transaction_count < page_size
+                await self._store.save_stars_reconciliation_progress(
+                    bot_id, offset, completed_at=now if complete else None,
+                )
+                if complete:
+                    break
+            return applied
+
+    async def _apply_stars_payments(
+        self, payments: tuple[tuple[str, str, int, float], ...], *, now: float,
+    ) -> int:
+        provider = self._provider
         applied = 0
-        for charge, payload, amount, observed in await lister(limit=limit):
+        for charge, payload, amount, observed in payments:
             try:
                 order_id, attempt_id = provider.parse_payload(payload)
             except PaymentVerificationError:

@@ -84,7 +84,7 @@ class ViewerDeliveryTests(unittest.IsolatedAsyncioTestCase):
         self.poller._build_private_live_text = AsyncMock(return_value="base")
         self.poller._build_keyboard = AsyncMock(return_value=None)
         self.poller._with_streamer_template = AsyncMock(
-            side_effect=lambda _chat, _login, content: content,
+            side_effect=lambda _chat, _login, content, **_kwargs: content,
         )
         self.assertIsNone(await StreamPoller._notify(
             self.poller, 101, "alpha", "Casual stream", 42, "Minecraft", direct=True,

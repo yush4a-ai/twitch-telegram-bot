@@ -113,6 +113,11 @@
       "reference",
       "requested_at"
     ],
+    "billing_stars_reconciliation": [
+      "bot_id",
+      "next_offset",
+      "last_complete_at"
+    ],
     "billing_webhook_events": [
       "provider",
       "event_id",

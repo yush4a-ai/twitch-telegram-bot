@@ -1672,21 +1672,22 @@ class Database:
 
     async def has_stars_orders_awaiting_reconciliation(
         self, *, now: float, lookback_seconds: float = 86400.0,
+        last_complete_at: float | None = None,
     ) -> bool:
         """Есть ли звёздный заказ, по которому ещё может понадобиться сверка.
 
         Нужно, чтобы воркер не обращался к платёжному API Telegram, когда
         восстанавливать нечего (например, публичная оплата выключена). Закрытые
-        заказы учитываются недавние: оплата по уже закрытому счёту может прийти
-        с задержкой, и её нельзя терять.
+        заказы учитываются после последней полной сверки, в том числе после простоя.
         """
+        cutoff = min(now - lookback_seconds, last_complete_at if last_complete_at is not None else 0.0)
         cursor = await self.conn.execute(
             "SELECT 1 FROM billing_orders WHERE provider='telegram_stars' "
             "AND grant_id IS NULL AND ("
             "status='pending' OR entitlement_state IN ('review','failed') "
             "OR (status IN ('cancelled','expired') AND COALESCE(closed_at, created_at) >= ?)"
             ") LIMIT 1",
-            (now - lookback_seconds,),
+            (cutoff,),
         )
         return await cursor.fetchone() is not None
 
@@ -2140,7 +2141,7 @@ class Database:
     @_serialized
     async def clean_transient_data(
         self, *, now: float, update_inbox_days: float = 7.0, expired_order_days: float = 30.0,
-        batch: int = 500,
+        batch: int = 500, stars_bot_id: int | None = None,
     ) -> dict[str, int]:
         """Убирает служебные данные, не трогая финансовые записи.
 
@@ -2168,9 +2169,11 @@ class Database:
             "SELECT o.order_id FROM billing_orders o "
             "WHERE o.status IN ('expired','cancelled') AND o.grant_id IS NULL "
             "AND COALESCE(o.closed_at, o.created_at) <= ? "
+            "AND (o.provider <> 'telegram_stars' OR COALESCE(o.closed_at, o.created_at) <= ("
+            "SELECT last_complete_at FROM billing_stars_reconciliation WHERE bot_id=?)) "
             "AND NOT EXISTS(SELECT 1 FROM billing_provider_facts f WHERE f.order_id = o.order_id) "
             "LIMIT ?",
-            (orders_cutoff, batch),
+            (orders_cutoff, stars_bot_id, batch),
         )
         order_ids = [row[0] for row in await cursor.fetchall()]
         for order_id in order_ids:
@@ -2780,24 +2783,26 @@ class Database:
         return (row[0], row[1], row[2], json.loads(row[3])) if row else None
 
     async def get_active_streamer_template_for_destination(
-        self, chat_id: int, twitch_login: str, *, now: float | None = None,
+        self, chat_id: int, twitch_login: str, *,
+        observed_broadcaster_id: str | None = None, now: float | None = None,
     ) -> StreamerTemplate | None:
         at = time.time() if now is None else now
         cursor = await self.conn.execute(
             "SELECT t.headline, t.body, t.buttons_json "
             "FROM tracked_channels tc JOIN streamer_identities i "
-            "ON i.broadcaster_id = tc.last_broadcaster_id "
+            "ON i.broadcaster_id = COALESCE(?, tc.last_broadcaster_id) "
             "AND i.twitch_login = tc.twitch_login "
             "JOIN streamer_communities c ON c.broadcaster_id = i.broadcaster_id "
             "AND c.chat_id = tc.chat_id "
             "JOIN streamer_post_templates t ON t.broadcaster_id = i.broadcaster_id "
             "AND t.chat_id = tc.chat_id "
-            "WHERE tc.chat_id = ? AND tc.twitch_login = ? AND tc.is_live = 1 "
+            "WHERE tc.chat_id = ? AND tc.twitch_login = ? "
+            "AND (tc.is_live = 1 OR ? IS NOT NULL) "
             "AND EXISTS(SELECT 1 FROM entitlement_grants g "
             "WHERE g.subject_kind = 'streamer' AND g.subject_id = i.broadcaster_id "
             "AND g.plan = 'streamer_plus' AND g.revoked_at IS NULL "
             "AND g.starts_at <= ? AND g.expires_at > ?) LIMIT 1",
-            (chat_id, twitch_login, at, at),
+            (observed_broadcaster_id, chat_id, twitch_login, observed_broadcaster_id, at, at),
         )
         row = await cursor.fetchone()
         if row is None:
@@ -4989,6 +4994,25 @@ class Database:
         Если Telegram временно не дал удалить сообщение, идентификатор и остальное
         состояние остаются для следующей попытки очистки.
         """
+        await self._clear_finished_session(chat_id, twitch_login)
+        await self.conn.commit()
+
+    @_serialized
+    async def finalize_report_session(
+        self, chat_id: int, twitch_login: str, stream_id: str | None,
+    ) -> None:
+        """Complete and, if possible, clear only the offline stream named by the report."""
+        cursor = await self.conn.execute(
+            "UPDATE tracked_channels SET stats_sent = 1, "
+            "last_stream_ended_at = COALESCE(offline_since, last_stream_ended_at) "
+            "WHERE chat_id = ? AND twitch_login = ? AND last_stream_id IS ? AND is_live = 0",
+            (chat_id, twitch_login, stream_id),
+        )
+        if cursor.rowcount:
+            await self._clear_finished_session(chat_id, twitch_login)
+        await self.conn.commit()
+
+    async def _clear_finished_session(self, chat_id: int, twitch_login: str) -> None:
         await self.conn.execute(
             "UPDATE tracked_channels SET last_title = NULL, last_stream_id = NULL, "
             "offline_since = NULL, stream_started_at = NULL, last_seen_live_at = NULL, "
@@ -5002,7 +5026,6 @@ class Database:
             "AND (last_message_id IS NULL OR live_post_ended = 1)",
             (chat_id, twitch_login),
         )
-        await self.conn.commit()
 
     @_serialized
     async def recover_finished_sessions(self) -> None:

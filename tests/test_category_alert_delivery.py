@@ -49,6 +49,51 @@ class CategoryDeliveryTests(unittest.IsolatedAsyncioTestCase):
     async def jobs(self, at=2000):
         return await self.queue.claim_due(at, limit=10, lease_seconds=60)
 
+    async def test_direct_mode_delivers_viewer_plus_without_claiming_live_jobs(self):
+        from bot.viewer_reminders import ViewerReminderService
+        from main import _make_notification_worker
+
+        await self.grant(101)
+        await self.grant(202)
+        await self.select(202, ids=("200",))
+        reminder = await ViewerReminderService(self.db).set_reminder(
+            101, "42", "stream-1", 15, now=1000,
+        )
+        now = reminder.due_at
+        await self.see("100", now - 62)
+        await self.see("200", now - 61)
+        self.assertIsNotNone(await self.see("200", now))
+        for chat_id in (101, 202):
+            await self.db.set_live_state(
+                chat_id, "alpha", True, "stream-1", None, "Live",
+                broadcaster_id="42", last_seen_live_at=now,
+            )
+        for kind in ("go_live", "live_update", "offline_cleanup"):
+            await self.queue.enqueue(kind, 101, "alpha", "stream-1", 1,
+                                     due_at=now - 1, now=now - 1)
+        bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=7)))
+        poller = StreamPoller(bot, self.db, SimpleNamespace(), 30, reminder_clock=lambda: now)
+        with patch("main.NotificationWorker", wraps=NotificationWorker) as factory:
+            # Keep the runtime factory in the exercise, with deterministic clocks.
+            factory.side_effect = lambda *args, **kwargs: NotificationWorker(
+                *args, **kwargs, clock=lambda: now,
+            )
+            worker = _make_notification_worker(SimpleNamespace(notification_queue_enabled=False), self.db, poller)
+        self.assertIsNotNone(worker)
+        with patch("bot.poller.time.time", return_value=now):
+            self.assertEqual(await worker.run_once(), 2)
+            self.assertEqual(await worker.run_once(), 0)
+
+        self.assertCountEqual([call.args[0] for call in bot.send_message.await_args_list], [101, 202])
+        self.assertEqual((await ViewerReminderService(self.db).for_user(101))["alpha"].status, "sent")
+        cursor = await self.db.conn.execute(
+            "SELECT kind,status,attempt_count FROM notification_jobs WHERE kind IN "
+            "('go_live','live_update','offline_cleanup') ORDER BY kind"
+        )
+        self.assertEqual(await cursor.fetchall(), [
+            ("go_live", "pending", 0), ("live_update", "pending", 0), ("offline_cleanup", "pending", 0),
+        ])
+
     async def test_free_and_opt_out_get_no_job_plus_selected_get_one(self):
         await self.grant(202)
         await self.select(202, ids=("200",))

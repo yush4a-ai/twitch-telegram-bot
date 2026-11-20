@@ -32,8 +32,9 @@ class NotificationJob:
 
 
 class NotificationQueue:
-    def __init__(self, db: Database) -> None:
+    def __init__(self, db: Database, *, viewer_plus_only: bool = False) -> None:
         self._db = db
+        self._viewer_plus_only = viewer_plus_only
 
     @asynccontextmanager
     async def _transaction(self):
@@ -239,9 +240,14 @@ class NotificationQueue:
                     "AND status='scheduled'",
                     (version, user_id, login, version),
                 )
+            kind_constraint = (
+                "AND kind IN ('viewer_reminder', 'viewer_category_change') "
+                if self._viewer_plus_only else ""
+            )
             cursor = await conn.execute(
                 "SELECT id FROM notification_jobs WHERE due_at <= ? "
                 "AND (status = 'pending' OR (status = 'leased' AND lease_until <= ?)) "
+                + kind_constraint +
                 "ORDER BY due_at, id LIMIT ?",
                 (now, now, limit),
             )

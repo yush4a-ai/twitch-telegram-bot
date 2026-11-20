@@ -313,14 +313,16 @@ class NotificationFlagTests(unittest.TestCase):
             with self.assertRaises(ConfigError):
                 load_config()
 
-    def test_runtime_worker_factory_is_off_by_default(self):
+    def test_runtime_worker_factory_limits_job_types_without_full_queue(self):
         poller = SimpleNamespace(send_queued_job=AsyncMock())
-        self.assertIsNone(application._make_notification_worker(
+        limited = application._make_notification_worker(
             SimpleNamespace(notification_queue_enabled=False), SimpleNamespace(), poller
-        ))
+        )
+        self.assertTrue(limited._queue._viewer_plus_only)
         worker = application._make_notification_worker(
             SimpleNamespace(notification_queue_enabled=True), SimpleNamespace(), poller
         )
+        self.assertFalse(worker._queue._viewer_plus_only)
         self.assertEqual(worker._max_concurrency, 4)
 
 

@@ -2,6 +2,7 @@ import os
 import tempfile
 import time
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -12,7 +13,7 @@ from bot.live_post import LivePostContent
 from bot.streamer_template import validate_streamer_template
 from bot.streamer_post import compose_streamer_post
 from bot.poller import StreamPoller
-from bot.twitch import TwitchClient
+from bot.twitch import StreamInfo, TwitchClient
 
 
 class StreamerTemplateValidationTests(unittest.TestCase):
@@ -106,6 +107,40 @@ class StreamerTemplateStorageTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.db.get_active_streamer_template_for_destination(-1001, "alpha", now=150))
         await self.db.set_live_state(-1001, "alpha", True, "s3", broadcaster_id="11")
         self.assertIsNone(await self.db.get_active_streamer_template_for_destination(-1001, "alpha", now=200))
+
+    async def test_direct_first_post_uses_template_before_broadcaster_is_stored(self):
+        now = time.time()
+        await self.db.register_telegram_channel(-1001, "News")
+        await self.db.issue_test_streamer_plus(
+            "11", "direct-template", starts_at=now - 5,
+            expires_at=now + 600, issued_by=909, now=now,
+        )
+        self.assertEqual(await self.db.save_streamer_template(
+            101, -1001, expected_version=0, headline="Synthetic headline",
+            body="", buttons=[], now=now,
+        ), 1)
+        self.assertIsNone(await self.db.get_active_streamer_template_for_destination(-1001, "alpha"))
+        stream = StreamInfo("alpha", "stream-1", "Title", "Game", 42,
+                            "2026-01-01T00:00:00Z", broadcaster_id="11")
+        twitch = SimpleNamespace(get_live_streams=AsyncMock(return_value={"alpha": stream}))
+        bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=7)))
+        poller = StreamPoller(bot, self.db, twitch, 60, notification_queue_enabled=False)
+
+        await poller._check_streams()
+
+        bot.send_message.assert_awaited_once()
+        self.assertIn("Synthetic headline", bot.send_message.await_args.args[1])
+        preview = await poller.build_preview_content(
+            SimpleNamespace(twitch_login="alpha", title="Title", game_name="Game", viewer_count=42),
+            SimpleNamespace(chat_id=-1001, include_track_link=True, last_stream_ended_at=None),
+        )
+        self.assertIn("Synthetic headline", preview.html)
+        for observed_id in ("22", None):
+            await poller._notify(
+                -1001, "alpha", "Title", 42, "Game", include_track_link=True,
+                stream=replace(stream, broadcaster_id=observed_id),
+            )
+            self.assertNotIn("Synthetic headline", bot.send_message.await_args.args[1])
 
     async def test_queued_live_and_preview_use_only_matching_current_broadcaster(self):
         grant_id = await self.db.issue_test_streamer_plus(

@@ -1171,6 +1171,7 @@ class StreamPoller:
                                 title, stream.viewer_count,
                                 game_name, return_note,
                                 include_track_link=include_track_link,
+                                stream=stream,
                             )
                             if update_result is LivePostUpdateResult.STALE_TARGET:
                                 continue
@@ -1196,6 +1197,7 @@ class StreamPoller:
                                         game_name,
                                         return_note,
                                         thumbnail_url,
+                                        stream=stream,
                                     )
                                     if photo_result.status is LivePostMediaStatus.APPLIED:
                                         message_kind = "photo"
@@ -1211,6 +1213,7 @@ class StreamPoller:
                                     game_name,
                                     return_note,
                                     include_track_link=include_track_link,
+                                    stream=stream,
                                 )
                                 message_kind = "text"
                     elif (
@@ -1256,6 +1259,7 @@ class StreamPoller:
                                     chat_id, login, title, stream.viewer_count, game_name, return_note,
                                     silent=True,
                                     include_track_link=include_track_link,
+                                    stream=stream,
                                 ) if await self._viewer_allows_private_alert(
                                     chat_id, login, title, game_name,
                                 ) else None
@@ -1352,6 +1356,7 @@ class StreamPoller:
                                 await self._notify(
                                     chat_id, login, title, stream.viewer_count, game_name, return_note,
                                     include_track_link=include_track_link,
+                                    stream=stream,
                                 ) if await self._viewer_allows_private_alert(
                                     chat_id, login, title, game_name,
                                 ) else None
@@ -1414,6 +1419,7 @@ class StreamPoller:
                             game_name,
                             return_note,
                             thumbnail_url,
+                            stream=stream,
                         )
                         if photo_result.status is LivePostMediaStatus.APPLIED:
                             message_kind = "photo"
@@ -1749,11 +1755,8 @@ class StreamPoller:
             attempted_deliveries.add(key)
             delivered = await self._deliver_persisted_report(delivery)
             if delivered:
-                await self._db.mark_stats_sent(
-                    delivery.source_chat_id, delivery.twitch_login
-                )
-                await self._db.clear_finished_session(
-                    delivery.source_chat_id, delivery.twitch_login
+                await self._db.finalize_report_session(
+                    delivery.source_chat_id, delivery.twitch_login, delivery.stream_id,
                 )
 
         pending = await self._db.pending_stats()
@@ -1808,8 +1811,7 @@ class StreamPoller:
                     existing_delivery
                 )
                 if delivered:
-                    await self._db.mark_stats_sent(chat_id, login)
-                    await self._db.clear_finished_session(chat_id, login)
+                    await self._db.finalize_report_session(chat_id, login, stream_id)
                 continue
 
             if not await self._automatic_report_enabled(chat_id, login):
@@ -1819,8 +1821,7 @@ class StreamPoller:
                     deliver=False, ended_at=offline_since,
                 )
                 if saved:
-                    await self._db.mark_stats_sent(chat_id, login)
-                    await self._db.clear_finished_session(chat_id, login)
+                    await self._db.finalize_report_session(chat_id, login, stream_id)
                 continue
 
             recipient_chat_id = await self._db.resolve_post_recipient(chat_id, login)
@@ -1849,8 +1850,7 @@ class StreamPoller:
                     mask_chat_id(recipient_chat_id),
                     mask_chat_id(chat_id),
                 )
-                await self._db.mark_stats_sent(chat_id, login)
-                await self._db.clear_finished_session(chat_id, login)
+                await self._db.finalize_report_session(chat_id, login, stream_id)
                 continue
 
             delivered = await self._send_stats(
@@ -1881,8 +1881,7 @@ class StreamPoller:
                         mask_chat_id(recipient_chat_id),
                         mask_chat_id(chat_id),
                     )
-                await self._db.mark_stats_sent(chat_id, login)
-                await self._db.clear_finished_session(chat_id, login)
+                await self._db.finalize_report_session(chat_id, login, stream_id)
 
     async def _automatic_report_enabled(self, chat_id: int, login: str) -> bool:
         if await self._db.is_telegram_channel(chat_id):
@@ -2848,6 +2847,7 @@ class StreamPoller:
         include_track_link: bool = False,
         direct: bool = False,
         respect_viewer_filter: bool = True,
+        stream: StreamInfo | None = None,
     ) -> int | None:
         if chat_id > 0 and not await self._db.is_personal_channel_active(chat_id, login):
             return None
@@ -2884,7 +2884,7 @@ class StreamPoller:
                 return None
             # Queue/rate-limit waits can outlive a Plus grant. Resolve the current
             # template at the actual Telegram dispatch boundary.
-            content = await self._with_streamer_template(chat_id, login, base_content)
+            content = await self._with_streamer_template(chat_id, login, base_content, stream=stream)
             if chat_id > 0 and not await self._db.is_personal_channel_active(chat_id, login):
                 return None
             if await self._private_alert_in_quiet_hours(chat_id, login):
@@ -2950,6 +2950,7 @@ class StreamPoller:
         image_url: str,
         *, propagate_retry_after: bool = False,
         require_live: bool | None = None,
+        stream: StreamInfo | None = None,
     ):
         target = LivePostTarget(
             chat_id=chat_id,
@@ -2967,6 +2968,7 @@ class StreamPoller:
             include_track_link=include_track_link,
             private_chat=chat_id > 0,
             chat_id=chat_id,
+            stream=stream,
         )
         state = await self._db.get_live_post_state(chat_id, login)
         if state is not None and (
@@ -3038,6 +3040,7 @@ class StreamPoller:
         include_track_link: bool = False,
         require_live: bool | None = None,
         propagate_retry_after: bool = False,
+        stream: StreamInfo | None = None,
     ) -> LivePostUpdateResult:
         """Обновляет current post и сохраняет типизированную lifecycle-семантику."""
         return await self._live_post_updater.update_content(
@@ -3056,6 +3059,7 @@ class StreamPoller:
                 include_track_link=include_track_link,
                 private_chat=chat_id > 0,
                 chat_id=chat_id,
+                stream=stream,
             ),
             require_live=require_live,
             propagate_retry_after=propagate_retry_after,
@@ -3072,6 +3076,7 @@ class StreamPoller:
         include_track_link: bool,
         private_chat: bool = False,
         chat_id: int | None = None,
+        stream: StreamInfo | None = None,
     ) -> LivePostContent:
         if private_chat:
             content = LivePostContent(
@@ -3089,14 +3094,17 @@ class StreamPoller:
                 ),
                 reply_markup=await self._build_keyboard(login),
             )
-        return await self._with_streamer_template(chat_id, login, content)
+        return await self._with_streamer_template(chat_id, login, content, stream=stream)
 
     async def _with_streamer_template(
         self, chat_id: int | None, login: str, content: LivePostContent,
+        *, stream: StreamInfo | None = None,
     ) -> LivePostContent:
-        if not self._notification_queue_enabled or chat_id is None or chat_id >= 0:
+        if chat_id is None or chat_id >= 0 or (stream is not None and not stream.broadcaster_id):
             return content
-        template = await self._db.get_active_streamer_template_for_destination(chat_id, login)
+        template = await self._db.get_active_streamer_template_for_destination(
+            chat_id, login, observed_broadcaster_id=stream.broadcaster_id if stream else None,
+        )
         return compose_streamer_post(content, template) if template else content
 
     async def build_preview_content(
@@ -3127,6 +3135,7 @@ class StreamPoller:
         return_note: str | None,
         *,
         include_track_link: bool,
+        stream: StreamInfo | None = None,
     ) -> int | None:
         async with self._live_post_updater.serialized(chat_id, message_id):
             state = await self._db.get_live_post_state(chat_id, login)
@@ -3154,4 +3163,5 @@ class StreamPoller:
                 silent=True,
                 include_track_link=include_track_link,
                 respect_viewer_filter=False,
+                stream=stream,
             )

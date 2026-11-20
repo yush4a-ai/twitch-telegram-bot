@@ -44,6 +44,9 @@ class Sender:
         self.invoices.append(fields)
         return SimpleNamespace(message_id=41)
 
+    async def get_star_transactions(self, **_query):
+        return SimpleNamespace(transactions=[])
+
 
 class TransientCleanupTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -80,7 +83,7 @@ class TransientCleanupTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(removed["updates"], 2)
         self.assertEqual(await self.count("telegram_update_inbox"), 2)
 
-    async def test_an_expired_unpaid_order_is_removed_with_its_attempts(self):
+    async def test_expired_stars_orders_are_kept_until_history_is_checked(self):
         result = await self.service.prepare_payment(101, "viewer_plus", "stars", "old-key", now=NOW - 40 * DAY)
         await self.db.conn.execute(
             "UPDATE billing_orders SET status='expired', financial_status='canceled', closed_at=? WHERE order_id=?",
@@ -88,7 +91,12 @@ class TransientCleanupTests(unittest.IsolatedAsyncioTestCase):
         )
         await self.db.conn.commit()
 
-        removed = await self.db.clean_transient_data(now=NOW, expired_order_days=30)
+        removed = await self.db.clean_transient_data(now=NOW, expired_order_days=30, stars_bot_id=self.sender.bot_id)
+        self.assertEqual(removed["orders"], 0)
+        self.assertEqual(await self.count("billing_payment_attempts"), 1)
+
+        self.assertEqual(await self.service.apply_stars_transactions(now=NOW), 0)
+        removed = await self.db.clean_transient_data(now=NOW, expired_order_days=30, stars_bot_id=self.sender.bot_id)
 
         self.assertEqual(removed["orders"], 1)
         self.assertEqual(await self.count("billing_orders"), 0)
